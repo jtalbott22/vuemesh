@@ -68,6 +68,8 @@ final class DisplayClient: ObservableObject {
     @Published var fetching: Fetching?         // a recording coming over from the studio
     @Published var playing: Playing?           // the one on screen
     @Published var browseError = ""
+    /// The studio knows modes (0.51 or later: its pongs carry its clock). An older one ignores them.
+    @Published var studioModes = true
 
     let renderer = SampleBufferRenderer()
     private(set) var eventId = ""
@@ -347,6 +349,7 @@ final class DisplayClient: ObservableObject {
         }
     }
     private func onPong(_ m: [String: Any]) {
+        studioModes = m["now"] != nil
         guard let at = (m["at"] as? NSNumber)?.doubleValue, let studio = (m["now"] as? NSNumber)?.doubleValue else { return }
         let t = Self.nowMs(), rtt = t - at
         guard rtt >= 0 else { return }

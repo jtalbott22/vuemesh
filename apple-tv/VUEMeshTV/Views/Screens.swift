@@ -135,26 +135,47 @@ struct ShowScreen: View {
 struct ModeMenu: View {
     @EnvironmentObject var client: DisplayClient
     let close: () -> Void
+    private enum Choice: Hashable { case program, browse, beacon, pip }
+    @FocusState private var focus: Choice?
+
+    /// Where focus starts: the mode on screen now.
+    private var current: Choice {
+        switch client.phase {
+        case .browse: return .browse
+        case .beacon: return .beacon
+        default: return .program
+        }
+    }
 
     var body: some View {
         VStack(spacing: 22) {
             Text("Show").font(Theme.label(34)).foregroundStyle(Theme.text2)
             HStack(spacing: 22) {
                 ModeButton(title: "Program", on: client.phase == .program) { pick("program") }
+                    .focused($focus, equals: .program)
                 ModeButton(title: "Browse recordings", on: client.phase == .browse) { pick("browse") }
+                    .focused($focus, equals: .browse)
                 ModeButton(title: "Beacon", on: client.phase == .beacon) { pick("beacon") }
+                    .focused($focus, equals: .beacon)
             }
-            HStack(spacing: 22) {
-                if client.phase == .browse || client.phase == .beacon {
-                    ModeButton(title: client.pip ? "PIP: on" : "PIP: off", on: client.pip) {
-                        client.want(client.modeName, pip: !client.pip)
-                    }
+            if client.phase == .browse || client.phase == .beacon {
+                ModeButton(title: client.pip ? "PIP: on" : "PIP: off", on: client.pip) {
+                    client.want(client.modeName, pip: !client.pip)
                 }
-                LinkButton(title: "Another event") { close(); client.leave() }
+                .focused($focus, equals: .pip)
             }
+            if !client.studioModes {
+                Text("This studio runs an older VUEMesh: Browse, Beacon and PIP need the studio updated to 0.51 or later.")
+                    .font(Theme.body(26)).foregroundStyle(Theme.error).multilineTextAlignment(.center).frame(maxWidth: 900)
+            }
+            LinkButton(title: "Another event") { close(); client.leave() }
         }
         .padding(50)
         .background(Theme.surface.opacity(0.96), in: RoundedRectangle(cornerRadius: 18))
+        .focusSection()
+        .defaultFocus($focus, current)
+        // (the menu appears over something that had focus: move it here, or nothing can be chosen)
+        .onAppear { DispatchQueue.main.async { focus = current } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.35).ignoresSafeArea())
     }
@@ -170,19 +191,33 @@ struct ModeButton: View {
     let title: String
     let on: Bool
     let action: () -> Void
-    @FocusState private var focused: Bool
     var body: some View {
-        Button(action: action) {
-            Text(title).font(Theme.label(36))
+        Button(action: action) { Text(title) }
+            .buttonStyle(ModeButtonStyle(on: on))
+    }
+}
+
+/// Draws its own focus (read from the button itself, so it's right however focus got there).
+struct ModeButtonStyle: ButtonStyle {
+    let on: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        Face(label: configuration.label, on: on, pressed: configuration.isPressed)
+    }
+    private struct Face<Label: View>: View {
+        let label: Label
+        let on: Bool
+        let pressed: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            label.font(Theme.label(36))
                 .foregroundStyle(focused ? Theme.black : Theme.text)
                 .padding(.horizontal, 34).padding(.vertical, 18)
                 .background(focused ? Theme.amber : Theme.cell, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(on ? Theme.text : .clear, lineWidth: 3))
+                .scaleEffect(focused ? 1.06 : 1)
+                .opacity(pressed ? 0.8 : 1)
+                .animation(.easeOut(duration: 0.15), value: focused)
         }
-        .buttonStyle(QuietButtonStyle())
-        .focused($focused)
-        .scaleEffect(focused ? 1.06 : 1)
-        .animation(.easeOut(duration: 0.15), value: focused)
     }
 }
 

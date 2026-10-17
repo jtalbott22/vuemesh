@@ -10,6 +10,9 @@
 - **Calibrate** (studio, TV screens, in Beacon): the studio shows a beacon of its own; scan it with a phone and `/tvcal` opens, reads this screen's beacon and the TV's in turn, and sends the difference back (the phone camera's delay drops out). The TV's lag is set, shown in the row, and its beacon lines up.
 - **Monitor** says what each TV is doing (program, browsing, sending a recording, beacon, + PIP), and counts a recording going to a TV in its rate.
 
+- **The Apple TV's mode menu takes focus when it opens.** It came up over the program with nothing focused, so nothing could be chosen until the app was left and re-entered; focus now goes to the mode on screen. Its buttons draw their focus from the button itself.
+- **A TV says when the studio is too old for modes.** A studio before 0.51 ignores Browse, Beacon and PIP; the TV now tells (the Apple TV's menu says so, `/tv` greys those out) instead of doing nothing.
+
 **Tests:** `e2e_display.py`: Browse chosen on the TV (the studio follows), the program recording listed, pulled and played; PIP shows the program in a corner (the studio ticks PIP); Beacon on the studio's clock with the game-mode hint until a lag is set, and a set lag reaching the TV.
 
 ## 0.50.0 — the Apple TV shows the picture; TVs and streams in Monitor; no TV code

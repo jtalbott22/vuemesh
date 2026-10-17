@@ -274,6 +274,10 @@ function renderModes() {
   document.querySelectorAll('#modes [data-want]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.want === mode)));
   $('#pipBtn').hidden = mode !== 'browse' && mode !== 'beacon';
   $('#pipBtn').setAttribute('aria-pressed', String(pip));
+  document.querySelectorAll('#modes button:not([data-want="program"])').forEach((b) => {
+    b.disabled = !studioModes;
+    b.title = studioModes ? '' : 'The studio runs an older VUEMesh: Browse, Beacon and PIP need it updated to 0.51 or later';
+  });
 }
 $('#modes').addEventListener('click', (e) => {
   const b = e.target.closest('button');
@@ -292,7 +296,12 @@ function ping() {
 function syncClock() {
   for (let i = 0; i < 8; i++) setTimeout(ping, i * 150);
 }
+let studioModes = true; // (an older studio, before 0.51, ignores modes: its pongs carry no clock)
 function onPong(m) {
+  if (studioModes !== Number.isFinite(m.now)) {
+    studioModes = Number.isFinite(m.now);
+    renderModes();
+  }
   const t = now(), rtt = t - m.at;
   if (!Number.isFinite(m.now) || !(rtt >= 0)) return;
   clockSamples.push({ rtt, off: m.now + rtt / 2 - t });
