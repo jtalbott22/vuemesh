@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.49.0 — Break and Black as sources; a T-bar that fits; TV screens you can paste into
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Break and Black are sources**, two tiles above the cameras with their pictures (the break slate as it's set, and black), instead of buttons under the program. With Tap: Preview, tap one to put it in preview; then AUTO dissolves to the slate or fades to black over the dissolve time, the T-bar fades by hand as slowly as you like (picture and sound), and CUT takes it straight there. Coming back works the same way, and whatever you left waits in preview (flip-flop): the camera after you go to black, black after you come back up. With Tap: Air, or tapping the one on air, it cuts straight there and back. B, X and Shift+X still work, and Fade to black stays under the program. With two fewer buttons, the row under the program fits on one line on a laptop.
+- **Microphone tiles show their picture**: what the program shows while that microphone is on air (the waveform, bars or ring, from its own sound), the same size as a camera's tile; the preview box shows the same.
+- **The T-bar works in a short window.** The switcher was sized for a tall monitor and ran off the top and bottom of a short one (a laptop with the mixer dock open), taking the T-bar's handle with it. It now stays inside the monitor: the T-bar gives up height first, and under about 380 px the MIDI button goes too.
+- **TV screens (/tv):** a code pastes in whole (the event code, or a TV code as the studio shows it, ABCD-EFGH), into any cell; it used to keep only the first character. **Full screen** (or F, or a double-click on the picture) and **Leave** (back to the code screen, and the studio stops sending) beside Sound; all three fade with the label, and so does the pointer.
+
+**Tests:** `e2e_switcher.py`: Black in preview, AUTO fades to black and back up (flip-flop both ways); the break by CUT and back; no Break or Black buttons. `e2e_showcontrol.py`: the Black tile lights on Shift+X and cuts back up. `e2e_display.py`: a pasted event code and a pasted TV code (with its dash, into the fourth cell) fill every cell; Full screen in and out; Leave.
+
 ## 0.48.0 — TV screens: the program on an Apple TV, or any browser at /tv
 **Deploy:** `./aws/deploy.sh` (functions and site: the cloud learns the TV role).
 

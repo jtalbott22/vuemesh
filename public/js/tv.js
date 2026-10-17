@@ -29,7 +29,6 @@ function cells(box, n) {
   box.innerHTML = '';
   const inputs = Array.from({ length: n }, (_, i) => {
     const el = document.createElement('input');
-    el.maxLength = 1;
     el.autocomplete = 'off';
     el.autocapitalize = 'characters';
     el.spellcheck = false;
@@ -38,14 +37,26 @@ function cells(box, n) {
     return el;
   });
   const value = () => inputs.map((i) => i.value).join('');
+  /** A run of characters (pasted, autofilled, typed fast) fills the cells from cell `from` on. */
+  const fill = (from, v) => {
+    [...v].slice(0, n - from).forEach((ch, k) => (inputs[from + k].value = ch));
+    inputs[Math.min(n - 1, from + v.length)].focus();
+    box.classList.remove('bad');
+  };
   inputs.forEach((el, i) => {
+    // (no maxLength on the cells: it cut a paste down to its first character before we saw it)
+    el.addEventListener('paste', (e) => {
+      const v = (e.clipboardData?.getData('text') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!v) return;
+      e.preventDefault();
+      fill(v.length >= n ? 0 : i, v); // a whole code ("ABCD-EFGH" too) goes from the first cell
+    });
     el.addEventListener('input', () => {
       const v = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      // a pasted or typed run fills the cells from here on
       if (v.length > 1) {
-        [...v].slice(0, n - i).forEach((ch, k) => (inputs[i + k].value = ch));
-        inputs[Math.min(n - 1, i + v.length)].focus();
-        return;
+        // typed over a filled cell: the new character is the one that counts
+        if (v.length === 2 && el.selectionStart != null) return fill(i, el.selectionStart <= 1 ? v[0] : v[1]);
+        return fill(i, v);
       }
       el.value = v;
       if (v && i < n - 1) inputs[i + 1].focus();
@@ -66,7 +77,8 @@ function show(view) {
   for (const v of ['joinView', 'waitView']) $('#' + v).hidden = v !== view;
   $('#out').hidden = view !== 'program';
   $('#umd').hidden = view !== 'program';
-  $('#soundBtn').hidden = view !== 'program';
+  $('#progCtl').hidden = view !== 'program';
+  if (view !== 'program' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 function waiting(say, { pair = false } = {}) {
   show('waitView');
@@ -260,7 +272,7 @@ $('#pairForm').onsubmit = (e) => {
   $('#pairCells').classList.remove('bad');
   say({ t: 'pair', code: pairCode.value().toUpperCase(), name: localStorage.getItem('vm_tv_name') || 'TV screen', model: 'Browser' });
 };
-$('#leaveBtn').onclick = () => {
+function leave() {
   drop();
   sock?.close();
   sock = null;
@@ -270,7 +282,23 @@ $('#leaveBtn').onclick = () => {
   eventCode.clear();
   show('joinView');
   eventCode.inputs[0].focus();
-};
+}
+$('#leaveBtn').onclick = leave;
+$('#exitBtn').onclick = leave;
+// Full screen: the button, F, or a double-click on the picture.
+const canFull = !!document.documentElement.requestFullscreen;
+$('#fullBtn').hidden = !canFull;
+function toggleFull() {
+  if (!canFull) return;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+$('#fullBtn').onclick = toggleFull;
+$('#out').addEventListener('dblclick', toggleFull);
+addEventListener('keydown', (e) => {
+  if (mode === 'program' && !$('#out').hidden && (e.key === 'f' || e.key === 'F') && !e.target.closest?.('input')) toggleFull();
+});
+document.addEventListener('fullscreenchange', () => ($('#fullBtn').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'));
 $('#soundBtn').onclick = () => {
   const v = $('#out');
   v.muted = !v.muted;

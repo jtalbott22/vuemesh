@@ -1,7 +1,8 @@
 # The switcher: Tap: Preview puts a source in preview (green tile, the preview box, PREVIEW on
 # the phone); AUTO dissolves it to air smoothly and flip-flops; the T-bar dissolves by hand
 # (halfway shows both pictures; all the way takes it); CUT takes preview straight to air;
-# Tap: Air goes back to tapping straight to air. Camera control: narrow strips, the width
+# The break and black are sources too: in preview, AUTO fades to black (and back up), CUT takes
+# the break and back. Tap: Air goes back to tapping straight to air. Camera control: narrow strips, the width
 # remembered, and a message to a camera from its strip.
 # Run: node dev/server.mjs &  then  python3 test/e2e_switcher.py
 import os, re, time
@@ -61,6 +62,28 @@ with sync_playwright() as p:
 
     host.click('#swCut'); time.sleep(0.6)
     assert 'Ben' in host.inner_text('#progLabel') and 'Ana' in host.inner_text('#pvwLabel')
+
+    # ---- the break and black are sources: in preview, then AUTO / the T-bar / CUT
+    host.select_option('#swDur', '2')
+    host.click('#multi [data-special="black"]')
+    host.wait_for_function("document.querySelector('#pvwLabel').textContent.includes('BLACK') && document.querySelector('#multi [data-special=black]').classList.contains('pvw')", timeout=5000)
+    host.click('#swAuto')
+    host.wait_for_function("document.querySelector('#progLabel').textContent === 'FADING TO BLACK'", timeout=5000)
+    host.wait_for_function("document.querySelector('#progLabel').textContent === 'BLACK'", timeout=15000)
+    assert host.get_attribute('#multi [data-special="black"]', 'aria-pressed') == 'true' and 'Ben' in host.inner_text('#pvwLabel'), host.inner_text('#pvwLabel')
+    step('Black in preview, AUTO faded to black over the dissolve time (FADING TO BLACK, then BLACK); Ben waits in preview')
+    host.click('#swAuto')
+    host.wait_for_function("document.querySelector('#progLabel').textContent.includes('Ben') && !document.querySelector('#progLabel').classList.contains('black')", timeout=15000)
+    assert 'BLACK' in host.inner_text('#pvwLabel'), host.inner_text('#pvwLabel')
+    step('AUTO again faded back up on Ben; black waits in preview (flip-flop)')
+    host.click('#multi [data-special="break"]'); host.click('#swCut')
+    host.wait_for_function("document.querySelector('#progLabel').textContent === 'ON AIR · BREAK'", timeout=10000)
+    assert 'Ben' in host.inner_text('#pvwLabel'), host.inner_text('#pvwLabel')
+    host.click('#swCut')
+    host.wait_for_function("document.querySelector('#progLabel').textContent.includes('Ben') && document.querySelector('#pvwLabel').textContent.includes('BREAK')", timeout=10000)
+    step('Break: in preview, CUT to the slate (Ben waits in preview), CUT back to Ben (the break waits in preview)')
+    assert host.query_selector('#breakBtn') is None and host.query_selector('#blackBtn') is None
+    step('Break and Black are no longer buttons under the program')
     host.click('#switcher [data-tap="air"]'); host.click('.tile[data-peer]:has-text("Ana")'); time.sleep(0.6)
     assert 'Ana' in host.inner_text('#progLabel')
     step('CUT takes preview straight to air; Tap: Air puts a tapped source straight on air again')

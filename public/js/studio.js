@@ -218,7 +218,7 @@ const help = helpDialog('Studio help', [
   },
   {
     heading: 'Black, breaks and slates',
-    text: 'X fades the whole program to black, picture and sound together; Shift+X cuts straight to black. Once it’s black, the lower third, any clip and the break come off. Press X (or Shift+X) again to come back up on the camera you were on; cutting to another camera while it’s black lines it up for when you come back. The break slate has several looks (color bars, static, Please stand by, a test card, a VHS blue screen, a station clock), all with your message on top, previewed under Breaks. Slate sound adds the line-up tone with bars, or hiss with static, to the program.',
+    text: 'X fades the whole program to black, picture and sound together; Shift+X cuts straight to black. Once it’s black, the lower third, any clip and the break come off. Press X (or Shift+X) again to come back up on the camera you were on; cutting to another camera while it’s black lines it up for when you come back. The Black tile (above the cameras) does the same as Shift+X; with Tap: Preview it fades to black on the T-bar instead, as slowly as you push it. The break slate has several looks (color bars, static, Please stand by, a test card, a VHS blue screen, a station clock), all with your message on top, previewed under Breaks. Slate sound adds the line-up tone with bars, or hiss with static, to the program.',
   },
   {
     heading: 'Moments and markers',
@@ -238,7 +238,7 @@ const help = helpDialog('Studio help', [
   },
   {
     heading: 'Switcher: preview, dissolves and the T-bar',
-    text: 'The ⇅ button beside the program opens the switcher (the program shrinks to make room). Tap: Air (the usual) puts a source on air when you tap it or press its number. Tap: Preview puts it in preview instead: a green outline on its tile, a preview box in the corner of the program monitor (never in the program itself), and PREVIEW on that phone. Then CUT (Shift+Enter) takes it straight to air, AUTO (Enter) dissolves over the time you pick (¼, ½, 1, 2 or 3 s), and the T-bar dissolves by hand: push it from one end to the other; stop halfway and both pictures are on air. The bar glides, so a mouse, a finger on a touchscreen or a hardware fader dissolves smoothly. MIDI fader: press it, move a fader on any MIDI controller, and that fader is the T-bar. After a transition, what was on air goes to preview, ready to come back. Cameras set to AFV crossfade their sound with the picture. Each dissolve arrives in Edit as a dissolve, as long as it took live. Right-click a camera for Put in preview. Clips work the same way: with Tap: Preview, clicking a clip cues it in preview, paused at its first frame; it starts playing as the dissolve to it begins (or when CUT puts it on air), its sound fading in with its picture. When you go from a clip back to a camera, the clip returns to preview, cued at the start again.',
+    text: 'The ⇅ button beside the program opens the switcher (the program shrinks to make room). Tap: Air (the usual) puts a source on air when you tap it or press its number. Tap: Preview puts it in preview instead: a green outline on its tile, a preview box in the corner of the program monitor (never in the program itself), and PREVIEW on that phone. Then CUT (Shift+Enter) takes it straight to air, AUTO (Enter) dissolves over the time you pick (¼, ½, 1, 2 or 3 s), and the T-bar dissolves by hand: push it from one end to the other; stop halfway and both pictures are on air. The bar glides, so a mouse, a finger on a touchscreen or a hardware fader dissolves smoothly. MIDI fader: press it, move a fader on any MIDI controller, and that fader is the T-bar. After a transition, what was on air goes to preview, ready to come back. Cameras set to AFV crossfade their sound with the picture. Each dissolve arrives in Edit as a dissolve, as long as it took live. Right-click a camera for Put in preview. Clips work the same way: with Tap: Preview, clicking a clip cues it in preview, paused at its first frame; it starts playing as the dissolve to it begins (or when CUT puts it on air), its sound fading in with its picture. When you go from a clip back to a camera, the clip returns to preview, cued at the start again. The Break and Black tiles, above the cameras, are sources too: with Tap: Preview, tap one to put it in preview, then AUTO or the T-bar dissolves to the break slate or fades to black over as long as you like (sound too), and back again the same way; with Tap: Air, or tapping the one on air, it cuts straight there and back. B, X and Shift+X still work. Microphone tiles show the picture the program shows while that microphone is on air, drawn from its own sound.',
   },
   {
     heading: 'Cameras and microphones on this computer',
@@ -1133,7 +1133,8 @@ function renderLive() {
       l.tile.type = 'button';
       l.tile.className = 'mic';
       l.tile.dataset.peer = peer;
-      l.tile.innerHTML = `<span class="glyph" aria-hidden="true">M</span><b></b><span class="meter" aria-hidden="true"><i></i></span>`;
+      // (its picture: what the program shows while it's on air, drawn from its own sound)
+      l.tile.innerHTML = `<canvas class="mv" width="320" height="180" aria-hidden="true"></canvas><span class="glyph" aria-hidden="true">M</span><b></b><span class="meter" aria-hidden="true"><i></i></span>`;
       l.tile.onclick = () => takeSource(peer);
       box.prepend(l.tile);
     }
@@ -1147,6 +1148,61 @@ function renderLive() {
     l.tile.classList.toggle('pvw', peer === pvw);
     l.tile.setAttribute('aria-label', `Microphone ${n}, ${l.name}${peer === liveActive ? ', on air' : ''}. Put it on air.`);
   });
+  renderSpecials();
+}
+
+// ---- the break and black as sources: tiles beside the cameras -----------------------------
+function renderSpecials() {
+  const box = $('#multi');
+  if (KIOSK || !box || mode !== 'live') return;
+  let row = box.querySelector('.specials');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'cam specials';
+    row.innerHTML = [['break', 'Break', 'B', 'The break slate (B cuts to it)'], ['black', 'Black', '⇧X', 'Black (Shift+X cuts to it, X fades)']]
+      .map(([k, name, key, title]) => `<button type="button" class="tile special" data-special="${k}" title="${title}"><canvas width="320" height="180" aria-hidden="true"></canvas><span class="n">${key}</span><span class="who">${name}</span></button>`).join('');
+    row.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-special]');
+      if (b) takeSpecial(b.dataset.special);
+    });
+    box.append(row);
+  }
+  row.style.display = '';
+  const air = { break: onBreak() && black.target !== 1, black: black.target === 1 };
+  for (const b of row.querySelectorAll('[data-special]')) {
+    const k = b.dataset.special;
+    b.classList.toggle('live', air[k]);
+    b.classList.toggle('pvw', pvwSpecial === k);
+    b.setAttribute('aria-pressed', String(air[k]));
+    b.setAttribute('aria-label', `${k === 'black' ? 'Black' : 'The break'}${air[k] ? ', on air. Tap to come back.' : tapMode === 'preview' ? '. Put it in preview.' : '. Put it on air.'}`);
+  }
+}
+/** The source tiles that are pictures we draw (the break, black, each microphone): about 8 a second. */
+let srcPrevAt = 0;
+function drawSourcePreviews() {
+  if (document.hidden || stalled() || performance.now() - srcPrevAt < 125) return;
+  srcPrevAt = performance.now();
+  const brk = document.querySelector('#multi [data-special="break"] canvas');
+  if (brk?.offsetParent) drawSlate(brk.getContext('2d'), brk.width, brk.height, { ...slateText(), look: slateLook, t: performance.now(), now: now() });
+  const blk = document.querySelector('#multi [data-special="black"] canvas');
+  if (blk?.offsetParent && !blk.dataset.drawn) {
+    const g = blk.getContext('2d');
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, blk.width, blk.height);
+    blk.dataset.drawn = '1';
+  }
+  for (const peer of micPeers()) {
+    const c = live.get(peer)?.tile?.querySelector('canvas.mv');
+    if (c?.offsetParent) drawMicVisual(c.getContext('2d'), c.width, c.height, micTileOpts(peer));
+  }
+}
+/** One microphone's own sound and name for its picture (its tile, the preview box). */
+const micTile = new Map(); // peer → { env, at, caps }
+function micTileOpts(peer) {
+  const an = mix.strips.get(peer)?.pre;
+  let st = micTile.get(peer);
+  if (!st) micTile.set(peer, (st = { env: new Float32Array(90), at: 0, caps: new Float32Array(64) }));
+  return { an, spec: an, state: st, name: live.get(peer)?.name || '' };
 }
 
 function cutLive(peer, autoReason, opts = {}) {
@@ -1167,7 +1223,8 @@ function cutLive(peer, autoReason, opts = {}) {
   // (the live cut that Edit starts from is pictures: a microphone on air doesn't change it)
   if (l.cid && l.role !== 'mic') {
     snapshot();
-    cut.edl.push({ t: (opts.at ?? now()) - LIVE_DELAY, cid: l.cid, ...(opts.dissolveMs >= 40 ? { dissolve: Math.round(opts.dissolveMs) } : {}) }); // (a dissolve: from when it began, as long as it took)
+    // (from black, the fade up puts the camera in the live cut: see toggleBlack)
+    if (!opts.underBlack) cut.edl.push({ t: (opts.at ?? now()) - LIVE_DELAY, cid: l.cid, ...(opts.dissolveMs >= 40 ? { dissolve: Math.round(opts.dissolveMs) } : {}) }); // (a dissolve: from when it began, as long as it took)
     saveCut();
     if (seq.auto && clips.length) {
       rebuild(false);
@@ -1179,7 +1236,7 @@ function cutLive(peer, autoReason, opts = {}) {
   renderLive();
   syncBreakUi();
   syncTally();
-  if (!autoReason) blackHint();
+  if (!autoReason && !opts.underBlack) blackHint();
   if (pvw === peer) pvw = null;
   note(`${opts.dissolve ? 'Dissolve' : autoReason ? 'Auto' : 'Cut'}: ${l.role === 'mic' ? `microphone ${micKey(peer) || ''}` : `camera ${angleOfCid(l.cid)}`} (${l.name})${autoReason ? ' — ' + autoReason : ''}`);
   announce(`Cut to camera ${angleOfCid(l.cid)}, ${l.name}`);
@@ -1459,7 +1516,7 @@ function syncTally() {
     swTallied = inc;
   }
   localRecFollow();
-  const pv = pvw && live.has(pvw) && (pvw !== liveActive || mediaOn) ? pvw : null;
+  const pv = pvw && live.has(pvw) && (pvw !== liveActive || airCovered()) ? pvw : null;
   if (pv !== pvwTallied) {
     if (pvwTallied) hub?.send(pvwTallied, { t: 'pvw', on: false });
     if (pv) hub?.send(pv, { t: 'pvw', on: true });
@@ -1769,7 +1826,13 @@ function mixGates() {
     const { mode } = mixState(l.cid || peer, l.role);
     // AFV follows the picture, through a dissolve too: out goes down as in comes up
     const tr = swActive();
-    const afv = mode === 'afv' && !onBreak() ? (peer === liveActive && !mediaOn ? (tr ? 1 - sw.p : 1) : peer === sw.to ? sw.p : 0) : 0;
+    // (through a dissolve out of the break, the incoming camera's sound comes up with its picture)
+    const brk = onBreak() && !(tr && sw.fromSpecial === 'break');
+    let afv = 0;
+    if (mode === 'afv' && !brk) {
+      if (tr && peer === sw.to) afv = sw.p;
+      else if (peer === liveActive && !mediaOn && !(tr && sw.fromSpecial === 'break')) afv = tr ? 1 - sw.p : 1;
+    }
     const level = mode === 'on' ? 1 : afv;
     const open = level > 0.001;
     st.open = open;
@@ -3906,7 +3969,6 @@ function updateAutoBreak() {
 }
 
 function syncBreakUi() {
-  $('#breakBtn').setAttribute('aria-pressed', String(breakManual));
   $('#slateTag').hidden = !onBreak();
   $('#slateTag').textContent = breakManual ? 'BREAK' : 'AUTO BREAK';
   syncTally();
@@ -3914,8 +3976,11 @@ function syncBreakUi() {
 }
 
 function toggleBreak() {
-  if (!isHost) return;
-  breakManual = !breakManual;
+  setBreak(!breakManual);
+}
+function setBreak(on) {
+  if (!isHost || on === breakManual) return;
+  breakManual = on;
   if (!breakManual && !liveActive && lastLive && live.has(lastLive)) liveActive = lastLive;
   syncBreakUi();
   mixFollowCut();
@@ -3923,7 +3988,6 @@ function toggleBreak() {
   note(breakManual ? 'Break called' : 'Break over');
   announce(breakManual ? 'Break slate on air' : 'Break over');
 }
-$('#breakBtn').onclick = toggleBreak;
 
 // ---- black: cut or fade the whole program to black, picture and sound ---------------------
 // Like a vision mixer's FTB: a layer over everything (the program recording and Program out
@@ -3933,28 +3997,33 @@ $('#ftbTime').value = localStorage.getItem('vm_ftb_ms') || '1000';
 $('#ftbTime').onchange = (e) => localStorage.setItem('vm_ftb_ms', e.target.value);
 const ftbMs = () => +$('#ftbTime').value || 1000;
 function blackLevel() {
+  // the T-bar fading to black, or up from it
+  if (swActive() && sw.toSpecial === 'black') return sw.p;
+  if (swActive() && sw.fromSpecial === 'black') return 1 - sw.p;
   if (!black.dur) return black.target;
   const k = Math.min(1, Math.max(0, (performance.now() - black.start) / black.dur));
   return black.from + (black.target - black.from) * k;
 }
-function toggleBlack(fade) {
+/** `took`: the T-bar (or AUTO) already faded it over this many ms; it only needs to land. */
+function toggleBlack(fade, took = 0) {
   if (!isHost || mode !== 'live') return;
   const on = black.target !== 1;
-  const dur = fade ? ftbMs() : 0;
-  Object.assign(black, { from: blackLevel(), target: on ? 1 : 0, start: performance.now(), dur, cleared: !on });
+  const dur = took ? 0 : fade ? ftbMs() : 0;
+  Object.assign(black, { from: took ? (on ? 1 : 0) : blackLevel(), target: on ? 1 : 0, start: performance.now(), dur, cleared: !on });
   mixInit();
   const gn = mix.ftb.gain, t0 = player.ctx.currentTime;
   gn.cancelScheduledValues(t0);
   gn.setValueAtTime(1 - black.from, t0);
   if (dur) gn.linearRampToValueAtTime(on ? 0 : 1, t0 + dur / 1000);
   else gn.setValueAtTime(on ? 0 : 1, t0);
+  const fadeMs = took || dur;
   player.ctx.resume();
   if (!on && !liveActive && lastLive && live.has(lastLive) && !breakManual) liveActive = lastLive;
   // the live cut keeps the fade: to black (the shot before fades out in Edit), and back (the next fades in)
   if (cut?.edl) {
     const t = now() - LIVE_DELAY, l = live.get(liveActive);
-    if (on) cut.edl.push({ t: t + dur, black: true, fade: dur }); // (black from when the fade ends: the shot fades out to it)
-    else if (l?.cid && l.role !== 'mic' && !mediaOn) cut.edl.push({ t, cid: l.cid, fadeIn: dur });
+    if (on) cut.edl.push({ t: t + dur, black: true, fade: fadeMs }); // (black from when the fade ends: the shot fades out to it)
+    else if (l?.cid && l.role !== 'mic' && !mediaOn) cut.edl.push({ t: t - took, cid: l.cid, fadeIn: fadeMs });
     saveCut();
   }
   // coming up from black starts the recording (with "Record the program with the fades", or on autopilot)
@@ -3965,15 +4034,15 @@ function toggleBlack(fade) {
   syncBlackUi();
   syncTally();
   renderLive();
+  if (took) fade = true;
   note(on ? (fade ? 'Fade to black' : 'Cut to black') : fade ? 'Fade up from black' : 'Cut up from black');
   announce(on ? (fade ? 'Fading to black' : 'Black') : 'Back from black');
 }
 function syncBlackUi() {
   const on = black.target === 1;
-  $('#ftbBtn').setAttribute('aria-pressed', String(on && black.dur > 0));
-  $('#blackBtn').setAttribute('aria-pressed', String(on && !black.dur));
+  $('#ftbBtn').setAttribute('aria-pressed', String(on));
   if ($('#ftbBtn').firstChild) $('#ftbBtn').firstChild.textContent = on ? 'Fade up ' : 'Fade to black ';
-  if ($('#blackBtn').firstChild) $('#blackBtn').firstChild.textContent = on ? 'Cut up ' : 'Black ';
+  renderSpecials();
 }
 /** Fully black: take everything else off air. */
 function atBlack() {
@@ -4019,10 +4088,11 @@ function drawBlack(g, W, H) {
     g.restore();
   }
   if (black.target === 1 && a >= 1 && !black.cleared) atBlack();
-  const showing = a > 0 || black.target === 1;
+  const showing = a > 0.001 || black.target === 1;
   $('#progLabel').classList.toggle('black', showing);
   $('#progFrame').classList.toggle('black', a >= 1);
-  if (showing) $('#progLabel').textContent = a >= 1 ? 'BLACK' : black.target === 1 ? 'FADING TO BLACK' : 'FADING UP';
+  const down = swActive() && (sw.toSpecial === 'black' || sw.fromSpecial === 'black') ? sw.toSpecial === 'black' : black.target === 1; // (the T-bar's way, while it's moving)
+  if (showing) $('#progLabel').textContent = a >= 1 ? 'BLACK' : down ? 'FADING TO BLACK' : 'FADING UP';
 }
 let blackHintAt = 0;
 function blackHint() {
@@ -4031,7 +4101,6 @@ function blackHint() {
   toast('The program is black. Press X to fade up (Shift+X to cut up).', 4000);
 }
 $('#ftbBtn').onclick = () => toggleBlack(true);
-$('#blackBtn').onclick = () => toggleBlack(false);
 
 // Media reel: sponsor spots for breaks, and images for the edit.
 const reel = [];
@@ -4449,7 +4518,6 @@ $('#micLook').onchange = (e) => {
   localStorage.setItem('vm_miclook', micLook);
 };
 const micEnv = new Float32Array(180), micT = new Float32Array(4096), micF = new Float32Array(8192), micCaps = new Float32Array(64);
-let micEnvAt = 0;
 function micOnlyUp() {
   if (!mix.bus || !mix.meterL || !mix.spec) return false;
   if (camOrder().some((p) => { const l = live.get(p); return l && !l.paused && !l.overflow && l.video?.readyState >= 2; })) return false;
@@ -4457,38 +4525,42 @@ function micOnlyUp() {
   return false;
 }
 const micNames = () => [...live.values()].filter((l) => l.role === 'mic').map((l) => l.name).join(' · ');
-function drawMicVisual(g, W, H) {
+/** The sound as a picture: the program's (on air), or `o` one microphone's (an, spec, state, name). */
+const programMic = { env: micEnv, at: 0, caps: micCaps };
+function drawMicVisual(g, W, H, o = {}) {
   const u = Math.min(W, H), t = performance.now();
+  const an = o.an || mix.meterL, sp = o.spec || mix.spec, st = o.state || programMic, env = st.env;
   const bg = g.createRadialGradient(W / 2, H * 0.45, u * 0.1, W / 2, H / 2, Math.hypot(W, H) * 0.6);
   bg.addColorStop(0, '#15203f');
   bg.addColorStop(1, '#04060c');
   g.fillStyle = bg;
   g.fillRect(0, 0, W, H);
-  const td = micT.subarray(0, mix.meterL.fftSize);
-  mix.meterL.getFloatTimeDomainData(td);
+  if (!an || !sp) return; // (no sound yet)
+  const td = micT.subarray(0, an.fftSize);
+  an.getFloatTimeDomainData(td);
   let ss = 0;
   for (let i = 0; i < td.length; i++) ss += td[i] * td[i];
   const lvl = Math.min(1, Math.sqrt(Math.sqrt(ss / td.length)) * 1.6);
-  if (t - micEnvAt > 50) {
-    micEnvAt = t;
-    micEnv.copyWithin(0, 1);
-    micEnv[micEnv.length - 1] = lvl;
+  if (t - st.at > 50) {
+    st.at = t;
+    env.copyWithin(0, 1);
+    env[env.length - 1] = lvl;
   }
   const grad = g.createLinearGradient(0, H * 0.22, 0, H * 0.78);
   grad.addColorStop(0, '#ff6b9a');
   grad.addColorStop(0.5, '#7b8cff');
   grad.addColorStop(1, '#3ad1c5');
   if (micLook === 'wave') {
-    const n = micEnv.length, x0 = W * 0.08, bw = (W * 0.84) / n, cy = H * 0.5, hmax = H * 0.27;
+    const n = env.length, x0 = W * 0.08, bw = (W * 0.84) / n, cy = H * 0.5, hmax = H * 0.27;
     g.fillStyle = grad;
     for (let i = 0; i < n; i++) {
-      const h = Math.max(2, micEnv[i] * hmax);
+      const h = Math.max(2, env[i] * hmax);
       g.globalAlpha = 0.3 + 0.7 * (i / n);
       g.fillRect(x0 + i * bw + bw * 0.15, cy - h, bw * 0.7, h * 2);
     }
     g.globalAlpha = 1;
   } else {
-    const sp = mix.spec, fd = micF.subarray(0, sp.frequencyBinCount), ny = sp.context.sampleRate / 2;
+    const fd = micF.subarray(0, sp.frequencyBinCount), ny = sp.context.sampleRate / 2, caps = st.caps;
     sp.getFloatFrequencyData(fd);
     const nb = micLook === 'ring' ? 64 : 48;
     const band = (i) => {
@@ -4501,11 +4573,11 @@ function drawMicVisual(g, W, H) {
       const x0 = W * 0.1, bw = (W * 0.8) / nb, base = H * 0.72, hmax = H * 0.46;
       for (let i = 0; i < nb; i++) {
         const v = band(i);
-        micCaps[i] = Math.max(v, micCaps[i] - 0.012);
+        caps[i] = Math.max(v, caps[i] - 0.012);
         g.fillStyle = grad;
         g.fillRect(x0 + i * bw + bw * 0.12, base - v * hmax, bw * 0.76, v * hmax);
         g.fillStyle = '#ffffffcc';
-        g.fillRect(x0 + i * bw + bw * 0.12, base - micCaps[i] * hmax - 3, bw * 0.76, 3);
+        g.fillRect(x0 + i * bw + bw * 0.12, base - caps[i] * hmax - 3, bw * 0.76, 3);
       }
     } else {
       const cx = W / 2, cy = H * 0.49, r0 = u * 0.16, rl = u * 0.16;
@@ -4532,7 +4604,7 @@ function drawMicVisual(g, W, H) {
   g.fillText(ev?.title || '', W / 2, H * 0.12, W * 0.9);
   g.fillStyle = '#b9c2e6';
   g.font = `600 ${Math.round(u * 0.04)}px Archivo, system-ui, sans-serif`;
-  g.fillText(`🎙 ${liveActive && isMic(liveActive) ? live.get(liveActive).name : micNames()}`, W / 2, H * 0.87, W * 0.9);
+  g.fillText(`🎙 ${o.name ?? (liveActive && isMic(liveActive) ? live.get(liveActive).name : micNames())}`, W / 2, H * 0.87, W * 0.9);
   g.fillStyle = Math.floor(t / 600) % 2 ? '#e0362b77' : '#e0362b';
   g.beginPath();
   g.arc(W / 2 - u * 0.085, H * 0.2, u * 0.012, 0, Math.PI * 2);
@@ -4571,7 +4643,7 @@ function drawBreak(g, W, H) {
 // ---- the live program -----------------------------------------------------------------
 
 const pg = program.getContext('2d');
-let wasBreak = false;
+let wasBreak = false, slateLayer = null;
 function drawLiveFrame() {
   if (mode !== 'live') return;
   updateAutoBreak();
@@ -4615,8 +4687,13 @@ function drawLiveFrame() {
   // a transition in progress: the incoming source over the outgoing one, by how far it's gone
   if (swActive() && sw.p > 0.001) {
     const b = live.get(sw.to), r = reelOf(sw.toClip);
-    pg.globalAlpha = Math.min(1, sw.p);
-    if (r) {
+    pg.globalAlpha = sw.fromSpecial === 'black' ? 1 : Math.min(1, sw.p); // (from black: the black lifts off it)
+    if (sw.toSpecial === 'break' && sw.fromSpecial !== 'black') {
+      const c = (slateLayer ||= document.createElement('canvas'));
+      if (c.width !== W || c.height !== H) Object.assign(c, { width: W, height: H });
+      drawSlate(c.getContext('2d'), W, H, { ...slateText(), look: slateLook, t: performance.now(), now: now() });
+      pg.drawImage(c, 0, 0);
+    } else if (r) {
       const el = r.prog || r.el;
       if (el && (el.readyState === undefined ? el.complete : el.readyState >= 2)) {
         pg.save();
@@ -4629,14 +4706,16 @@ function drawLiveFrame() {
     } else if (b && isMic(sw.to)) drawMicVisual(pg, W, H);
     else if (b?.video?.readyState >= 2) drawFramed(pg, b.video, W, H, fit, null, b.view?.rect || null);
     pg.globalAlpha = 1;
-    const fromName = sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name;
-    const toName = r ? r.name : b?.name;
+    const SPECIAL = { black: 'BLACK', break: 'BREAK' };
+    const fromName = SPECIAL[sw.fromSpecial] || (sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name);
+    const toName = SPECIAL[sw.toSpecial] || (r ? r.name : b?.name);
     if (toName) $('#progLabel').textContent = `ON AIR · ${fromName || '—'} → ${toName} · ${Math.round(sw.p * 100)}%`;
   }
   drawLowerThird(pg, W, H);
   slateSound(slateUp);
   drawBlack(pg, W, H);
   drawSlatePreview();
+  drawSourcePreviews();
   const clock = new Date(now()).toLocaleTimeString();
   $('#ptc').textContent = clock;
   $('#clock').textContent = clock;
@@ -4652,13 +4731,41 @@ function drawLiveFrame() {
 // old way: tap a source and it's on air.
 var pvw = null; // (var: drawing starts before this line runs)
 var pvwClip = null; // a clip in preview (by id): cued, paused at its first frame
-var sw = { from: null, to: null, toClip: null, fromClip: null, p: 0, target: 0, rest: 0, pos: 0, auto: null, midAt: null };
+var pvwSpecial = null; // the break or black in preview ('break' | 'black')
+// (toSpecial / fromSpecial: a dissolve to or from the break or black)
+var sw = { from: null, to: null, toClip: null, toSpecial: null, fromClip: null, fromSpecial: null, p: 0, target: 0, rest: 0, pos: 0, auto: null, midAt: null };
 let tapMode = localStorage.getItem('vm_tapmode') === 'preview' ? 'preview' : 'air';
-const swActive = () => !!(sw.to || sw.toClip);
+const swActive = () => !!(sw.to || sw.toClip || sw.toSpecial);
+/** The break or black on air (taken by hand), if either is. */
+const airSpecial = () => (black.target === 1 ? 'black' : breakManual ? 'break' : null);
+/** Something covers the camera on air (a clip, the break, black): that camera can wait in preview. */
+const airCovered = () => !!mediaOn || onBreak() || black.target === 1;
+const inPreview = () => !!(pvw || pvwClip || pvwSpecial);
 const reelOf = (id) => reel.find((x) => x.id === id);
 function takeSource(peer) {
-  if (tapMode === 'preview' && (peer !== liveActive || mediaOn)) setPreview(peer);
+  if (tapMode === 'preview' && (peer !== liveActive || airCovered())) setPreview(peer);
   else cutLive(peer);
+}
+// The break and black are sources too: Tap: Preview puts one in preview, for CUT, AUTO or the
+// T-bar (a fade to black as long as you like); Tap: Air, or tapping the one on air, cuts
+// straight to it or back. B and Shift+X still cut, X still fades.
+function takeSpecial(kind) {
+  if (!isHost || mode !== 'live') return;
+  const onAir = kind === 'black' ? black.target === 1 : breakManual;
+  if (tapMode === 'preview' && !onAir) return setPreviewSpecial(kind);
+  if (kind === 'black') toggleBlack(false);
+  else toggleBreak();
+}
+function setPreviewSpecial(kind) {
+  if (swActive()) return toast('Finish the transition first');
+  pvw = null;
+  pvwClip = null;
+  pvwSpecial = kind;
+  renderSwitcher();
+  renderLive();
+  renderClips();
+  syncTally();
+  announce(`Preview: ${kind === 'black' ? 'black' : 'the break'}`);
 }
 // Clips follow the switcher too: Tap: Preview cues a clip in preview, paused at its first
 // frame; it starts playing as it goes on air (CUT) or as the dissolve to it begins.
@@ -4676,9 +4783,9 @@ function cueClip(r) {
 }
 function setPreview(peer) {
   if (swActive()) return toast('Finish the transition first');
-  pvw = peer && (peer !== liveActive || mediaOn) && live.has(peer) ? peer : null;
-  if (pvw) pvwClip = null;
-  if (!pvw && !pvwClip) $('#pvwBox').hidden = true;
+  pvw = peer && (peer !== liveActive || airCovered()) && live.has(peer) ? peer : null;
+  if (pvw) pvwClip = pvwSpecial = null;
+  if (!inPreview()) $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -4689,6 +4796,7 @@ function setPreview(peer) {
 function clearPreview() {
   pvw = null;
   pvwClip = null;
+  pvwSpecial = null;
   $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
@@ -4700,11 +4808,11 @@ function setPreviewClip(id) {
   const r = reelOf(id);
   pvwClip = r && mediaOn?.id !== id ? id : null;
   if (pvwClip) {
-    pvw = null;
+    pvw = pvwSpecial = null;
     cueClip(r);
     announce(`Preview: ${r.name}, cued at the start`);
   }
-  if (!pvw && !pvwClip) $('#pvwBox').hidden = true;
+  if (!inPreview()) $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -4712,10 +4820,21 @@ function setPreviewClip(id) {
 }
 function startTransition() {
   if (!isHost) return false;
+  const fromSpecial = airSpecial();
+  if (pvwSpecial) {
+    if (pvwSpecial === fromSpecial) return false;
+    Object.assign(sw, { from: liveActive, fromClip: mediaOn?.id || null, fromSpecial, to: null, toClip: null, toSpecial: pvwSpecial, midAt: null, began: performance.now(), startAt: now(), breakUnder: false });
+    // the break comes up from black: it goes on under the black, which then lifts
+    if (pvwSpecial === 'break' && fromSpecial === 'black') {
+      setBreak(true);
+      sw.breakUnder = true;
+    }
+    return true;
+  }
   if (pvwClip) {
     const r = reelOf(pvwClip);
     if (!r) return false;
-    Object.assign(sw, { from: liveActive, fromClip: mediaOn?.id || null, to: null, toClip: r.id, midAt: null, began: performance.now(), startAt: now() });
+    Object.assign(sw, { from: liveActive, fromClip: mediaOn?.id || null, fromSpecial, to: null, toClip: r.id, toSpecial: null, midAt: null, breakUnder: false, began: performance.now(), startAt: now() });
     // it starts as the dissolve to it begins
     if (r.prog) {
       r.prog.loop = !!r.loop;
@@ -4729,7 +4848,7 @@ function startTransition() {
   if (!pvw || !live.has(pvw)) return false;
   const l = live.get(pvw);
   if (l.overflow || l.paused) return toast(`${l.name} can't go on air right now`), false;
-  Object.assign(sw, { from: liveActive, fromClip: mediaOn?.id || null, to: pvw, toClip: null, midAt: null, began: performance.now(), startAt: now() });
+  Object.assign(sw, { from: liveActive, fromClip: mediaOn?.id || null, fromSpecial, to: pvw, toClip: null, toSpecial: null, midAt: null, breakUnder: false, began: performance.now(), startAt: now() });
   syncTally(); // (both on air through the dissolve: the incoming one's tally comes on now, and it starts recording)
   return true;
 }
@@ -4741,9 +4860,9 @@ function setBar(pos) {
   sw.pos = pos;
   sw.target = Math.abs(pos - sw.rest);
 }
-const NOTHING_IN_PREVIEW = 'Put a source or a clip in preview first (Tap: Preview, or right-click a camera)';
+const NOTHING_IN_PREVIEW = 'Put a source, a clip, the break or black in preview first (Tap: Preview, or right-click a camera)';
 function autoTransition() {
-  if (!swActive() && !startTransition()) return pvw || pvwClip ? null : toast(NOTHING_IN_PREVIEW);
+  if (!swActive() && !startTransition()) return inPreview() ? null : toast(NOTHING_IN_PREVIEW);
   sw.auto = { t0: performance.now(), from: sw.target, dur: +$('#swDur').value * 1000 * (1 - sw.target) };
 }
 /** What was on air goes to preview, ready to come back: a clip cued at its start again. */
@@ -4754,8 +4873,9 @@ function flipFlop(fromPeer, fromClip) {
     cueClip(reelOf(fromClip));
   } else {
     pvwClip = null;
-    pvw = fromPeer && live.has(fromPeer) && (fromPeer !== liveActive || mediaOn) ? fromPeer : null;
+    pvw = fromPeer && live.has(fromPeer) && (fromPeer !== liveActive || airCovered()) ? fromPeer : null;
   }
+  pvwSpecial = null;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -4763,28 +4883,61 @@ function flipFlop(fromPeer, fromClip) {
 }
 function takeCut() {
   if (swActive()) return Object.assign(sw, { target: 1, p: 1, auto: null, pos: 1 - sw.rest });
-  if (!pvw && !pvwClip) return toast(NOTHING_IN_PREVIEW);
-  const fromPeer = liveActive, fromClip = mediaOn?.id || null;
-  if (pvwClip) cutMedia(pvwClip); // (from the top: it starts now)
-  else cutLive(pvw);
+  if (!inPreview()) return toast(NOTHING_IN_PREVIEW);
+  // to or from black, or to the break: a dissolve that's already over (it lands the same way)
+  if (pvwSpecial || airSpecial() === 'black') {
+    if (startTransition()) Object.assign(sw, { target: 1, p: 1, auto: null, pos: 1 - sw.rest });
+    return;
+  }
+  const fromPeer = liveActive, fromClip = mediaOn?.id || null, fromSpecial = airSpecial();
+  if (pvwClip) {
+    if (fromSpecial === 'break') setBreak(false);
+    cutMedia(pvwClip); // (from the top: it starts now)
+  } else cutLive(pvw);
   flipFlop(fromPeer, fromClip);
+  if (fromSpecial) flipSpecial(fromSpecial);
+}
+/** Back from the break or black: it waits in preview, ready to go again (flip-flop). */
+function flipSpecial(kind) {
+  pvw = pvwClip = null;
+  pvwSpecial = kind;
+  renderSwitcher();
+  renderLive();
+  renderClips();
+  syncTally();
 }
 function finishTransition() {
   const fromPeer = sw.from, fromClip = sw.fromClip, to = sw.to, toClip = sw.toClip, startAt = sw.startAt ?? now();
+  const toSpecial = sw.toSpecial, fromSpecial = sw.fromSpecial;
   sw.lastTook = Math.round(performance.now() - (sw.began || performance.now())); // (diagnostics: how long it took)
   const dissolveMs = now() - startAt;
-  Object.assign(sw, { from: null, to: null, toClip: null, fromClip: null, p: 0, target: 0, auto: null, rest: sw.rest ? 0 : 1 });
+  Object.assign(sw, { from: null, to: null, toClip: null, toSpecial: null, fromClip: null, fromSpecial: null, p: 0, target: 0, auto: null, rest: sw.rest ? 0 : 1, breakUnder: false });
   sw.pos = sw.rest;
+  const took = Math.max(1, Math.round(dissolveMs)); // (a fade that's already happened: black only lands)
   if (fromClip) {
     const r = reelOf(fromClip);
     if (r?.prog) r.prog.volume = 1;
   }
+  if (toSpecial) {
+    if (toSpecial === 'black') toggleBlack(true, took);
+    else {
+      setBreak(true);
+      if (fromSpecial === 'black') toggleBlack(true, took); // (the black lifted off the break)
+    }
+    // what was on air waits in preview: the break or black it came from, else the camera (a clip comes off)
+    return fromSpecial ? flipSpecial(fromSpecial) : flipFlop(fromClip ? null : fromPeer, null);
+  }
+  if (fromSpecial === 'break' && toClip) setBreak(false);
   if (toClip) {
     const r = reelOf(toClip);
     if (r?.prog) r.prog.volume = 1;
     cutMedia(toClip, { playing: true, at: startAt, dissolveMs }); // (already playing since the dissolve began)
+  } else if (fromSpecial === 'black') {
+    if (to !== liveActive) cutLive(to, null, { underBlack: true });
   } else cutLive(to, null, { dissolve: true, at: startAt, dissolveMs });
-  flipFlop(fromPeer, fromClip !== toClip ? fromClip : null);
+  if (fromSpecial === 'black') toggleBlack(true, took); // (up from black: the fade up puts it in the live cut)
+  flipFlop(fromSpecial === 'black' ? null : fromPeer, fromClip !== toClip ? fromClip : null);
+  if (fromSpecial) flipSpecial(fromSpecial);
 }
 let swLast = 0, swGates = 0;
 function switcherTick(t) {
@@ -4813,6 +4966,11 @@ function switcherTick(t) {
     swGates = t;
     mixGates();
   }
+  if ((sw.toSpecial === 'black' || sw.fromSpecial === 'black') && mix.ftb) {
+    const g = mix.ftb.gain, t0 = player.ctx.currentTime;
+    g.cancelScheduledValues(t0);
+    g.setTargetAtTime(1 - blackLevel(), t0, 0.015);
+  }
   if (sw.p >= 0.999 && sw.target >= 0.999) finishTransition();
   else if (sw.p <= 0.001 && sw.target <= 0.001 && !sw.auto) {
     // pulled back: nothing changed (a clip that had started goes back to its start, paused)
@@ -4821,7 +4979,14 @@ function switcherTick(t) {
       const r = reelOf(sw.fromClip);
       if (r?.prog) r.prog.volume = 1;
     }
-    Object.assign(sw, { from: null, to: null, toClip: null, fromClip: null, p: 0, midAt: null });
+    if (sw.breakUnder) setBreak(false);
+    const blk = sw.toSpecial === 'black' || sw.fromSpecial === 'black';
+    Object.assign(sw, { from: null, to: null, toClip: null, toSpecial: null, fromClip: null, fromSpecial: null, p: 0, midAt: null, breakUnder: false });
+    if (blk && mix.ftb) {
+      const g = mix.ftb.gain, t0 = player.ctx.currentTime;
+      g.cancelScheduledValues(t0);
+      g.setTargetAtTime(1 - black.target, t0, 0.015);
+    }
     if (back) cueClip(back);
     mixGates();
     syncTally();
@@ -4834,21 +4999,22 @@ function renderBar() {
   $('#tbarHandle').style.setProperty('--y', shown);
   $('#tbarFill').style.setProperty('--p', active ? sw.p : 0);
   $('#tbar').setAttribute('aria-valuenow', String(Math.round((active ? sw.p : 0) * 100)));
-  const toName = sw.toClip ? reelOf(sw.toClip)?.name : live.get(sw.to)?.name;
+  const toName = sw.toSpecial || (sw.toClip ? reelOf(sw.toClip)?.name : live.get(sw.to)?.name);
   $('#tbar').setAttribute('aria-valuetext', active ? `${Math.round(sw.p * 100)}% to ${toName || 'preview'}` : 'at rest');
 }
 function renderSwitcher() {
   document.querySelectorAll('#switcher [data-tap]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tap === tapMode)));
   const l = live.get(pvw), r = reelOf(pvwClip);
-  $('#pvwBox').hidden = !l && !r;
-  $('#pvwLabel').textContent = r ? `PREVIEW · CLIP ${r.name} · cued` : l ? `PREVIEW · ${isMic(pvw) ? `MIC ${micKey(pvw) || ''}` : angleOfCid(l.cid)} ${l.name}` : 'PREVIEW';
+  $('#pvwBox').hidden = !l && !r && !pvwSpecial;
+  $('#pvwLabel').textContent = pvwSpecial ? `PREVIEW · ${pvwSpecial === 'black' ? 'BLACK' : 'BREAK'}` : r ? `PREVIEW · CLIP ${r.name} · cued` : l ? `PREVIEW · ${isMic(pvw) ? `MIC ${micKey(pvw) || ''}` : angleOfCid(l.cid)} ${l.name}` : 'PREVIEW';
   renderBar();
 }
 // the preview box: the source in preview, drawn small in the corner of the program monitor
 // (only on this screen: it's never in the program itself)
 function drawPreviewBox() {
   const l = live.get(pvw), r = reelOf(pvwClip);
-  if ((!l && !r) || (l && pvw === liveActive && !mediaOn) || (r && mediaOn?.id === pvwClip) || mode !== 'live') {
+  const gone = pvwSpecial ? pvwSpecial === airSpecial() : (!l && !r) || (l && pvw === liveActive && !airCovered()) || (r && mediaOn?.id === pvwClip);
+  if (gone || mode !== 'live') {
     if (!$('#pvwBox').hidden) $('#pvwBox').hidden = true; // (it went on air, left, or Tap: Air)
     return;
   }
@@ -4856,16 +5022,18 @@ function drawPreviewBox() {
   const c = $('#pvwCanvas'), g = c.getContext('2d');
   g.fillStyle = '#000';
   g.fillRect(0, 0, c.width, c.height);
-  if (r) {
+  if (pvwSpecial === 'break') drawSlate(g, c.width, c.height, { ...slateText(), look: slateLook, t: performance.now(), now: now() });
+  else if (pvwSpecial) return; // (black)
+  else if (r) {
     const el = r.prog || r.el;
     if (el && (el.readyState === undefined ? el.complete : el.readyState >= 2)) drawFramed(g, el, c.width, c.height, 'fit');
-  } else if (isMic(pvw)) drawMicVisual(g, c.width, c.height);
+  } else if (isMic(pvw)) drawMicVisual(g, c.width, c.height, micTileOpts(pvw));
   else if (l.video?.readyState >= 2) drawFramed(g, l.video, c.width, c.height, fit, null, l.view?.rect || null);
 }
 document.querySelectorAll('#switcher [data-tap]').forEach((b) => (b.onclick = () => {
   tapMode = b.dataset.tap;
   localStorage.setItem('vm_tapmode', tapMode);
-  if (tapMode === 'air' && (pvw || pvwClip) && !swActive()) clearPreview(); // (Tap: Air: nothing waits in preview)
+  if (tapMode === 'air' && inPreview() && !swActive()) clearPreview(); // (Tap: Air: nothing waits in preview)
   renderClips();
   renderSwitcher();
   announce(tapMode === 'preview' ? 'Tapping a source puts it in preview' : 'Tapping a source puts it on air');
@@ -4932,13 +5100,15 @@ $('#swMidi').onclick = async () => {
 function setSwitcher(on) {
   $('#switcher').hidden = !on;
   document.querySelector('.monitor')?.classList.toggle('withswitcher', on);
-  if (!on && (pvw || pvwClip) && !swActive()) clearPreview(); // (no switcher, no preview)
+  if (!on && inPreview() && !swActive()) clearPreview(); // (no switcher, no preview)
   fitMonitors();
   $('#swTgl').setAttribute('aria-pressed', String(on));
   localStorage.setItem('vm_switcher', on ? '1' : '0');
   renderSwitcher();
 }
 $('#swTgl').onclick = () => setSwitcher($('#switcher').hidden);
+// a short monitor (a small laptop, a tall mixer dock): the MIDI button goes, so the T-bar keeps its throw
+new ResizeObserver(([e]) => $('#switcher').classList.toggle('tight', e.contentRect.height < 380)).observe(document.querySelector('.monitor') || document.body);
 setSwitcher(localStorage.getItem('vm_switcher') === '1');
 
 // ---- keep the program running when this window is covered or hidden ---------------------

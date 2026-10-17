@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
 def step(m): print('ok  ' + m, flush=True)
+PASTE = "(el, v) => { const dt = new DataTransfer(); dt.setData('text/plain', v); el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); }"
 PLAYING = "(() => { const v = document.querySelector('#out'); return !v.hidden && v.readyState >= 2 && v.videoWidth > 0; })()"
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS)
@@ -27,7 +28,9 @@ with sync_playwright() as p:
     tvctx = b.new_context(viewport={'width': 1280, 'height': 720})
     tv = tvctx.new_page(); tv.on('pageerror', lambda e: errors.append(f'tv: {e}'))
     tv.goto(f"{BASE}/tv")
-    for i, ch in enumerate(ev['id']): tv.locator('#eventCells input').nth(i).fill(ch)
+    tv.locator('#eventCells input').first.evaluate(PASTE, f" {ev['id'].lower()} ")   # (pasted, as copied: spaces, lower case)
+    assert ''.join(tv.locator('#eventCells input').nth(i).input_value() for i in range(6)) == ev['id']
+    step('the event code pasted into the first cell fills all six')
     tv.fill('#screenName', 'Hall TV'); tv.click('#joinForm button[type=submit]')
     tv.wait_for_function("document.querySelector('#waitSay').textContent.includes('accept')", timeout=30000)
     host.wait_for_function("document.querySelector('#tvList').textContent.includes('Hall TV') && !!document.querySelector('[data-tv-accept]')", timeout=20000)
@@ -61,7 +64,8 @@ with sync_playwright() as p:
     for i, ch in enumerate('WRONGCDE'): tv2.locator('#pairCells input').nth(i).fill(ch)
     tv2.click('#pairForm button[type=submit]')
     tv2.wait_for_function("document.querySelector('#waitErr').textContent.includes('isn’t right')", timeout=10000)
-    for i, ch in enumerate(code): tv2.locator('#pairCells input').nth(i).fill(ch)
+    tv2.locator('#pairCells input').nth(3).evaluate(PASTE, host.inner_text('#tvCode'))   # (as the studio shows it, ABCD-EFGH, into any cell)
+    assert ''.join(tv2.locator('#pairCells input').nth(i).input_value() for i in range(8)) == code
     tv2.click('#pairForm button[type=submit]')
     tv2.wait_for_function(PLAYING, timeout=30000)
     host.wait_for_function("!document.querySelector('#tvDlg').open && document.querySelectorAll('[data-tv-del]').length === 2", timeout=10000)
@@ -72,6 +76,17 @@ with sync_playwright() as p:
     host.wait_for_function("document.querySelectorAll('[data-tv-del]').length === 1", timeout=10000)
     assert tv2.evaluate(PLAYING)
     step('Remove stops that TV at once and it goes back to asking; the other keeps showing')
+
+    assert tv2.is_visible('#fullBtn') and tv2.is_visible('#exitBtn')
+    tv2.click('#fullBtn')
+    tv2.wait_for_function("!!document.fullscreenElement && document.querySelector('#fullBtn').textContent === 'Exit full screen'", timeout=5000)
+    tv2.click('#fullBtn')
+    tv2.wait_for_function("!document.fullscreenElement", timeout=5000)
+    step('Full screen takes the TV page full screen and back')
+    tv2.click('#exitBtn')
+    tv2.wait_for_function("!document.querySelector('#joinView').hidden && document.querySelector('#out').hidden && !location.search", timeout=10000)
+    host.wait_for_function("!document.querySelector('#tvList').textContent.includes('showing')", timeout=20000)
+    step('Leave takes the TV back to the code screen and the studio stops showing to it')
 
     assert not errors, errors
     step('no page errors')

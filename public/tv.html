@@ -52,9 +52,11 @@
   .umd.live .lamp { background: var(--tally); box-shadow: 0 0 .6em var(--tally); }
   .umd .route { color: var(--text-2); font-weight: 600; }
   body.quiet .umd { opacity: 0; }
-  .sound { position: fixed; right: 3vw; bottom: 3vh; background: #000c; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .95em/1.1 var(--cond); }
-  body.quiet .sound { opacity: 0; }
-  @media (prefers-reduced-motion: reduce) { .umd { transition: none; } }
+  .ctl { position: fixed; right: 3vw; bottom: 3vh; display: flex; gap: .5em; transition: opacity .6s; }
+  .ctl button { background: #000c; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .95em/1.1 var(--cond); }
+  body.quiet .ctl { opacity: 0; }
+  body.quiet { cursor: none; }
+  @media (prefers-reduced-motion: reduce) { .umd, .ctl { transition: none; } }
 </style>
 </head>
 <body>
@@ -92,7 +94,11 @@
 </section>
 
 <div class="umd" id="umd" hidden><span class="lamp" aria-hidden="true"></span><span id="umdTitle"></span><span class="route" id="umdRoute"></span></div>
-<button class="sound" type="button" id="soundBtn" hidden>Sound off</button>
+<div class="ctl" id="progCtl" hidden>
+  <button type="button" id="soundBtn">Sound off</button>
+  <button type="button" id="fullBtn">Full screen</button>
+  <button type="button" id="exitBtn" title="Stop showing this event on this screen">Leave</button>
+</div>
 
 <script src="/config.js"></script>
 <script type="module" src="/js/tv.js"></script>
