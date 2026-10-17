@@ -11,8 +11,6 @@ $('#patreonLink').href = BRAND.patreon;
 import { ANGLES, render, tickBeacon } from '/js/landing-scene.js';
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const POOL = 0.2;
-const REVENUE = 1000;
 
 // ------------------------------------------------------------- the demo ----
 
@@ -30,9 +28,9 @@ const tiles = ANGLES.map((a, i) => {
   return { b, c, g: c.getContext('2d', { alpha: false }), tc: b.querySelector('.ttc') };
 });
 
-let live = 1;            // open wide on Dev's balcony shot
+let live = 1;            // open wide on the balcony shot
 let T = 7.5;             // scene time (frozen when reduced motion is on)
-let W = 30;              // edit clock; starts 30 s in so the strip and credits already have a story
+let W = 30;              // edit clock; starts 30 s in so the strip already has a story
 let mode = 'auto';
 let lastUser = -1e9;
 let nextAuto = 3;
@@ -41,7 +39,6 @@ let frameNo = 0;
 let heroOnScreen = true;
 let qrOnScreen = false;
 const segs = [];
-const screenTime = [0, 0, 0, 0];
 
 function size(canvas, maxDpr) {
   const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
@@ -88,9 +85,7 @@ function setMode(m) {
   let t = 0;
   while (t < W) {
     segs.push({ t, i: live, by: 'auto' });
-    const end = Math.min(W, t + 2.4 + Math.random() * 2.8);
-    screenTime[live] += end - t;
-    t = end;
+    t = Math.min(W, t + 2.4 + Math.random() * 2.8);
     if (t < W) live = autoPick();
   }
   nextAuto = W + 2.5;
@@ -131,7 +126,7 @@ function paint(all) {
   });
 }
 
-// ------------------------------------------------------- strip + credits ----
+// ----------------------------------------------------------------- strip ----
 
 const strip = $('#strip');
 const sg = strip.getContext('2d');
@@ -162,22 +157,6 @@ function drawStrip() {
   });
 }
 
-const creditRows = ANGLES.map((a) => {
-  const row = document.createElement('div');
-  row.className = 'credit';
-  row.innerHTML = `<span>${esc(a.who)}</span><span class="bar"><i style="background:${a.color};width:0"></i></span><span class="pct tc">0%</span><span class="usd tc">$0</span>`;
-  $('#credits').append(row);
-  return { bar: row.querySelector('i'), pct: row.querySelector('.pct'), usd: row.querySelector('.usd') };
-});
-function drawCredits() {
-  const total = screenTime.reduce((s, v) => s + v, 0) || 1;
-  creditRows.forEach((r, k) => {
-    const share = screenTime[k] / total;
-    r.bar.style.width = (share * 100).toFixed(1) + '%';
-    r.pct.textContent = Math.round(share * 100) + '%';
-    r.usd.textContent = '$' + Math.round(share * REVENUE * POOL);
-  });
-}
 
 // ------------------------------------------------------------ the beacon ----
 
@@ -202,12 +181,10 @@ io.observe(qr);
 
 let last = performance.now();
 let lastBeacon = 0;
-let lastCredits = 0;
 function frame(ms) {
   const dt = Math.min(0.1, (ms - last) / 1000);
   last = ms;
   W += dt;
-  screenTime[live] += dt;
   if (!reduce) T += dt;
 
   if (mode === 'you' && W - lastUser > 9) setMode('auto');
@@ -222,10 +199,6 @@ function frame(ms) {
     $('#ptc').textContent = code;
     tiles.forEach((t) => (t.tc.textContent = code));
     drawStrip();
-    if (ms - lastCredits > 250) {
-      drawCredits();
-      lastCredits = ms;
-    }
   }
   if (ms - lastBeacon > 1000 / 15) {
     lastBeacon = ms;
@@ -241,19 +214,6 @@ requestAnimationFrame(frame);
 
 // -------------------------------------------------------- start an event ----
 
-const pool = $('#pool'), poolOut = $('#poolOut'), poolHint = $('#poolHint');
-const updatePool = () => {
-  const v = +pool.value;
-  poolOut.textContent = v + '%';
-  poolHint.textContent = v
-    ? `${v}% of any revenue this film earns is split among guests by how much of their footage makes the cut.`
-    : 'No revenue sharing. Guests still get a "shot by" credit for their footage.';
-};
-pool.addEventListener('input', updatePool);
-$('#kind').addEventListener('change', (e) => {
-  pool.value = { show: 20, game: 10 }[e.target.value] ?? 0;
-  updatePool();
-});
 
 $('#create').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -262,7 +222,7 @@ $('#create').addEventListener('submit', async (e) => {
   try {
     const title = $('#title').value.trim();
     const orientation = new FormData($('#create')).get('orientation') === 'portrait' ? 'portrait' : 'landscape';
-    const body = { title, kind: $('#kind').value, poolPct: +pool.value, public: $('#listPublic').checked, orientation };
+    const body = { title, kind: $('#kind').value, public: $('#listPublic').checked, orientation };
     if (body.public) Object.assign(body, await where().catch(() => ({})));
     const { id, hostKey } = await api('events', { method: 'POST', body });
     localStorage.setItem('vm_terms', TERMS_VERSION);

@@ -6054,7 +6054,7 @@ function credits() {
     }
   }
   return [...ms.entries()]
-    .map(([cid, v]) => ({ cid, name: v.name, ms: v.ms, share: total ? v.ms / total : 0, poolShare: total ? (v.ms / total) * (ev.poolPct / 100) : 0 }))
+    .map(([cid, v]) => ({ cid, name: v.name, ms: v.ms, share: total ? v.ms / total : 0 }))
     .sort((a, b) => b.ms - a.ms);
 }
 
@@ -6069,7 +6069,7 @@ function renderCredits() {
   box.hidden = !list.length && !sound.length;
   if (box.hidden) return;
   box.innerHTML = `<h2>Shot by</h2><table>${list
-    .map((c) => `<tr><td>${esc(c.name)}</td><td>${(c.share * 100).toFixed(0)}%${ev.poolPct ? ` · ${(c.poolShare * 100).toFixed(1)}% rev` : ''}</td></tr>`)
+    .map((c) => `<tr><td>${esc(c.name)}</td><td>${(c.share * 100).toFixed(0)}%</td></tr>`)
     .join('')}${sound.map((n) => `<tr><td>${esc(n)}</td><td>sound</td></tr>`).join('')}</table>`;
 }
 

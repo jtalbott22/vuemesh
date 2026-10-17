@@ -196,7 +196,7 @@ async function route(req, deps) {
 }
 
 async function createEvent(body, store, now, deps) {
-  const poolPct = Math.min(90, Math.max(0, Math.round(Number(body.poolPct) || 0)));
+  const poolPct = 0; // (revenue sharing is off for now: whatever a client asks for, new events share none)
   // a kiosk show can start without a name: the first phone to scan in names it
   const untitledKiosk = !!body.kiosk && !String(body.title || '').trim();
   const title = untitledKiosk ? 'New show' : String(body.title || 'Untitled event').trim().slice(0, 120) || 'Untitled event';

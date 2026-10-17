@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.52.0 — the home page, for your own multicam shows; no revenue sharing
+**Deploy:** `./aws/deploy.sh` (functions and site: new events' terms leave revenue out).
+
+- **No more revenue sharing anywhere you can see it.** Gone: the home page's "Every source has a place" panel (names, screen-time shares and dollar amounts), the Contributor revenue share slider when you make an event, the revenue line on the watch page's credits and in the Edit credits, and the line on Sponsors. New events share no revenue whatever a client asks, and the terms a camera agrees to on joining no longer mention it (events already made keep the terms they were made with).
+- **The home page's live demo labels its cameras by device** (Phone, Tablet, Phone 2, Laptop), not people's names.
+- **New copy** for personal multicam productions: the description, the opening lines, "When the lights come up" (the show as it aired, every angle in full quality, a first edit already made) where the attribution panel was, a sharper line on why nothing is uploaded, and a new call to start a show. "Then make it a real control room" gains **Direct from your pocket** (the phone remote) and **Every screen in the room is a monitor** (`/tv`: the program, the night's recordings, or the beacon; "coming to more" big screens, without naming the Apple TV yet).
+
 ## 0.51.0 — TVs browse recordings and show the beacon, with PIP
 **Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
 

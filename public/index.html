@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VUEMesh — a production studio in the browser</title>
-<meta name="description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta name="description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <link rel="canonical" href="https://vuemesh.com/">
 <meta property="og:site_name" content="VUEMesh">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vuemesh.com/">
 <meta property="og:title" content="VUEMesh — a production studio in the browser">
-<meta property="og:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta property="og:description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <meta property="og:image" content="https://vuemesh.com/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -18,7 +18,7 @@
 <meta property="og:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="VUEMesh — a production studio in the browser">
-<meta name="twitter:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta name="twitter:description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <meta name="twitter:image" content="https://vuemesh.com/og.png">
 <meta name="twitter:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -75,11 +75,10 @@
   .strip { position: relative; height: 44px; border-radius: 6px; overflow: hidden; background: #0b0c0f; }
   .strip canvas { width: 100%; height: 100%; display: block; }
   .strip-legend { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; margin-top: 6px; }
-  .credit { display: grid; grid-template-columns: 5.2em 1fr 3.4em 3.2em; gap: 10px; align-items: center; font-size: .9rem; margin: 7px 0; }
-  .credit .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
-  .credit .bar i { display: block; height: 100%; border-radius: 4px; transition: width .4s; }
-  .credit .pct { color: var(--soft); text-align: right; }
-  .credit .usd { font-weight: 700; text-align: right; }
+  .haul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 12px; }
+  .haul li { display: grid; gap: 2px; padding-left: 14px; border-left: 3px solid var(--tally); }
+  .haul b { font-stretch: 125%; font-weight: 800; }
+  .haul span { color: var(--soft); font-size: .9rem; }
   .fine { color: var(--muted); font-size: .84rem; margin: 10px 0 0; }
 
   .positioning { padding: clamp(52px, 8vw, 100px) 0 20px; }
@@ -175,9 +174,6 @@
   .start p { color: var(--soft); font-size: 1.1rem; }
   form.create { background: var(--panel); border-radius: 16px; padding: 24px; }
   form.create input, form.create select { background: var(--field); border-color: var(--line); color: var(--text); }
-  .pool { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
-  .pool input { accent-color: var(--tally); padding: 0; border: 0; background: transparent; }
-  .pool output { font-weight: 800; font-stretch: 125%; min-width: 3.4ch; text-align: right; }
   .hintline { font-size: .85rem; color: var(--muted); margin: .4em 0 0; }
   .made { display: none; }
   .made.show { display: block; }
@@ -208,14 +204,12 @@
     .tile .n { font-size: .9rem; }
     .beacon { grid-template-columns: 1fr; }
     .nav nav a:not(.btn) { display: none; }
-    .credit { grid-template-columns: 4.6em 1fr 3em 3em; gap: 8px; }
     .lede { font-size: 1.02rem; }
     .onair .spot { display: none; }
   }
   @media (hover: none) { .keys { display: none; } }
   @media (prefers-reduced-motion: reduce) {
     .flash.go { animation: none; }
-    .credit .bar i { transition: none; }
   }
   /* use it now: the app's front door, before the story */
   .apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 18px 0 8px; }
@@ -402,7 +396,7 @@
 
   <section class="hero" aria-labelledby="h">
     <h1 class="big" id="h"><span>A production studio.</span><span>In the browser.</span></h1>
-    <p class="lede">Multiple cameras and microphones join a shared production. VUEMesh can direct the show automatically, cut the program live, and leave you with the finished production. No app to install.</p>
+    <p class="lede">The phones in your pockets are better cameras than most studios had ten years ago. VUEMesh syncs them into one multicam production: switch it live, let the Auto Director cut it for you, and walk away with the finished show. No app to install.</p>
 
     <div class="demo">
       <div class="program" aria-label="Program monitor: the angle on air">
@@ -418,7 +412,7 @@
           <button type="button" class="chip soundbtn" id="filmSound" aria-pressed="false">Sound on</button>
         </div>
       </div>
-      <div class="tiles" id="tiles" role="group" aria-label="Four guests' phones. Pick one to cut to it."></div>
+      <div class="tiles" id="tiles" role="group" aria-label="Four cameras. Pick one to cut to it."></div>
       <div class="bus" id="bus" role="group" aria-label="Watch the films, or cut the live demo yourself">
         <button type="button" class="key" data-film="wedding"><i aria-hidden="true"></i><b>First Dance</b><small>A wedding <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
         <button type="button" class="key" data-film="concert"><i aria-hidden="true"></i><b>Live Tonight</b><small>A concert <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
@@ -436,16 +430,19 @@
         <p class="fine">The production is assembled from synchronized browser sources. The cut can be directed live and turned into a finished video without a traditional video truck.</p>
       </div>
       <div class="panel">
-        <h3>Every source has a place</h3>
-        <div id="credits"></div>
-        <p class="fine">Every camera and microphone is a participant in the production. Source attribution can follow the footage that made the final cut.</p>
+        <h3>When the lights come up</h3>
+        <ul class="haul">
+          <li><b>The show, as it aired</b><span>The live cut, recorded while you switched.</span></li>
+          <li><b>Every angle, in full quality</b><span>Each camera's own recording, synced to the frame.</span></li>
+          <li><b>A first edit, already made</b><span>Rearrange it, trim it, render it. No ingest, no syncing by hand.</span></li>
+        </ul>
       </div>
     </div>
   </section>
 
   <section class="kit positioning" aria-labelledby="ph">
     <h2 id="ph">Not a video upload service.<br><span style="color:var(--soft)">A production system.</span></h2>
-    <p>VUEMesh coordinates cameras, microphones and production controls in the browser. The cloud helps participants find and join the session; the production happens at the edge, where the cameras and host already are.</p>
+    <p>Nothing you shoot is uploaded to be processed somewhere else. VUEMesh coordinates your cameras, microphones and controls in the browser; the cloud only introduces your devices to each other, and the pictures go straight between them on your own network.</p>
     <ul class="kitgrid two">
       <li>
         <b>Browser-native</b>
@@ -505,6 +502,18 @@
     <p>One computer can run the show. Add screens, dedicated cameras, microphones or a public display and the same browser-native system scales into a full production environment.</p>
     <ul class="kitgrid two">
       <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="4"/><path d="M21 38h6"/><circle cx="24" cy="18" r="5"/><path d="M19 28h10"/></svg>
+        <b>Direct from your pocket</b>
+        <span>Pair a phone as a remote and walk the room: cut cameras, call a break, fade to black, start the recording, all while you keep an eye on the real thing.</span>
+        <small>The laptop runs the show. You don't have to stand next to it.</small>
+      </li>
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="40" height="26" rx="2.5"/><path d="M16 42h16M24 34v8"/><path d="M20 16v10l8-5z" fill="currentColor"/></svg>
+        <b>Every screen in the room is a monitor</b>
+        <span>Open <a href="/tv">/tv</a> on a smart TV, a spare laptop or a projector, and it shows the live program straight from the studio, browses the night's recordings, or becomes the beacon guests scan.</span>
+        <small>Built for the big screen, and coming to more of them.</small>
+      </li>
+      <li>
         <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="24" height="16" rx="2"/><rect x="20" y="17" width="24" height="16" rx="2"/><path d="M12 33h8M32 40h-8M28 33v7"/></svg>
         <b>More screens, more control</b>
         <span>Put the program on one display, the beacon on another, and keep camera control, sound and monitoring in their own windows. The browser becomes the control room.</span>
@@ -551,8 +560,8 @@
 
   <section class="start" id="start" aria-labelledby="sh">
     <div>
-      <h2 id="sh">Build a production tonight.</h2>
-      <p>Create a session, open the studio, put the beacon on a screen, and start bringing cameras and microphones into the production. No app deployment required.</p>
+      <h2 id="sh">Your next show has more angles than you think.</h2>
+      <p>Count the phones in the room. Create a session, open the studio, put the beacon on a screen, and every one of them can be a camera in the next five minutes.</p>
       <div class="mine" id="mine" hidden>
         <div class="minehead"><h3>Your events on this device</h3><button type="button" class="linkish" id="archToggle" hidden aria-expanded="false"></button></div>
         <ul class="minelist" id="mineList"></ul>
@@ -575,11 +584,6 @@
             <option value="talk">Talk, class, or service</option>
             <option value="other">Something else</option>
           </select>
-        </div>
-        <div class="field">
-          <label for="pool">Contributor revenue share</label>
-          <div class="pool"><input id="pool" type="range" min="0" max="50" step="5" value="0"><output id="poolOut">0%</output></div>
-          <p class="hintline" id="poolHint">No revenue sharing. Guests still get a "shot by" credit for their footage.</p>
         </div>
         <fieldset class="field shape">
           <legend>Shape of the film</legend>
