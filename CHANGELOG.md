@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.48.0 — TV screens: the program on an Apple TV, or any browser at /tv
+**Deploy:** `./aws/deploy.sh` (functions and site: the cloud learns the TV role).
+
+- **TV screens** (new, beside Phone remote): a TV joins with the event code and waits there until you press **Accept**, or types a one-time code from **Show a TV code** (8 characters, two minutes, five tries, as the phone remote). Knowing the event code isn't enough: it's on every beacon. Once in, each TV gets its own key, remembered on both sides, so a reload or a restart comes straight back. Each TV has **Program** or **Event card**, and **Remove** stops it at once.
+- **The picture goes straight from this computer** over the local network: the same program picture as Program out, with the live mix, H.264 first (an Apple TV decodes it in hardware) at up to 6 Mbit/s. Nothing but the handshake touches the cloud, and there's no relay. A TV that can't reach the studio in 10 s says so (two networks, or Wi-Fi that keeps devices apart).
+- **/tv**: any screen with a browser can be a TV screen, with the same protocol as the Apple TV app (so it's the app's reference): six code cells, the event's name, and a broadcast-style label that fades.
+- **The Apple TV app** (`apple-tv/`, SwiftUI, new): join by code with a keypad of only the characters codes use, wait or pair, then the program full screen. See `apple-tv/README.md`.
+- **Cloud:** a `display` role; TVs hear who's here, as the beacon does; they can only message the studio, as phones can; a `displays` count per day.
+
+**Not yet:** Edit as a TV's source, Browse, Beacon mode and its Wi-Fi phase, the device key. If the program's sound starts after a TV has joined, that TV gets sound when it next connects. The design is in docs/APPLE-TV.md and the spec doc.
+
+**Tests:** `core.test.mjs`: a TV joins as a display, reaches only the studio, can't message a phone, and hears the studio come and go. `e2e_display.py` (new): /tv waits, Accept shows the program, Event card and back, a reload needs no second Accept, a TV code pairs a second screen (a wrong one is turned away), Remove stops one and not the other.
 ## 0.47.0 — stereo in the live mixer; balance and Mono on every channel
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -127,6 +127,26 @@ assert.equal(last('c3', 'peers').peers.some((p) => p.peer === 'HOST2'), true, 'p
 open.delete('h2');
 ok('phones only hear about the host arriving or leaving');
 
+// a TV (the display role): it joins like a phone, hears who's here, reaches only the host
+await connect('h3', { e: id, role: 'host', peer: 'HOST3', k: hostKey });
+await connect('tv1', { e: id, role: 'display', peer: 'TV1', name: 'Hall TV', cid: 'tvdev' });
+await sig('$default', 'tv1', { body: JSON.stringify({ action: 'hello' }) });
+assert.equal(last('tv1', 'peers').peers.find((p) => p.peer === 'TV1').role, 'display', 'a TV keeps the display role');
+await sig('$default', 'tv1', { body: JSON.stringify({ action: 'signal', to: 'HOST3', data: { display: { t: 'hello', v: 1 } } }) });
+assert.deepEqual(last('h3', 'signal'), { type: 'signal', from: 'TV1', fromRole: 'display', data: { display: { t: 'hello', v: 1 } } });
+await sig('$default', 'h3', { body: JSON.stringify({ action: 'signal', to: 'TV1', data: { display: { t: 'waiting' } } }) });
+assert.equal(last('tv1', 'signal').data.display.t, 'waiting', 'the studio can answer a TV');
+await sig('$default', 'tv1', { body: JSON.stringify({ action: 'signal', to: 'CAM3', data: { kind: 'offer' } }) });
+assert.equal((outbox.get('c3') || []).filter((m) => m.type === 'signal').length, 0, 'a TV cannot message a phone');
+const tvPeersBefore = (outbox.get('tv1') || []).filter((m) => m.type === 'peers').length;
+await sig('$disconnect', 'h3');
+assert.ok((outbox.get('tv1') || []).filter((m) => m.type === 'peers').length > tvPeersBefore && !last('tv1', 'peers').peers.some((p) => p.role === 'host'), 'a TV hears the studio leave');
+await connect('c4', { e: id, role: 'cam', peer: 'CAM4', cid: 'jkl' });
+await sig('$default', 'c4', { body: JSON.stringify({ action: 'status', rec: true }) });
+assert.equal(last('tv1', 'peers').peers.some((p) => p.peer === 'CAM4'), true, 'a TV hears who is here, as the beacon does');
+await sig('$disconnect', 'tv1'); await sig('$disconnect', 'c4');
+ok('a TV joins as a display, talks only to the studio, and hears who is here');
+
 const ev = await call('GET', `/events/${id}`);
 assert.equal(ev.body.live, true, 'event shows as live while the host is connected');
 clock += 60 * 60 * 1000;

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV screen — VUEMesh</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  /* A TV screen: the program from a VUEMesh studio, the same protocol as the Apple TV app.
+     Read from across a room: big type, few words, a broadcast monitor's under-monitor label. */
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url('/fonts/barlow-condensed-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-weight: 500; font-display: swap; src: url('/fonts/barlow-latin-500-normal.woff2') format('woff2'); }
+  :root {
+    --black: #000; --surface: #18191d; --cell: #121316; --line: #2d2f35;
+    --text: #ececef; --text-2: #a9acb4; --tally: #d93025; --preview: #2fd56b; --amber: #f0a82b;
+    --cond: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif; --body: 'Barlow', system-ui, sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--black); color: var(--text); font: 500 clamp(16px, 1.6vw, 28px)/1.35 var(--body); overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--black); }
+
+  .screen { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; padding: 6vh 6vw; gap: 2.4vh; }
+  .mark { font: 800 1.2em/1 var(--cond); letter-spacing: .02em; display: flex; align-items: center; gap: .45em; color: var(--text-2); }
+  .mark i { width: .6em; height: .6em; border-radius: 50%; background: var(--tally); display: inline-block; }
+  h1 { font: 800 clamp(40px, 6.4vw, 120px)/.95 var(--cond); margin: 0; max-width: 18ch; text-wrap: balance; }
+  .say { color: var(--text-2); margin: 0; max-width: 34ch; }
+
+  /* the code: one tall cell per character, like a character generator's slots */
+  .cells { display: flex; gap: clamp(8px, 1vw, 18px); }
+  .cells input { width: 1.25em; height: 1.55em; text-align: center; font: 800 clamp(48px, 7vw, 132px)/1 var(--cond); text-transform: uppercase;
+    background: var(--cell); border: 0; border-bottom: .07em solid var(--line); border-radius: .08em .08em 0 0; caret-color: var(--amber); padding: 0; }
+  .cells input:focus { border-bottom-color: var(--amber); outline: none; }
+  .cells.bad input { border-bottom-color: var(--tally); }
+  .cells.short input { font-size: clamp(32px, 4.4vw, 84px); }
+  .row { display: flex; gap: 1em; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .name { display: flex; gap: .5em; align-items: center; color: var(--text-2); }
+  .name input { background: var(--cell); border: 0; border-bottom: 2px solid var(--line); padding: .25em .4em; width: 12ch; }
+  .go { background: var(--text); color: var(--black); border: 0; border-radius: .3em; padding: .45em 1.2em; font-weight: 600; cursor: pointer; }
+  .link { background: none; border: 0; color: var(--text-2); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; padding: .2em; }
+  .err { color: #ff8a80; margin: 0; min-height: 1.35em; }
+
+  /* the under-monitor label: who this is, and whether it's live */
+  .umd { position: fixed; left: 3vw; bottom: 3vh; display: flex; align-items: center; gap: .6em; padding: .35em .8em .35em .6em;
+    background: #000c; border-radius: .25em; font: 600 .95em/1.1 var(--cond); letter-spacing: .01em; transition: opacity .6s; }
+  .umd .lamp { width: .7em; height: .7em; border-radius: 50%; background: var(--line); }
+  .umd.live .lamp { background: var(--tally); box-shadow: 0 0 .6em var(--tally); }
+  .umd .route { color: var(--text-2); font-weight: 600; }
+  body.quiet .umd { opacity: 0; }
+  .sound { position: fixed; right: 3vw; bottom: 3vh; background: #000c; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .95em/1.1 var(--cond); }
+  body.quiet .sound { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) { .umd { transition: none; } }
+</style>
+</head>
+<body>
+<video id="out" autoplay playsinline muted aria-label="Program" hidden></video>
+
+<section class="screen" id="joinView" aria-labelledby="joinH">
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <h1 id="joinH">Show an event on this screen</h1>
+  <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
+  <form id="joinForm" class="screen" style="position:static;padding:0">
+    <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
+    <div class="row">
+      <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
+      <button class="go" type="submit">Connect</button>
+    </div>
+    <p class="err" id="joinErr" aria-live="polite"></p>
+  </form>
+</section>
+
+<section class="screen" id="waitView" aria-labelledby="waitTitle" hidden>
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <h1 id="waitTitle"></h1>
+  <p class="say" id="waitSay"></p>
+  <div id="pairBox" hidden>
+    <form id="pairForm" class="screen" style="position:static;padding:0">
+      <div class="cells short" id="pairCells" role="group" aria-label="TV code from the studio, 8 characters"></div>
+      <div class="row"><button class="go" type="submit">Use code</button></div>
+    </form>
+  </div>
+  <div class="row">
+    <button class="link" type="button" id="pairBtn">Enter a TV code</button>
+    <button class="link" type="button" id="leaveBtn">Another event</button>
+  </div>
+  <p class="err" id="waitErr" aria-live="polite"></p>
+</section>
+
+<div class="umd" id="umd" hidden><span class="lamp" aria-hidden="true"></span><span id="umdTitle"></span><span class="route" id="umdRoute"></span></div>
+<button class="sound" type="button" id="soundBtn" hidden>Sound off</button>
+
+<script src="/config.js"></script>
+<script type="module" src="/js/tv.js"></script>
+</body>
+</html>

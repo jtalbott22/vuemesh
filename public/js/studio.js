@@ -5,6 +5,7 @@ import {
 import { bitrateHints } from '/js/quality.js';
 import { snapToCamera } from '/js/camctl.js';
 import { RemoteHost } from '/js/remote-host.js';
+import { DisplayHub } from '/js/display-hub.js';
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
 // both. The other page's elements are listed on <body data-absent> (id: tag): asked for one,
 // the code gets a detached stand-in rather than null, so wiring that page's controls is harmless
@@ -466,6 +467,7 @@ async function init() {
       hostKey: key,
       onPeers: (peers) => {
         hub.syncPeers(peers);
+        displayHub?.syncPeers(peers);
         for (const p of remoteHost?.bound.keys() || []) if (!peers.some((x) => x.peer === p)) remoteHost.gone(p);
         for (const p of peers) {
           const l = live.get(p.peer);
@@ -483,9 +485,11 @@ async function init() {
         renderLive();
       },
       // (a phone remote's messages are its own, not a camera's: they never reach the cameras' links)
-      onSignal: (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : hub.onSignal(from, data, role)),
+      // (a TV's messages, too: only the TV screens panel hears them)
+      onSignal: (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role)),
     });
     if (!KIOSK) startRemoteHost();
+    if (!KIOSK) startDisplayHub();
     hub = new HostHub({
       eventId,
       termsHash: ev.termsHash,
@@ -8293,4 +8297,83 @@ $('#remoteDlg')?.addEventListener('close', () => {
 $('#remoteList')?.addEventListener('click', (e) => {
   const key = e.target.closest('[data-remote-del]')?.dataset.remoteDel;
   if (key && confirm('Remove this phone? It stops being a remote straight away.')) remoteHost?.remove(key);
+});
+
+
+// --------------------------------------------------------------- TV screens --
+// The program on a TV: the Apple TV app, or /tv in any browser on this network. A TV joins with
+// the event code and waits here until it's accepted (or types a code this shows); then it's
+// remembered and comes back on its own. Its picture comes straight from this computer over the
+// local network; see display-hub.js.
+let displayHub = null, tvTick = null;
+function programForTv() {
+  const out = [programVideoTrack()];
+  const sound = mix.dest?.stream.getAudioTracks()[0];
+  if (sound) out.push(sound.clone());
+  return out;
+}
+function startDisplayHub() {
+  displayHub = new DisplayHub({
+    eventId,
+    title: () => $('#title')?.textContent || ev?.title || '',
+    send: (peer, data) => sock?.signal(peer, data),
+    program: programForTv,
+    changed: renderTvs,
+    note,
+    localOnly: () => !!$('#localOnly')?.checked,
+  });
+  window.vmDisplayHub = () => displayHub; // (diagnostics and tests)
+  const code = $('#tvEventCode');
+  if (code) code.textContent = eventId;
+  renderTvs();
+}
+const TV_STATUS = { active: 'showing', starting: 'starting', connecting: 'connecting', joining: 'joining', away: 'not connected', error: 'can’t connect' };
+function renderTvs() {
+  const ul = $('#tvList');
+  if (!ul || !displayHub) return;
+  const { paired, waiting } = displayHub.list();
+  const say = (t) => (t.detail === 'ice_failed_same_network' ? 'not on this network' : TV_STATUS[t.status] || t.status);
+  ul.innerHTML =
+    waiting.map((w) => `<li class="tvwait"><span class="dot" aria-hidden="true"></span> ${esc(w.name)} <span class="fine">wants to show the program</span> <button type="button" class="small" data-tv-accept="${esc(w.peer)}">Accept</button> <button type="button" class="small" data-tv-decline="${esc(w.peer)}">Decline</button></li>`).join('') +
+    paired.map((t) => `<li><span class="dot${t.connected ? ' live' : ''}" aria-hidden="true"></span> ${esc(t.name)} <span class="fine">${esc(say(t))}</span>
+      <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows"><option value="program"${t.mode === 'program' ? ' selected' : ''}>Program</option><option value="idle"${t.mode === 'idle' ? ' selected' : ''}>Event card</option></select>
+      <button type="button" class="small" data-tv-del="${esc(t.key)}">Remove</button></li>`).join('');
+  $('#tvNone').hidden = paired.length + waiting.length > 0;
+  if (!displayHub.pairing && $('#tvDlg')?.open) $('#tvDlg').close();
+}
+function openTvPairing() {
+  if (!displayHub) return toast('TV screens need the studio to be live first');
+  const p = displayHub.startPairing();
+  $('#tvCode').textContent = `${p.code.slice(0, 4)}-${p.code.slice(4)}`;
+  $('#tvDlg').showModal();
+  clearInterval(tvTick);
+  const tick = () => {
+    const left = displayHub.pairingLeft();
+    $('#tvLeft').textContent = left ? `Type it on the TV. It works once, for ${Math.ceil(left / 1000)} more seconds.` : 'The code has run out.';
+    if (!left) {
+      clearInterval(tvTick);
+      $('#tvDlg').close();
+    }
+  };
+  tick();
+  tvTick = setInterval(tick, 1000);
+}
+$('#tvCodeBtn')?.addEventListener('click', openTvPairing);
+$('#tvCancel')?.addEventListener('click', () => {
+  displayHub?.stopPairing();
+  $('#tvDlg').close();
+});
+$('#tvDlg')?.addEventListener('close', () => {
+  clearInterval(tvTick);
+  if (displayHub?.pairing) displayHub.stopPairing();
+});
+$('#tvList')?.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.dataset.tvAccept) displayHub?.accept(t.dataset.tvAccept);
+  else if (t.dataset.tvDecline) displayHub?.decline(t.dataset.tvDecline);
+  else if (t.dataset.tvDel && confirm('Remove this TV? It stops showing the program straight away.')) displayHub?.remove(t.dataset.tvDel);
+});
+$('#tvList')?.addEventListener('change', (e) => {
+  const key = e.target.dataset.tvMode;
+  if (key) displayHub?.setMode(key, e.target.value);
 });

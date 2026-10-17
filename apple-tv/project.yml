@@ -1,0 +1,29 @@
+# XcodeGen spec for the VUEMesh Apple TV app. `brew install xcodegen && xcodegen` makes VUEMeshTV.xcodeproj.
+name: VUEMeshTV
+options:
+  bundleIdPrefix: com.vuemesh
+  deploymentTarget:
+    tvOS: "17.0"
+packages:
+  LiveKitWebRTC:
+    url: https://github.com/livekit/webrtc-xcframework
+    from: 144.7559.11
+targets:
+  VUEMeshTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: VUEMeshTV
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: LiveKitWebRTC
+    info:
+      path: VUEMeshTV/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vuemesh.tv
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "3"
+        GENERATE_INFOPLIST_FILE: NO
+        DEVELOPMENT_TEAM: ""

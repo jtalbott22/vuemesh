@@ -600,6 +600,11 @@
   .remotes li button { margin-left: auto; }
   .remotes .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; display: inline-block; }
   .remotes .dot.live { background: #2fd56b; }
+  .remotes select.small { margin-left: auto; }
+  .remotes select.small + button { margin-left: 0; }
+  .remotes .tvwait .dot { background: var(--amber); }
+  .remotes .tvwait button:first-of-type { margin-left: auto; }
+  .remotes .tvwait button + button { margin-left: 0; }
   .remotedlg { max-width: 420px; text-align: center; }
   .remotedlg canvas { width: 260px; height: 260px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 6px; }
   .remotedlg .rcode { font: 700 2rem/1.1 ui-monospace, Menlo, monospace; letter-spacing: .12em; margin: 10px 0 2px; }
@@ -844,6 +849,13 @@
       <button type="button" id="remoteAdd">Add a phone</button>
     </section>
     <section data-mode="live">
+      <h2>TV screens</h2>
+      <p class="fine" style="margin:0 0 6px">Show the program on an Apple TV, or on any screen with a browser at <b>/tv</b>, on this network. The picture goes straight from this computer.</p>
+      <ul class="remotes" id="tvList" aria-live="polite"></ul>
+      <p class="fine" id="tvNone" style="margin:0 0 6px">No TVs yet. Open VUEMesh on the TV and enter <b id="tvEventCode"></b>; it shows up here to accept.</p>
+      <button type="button" id="tvCodeBtn">Show a TV code</button>
+    </section>
+    <section data-mode="live">
       <h2>Network</h2>
       <p class="fine" id="netState" style="margin-top:0">No phones yet.</p>
       <button type="button" id="directBtn" style="width:100%;margin-bottom:8px" hidden>Help phones connect directly</button>
@@ -883,6 +895,13 @@
   <p class="fine" id="remoteLink"></p>
   <p class="fine" id="remoteLeft" aria-live="polite"></p>
   <div class="row" style="justify-content:flex-end"><button type="button" id="remoteCancel">Cancel</button></div>
+</dialog>
+<dialog id="tvDlg" class="remotedlg" aria-labelledby="tvH">
+  <h2 id="tvH">Add a TV</h2>
+  <p class="fine" style="margin-top:0">On the TV, choose <b>Enter a code</b> and type this. Or skip the code and press Accept when the TV shows up in TV screens.</p>
+  <p class="rcode" id="tvCode" aria-label="Code"></p>
+  <p class="fine" id="tvLeft" aria-live="polite"></p>
+  <div class="row" style="justify-content:flex-end"><button type="button" id="tvCancel">Cancel</button></div>
 </dialog>
 <aside class="kioskside" id="kioskSide" aria-label="Join this show">
   <p class="kcall" id="kCall">Scan to start a show</p>
