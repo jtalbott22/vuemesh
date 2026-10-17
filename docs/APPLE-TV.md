@@ -19,7 +19,7 @@ The full design (Browse, Beacon, Wi-Fi join, enterprise Wi-Fi, timecode rules) i
 1. The TV looks the event up: `GET /api/events/{code}`.
 2. It opens the event's socket as `role=display` and says `{action: "hello"}`.
 3. When the studio is in `peers`, it signals the studio `{display: {v: 1, t: "hello", name, model, caps, screen, key?}}`.
-4. The studio answers `waiting` (it shows under TV screens with Accept), or `paired` with a key if it already knows this TV. A TV can also send `{t: "pair", code}` with a one-time code from **Show a TV code** (8 characters, 2 minutes, 5 tries).
+4. The studio answers `waiting` (it shows under TV screens with Accept), or `paired` with a key if it already knows this TV. Accept is the only way in: knowing the event code (it's on every beacon) isn't enough on its own.
 5. Once paired, the TV offers a receive-only connection (video and audio recvonly, plus a reliable `ctl` data channel) with the usual `offer` / `answer` / `ice` kinds. The studio answers, H.264 first, up to 6 Mbit/s.
 6. On `ctl`: the studio sends `{t: "mode", mode: "program" | "idle"}` and `{t: "meta", title}`; the TV pings every 5 s and reports `{t: "state", status, mode}`.
 

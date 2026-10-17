@@ -1,7 +1,7 @@
 // /tv: a screen that shows a studio's program. The same protocol as the Apple TV app, so it's the
 // reference for it, and any TV or spare computer with a browser can be a program screen.
 // The steps (docs/APPLE-TV.md): look the event up, join its signalling as a "display", say hello to
-// the studio; wait to be let in (Accept in the studio, or a TV code typed here); then offer a
+// the studio; wait to be let in (Accept in the studio); then offer a
 // receive-only connection, and show what the studio sends on it. All over the local network.
 
 import { api, meshSocket, ICE, eventIdFromUrl } from '/js/vm.js';
@@ -71,7 +71,6 @@ function cells(box, n) {
   return { inputs, value, set: (s) => inputs.forEach((el, i) => (el.value = s[i] || '')), clear: () => inputs.forEach((el) => (el.value = '')) };
 }
 const eventCode = cells($('#eventCells'), 6);
-const pairCode = cells($('#pairCells'), 8);
 
 function show(view) {
   for (const v of ['joinView', 'waitView']) $('#' + v).hidden = v !== view;
@@ -80,11 +79,10 @@ function show(view) {
   $('#progCtl').hidden = view !== 'program';
   if (view !== 'program' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
-function waiting(say, { pair = false } = {}) {
+function waiting(say) {
   show('waitView');
   $('#waitTitle').textContent = ev?.title || eventId;
   $('#waitSay').textContent = say;
-  $('#pairBtn').hidden = !pair;
 }
 
 // ---- joining ----------------------------------------------------------------
@@ -147,23 +145,18 @@ function hello() {
 }
 
 function onDisplay(m) {
-  if (m.t === 'waiting') return waiting('Waiting for the studio to accept this screen. It shows up under TV screens.', { pair: true });
+  if (m.t === 'waiting') return waiting('Waiting for the studio to accept this screen. It shows up under TV screens.');
   if (m.t === 'paired') {
     localStorage.setItem('vm_tv_key_' + eventId, m.key);
     if (m.title) ev = { ...ev, title: m.title };
-    $('#pairBox').hidden = true;
     waiting('Connecting to the studio…');
     return offer();
   }
   if (m.t === 'reject') {
     if (m.code === 'removed') localStorage.removeItem('vm_tv_key_' + eventId);
     $('#waitErr').textContent = m.message || 'The studio turned this screen away.';
-    if (m.code === 'wrong_code' || m.code === 'code_expired') {
-      $('#pairCells').classList.add('bad');
-      return;
-    }
     drop();
-    waiting(m.code === 'removed' ? 'The studio removed this screen. It can ask again.' : 'Not connected.', { pair: true });
+    waiting(m.code === 'removed' ? 'The studio removed this screen. It can ask again.' : 'Not connected.');
     if (m.code === 'removed') setTimeout(hello, 1500);
   }
 }
@@ -261,17 +254,6 @@ function drop() {
 }
 
 // ---- controls ---------------------------------------------------------------
-$('#pairBtn').onclick = () => {
-  $('#pairBox').hidden = false;
-  pairCode.clear();
-  pairCode.inputs[0].focus();
-};
-$('#pairForm').onsubmit = (e) => {
-  e.preventDefault();
-  $('#waitErr').textContent = '';
-  $('#pairCells').classList.remove('bad');
-  say({ t: 'pair', code: pairCode.value().toUpperCase(), name: localStorage.getItem('vm_tv_name') || 'TV screen', model: 'Browser' });
-};
 function leave() {
   drop();
   sock?.close();

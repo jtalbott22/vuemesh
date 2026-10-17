@@ -190,9 +190,15 @@ function render(d) {
   // ---- transfers: coming in, going out, received (with preview), sent
   const pct = (x) => Math.round((x.got / Math.max(1, x.total)) * 100);
   const row = (who, what, x) => `<div class="xrow"><span><b>${esc(who)}</b> · ${esc(what)}</span><progress max="100" value="${pct(x)}" aria-label="${esc(who)}: ${pct(x)}%"></progress><span class="num">${pct(x)}% of ${fmtMB(x.total)}</span></div>`;
+  // (a live stream: no progress, just that it's flowing and how fast)
+  const stream = (who, what, kbps, on = true) => `<div class="xrow"><span><b>${esc(who)}</b> · ${esc(what)}</span><span class="live${on ? '' : ' off'}"><i aria-hidden="true"></i>${on ? 'live' : 'not connected'}</span><span class="num">${kbps == null ? '—' : `${mbps(kbps)} Mbps`}</span></div>`;
   const inc = d.totals.incoming || [], out = d.outgoing || [];
-  $('#xfIn').innerHTML = inc.length ? inc.map((x) => row(x.name, 'recording', x)).join('') : '<p class="empty">Nothing coming in.</p>';
-  $('#xfOut').innerHTML = out.length ? out.map((x) => row(x.name, `part ${x.part}`, x)).join('') : '<p class="empty">Nothing going out.</p>';
+  const liveIn = d.peers.filter((p) => p.route !== 'local').map((p) => stream(p.name, p.role === 'mic' ? 'sound' : `picture${p.width ? ` ${p.width}×${p.height}` : ''}${p.codec ? ` ${p.codec}` : ''}`, (p.videoKbps || 0) + (p.audioKbps || 0)));
+  const liveOut = (d.displays || []).map((t) => stream(t.name, `TV · ${t.mode === 'program' ? 'program' : 'event card'}${t.w ? ` ${t.w}×${t.h}` : ''}${t.codec ? ` ${t.codec}` : ''}${t.route ? ` · ${t.route === 'lan' ? 'this network' : t.route}` : ''}`, t.kbps, t.status === 'connected'));
+  if (d.stream) liveOut.push(stream(d.stream.name || 'Stream', 'the program, streaming out', d.stream.kbps));
+  const xin = [...liveIn, ...inc.map((x) => row(x.name, 'recording', x))], xout = [...liveOut, ...out.map((x) => row(x.name, `part ${x.part} of the live cut`, x))];
+  $('#xfIn').innerHTML = xin.length ? xin.join('') : '<p class="empty">Nothing coming in.</p>';
+  $('#xfOut').innerHTML = xout.length ? xout.join('') : '<p class="empty">Nothing going out.</p>';
   const rec = d.received || [];
   const rsig = rec.map((r) => r.id + (r.thumb ? 't' : '')).join('|');
   if (rsig !== lastReceived) {

@@ -1,7 +1,8 @@
 # TV screens: a browser at /tv joins the event as a "display" (the Apple TV app's protocol), waits
 # until the studio accepts it, then shows the program, straight from the studio. The studio can put
-# it on the event card and back; a reload comes back without asking; a TV code lets a second screen
-# in without Accept (a wrong code is turned away); Remove sends it back to waiting.
+# it on the event card and back; a reload comes back without asking; a second screen is let in with
+# Accept too (there's no TV code); codes paste in whole; Remove sends it back to waiting; full
+# screen; Leave goes back to the code screen. Monitor's Transfers lists the TVs going out.
 # Run: node dev/server.mjs &  then  python3 test/e2e_display.py
 import os
 from playwright.sync_api import sync_playwright
@@ -22,7 +23,7 @@ with sync_playwright() as p:
     cam = b.new_context(permissions=['camera', 'microphone']).new_page(); cam.on('pageerror', lambda e: errors.append(f'cam: {e}'))
     cam.goto(f"{BASE}/cam?e={ev['id']}"); cam.fill('#name', 'Ana'); cam.check('#agreeGuest'); cam.click('#joinForm button[type=submit]')
     host.wait_for_function("document.querySelectorAll('.tile[data-peer] video').length >= 1", timeout=120000)
-    assert host.is_visible('#tvCodeBtn') and host.inner_text('#tvEventCode') == ev['id']
+    assert host.inner_text('#tvEventCode') == ev['id'] and not host.query_selector('#tvCodeBtn')
     step(f"studio up with a camera; TV screens says to enter {ev['id']} on the TV")
 
     tvctx = b.new_context(viewport={'width': 1280, 'height': 720})
@@ -55,21 +56,23 @@ with sync_playwright() as p:
     step('a reload comes straight back to the program (the key is remembered): no second Accept')
 
     tv2 = b.new_context(viewport={'width': 1280, 'height': 720}).new_page(); tv2.on('pageerror', lambda e: errors.append(f'tv2: {e}'))
-    tv2.goto(f"{BASE}/tv?e={ev['id']}")
-    tv2.wait_for_function("!document.querySelector('#pairBtn').hidden", timeout=30000)
-    host.click('#tvCodeBtn')
-    host.wait_for_function("document.querySelector('#tvDlg').open && document.querySelector('#tvCode').textContent.length === 9", timeout=10000)
-    code = host.inner_text('#tvCode').replace('-', '')
-    tv2.click('#pairBtn')
-    for i, ch in enumerate('WRONGCDE'): tv2.locator('#pairCells input').nth(i).fill(ch)
-    tv2.click('#pairForm button[type=submit]')
-    tv2.wait_for_function("document.querySelector('#waitErr').textContent.includes('isn’t right')", timeout=10000)
-    tv2.locator('#pairCells input').nth(3).evaluate(PASTE, host.inner_text('#tvCode'))   # (as the studio shows it, ABCD-EFGH, into any cell)
-    assert ''.join(tv2.locator('#pairCells input').nth(i).input_value() for i in range(8)) == code
-    tv2.click('#pairForm button[type=submit]')
+    tv2.goto(f"{BASE}/tv")
+    tv2.locator('#eventCells input').nth(3).evaluate(PASTE, f"{ev['id'][:3]}-{ev['id'][3:]}")   # (with a dash, into the fourth cell)
+    assert ''.join(tv2.locator('#eventCells input').nth(i).input_value() for i in range(6)) == ev['id']
+    tv2.click('#joinForm button[type=submit]')
+    tv2.wait_for_function("document.querySelector('#waitSay').textContent.includes('accept')", timeout=30000)
+    assert not tv2.query_selector('#pairBtn')
+    host.wait_for_function("!!document.querySelector('[data-tv-accept]')", timeout=20000)
+    host.click('[data-tv-accept]')
     tv2.wait_for_function(PLAYING, timeout=30000)
-    host.wait_for_function("!document.querySelector('#tvDlg').open && document.querySelectorAll('[data-tv-del]').length === 2", timeout=10000)
-    step('a second screen pairs with a TV code (a wrong one is turned away first); the dialog closes; two TVs listed, both showing')
+    host.wait_for_function("document.querySelectorAll('[data-tv-del]').length === 2", timeout=10000)
+    step('a second screen waits too (no TV code to type) and Accept lets it in; two TVs listed, both showing')
+
+    mon = ctx.new_page(); mon.on('pageerror', lambda e: errors.append(f'monitor: {e}'))
+    mon.goto(f"{BASE}/monitor?e={ev['id']}")
+    mon.wait_for_function("(() => { const o = document.querySelector('#xfOut').textContent, i = document.querySelector('#xfIn').textContent; return o.includes('Hall TV') && o.includes('TV screen') && /\\d\\.\\d+ Mbps/.test(o) && i.includes('Ana'); })()", timeout=30000)
+    step(f"Monitor's Transfers: both TVs going out, with their rate ({mon.inner_text('#xfOut').splitlines()[0]}); Ana's picture coming in")
+    mon.close()
 
     host.locator('[data-tv-del]').first.click()
     tv.wait_for_function("document.querySelector('#out').hidden && document.querySelector('#waitSay').textContent.length > 0", timeout=15000)

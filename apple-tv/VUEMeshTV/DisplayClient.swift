@@ -3,7 +3,7 @@ import UIKit
 
 /// The TV's side of the display protocol (docs/APPLE-TV.md), step for step the same as
 /// public/js/tv.js: look the event up, join its signalling as a "display", say hello to the
-/// studio, wait to be let in (Accept, or a TV code), offer a receive-only connection, and show
+/// studio, wait to be let in (Accept), offer a receive-only connection, and show
 /// what the studio sends on it.
 @MainActor
 final class DisplayClient: ObservableObject {
@@ -38,6 +38,7 @@ final class DisplayClient: ObservableObject {
     private var sock: MeshSocket?
     private var host: String?
     private var link: PeerLink?
+    private var videoTrack: RTCVideoTrack? // (the one the renderer is on)
     private var pingTimer: Timer?
     private var iceTimer: Timer?
     private var lastPong = Date()
@@ -137,12 +138,6 @@ final class DisplayClient: ObservableObject {
         say(m)
     }
 
-    func pair(_ code: String) {
-        codeError = false
-        message = ""
-        say(["t": "pair", "code": code.uppercased(), "name": screenName, "model": "Apple TV"])
-    }
-
     private func signal(from: String, data: [String: Any]) {
         guard from == host else { return }
         if let d = data["display"] as? [String: Any] { return display(d) }
@@ -172,10 +167,6 @@ final class DisplayClient: ObservableObject {
         case "reject":
             let code = m["code"] as? String ?? ""
             message = m["message"] as? String ?? "The studio turned this screen away."
-            if code == "wrong_code" || code == "code_expired" {
-                codeError = true
-                return
-            }
             if code == "removed" {
                 key = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.hello() }
@@ -241,6 +232,10 @@ final class DisplayClient: ObservableObject {
         case .failed:
             notReachable()
         case .videoTrack(let track):
+            // (handed over twice, maybe in two wrappers of the same track: once is enough)
+            guard track.trackId != videoTrack?.trackId else { return }
+            videoTrack?.remove(renderer)
+            videoTrack = track
             renderer.reset()
             track.add(renderer)
         }
@@ -278,6 +273,8 @@ final class DisplayClient: ObservableObject {
     private func drop() {
         pingTimer?.invalidate()
         iceTimer?.invalidate()
+        videoTrack?.remove(renderer)
+        videoTrack = nil
         link?.close()
         link = nil
         route = ""

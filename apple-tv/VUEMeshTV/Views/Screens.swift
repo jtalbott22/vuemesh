@@ -64,7 +64,6 @@ struct SettingsSheet: View {
 
 struct WaitScreen: View {
     @EnvironmentObject var client: DisplayClient
-    @State private var entering = false
 
     private var say: String {
         switch client.phase {
@@ -86,21 +85,13 @@ struct WaitScreen: View {
                 .multilineTextAlignment(.center).lineLimit(3).minimumScaleFactor(0.5)
             Text(say).font(Theme.body(34)).foregroundStyle(Theme.text2)
                 .multilineTextAlignment(.center).frame(maxWidth: 1300)
-            if entering && client.phase == .waitingAccept {
-                CodeEntry(length: 8, cellSize: 96, bad: client.codeError) { client.pair($0) }
-            }
             Text(client.message).font(Theme.body(28)).foregroundStyle(Theme.error).frame(minHeight: 36)
             if client.phase != .standby {
-                HStack(spacing: 24) {
-                    if client.phase == .waitingAccept && !entering {
-                        LinkButton(title: "Enter a TV code") { entering = true }
-                    }
-                    LinkButton(title: "Another event") { entering = false; client.leave() }
-                }
+                LinkButton(title: "Another event") { client.leave() }
             }
         }
         .padding(60)
-        .onExitCommand { if entering { entering = false } else { client.leave() } }
+        .onExitCommand { client.leave() }
     }
 }
 

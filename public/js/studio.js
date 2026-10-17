@@ -8362,6 +8362,7 @@ async function pushMonitor() {
     received: [...clips].sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0)).slice(0, 30).map((c) => ({ id: c.id, name: c.name, kind: c.kind, size: rawBlobs.get(c.id)?.size || 0, at: c.receivedAt || c.t0, dur: c.dur, mime: c.mime, thumb: thumbs?.get?.(c.id) || null })),
     peers, log: log.slice(0, 80),
     stream: streamOut?.link ? { name: streamOut.name, ...(await streamOut.link().catch(() => ({}))) } : null,
+    displays: (await displayHub?.stats().catch(() => [])) || [],
   });
 }
 
@@ -8472,10 +8473,10 @@ $('#remoteList')?.addEventListener('click', (e) => {
 
 // --------------------------------------------------------------- TV screens --
 // The program on a TV: the Apple TV app, or /tv in any browser on this network. A TV joins with
-// the event code and waits here until it's accepted (or types a code this shows); then it's
+// the event code and waits here until it's accepted; then it's
 // remembered and comes back on its own. Its picture comes straight from this computer over the
 // local network; see display-hub.js.
-let displayHub = null, tvTick = null;
+let displayHub = null;
 function programForTv() {
   const out = [programVideoTrack()];
   const sound = mix.dest?.stream.getAudioTracks()[0];
@@ -8509,34 +8510,7 @@ function renderTvs() {
       <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows"><option value="program"${t.mode === 'program' ? ' selected' : ''}>Program</option><option value="idle"${t.mode === 'idle' ? ' selected' : ''}>Event card</option></select>
       <button type="button" class="small" data-tv-del="${esc(t.key)}">Remove</button></li>`).join('');
   $('#tvNone').hidden = paired.length + waiting.length > 0;
-  if (!displayHub.pairing && $('#tvDlg')?.open) $('#tvDlg').close();
 }
-function openTvPairing() {
-  if (!displayHub) return toast('TV screens need the studio to be live first');
-  const p = displayHub.startPairing();
-  $('#tvCode').textContent = `${p.code.slice(0, 4)}-${p.code.slice(4)}`;
-  $('#tvDlg').showModal();
-  clearInterval(tvTick);
-  const tick = () => {
-    const left = displayHub.pairingLeft();
-    $('#tvLeft').textContent = left ? `Type it on the TV. It works once, for ${Math.ceil(left / 1000)} more seconds.` : 'The code has run out.';
-    if (!left) {
-      clearInterval(tvTick);
-      $('#tvDlg').close();
-    }
-  };
-  tick();
-  tvTick = setInterval(tick, 1000);
-}
-$('#tvCodeBtn')?.addEventListener('click', openTvPairing);
-$('#tvCancel')?.addEventListener('click', () => {
-  displayHub?.stopPairing();
-  $('#tvDlg').close();
-});
-$('#tvDlg')?.addEventListener('close', () => {
-  clearInterval(tvTick);
-  if (displayHub?.pairing) displayHub.stopPairing();
-});
 $('#tvList')?.addEventListener('click', (e) => {
   const t = e.target;
   if (t.dataset.tvAccept) displayHub?.accept(t.dataset.tvAccept);

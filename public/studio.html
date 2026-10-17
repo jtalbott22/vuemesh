@@ -866,7 +866,6 @@
       <p class="fine" style="margin:0 0 6px">Show the program on an Apple TV, or on any screen with a browser at <b>/tv</b>, on this network. The picture goes straight from this computer.</p>
       <ul class="remotes" id="tvList" aria-live="polite"></ul>
       <p class="fine" id="tvNone" style="margin:0 0 6px">No TVs yet. Open VUEMesh on the TV and enter <b id="tvEventCode"></b>; it shows up here to accept.</p>
-      <button type="button" id="tvCodeBtn">Show a TV code</button>
     </section>
     <section data-mode="live">
       <h2>Network</h2>
@@ -908,13 +907,6 @@
   <p class="fine" id="remoteLink"></p>
   <p class="fine" id="remoteLeft" aria-live="polite"></p>
   <div class="row" style="justify-content:flex-end"><button type="button" id="remoteCancel">Cancel</button></div>
-</dialog>
-<dialog id="tvDlg" class="remotedlg" aria-labelledby="tvH">
-  <h2 id="tvH">Add a TV</h2>
-  <p class="fine" style="margin-top:0">On the TV, choose <b>Enter a code</b> and type this. Or skip the code and press Accept when the TV shows up in TV screens.</p>
-  <p class="rcode" id="tvCode" aria-label="Code"></p>
-  <p class="fine" id="tvLeft" aria-live="polite"></p>
-  <div class="row" style="justify-content:flex-end"><button type="button" id="tvCancel">Cancel</button></div>
 </dialog>
 <aside class="kioskside" id="kioskSide" aria-label="Join this show">
   <p class="kcall" id="kCall">Scan to start a show</p>

@@ -28,6 +28,15 @@ struct Mark: View {
     }
 }
 
+/// A button that draws its own focus (amber, a little larger) and nothing else. tvOS's .plain style
+/// still adds the system's focus platter, a light rounded slab behind the button, which spilled over
+/// the keys either side of the focused one. A style of our own gets no system focus effect.
+struct QuietButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}
+
 /// A quiet text button that turns amber when focused.
 struct LinkButton: View {
     let title: String
@@ -40,7 +49,7 @@ struct LinkButton: View {
                 .padding(.horizontal, 28).padding(.vertical, 14)
                 .background(focused ? Theme.amber : Theme.surface, in: RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(QuietButtonStyle())
         .focused($focused)
         .scaleEffect(focused ? 1.06 : 1)
         .animation(.easeOut(duration: 0.15), value: focused)

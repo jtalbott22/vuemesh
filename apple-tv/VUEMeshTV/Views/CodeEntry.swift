@@ -70,9 +70,10 @@ private struct Key: View {
                 .frame(width: wide ? 150 : 88, height: 88)
                 .background(focused ? Theme.amber : Theme.surface, in: RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(QuietButtonStyle())
         .focused($focused)
-        .scaleEffect(focused ? 1.12 : 1)
+        .scaleEffect(focused ? 1.1 : 1)
+        .zIndex(focused ? 1 : 0) // (the focused key, a little larger, sits over its neighbours, not under)
         .animation(.easeOut(duration: 0.12), value: focused)
     }
 }

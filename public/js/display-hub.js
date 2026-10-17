@@ -2,30 +2,23 @@
 // See docs/APPLE-TV.md for the whole protocol.
 //
 // A TV joins the event with its code, like a phone, but knowing the code (it's on every beacon)
-// doesn't let it show anything. The studio lets it in: Accept in TV screens, or a one-time code
-// typed on the TV (8 characters, two minutes, five tries, as for the phone remote). Either way the
-// TV gets its own key, remembered on both sides, so it comes back on its own after a reload.
+// doesn't let it show anything: the studio lets it in with Accept in TV screens. Then the TV gets
+// its own key, remembered on both sides, so it comes back on its own after a reload.
 //
 // Messages go through the event's signalling only between the studio and the TV, inside
-// data.display ({t: 'hello' | 'pair' | 'state'} up; {t: 'waiting' | 'paired' | 'reject'} down).
+// data.display ({t: 'hello' | 'state'} up; {t: 'waiting' | 'paired' | 'reject'} down).
 // Then the TV offers a receive-only connection (the usual offer / answer / ice), the studio puts
 // the program's picture and sound on it, and everything else (mode, ping) rides its "ctl" channel
 // over the local network. Nothing but the handshake touches the cloud.
 
 import { ICE } from '/js/vm.js';
+import { pathOf } from '/js/rtc.js';
 
-const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // (no 0/O, 1/I/L: read off a screen)
-const rand = (n, chars = CODE_CHARS) => {
-  const a = new Uint32Array(n);
-  crypto.getRandomValues(a);
-  return [...a].map((x) => chars[x % chars.length]).join('');
-};
 const newKey = () => {
   const b = new Uint8Array(24);
   crypto.getRandomValues(b);
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
-const PAIR_MS = 120000, TRIES = 5;
 const PROGRAM_KBPS = 6000; // 1080p30 program on the local network
 export const DISPLAY_MODES = ['program', 'idle'];
 
@@ -48,7 +41,6 @@ export class DisplayHub {
     } catch {}
     this.waiting = new Map(); // peer → { name, model, at }
     this.links = new Map(); // peer → { key, pc, ctl, state, tracks, pendingIce, remoteSet, lastSeen }
-    this.pairing = null; // { code, until, tries }
     this.timer = setInterval(() => this.sweep(), 5000);
   }
 
@@ -58,20 +50,7 @@ export class DisplayHub {
     } catch {}
   }
 
-  // ---- pairing ---------------------------------------------------------------
-
-  startPairing() {
-    this.pairing = { code: rand(8), until: Date.now() + PAIR_MS, tries: 0 };
-    this.changed?.();
-    return this.pairing;
-  }
-  stopPairing() {
-    this.pairing = null;
-    this.changed?.();
-  }
-  pairingLeft() {
-    return this.pairing ? Math.max(0, this.pairing.until - Date.now()) : 0;
-  }
+  // ---- letting a TV in ------------------------------------------------------------
 
   /** Let a waiting TV in (Accept in TV screens). */
   accept(peer) {
@@ -151,19 +130,6 @@ export class DisplayHub {
       this.reply(peer, { t: 'waiting' });
       this.note?.(`A TV is asking to show the program: ${name}`);
       return this.changed?.();
-    }
-    if (m.t === 'pair') {
-      const p = this.pairing;
-      if (!p || Date.now() > p.until) return this.reply(peer, { t: 'reject', code: 'code_expired', message: 'That code has run out. Ask the studio for a new one.' });
-      if (String(m.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '') !== p.code) {
-        if (++p.tries >= TRIES) this.stopPairing();
-        return this.reply(peer, { t: 'reject', code: 'wrong_code', message: 'That code isn’t right.' });
-      }
-      const w = this.waiting.get(peer) || { name: String(m.name || 'TV').slice(0, 40), model: String(m.model || '').slice(0, 40) };
-      this.waiting.delete(peer);
-      this.stopPairing();
-      this.bind(peer, this.remember(w));
-      return this.note?.(`TV screen added with a code: ${w.name}`);
     }
     if (m.t === 'state') {
       const l = this.links.get(peer);
@@ -323,6 +289,34 @@ export class DisplayHub {
     // A TV that stopped pinging for 20 s is gone (asleep, unplugged); its key stays.
     const now = Date.now();
     for (const [peer, l] of [...this.links]) if (l.ctl && now - l.lastSeen > 20000) this.close(peer, true);
+  }
+
+  /** What each connected TV is being sent (for Monitor's Transfers): rate, codec, size, route. */
+  async stats() {
+    const out = [];
+    for (const [, l] of this.links) {
+      if (!l.pc) continue;
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, route: null };
+      try {
+        const st = await l.pc.getStats(), now = performance.now();
+        let bytes = 0;
+        st.forEach((x) => {
+          if (x.type !== 'outbound-rtp') return;
+          bytes += x.bytesSent || 0;
+          if (x.kind === 'video') {
+            r.w = x.frameWidth || null;
+            r.h = x.frameHeight || null;
+            const c = x.codecId && st.get(x.codecId);
+            if (c) r.codec = c.mimeType?.split('/')[1] || null;
+          }
+        });
+        if (l.lastOut) r.kbps = Math.max(0, Math.round(((bytes - l.lastOut.bytes) * 8) / (now - l.lastOut.at)));
+        l.lastOut = { bytes, at: now };
+        if (r.status === 'connected') r.route = (await pathOf(l.pc)).route;
+      } catch {}
+      out.push(r);
+    }
+    return out;
   }
 
   /** For the TV screens panel. */

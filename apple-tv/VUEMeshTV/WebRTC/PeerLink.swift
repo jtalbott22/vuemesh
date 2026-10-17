@@ -71,6 +71,11 @@ final class PeerLink: NSObject {
             self.remoteSet = true
             for c in self.pendingIce { self.pc?.add(c) { _ in } }
             self.pendingIce.removeAll()
+            // The picture's track is there once the answer is in; don't rely on didAdd(rtpReceiver:)
+            // alone to hand it over (DisplayClient attaches a track only once).
+            for t in self.pc?.transceivers ?? [] where t.mediaType == .video {
+                if let video = t.receiver.track as? RTCVideoTrack { self.emit(.videoTrack(video)) }
+            }
         }
     }
 

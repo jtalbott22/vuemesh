@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.50.0 — the Apple TV shows the picture; TVs and streams in Monitor; no TV code
+**Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
+
+- **The Apple TV app showed the program's sound over a black screen.** It drew only frames the Apple TV's hardware had decoded from H.264, and dropped anything else without a word on screen: when the studio's browser sends VP8 or VP9 (a Chromium without H.264, say), that was every frame. Frames decoded in software are now copied into a picture the TV can show, so the program appears whatever the codec. The picture's track is also picked up once the studio's answer arrives, not only when WebRTC announces it, and attached once.
+- **The Apple TV keypad's focus no longer spills over the keys beside it.** tvOS's plain button style still draws its own light focus slab behind a button; the keys (and the app's other buttons) now draw only their own amber focus, and the focused key sits above its neighbours.
+- **No more TV codes.** A TV gets in with the event code and Accept in the studio's TV screens, nothing else: Show a TV code (the studio), Enter a TV code (/tv and the Apple TV app) and the `pair` message are gone.
+- **Monitor's Transfers shows everything going in and out**: Coming in lists each live picture and sound arriving (name, size, codec, rate) as well as recordings; Going out lists each TV (program or event card, size, codec, route and rate), the stream out, and cameras' parts of the live cut. A TV's codec there tells you whether the Apple TV is getting H.264.
+
+**Tests:** `e2e_display.py`: the second screen gets in with Accept (no TV code anywhere), with its event code pasted with a dash into the fourth cell; Monitor lists both TVs going out, with a rate, and the camera coming in.
+
 ## 0.49.0 — Break and Black as sources; a T-bar that fits; TV screens you can paste into
 **Deploy:** `./aws/deploy.sh` (site only).
 

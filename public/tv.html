@@ -37,7 +37,6 @@
     background: var(--cell); border: 0; border-bottom: .07em solid var(--line); border-radius: .08em .08em 0 0; caret-color: var(--amber); padding: 0; }
   .cells input:focus { border-bottom-color: var(--amber); outline: none; }
   .cells.bad input { border-bottom-color: var(--tally); }
-  .cells.short input { font-size: clamp(32px, 4.4vw, 84px); }
   .row { display: flex; gap: 1em; align-items: center; justify-content: center; flex-wrap: wrap; }
   .name { display: flex; gap: .5em; align-items: center; color: var(--text-2); }
   .name input { background: var(--cell); border: 0; border-bottom: 2px solid var(--line); padding: .25em .4em; width: 12ch; }
@@ -80,14 +79,7 @@
   <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
   <h1 id="waitTitle"></h1>
   <p class="say" id="waitSay"></p>
-  <div id="pairBox" hidden>
-    <form id="pairForm" class="screen" style="position:static;padding:0">
-      <div class="cells short" id="pairCells" role="group" aria-label="TV code from the studio, 8 characters"></div>
-      <div class="row"><button class="go" type="submit">Use code</button></div>
-    </form>
-  </div>
   <div class="row">
-    <button class="link" type="button" id="pairBtn">Enter a TV code</button>
     <button class="link" type="button" id="leaveBtn">Another event</button>
   </div>
   <p class="err" id="waitErr" aria-live="polite"></p>
