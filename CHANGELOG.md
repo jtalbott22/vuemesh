@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.51.0 — TVs browse recordings and show the beacon, with PIP
+**Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
+
+- **A TV that's been let in shows one of four things**: the program, **Browse** (the event's recordings), the **Beacon**, or the event card. The studio picks it under TV screens, or the TV does: the bar at the top of `/tv`, or Menu on the Apple TV remote (from any mode; on the event card the modes are on screen). The studio remembers each TV's choice.
+- **Browse**: the TV lists the recordings on the studio computer (names, lengths, pictures), and the one you pick comes over peer to peer on a data channel of its own (`media`), as phones send clips, then plays on the TV with its own controls. Nothing goes through the cloud. `/tv` plays everything; the Apple TV plays MP4, QuickTime and AAC (what phones record) and lists WebM ones dimmed. Recordings already on the TV play straight away (`/tv` keeps up to about 1.5 GB, the Apple TV the last six).
+- **PIP**: in Browse or Beacon, the live program small in a corner (picture only; the studio sends the picture only while it's shown).
+- **Beacon on a TV**: phones scan and sync to it like any beacon. It draws the **studio's** clock, learnt from pings over the local network (a few ms), so phones synced to the TV line up with this computer and its cameras. A TV shows a picture late (20 ms in game mode, often 100 ms or more without), so the TV's beacon draws ahead by its lag. Until that's measured the TV asks for Game mode and Calibrate.
+- **Calibrate** (studio, TV screens, in Beacon): the studio shows a beacon of its own; scan it with a phone and `/tvcal` opens, reads this screen's beacon and the TV's in turn, and sends the difference back (the phone camera's delay drops out). The TV's lag is set, shown in the row, and its beacon lines up.
+- **Monitor** says what each TV is doing (program, browsing, sending a recording, beacon, + PIP), and counts a recording going to a TV in its rate.
+
+**Tests:** `e2e_display.py`: Browse chosen on the TV (the studio follows), the program recording listed, pulled and played; PIP shows the program in a corner (the studio ticks PIP); Beacon on the studio's clock with the game-mode hint until a lag is set, and a set lag reaching the TV.
+
 ## 0.50.0 — the Apple TV shows the picture; TVs and streams in Monitor; no TV code
 **Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
 

@@ -622,6 +622,8 @@
   .remotes .tvwait button + button { margin-left: 0; }
   .remotedlg { max-width: 420px; text-align: center; }
   .remotedlg canvas { width: 260px; height: 260px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 6px; }
+  .tvrow { flex-wrap: wrap; }
+  .tvrow .tvpip { display: inline-flex; gap: 4px; align-items: center; margin: 0; font-size: .8rem; }
   .remotedlg .rcode { font: 700 2rem/1.1 ui-monospace, Menlo, monospace; letter-spacing: .12em; margin: 10px 0 2px; }
 </style>
 </head>
@@ -907,6 +909,14 @@
   <p class="fine" id="remoteLink"></p>
   <p class="fine" id="remoteLeft" aria-live="polite"></p>
   <div class="row" style="justify-content:flex-end"><button type="button" id="remoteCancel">Cancel</button></div>
+</dialog>
+<dialog id="tvCalDlg" class="remotedlg" aria-labelledby="tvCalH">
+  <h2 id="tvCalH">Calibrate <span id="tvCalName"></span></h2>
+  <p class="fine" style="margin-top:0">The TV is showing its beacon. Scan this code with a phone's camera: it opens a page that measures. Then hold the phone so it sees this code for a few seconds, then the TV's for a few seconds. The result comes back here by itself.</p>
+  <canvas id="tvCalQr" width="360" height="360" aria-label="Reference beacon for calibrating the TV"></canvas>
+  <p class="fine" id="tvCalSay" aria-live="polite"></p>
+  <p class="fine">Turn on the TV's Game mode first if it has one: less lag, and steadier.</p>
+  <div class="row" style="justify-content:flex-end"><button type="button" id="tvCalCancel">Cancel</button></div>
 </dialog>
 <aside class="kioskside" id="kioskSide" aria-label="Join this show">
   <p class="kcall" id="kCall">Scan to start a show</p>

@@ -2,9 +2,10 @@
 # until the studio accepts it, then shows the program, straight from the studio. The studio can put
 # it on the event card and back; a reload comes back without asking; a second screen is let in with
 # Accept too (there's no TV code); codes paste in whole; Remove sends it back to waiting; full
-# screen; Leave goes back to the code screen. Monitor's Transfers lists the TVs going out.
+# screen; Leave goes back to the code screen. Monitor's Transfers lists the TVs going out. Browse
+# pulls a recording and plays it; PIP; Beacon runs on the studio's clock and takes the TV's lag.
 # Run: node dev/server.mjs &  then  python3 test/e2e_display.py
-import os
+import os, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
@@ -73,6 +74,37 @@ with sync_playwright() as p:
     mon.wait_for_function("(() => { const o = document.querySelector('#xfOut').textContent, i = document.querySelector('#xfIn').textContent; return o.includes('Hall TV') && o.includes('TV screen') && /\\d\\.\\d+ Mbps/.test(o) && i.includes('Ana'); })()", timeout=30000)
     step(f"Monitor's Transfers: both TVs going out, with their rate ({mon.inner_text('#xfOut').splitlines()[0]}); Ana's picture coming in")
     mon.close()
+
+    # ---- Browse (pulled over the media channel), PIP, Beacon (the studio's clock, led by the lag)
+    with host.expect_download(timeout=120000):
+        host.click('#recProgBtn'); time.sleep(4); host.click('#recProgBtn')
+    host.wait_for_function("vmClipList().some((c) => c.program)", timeout=30000)
+    host.keyboard.press('Escape')   # (the end-of-recording summary)
+    tv2.click('#modes [data-want="browse"]')
+    tv2.wait_for_function("vmTv().mode === 'browse' && document.querySelectorAll('#items [data-id]').length >= 1", timeout=15000)
+    host.wait_for_function("[...document.querySelectorAll('[data-tv-mode]')].some((s) => s.value === 'browse')", timeout=10000)
+    tv2.click('#items [data-id]')
+    tv2.wait_for_function("!document.querySelector('#player').hidden && document.querySelector('#clip').readyState >= 2", timeout=60000)
+    got = tv2.evaluate('vmTv()')
+    assert got['open'] and got['open'] in got['cached'], got
+    step('Browse, chosen on the TV (the studio follows): the program recording is listed, pulled over the media channel and plays on the TV')
+    tv2.click('#playerBack')
+    tv2.click('#pipBtn')
+    tv2.wait_for_function("vmTv().pip && document.body.classList.contains('pip') && !document.querySelector('#out').hidden && document.querySelector('#out').videoWidth > 0", timeout=15000)
+    assert host.is_checked('[data-tv-pip]')
+    step('PIP: the live program in a corner over the recordings (the studio shows PIP ticked)')
+    tv2.click('#modes [data-want="beacon"]')
+    tv2.wait_for_function("vmTv().mode === 'beacon' && vmTv().samples >= 3 && !document.querySelector('#beaconHint').hidden", timeout=15000)
+    off = tv2.evaluate('vmTv().clockOff')
+    assert abs(off) < 50, off   # (one machine: both clocks are the same one)
+    assert host.is_visible('[data-tv-cal]') and 'lag not measured' in host.inner_text('#tvList')
+    key = host.evaluate("[...vmDisplayHub().keys].find(([, k]) => k.mode === 'beacon')[0]")
+    host.evaluate("(k) => vmDisplayHub().setLag(k, 80)", key)
+    tv2.wait_for_function("vmTv().lag === 80 && document.querySelector('#beaconHint').hidden", timeout=10000)
+    assert '80 ms ahead' in host.inner_text('#tvList')
+    step(f'Beacon: on the studio clock (offset {off:.1f} ms here), the game-mode hint until the lag is set; a lag of 80 ms reaches the TV')
+    tv2.click('#modes [data-want="program"]')
+    tv2.wait_for_function(PLAYING + " && vmTv().mode === 'program' && !document.body.classList.contains('pip')", timeout=15000)
 
     host.locator('[data-tv-del]').first.click()
     tv.wait_for_function("document.querySelector('#out').hidden && document.querySelector('#waitSay').textContent.length > 0", timeout=15000)

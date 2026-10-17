@@ -486,7 +486,8 @@ async function init() {
       },
       // (a phone remote's messages are its own, not a camera's: they never reach the cameras' links)
       // (a TV's messages, too: only the TV screens panel hears them)
-      onSignal: (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role)),
+      // (and a phone measuring a TV's lag, from /tvcal: only the result, to the open Calibrate)
+      onSignal: (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : data?.tvcal ? onTvCal(data.tvcal) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role)),
     });
     if (!KIOSK) startRemoteHost();
     if (!KIOSK) startDisplayHub();
@@ -8492,6 +8493,10 @@ function startDisplayHub() {
     changed: renderTvs,
     note,
     localOnly: () => !!$('#localOnly')?.checked,
+    // Browse: the recordings on this computer, newest first
+    media: () => clips.filter((c) => rawBlobs.has(c.id)).sort((a, b) => (b.t0 || 0) - (a.t0 || 0)).map((c) => ({ id: c.id, name: c.program ? c.name : clipTitle(c), kind: c.kind, mime: rawBlobs.get(c.id).type || c.mime, dur: c.dur, t0: c.t0, size: rawBlobs.get(c.id).size })),
+    blob: (id) => rawBlobs.get(id),
+    thumb: (id) => thumbs.get(id) || null,
   });
   window.vmDisplayHub = () => displayHub; // (diagnostics and tests)
   const code = $('#tvEventCode');
@@ -8504,10 +8509,14 @@ function renderTvs() {
   if (!ul || !displayHub) return;
   const { paired, waiting } = displayHub.list();
   const say = (t) => (t.detail === 'ice_failed_same_network' ? 'not on this network' : TV_STATUS[t.status] || t.status);
+  if (ul.contains(document.activeElement) && document.activeElement.matches('select')) return; // (not under someone choosing)
+  const opt = (t, v, label) => `<option value="${v}"${t.mode === v ? ' selected' : ''}>${label}</option>`;
   ul.innerHTML =
     waiting.map((w) => `<li class="tvwait"><span class="dot" aria-hidden="true"></span> ${esc(w.name)} <span class="fine">wants to show the program</span> <button type="button" class="small" data-tv-accept="${esc(w.peer)}">Accept</button> <button type="button" class="small" data-tv-decline="${esc(w.peer)}">Decline</button></li>`).join('') +
-    paired.map((t) => `<li><span class="dot${t.connected ? ' live' : ''}" aria-hidden="true"></span> ${esc(t.name)} <span class="fine">${esc(say(t))}</span>
-      <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows"><option value="program"${t.mode === 'program' ? ' selected' : ''}>Program</option><option value="idle"${t.mode === 'idle' ? ' selected' : ''}>Event card</option></select>
+    paired.map((t) => `<li class="tvrow"><span class="dot${t.connected ? ' live' : ''}" aria-hidden="true"></span> ${esc(t.name)} <span class="fine">${esc(say(t))}</span>
+      <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows">${opt(t, 'program', 'Program')}${opt(t, 'browse', 'Browse recordings')}${opt(t, 'beacon', 'Beacon')}${opt(t, 'idle', 'Event card')}</select>
+      ${t.mode === 'browse' || t.mode === 'beacon' ? `<label class="check tvpip"><input type="checkbox" data-tv-pip="${esc(t.key)}"${t.pip ? ' checked' : ''}> PIP</label>` : ''}
+      ${t.mode === 'beacon' ? `<span class="fine">${t.lag == null ? 'lag not measured' : `${t.lag} ms ahead`}</span> <button type="button" class="small" data-tv-cal="${esc(t.key)}" title="Measure this TV's display lag with a phone, so phones synced to it line up with this computer">Calibrate</button>` : ''}
       <button type="button" class="small" data-tv-del="${esc(t.key)}">Remove</button></li>`).join('');
   $('#tvNone').hidden = paired.length + waiting.length > 0;
 }
@@ -8515,9 +8524,59 @@ $('#tvList')?.addEventListener('click', (e) => {
   const t = e.target;
   if (t.dataset.tvAccept) displayHub?.accept(t.dataset.tvAccept);
   else if (t.dataset.tvDecline) displayHub?.decline(t.dataset.tvDecline);
+  else if (t.dataset.tvCal) openTvCal(t.dataset.tvCal);
   else if (t.dataset.tvDel && confirm('Remove this TV? It stops showing the program straight away.')) displayHub?.remove(t.dataset.tvDel);
 });
 $('#tvList')?.addEventListener('change', (e) => {
-  const key = e.target.dataset.tvMode;
-  if (key) displayHub?.setMode(key, e.target.value);
+  const { tvMode, tvPip } = e.target.dataset;
+  if (tvMode) {
+    e.target.blur();
+    displayHub?.setMode(tvMode, e.target.value);
+  } else if (tvPip) {
+    const k = displayHub?.keys.get(tvPip);
+    if (k) displayHub.setMode(tvPip, k.mode, e.target.checked);
+  }
 });
+
+// ---- a TV's display lag, measured with a phone ---------------------------------------------
+// A TV shows a picture some time after it's sent (20 ms in game mode, often 100 ms or more
+// without). A TV beacon draws this computer's clock, so phones synced to it would be that much
+// behind. Calibrate: this screen shows a beacon of its own (little lag), the TV shows its beacon,
+// and a phone (/tvcal, opened by scanning this one) reads both. The difference is the TV's lag
+// beyond this screen's; the TV's beacon then draws that far ahead.
+let tvCal = null; // { key, id, timer }
+function openTvCal(key) {
+  if (!displayHub?.keys.has(key)) return;
+  const id = Math.random().toString(36).slice(2, 10);
+  tvCal = { key, id };
+  if (displayHub.keys.get(key).mode !== 'beacon') displayHub.setMode(key, 'beacon');
+  $('#tvCalName').textContent = displayHub.keys.get(key).name;
+  $('#tvCalSay').textContent = 'Waiting for the phone…';
+  const c = $('#tvCalQr');
+  const draw = () => drawQR(c, `${location.origin}/tvcal?e=${eventId}&c=${id}#t=${Math.round(now())}`, { size: 360, ecl: 'L' });
+  draw();
+  tvCal.timer = setInterval(draw, 1000 / 15); // (the beacon's own rate)
+  $('#tvCalDlg').showModal();
+}
+function closeTvCal() {
+  clearInterval(tvCal?.timer);
+  tvCal = null;
+  if ($('#tvCalDlg').open) $('#tvCalDlg').close();
+}
+$('#tvCalDlg')?.addEventListener('close', () => {
+  clearInterval(tvCal?.timer);
+  tvCal = null;
+});
+$('#tvCalCancel')?.addEventListener('click', closeTvCal);
+/** The phone's result: how much later the TV's beacon showed than this screen's (ms). */
+function onTvCal(m) {
+  if (!tvCal || m?.c !== tvCal.id) return;
+  if (m.progress) return void ($('#tvCalSay').textContent = String(m.progress).slice(0, 120)); // (what the phone sees so far)
+  const k = displayHub?.keys.get(tvCal.key);
+  if (!k || !Number.isFinite(m.ms)) return;
+  const lag = Math.max(0, (k.lag || 0) + m.ms);
+  displayHub.setLag(tvCal.key, lag);
+  note(`TV display lag measured: ${k.name}, ${Math.round(lag)} ms (its beacon now draws that far ahead)`);
+  toast(`${k.name}: ${Math.round(lag)} ms lag. Its beacon is lined up with this screen.`, 5000);
+  closeTvCal();
+}

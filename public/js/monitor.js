@@ -194,7 +194,7 @@ function render(d) {
   const stream = (who, what, kbps, on = true) => `<div class="xrow"><span><b>${esc(who)}</b> · ${esc(what)}</span><span class="live${on ? '' : ' off'}"><i aria-hidden="true"></i>${on ? 'live' : 'not connected'}</span><span class="num">${kbps == null ? '—' : `${mbps(kbps)} Mbps`}</span></div>`;
   const inc = d.totals.incoming || [], out = d.outgoing || [];
   const liveIn = d.peers.filter((p) => p.route !== 'local').map((p) => stream(p.name, p.role === 'mic' ? 'sound' : `picture${p.width ? ` ${p.width}×${p.height}` : ''}${p.codec ? ` ${p.codec}` : ''}`, (p.videoKbps || 0) + (p.audioKbps || 0)));
-  const liveOut = (d.displays || []).map((t) => stream(t.name, `TV · ${t.mode === 'program' ? 'program' : 'event card'}${t.w ? ` ${t.w}×${t.h}` : ''}${t.codec ? ` ${t.codec}` : ''}${t.route ? ` · ${t.route === 'lan' ? 'this network' : t.route}` : ''}`, t.kbps, t.status === 'connected'));
+  const liveOut = (d.displays || []).map((t) => stream(t.name, `TV · ${{ program: 'program', browse: t.sending ? 'sending a recording' : 'browsing recordings', beacon: 'beacon', idle: 'event card' }[t.mode] || t.mode}${t.pip ? ' + PIP' : ''}${t.w ? ` ${t.w}×${t.h}` : ''}${t.codec ? ` ${t.codec}` : ''}${t.route ? ` · ${t.route === 'lan' ? 'this network' : t.route}` : ''}`, t.kbps, t.status === 'connected'));
   if (d.stream) liveOut.push(stream(d.stream.name || 'Stream', 'the program, streaming out', d.stream.kbps));
   const xin = [...liveIn, ...inc.map((x) => row(x.name, 'recording', x))], xout = [...liveOut, ...out.map((x) => row(x.name, `part ${x.part} of the live cut`, x))];
   $('#xfIn').innerHTML = xin.length ? xin.join('') : '<p class="empty">Nothing coming in.</p>';

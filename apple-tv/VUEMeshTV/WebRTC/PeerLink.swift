@@ -1,8 +1,9 @@
 import Foundation
 
 /// The TV's one connection to the studio: receive-only picture and sound, plus a reliable "ctl"
-/// data channel for mode, meta and ping. The TV makes the offer, as cameras do; the studio answers
-/// and puts the program on it (docs/APPLE-TV.md, Join flow steps 5 to 7).
+/// data channel for mode, meta and ping, and a "media" one the studio sends recordings on (Browse).
+/// The TV makes the offer, as cameras do; the studio answers and puts the program on it
+/// (docs/APPLE-TV.md, Join flow steps 5 to 7).
 ///
 /// WebRTC calls back on its own threads; every event is handed to `events` on the main queue.
 final class PeerLink: NSObject {
@@ -14,6 +15,8 @@ final class PeerLink: NSObject {
         case connected(route: String)
         case failed
         case videoTrack(RTCVideoTrack)
+        case mediaMessage([String: Any]) // a recording begins ({t: file}) or ends ({t: end})
+        case mediaData(Data)             // a piece of it
     }
 
     private static let factory: RTCPeerConnectionFactory = {
@@ -22,6 +25,7 @@ final class PeerLink: NSObject {
 
     private var pc: RTCPeerConnection?
     private var ctl: RTCDataChannel?
+    private var media: RTCDataChannel?
     private var pendingIce: [RTCIceCandidate] = []
     private var remoteSet = false
     private let events: (Event) -> Void
@@ -46,6 +50,10 @@ final class PeerLink: NSObject {
         cfg.isOrdered = true
         ctl = pc?.dataChannel(forLabel: "ctl", configuration: cfg)
         ctl?.delegate = self
+        let mediaCfg = RTCDataChannelConfiguration()
+        mediaCfg.isOrdered = true
+        media = pc?.dataChannel(forLabel: "media", configuration: mediaCfg)
+        media?.delegate = self
     }
 
     func makeOffer() {
@@ -92,8 +100,10 @@ final class PeerLink: NSObject {
 
     func close() {
         ctl?.close()
+        media?.close()
         pc?.close()
         ctl = nil
+        media = nil
         pc = nil
     }
 
@@ -158,12 +168,13 @@ extension PeerLink: RTCPeerConnectionDelegate {
 
 extension PeerLink: RTCDataChannelDelegate {
     func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        if dataChannel.readyState == .open { emit(.ctlOpen) }
+        if dataChannel.label == "ctl" && dataChannel.readyState == .open { emit(.ctlOpen) }
     }
 
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
+        if dataChannel.label == "media" && buffer.isBinary { return emit(.mediaData(buffer.data)) }
         guard !buffer.isBinary,
               let obj = try? JSONSerialization.jsonObject(with: buffer.data) as? [String: Any] else { return }
-        emit(.ctlMessage(obj))
+        emit(dataChannel.label == "media" ? .mediaMessage(obj) : .ctlMessage(obj))
     }
 }

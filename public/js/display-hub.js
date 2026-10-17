@@ -10,8 +10,18 @@
 // Then the TV offers a receive-only connection (the usual offer / answer / ice), the studio puts
 // the program's picture and sound on it, and everything else (mode, ping) rides its "ctl" channel
 // over the local network. Nothing but the handshake touches the cloud.
+//
+// What a TV shows (its mode, chosen here or on the TV itself):
+//   program  the live program, picture and sound
+//   browse   the event's recordings: the TV asks for the list, then pulls the one it wants over
+//            its "media" data channel (the same peer-to-peer beam phones send clips on), and plays
+//            it itself. PIP: the live program, small, in a corner (picture only)
+//   beacon   the sync beacon, drawn by the TV on the studio's clock (learnt from ctl pings) and led
+//            by the TV's own display lag, so phones synced to it line up with this computer.
+//            PIP as in browse
+//   idle     the event card
 
-import { ICE } from '/js/vm.js';
+import { ICE, now } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
 
 const newKey = () => {
@@ -20,7 +30,8 @@ const newKey = () => {
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 const PROGRAM_KBPS = 6000; // 1080p30 program on the local network
-export const DISPLAY_MODES = ['program', 'idle'];
+export const DISPLAY_MODES = ['program', 'browse', 'beacon', 'idle'];
+const FILE_CHUNK = 64 * 1024, FILE_HIGH = 4 * 1024 * 1024;
 
 export class DisplayHub {
   /**
@@ -31,13 +42,16 @@ export class DisplayHub {
    * @param o.changed () → the list changed (redraw TV screens)
    * @param o.note (text) → a line in the studio's event log
    * @param o.localOnly? () → true: keep only local-network candidates
+   * @param o.media? () → [{id, name, kind, mime, dur, t0, size}] the recordings a TV can browse
+   * @param o.blob? (id) → Blob of one recording
+   * @param o.thumb? (id) → a data URL of its picture, or null
    */
   constructor(o) {
     Object.assign(this, o);
     this.store = `vm_displays_${o.eventId}`;
     this.keys = new Map(); // key → { name, model, mode, at }
     try {
-      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: r.mode || 'program', at: r.at });
+      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: DISPLAY_MODES.includes(r.mode) ? r.mode : 'program', pip: !!r.pip, lag: Number.isFinite(r.lag) ? r.lag : null, at: r.at });
     } catch {}
     this.waiting = new Map(); // peer → { name, model, at }
     this.links = new Map(); // peer → { key, pc, ctl, state, tracks, pendingIce, remoteSet, lastSeen }
@@ -69,7 +83,7 @@ export class DisplayHub {
 
   remember(w) {
     const key = newKey();
-    this.keys.set(key, { name: w.name || 'TV', model: w.model || '', mode: 'program', at: Date.now() });
+    this.keys.set(key, { name: w.name || 'TV', model: w.model || '', mode: 'program', pip: false, lag: null, at: Date.now() });
     this.save();
     return key;
   }
@@ -148,6 +162,13 @@ export class DisplayHub {
     const pc = new RTCPeerConnection({ iceServers: ICE });
     Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' } });
     pc.ondatachannel = (e) => {
+      if (e.channel.label === 'media') {
+        // (recordings for Browse go out on this one: the TV opened it, reliable and in order)
+        l.media = e.channel;
+        l.media.binaryType = 'arraybuffer';
+        l.media.bufferedAmountLowThreshold = FILE_CHUNK * 8;
+        return;
+      }
       if (e.channel.label !== 'ctl') return;
       l.ctl = e.channel;
       e.channel.onopen = () => this.sendMode(peer);
@@ -155,11 +176,7 @@ export class DisplayHub {
         let m;
         try { m = JSON.parse(ev.data); } catch { return; }
         l.lastSeen = Date.now();
-        if (m.t === 'ping') this.ctl(peer, { t: 'pong', seq: m.seq });
-        else if (m.t === 'state') {
-          l.state = { status: m.status, mode: m.mode, detail: m.detail };
-          this.changed?.();
-        }
+        this.onCtl(peer, l, m);
       };
     };
     pc.onicecandidate = (e) => {
@@ -189,9 +206,8 @@ export class DisplayHub {
           if (h264.length) tr.setCodecPreferences([...h264, ...caps.filter((c) => !/h264/i.test(c.mimeType))]);
         } catch {}
       }
-      const track = l.tracks.find((t) => t.kind === kind) || null;
-      await tr.sender.replaceTrack(this.modeOf(l) === 'program' ? track : null).catch(() => {});
     }
+    await this.applyTracks(l);
     await pc.setLocalDescription(await pc.createAnswer());
     this.send(peer, { kind: 'answer', sdp: pc.localDescription.toJSON() });
     this.changed?.();
@@ -214,6 +230,69 @@ export class DisplayHub {
     return this.keys.get(l?.key)?.mode || 'program';
   }
 
+  /** The program's picture goes to a TV showing it, full screen or in its corner (PIP); its sound only full screen. */
+  async applyTracks(l) {
+    if (!l?.pc) return;
+    const k = this.keys.get(l.key) || {}, mode = k.mode || 'program';
+    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' };
+    for (const tr of l.pc.getTransceivers()) {
+      const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
+      if (!kind) continue;
+      await tr.sender.replaceTrack(want[kind] ? l.tracks.find((t) => t.kind === kind) || null : null).catch(() => {});
+    }
+  }
+
+  /** What a TV says on its ctl channel. */
+  onCtl(peer, l, m) {
+    if (m.t === 'ping') return this.ctl(peer, { t: 'pong', seq: m.seq, at: m.at, now: now() }); // (the TV learns this computer's clock from these)
+    if (m.t === 'state') {
+      l.state = { status: m.status, mode: m.mode, detail: m.detail };
+      return this.changed?.();
+    }
+    // the TV asked for a mode, or PIP, from its own remote
+    if (m.t === 'want') return this.setMode(l.key, DISPLAY_MODES.includes(m.mode) ? m.mode : this.modeOf(l), m.pip);
+    if (m.t === 'list') return this.sendList(peer);
+    if (m.t === 'get') return this.sendFile(peer, l, String(m.id || ''));
+    if (m.t === 'cancel') l.sending = null;
+  }
+
+  /** The recordings a TV can browse: names, lengths, then each picture in a message of its own. */
+  sendList(peer) {
+    const items = (this.media?.() || []).map((x) => ({ id: x.id, name: x.name, kind: x.kind, mime: x.mime || '', dur: Math.round(x.dur || 0), t0: x.t0 || 0, size: x.size || 0 }));
+    this.ctl(peer, { t: 'list', items });
+    for (const x of items) {
+      const th = this.thumb?.(x.id);
+      if (th && th.length < 200000) this.ctl(peer, { t: 'thumb', id: x.id, data: th });
+    }
+  }
+
+  /** One recording to a TV on its media channel: {t:'file'}, the bytes in 64 KB pieces, {t:'end'}. One at a time. */
+  async sendFile(peer, l, id) {
+    const dc = l.media, blob = this.blob?.(id);
+    if (dc?.readyState !== 'open') return this.ctl(peer, { t: 'error', id, message: 'The TV’s media channel isn’t open' });
+    if (!blob) return this.ctl(peer, { t: 'error', id, message: 'That recording isn’t on the studio computer' });
+    const job = (l.sending = { id });
+    dc.send(JSON.stringify({ t: 'file', id, size: blob.size, mime: blob.type || '' }));
+    try {
+      for (let off = 0; off < blob.size; off += 1 << 20) {
+        const slab = await blob.slice(off, off + (1 << 20)).arrayBuffer();
+        for (let i = 0; i < slab.byteLength; i += FILE_CHUNK) {
+          if (l.sending !== job || dc.readyState !== 'open') return; // (cancelled, another asked for, or gone)
+          if (dc.bufferedAmount > FILE_HIGH) {
+            await new Promise((r) => {
+              dc.addEventListener('bufferedamountlow', r, { once: true });
+              dc.addEventListener('close', r, { once: true });
+            });
+          }
+          dc.send(slab.slice(i, Math.min(i + FILE_CHUNK, slab.byteLength)));
+        }
+      }
+      dc.send(JSON.stringify({ t: 'end', id }));
+      this.note?.(`Sent a recording to a TV: ${(this.media?.() || []).find((x) => x.id === id)?.name || id}`);
+    } catch {}
+    if (l.sending === job) l.sending = null;
+  }
+
   ctl(peer, obj) {
     const c = this.links.get(peer)?.ctl;
     if (c?.readyState === 'open') {
@@ -224,25 +303,35 @@ export class DisplayHub {
   sendMode(peer) {
     const l = this.links.get(peer);
     if (!l) return;
-    const mode = this.modeOf(l);
-    this.ctl(peer, { t: 'mode', mode, params: {} });
+    const k = this.keys.get(l.key) || {};
+    // (lag: how far ahead of this computer's clock the TV's beacon draws, its own display lag; null: not measured)
+    this.ctl(peer, { t: 'mode', mode: this.modeOf(l), pip: !!k.pip, params: { lag: k.lag ?? null, event: this.eventId } });
     this.ctl(peer, { t: 'meta', source: 'live', title: this.title?.() || '' });
   }
 
-  /** Program or idle, for every connection this TV has (remembered for next time). */
-  async setMode(key, mode) {
-    if (!DISPLAY_MODES.includes(mode) || !this.keys.has(key)) return;
-    this.keys.get(key).mode = mode;
+  /** Program, browse, beacon or idle, and PIP, for every connection this TV has (remembered for next time). */
+  async setMode(key, mode, pip) {
+    const k = this.keys.get(key);
+    if (!DISPLAY_MODES.includes(mode) || !k) return;
+    k.mode = mode;
+    if (pip !== undefined) k.pip = !!pip;
     this.save();
     for (const [peer, l] of this.links) {
       if (l.key !== key || !l.pc) continue;
-      for (const tr of l.pc.getTransceivers()) {
-        const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
-        const track = l.tracks.find((t) => t.kind === kind) || null;
-        await tr.sender.replaceTrack(mode === 'program' ? track : null).catch(() => {});
-      }
+      if (mode !== 'browse') l.sending = null;
+      await this.applyTracks(l);
       this.sendMode(peer);
     }
+    this.changed?.();
+  }
+
+  /** The TV's display lag, measured (Calibrate) or set by hand: its beacon draws this far ahead. */
+  setLag(key, ms) {
+    const k = this.keys.get(key);
+    if (!k) return;
+    k.lag = ms == null ? null : Math.max(0, Math.min(500, Math.round(ms)));
+    this.save();
+    for (const [peer, l] of this.links) if (l.key === key) this.sendMode(peer);
     this.changed?.();
   }
 
@@ -252,11 +341,7 @@ export class DisplayHub {
       if (!l.pc) continue;
       for (const t of l.tracks) t.stop?.();
       l.tracks = this.program?.() || [];
-      const on = this.modeOf(l) === 'program';
-      for (const tr of l.pc.getTransceivers()) {
-        const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
-        await tr.sender.replaceTrack(on ? l.tracks.find((t) => t.kind === kind) || null : null).catch(() => {});
-      }
+      await this.applyTracks(l);
     }
   }
 
@@ -296,11 +381,12 @@ export class DisplayHub {
     const out = [];
     for (const [, l] of this.links) {
       if (!l.pc) continue;
-      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, route: null };
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, route: null };
       try {
         const st = await l.pc.getStats(), now = performance.now();
         let bytes = 0;
         st.forEach((x) => {
+          if (x.type === 'data-channel' && x.label === 'media') bytes += x.bytesSent || 0; // (a recording going over to Browse)
           if (x.type !== 'outbound-rtp') return;
           bytes += x.bytesSent || 0;
           if (x.kind === 'video') {
@@ -324,7 +410,7 @@ export class DisplayHub {
     const out = [];
     for (const [key, k] of this.keys) {
       const link = [...this.links.values()].find((l) => l.key === key);
-      out.push({ key, name: k.name, model: k.model, mode: k.mode || 'program', connected: link?.pc?.connectionState === 'connected', status: link ? link.state?.status || 'joining' : 'away', detail: link?.state?.detail || '' });
+      out.push({ key, name: k.name, model: k.model, mode: k.mode || 'program', pip: !!k.pip, lag: k.lag ?? null, connected: link?.pc?.connectionState === 'connected', status: link ? link.state?.status || 'joining' : 'away', detail: link?.state?.detail || '' });
     }
     return { paired: out, waiting: [...this.waiting].map(([peer, w]) => ({ peer, ...w })) };
   }

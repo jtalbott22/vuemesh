@@ -123,6 +123,14 @@ final class VideoLayerView: UIView {
         layer.addSublayer(renderer.layer)
     }
     required init?(coder: NSCoder) { fatalError("not used") }
+    /// One renderer, one layer, but more than one place to show it (full screen, or the PIP corner):
+    /// whichever view comes on screen takes the layer.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil, renderer.layer.superlayer !== layer else { return }
+        layer.addSublayer(renderer.layer)
+        setNeedsLayout()
+    }
     override func layoutSubviews() {
         super.layoutSubviews()
         renderer.layer.frame = bounds
