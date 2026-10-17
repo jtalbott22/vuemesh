@@ -1,0 +1,11 @@
+# VUEMesh
+User-agent: *
+Allow: /
+# private working pages (event pages use noindex, so link previews still work)
+Disallow: /studio
+Disallow: /admin
+Disallow: /monitor
+Disallow: /program
+Disallow: /beacon
+
+Sitemap: https://vuemesh.com/sitemap.xml

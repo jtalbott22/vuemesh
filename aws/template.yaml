@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  VUEMesh (LAN-first). The cloud only does event discovery, WebRTC signaling and
+  film publishing. Video moves phone-to-laptop over the local network.
+  Everything here scales to zero when nobody is using it.
+
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Optional custom domain for the site, e.g. vuemesh.com (leave blank to use the CloudFront URL)
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: ACM certificate ARN in us-east-1 covering DomainName (required only if DomainName is set)
+  AdminKeyHashes:
+    Type: String
+    Default: ''
+    Description: Comma-separated SHA-256 hashes of admin keys (deploy.sh fills this in; the keys stay on your machine)
+  PublishEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Allow hosts to upload finished films (off during the beta)
+  GlobeEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Serve the public events map feed (off during the beta)
+
+Conditions:
+  HasDomain: !Not [!Equals [!Ref DomainName, '']]
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+    CodeUri: functions/
+    Environment:
+      Variables:
+        TABLE: !Ref Table
+
+Resources:
+  # ------------------------------------------------------------------ data ---
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gh, AttributeType: S }
+        - { AttributeName: createdAt, AttributeType: N }
+        - { AttributeName: pub, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: geo
+          KeySchema:
+            - { AttributeName: gh, KeyType: HASH }
+            - { AttributeName: createdAt, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        # Sparse: only public events carry pub='P'. Feeds the globe.
+        - IndexName: pub
+          KeySchema:
+            - { AttributeName: pub, KeyType: HASH }
+            - { AttributeName: createdAt, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      TimeToLiveSpecification: { AttributeName: ttl, Enabled: true }
+
+  # One bucket: the static app at the root, published films under films/.
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [PUT]
+            AllowedOrigins: ['*']
+            AllowedHeaders: ['*']
+            MaxAge: 3000
+      # Published films disappear after 30 days, like everything else; half-finished uploads after 1.
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-films
+            Status: Enabled
+            Prefix: films/
+            ExpirationInDays: 30
+          - Id: abort-stale-uploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+  # ------------------------------------------------------------------ site ---
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # /cam → /cam.html so links and the beacon QR stay short.
+  CleanUrls:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-clean-urls'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Map extensionless paths to .html
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var r = event.request;
+          var u = r.uri;
+          if (u !== '/' && u.indexOf('.') === -1 && u.slice(-1) !== '/') r.uri = u + '.html';
+          return r;
+        }
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: VUEMesh
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Aliases: !If [HasDomain, [!Ref DomainName], !Ref 'AWS::NoValue']
+        ViewerCertificate: !If
+          - HasDomain
+          - { AcmCertificateArn: !Ref CertificateArn, SslSupportMethod: sni-only, MinimumProtocolVersion: TLSv1.2_2021 }
+          - { CloudFrontDefaultCertificate: true }
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig: { OriginAccessIdentity: '' }
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt CleanUrls.FunctionMetadata.FunctionARN
+
+  # ------------------------------------------------------------------- API ---
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowHeaders: [content-type, x-host-key, x-admin-key]
+        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
+        MaxAge: 600
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.handler
+      Environment:
+        Variables:
+          BUCKET: !Ref SiteBucket
+          CDN: !If [HasDomain, !Sub 'https://${DomainName}', !Sub 'https://${Distribution.DomainName}']
+          ADMIN_KEY_HASHES: !Ref AdminKeyHashes
+          GLOBE_ENABLED: !Ref GlobeEnabled
+          PUBLISH_ENABLED: !Ref PublishEnabled
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            - Effect: Allow
+              Action: [s3:PutObject, s3:DeleteObject]
+              Resource: !Sub '${SiteBucket.Arn}/films/*'
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !GetAtt SiteBucket.Arn
+              Condition:
+                StringLike:
+                  s3:prefix: ['films/*']
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  # ------------------------------------------------------------- signaling ---
+  WsApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-signal'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  WsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SignalFunction.Arn}/invocations'
+
+  WsConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $connect
+      Target: !Sub 'integrations/${WsIntegration}'
+
+  WsDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $disconnect
+      Target: !Sub 'integrations/${WsIntegration}'
+
+  WsDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $default
+      Target: !Sub 'integrations/${WsIntegration}'
+
+  WsStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn: [WsConnectRoute, WsDisconnectRoute, WsDefaultRoute]
+    Properties:
+      ApiId: !Ref WsApi
+      StageName: !Ref StageName
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 200
+        ThrottlingRateLimit: 100
+
+  SignalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: signal.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*'
+
+  SignalPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SignalFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*'
+
+Outputs:
+  SiteUrl:
+    Value: !If [HasDomain, !Sub 'https://${DomainName}', !Sub 'https://${Distribution.DomainName}']
+  CloudFrontDomain:
+    Description: Point your domain's CNAME (or Route 53 alias) here
+    Value: !GetAtt Distribution.DomainName
+  ApiUrl:
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  WsUrl:
+    Value: !Sub 'wss://${WsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}'
+  BucketName:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref Distribution

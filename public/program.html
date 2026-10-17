@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program out — VUEMesh</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; font: 600 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  body.idle { cursor: none; }
+  .ctl { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: #000c; border-radius: 12px; padding: 8px 10px; transition: opacity .4s; box-shadow: 0 0 0 1px #ffffff22; }
+  body.idle .ctl { opacity: 0; pointer-events: none; }
+  .ctl b { font-size: .75rem; letter-spacing: .1em; color: #ff5a4e; padding: 0 6px; }
+  .ctl button { font: inherit; font-size: .85rem; min-height: 36px; padding: 0 .9em; border: 0; border-radius: 8px; background: #2a2f3a; color: #fff; cursor: pointer; }
+  .ctl button[aria-pressed="true"] { background: #fff; color: #000; }
+  .pick { display: flex; gap: 2px; background: #1a1d24; border-radius: 9px; padding: 2px; }
+  .pick button { min-height: 32px !important; }
+  body.edit .ctl b { color: #6ea8fe; }
+  .wait { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: #c9cfe0; }
+  .wait p { max-width: 460px; }
+  .fshint { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000b; border-radius: 14px; padding: 14px 22px; font-size: 1.05rem; box-shadow: 0 0 0 1px #ffffff2a; pointer-events: none; transition: opacity .4s; }
+  body.idle .fshint, body.full .fshint { opacity: 0; }
+</style>
+</head>
+<body>
+<video id="out" autoplay playsinline muted aria-label="Program output"></video>
+<div class="wait" id="wait" hidden><p id="waitText">Waiting for the studio. Open <strong>Program out</strong> from the VUEMesh studio in this same browser; this window shows exactly what the program shows, with its sound.</p></div>
+<div class="fshint" id="fshint" aria-hidden="true">Click anywhere for full screen</div>
+<div class="ctl" id="ctl" role="toolbar" aria-label="Program out">
+  <b id="srcTag">PROGRAM</b>
+  <div class="pick" role="group" aria-label="Show">
+    <button type="button" data-src="live" aria-pressed="true" title="The live program, as it goes to air">Live</button>
+    <button type="button" data-src="edit" aria-pressed="false" title="The edit, as it plays in the Edit window">Edit</button>
+  </div>
+  <button type="button" id="sound" aria-pressed="false">Sound off</button>
+  <button type="button" id="fs">Full screen</button>
+</div>
+<script type="module" src="/js/program.js"></script>
+</body>
+</html>

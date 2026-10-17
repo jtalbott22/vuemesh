@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
+  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
+  .bar h1 { font-size: 1.05rem; margin: 0; }
+  .spacer { flex: 1; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 16px; }
+  .login { max-width: 460px; margin: 10vh auto; background: var(--surface); border-radius: 16px; padding: 24px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; }
+  .tile b { display: block; font-size: 1.6rem; font-stretch: 125%; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--text-2); font-size: .82rem; }
+  .panel { background: var(--surface); border-radius: 12px; overflow: auto; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; padding: 14px; }
+  .kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font-size: 1.45rem; font-stretch: 125%; font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--text-2); font-size: .8rem; }
+  .kpi i { font-style: normal; font-size: .78rem; font-weight: 700; margin-left: .4em; }
+  .kpi i.up { color: #2bb673; } .kpi i.down { color: #e5534b; }
+  .gchart { margin: 0 14px 6px; }
+  #gChart { width: 100%; height: 220px; display: block; }
+  .gchart figcaption { color: var(--text-2); font-size: .8rem; padding: 4px 0; }
+  .gtable { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
+  .gtable th, .gtable td { padding: 6px 14px; text-align: right; border-top: 1px solid var(--line); white-space: nowrap; }
+  .gtable th:first-child, .gtable td:first-child { text-align: left; }
+  .snaps { padding: 6px 14px 12px; } .snaps ul { list-style: none; padding: 0; margin: 6px 0 0; }
+  .snaps li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+  .tools { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tools input { max-width: 320px; min-height: 38px; }
+  .tools select { width: auto; min-height: 38px; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  thead th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+  tbody th { font-weight: 700; }
+  td.code { font-family: var(--mono); letter-spacing: .06em; }
+  td .acts { display: flex; gap: 4px; flex-wrap: wrap; }
+  td .acts button { min-height: 30px; padding: .2em .6em; font-size: .8rem; }
+  button.danger { background: var(--tally); color: #fff; }
+  .tag { font-size: .7rem; font-weight: 700; padding: .1em .45em; border-radius: 4px; background: var(--surface-3); }
+  .tag.live { background: var(--tally); color: #fff; }
+  .tag.pub { background: var(--preview); color: #fff; }
+  .note { color: var(--text-2); font-size: .88rem; }
+  .tag.kiosk { background: #1fa64a33; color: #2bb673; border-color: #1fa64a; }
+  .tag.studio { background: #3d8bfd22; color: #6ea8fe; border-color: #3d8bfd; }
+  td.times { font-size: .8rem; white-space: nowrap; color: var(--text-2); }
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 12px 16px; }
+  .tgrid table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .tgrid caption { text-align: left; font-weight: 700; padding: 4px 0; }
+  .tgrid td { padding: 3px 4px; border-top: 1px solid var(--line); }
+  .tgrid td.n { text-align: right; font-variant-numeric: tabular-nums; width: 5em; }
+  .tgrid td .tbar { display: block; height: 3px; background: var(--accent, #e5534b); opacity: .7; margin-top: 2px; }
+  #gFlags li { margin: 4px 0; }
+  #gFlags button { margin-left: 6px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+  <h1>Admin</h1>
+  <span class="spacer"></span>
+  <button type="button" id="themeBtn"></button>
+  <button type="button" id="signOut" hidden>Sign out</button>
+</header>
+
+<form class="login" id="login">
+  <h2>Admin sign-in</h2>
+  <p class="note">Use an admin key from <code>aws/.admin-keys</code> on the machine you deploy from. It stays in this tab only and is forgotten when you close it.</p>
+  <div class="field"><label for="key">Admin key</label><input id="key" type="password" autocomplete="off" required></div>
+  <button class="primary" type="submit" style="width:100%">Sign in</button>
+</form>
+
+<main class="wrap" id="main" hidden>
+  <section class="tiles" id="tiles" aria-label="Totals"></section>
+  <section class="panel" aria-labelledby="gh">
+    <div class="tools">
+      <h2 id="gh" style="margin:0;font-size:1rem">Growth</h2>
+      <select id="gRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90" selected>Last 90 days</option><option value="365">Last 12 months</option><option value="all">Since counting began</option></select>
+      <select id="gMetric" aria-label="Chart shows"></select>
+      <span class="spacer"></span>
+      <button type="button" id="gCsv">Download CSV</button>
+      <button type="button" id="gReport" class="primary">Investor snapshot</button>
+      <button type="button" id="gSave">Save snapshot</button>
+    </div>
+    <div class="kpis" id="gKpis"></div>
+    <figure class="gchart"><svg id="gChart" role="img" aria-labelledby="gCap" preserveAspectRatio="none"></svg><figcaption id="gCap"></figcaption></figure>
+    <div style="overflow-x:auto"><table class="gtable" id="gTable"></table></div>
+    <div class="tools" style="border-bottom:0;border-top:1px solid var(--line)">
+      <span class="note">Anonymous counts by day: no names, phones, places or events in them. Events and everything in them still delete themselves after 30 days; these counts are kept.</span>
+      <span class="spacer"></span>
+      <button type="button" id="gBackfill" title="Count the events still here (the last 30 days) into days from before counting began">Fill in earlier days</button>
+    </div>
+    <details class="snaps"><summary>Saved snapshots</summary><ul id="gSnaps"></ul></details>
+    <details class="snaps" id="gFixBox"><summary>Correct a day <span class="note" id="gFlagCount"></span></summary>
+      <p class="note">For a count that's plainly wrong (an old bug once added 83 days of footage in an afternoon). The value that was there is kept beside it, so a correction can be seen and undone.</p>
+      <ul id="gFlags"></ul>
+      <div class="tools" style="border:0;padding-left:0">
+        <input type="date" id="fxDay" aria-label="Day">
+        <select id="fxKey" aria-label="Count"></select>
+        <input type="number" id="fxVal" min="0" step="any" aria-label="Correct value" placeholder="Correct value">
+        <button type="button" id="fxGo">Correct it</button>
+        <span class="note" id="fxSay" role="status"></span>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel" aria-labelledby="th">
+    <div class="tools">
+      <h2 id="th" style="margin:0;font-size:1rem">Web traffic</h2>
+      <select id="tRange" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+      <span class="spacer"></span>
+      <button type="button" id="tCsv">Download CSV</button>
+    </div>
+    <div class="kpis" id="tKpis"></div>
+    <figure class="gchart"><svg id="tChart" role="img" aria-labelledby="tCap" preserveAspectRatio="none"></svg><figcaption id="tCap"></figcaption></figure>
+    <div class="tgrid" id="tTables"></div>
+    <div class="tools" style="border-bottom:0;border-top:1px solid var(--line)">
+      <span class="note">No cookies, nothing stored about anyone. A visitor is counted once a day by an anonymous fingerprint (a salted hash of the day, their address and browser) that's deleted after two days. Bots, these admin pages and browsers that ask not to be tracked aren't counted.</span>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="eh">
+    <div class="tools">
+      <h2 id="eh" style="margin:0;font-size:1rem">Events</h2>
+      <input type="search" id="filter" placeholder="Filter by title or code (or kiosk, studio)" aria-label="Filter events">
+      <span class="spacer"></span>
+      <button type="button" id="refresh">Refresh</button>
+    </div>
+    <div id="list"></div>
+    <div class="tools"><button type="button" id="more" hidden>Load more</button><span class="note">Everything expires on its own 30 days after it was created. Deleting here is immediate and can't be undone.</span></div>
+  </section>
+</main>
+<script src="/config.js"></script>
+<script type="module" src="/js/admin.js"></script>
+</body>
+</html>

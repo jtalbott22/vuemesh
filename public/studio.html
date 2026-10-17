@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh studio</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0f1013">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100vh; font-size: 15px; }
+  body > .bar, body > .banner, body > .incoming, body > .tlbar, body > .timeline { flex: none; }
+  body > .work { flex: 1 1 auto; min-height: 320px; }
+
+  /* --- top bar -------------------------------------------------------- */
+  .bar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
+  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
+  .betapill { font-size: .66rem; font-weight: 800; letter-spacing: .08em; background: var(--amber); color: #3b2500; border-radius: 4px; padding: .15em .45em; text-decoration: none; }
+  .ev { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .ev h1 { font-size: 1.05rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
+  .ev .code { font-family: var(--mono); color: var(--text-2); font-size: .85rem; letter-spacing: .08em; }
+  .modes { display: inline-flex; background: var(--surface-2); border-radius: 8px; padding: 3px; }
+  .modes button { background: transparent; min-height: 30px; padding: .25em .9em; font-size: .88rem; border-radius: 6px; }
+  .modes button[aria-selected="true"] { background: var(--tally); color: #fff; }
+  .modes button#editTab[aria-selected="true"] { background: var(--text); color: var(--bg); }
+  .status { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--text-2); }
+  .pill { display: inline-flex; align-items: center; gap: .4em; background: var(--surface-2); border-radius: 999px; padding: .2em .7em; white-space: nowrap; }
+  .spacer { flex: 1; }
+  .bar .btn, .bar button { min-height: 34px; padding: .35em .8em; font-size: .88rem; }
+  .bar .btn.ghost { box-shadow: inset 0 0 0 1px var(--line); }
+  .banner { background: var(--amber); color: #3b2500; padding: 8px 14px; font-weight: 600; }
+  .incoming[hidden] { display: none; }
+  .incoming { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--text-2); background: var(--surface); }
+  .incoming span { background: var(--surface-2); border-radius: 999px; padding: .2em .7em; }
+
+  /* --- workspace: sources | program | inspector, resizable ----------------- */
+  :root { --left: 250px; --right: 300px; --tl: 34vh; }
+  .work { display: grid; grid-template-columns: var(--left) 6px minmax(0, 1fr) 6px var(--right); min-height: 0; }
+  .work > .sources { grid-column: 1; }
+  .work > #splitL { grid-column: 2; }
+  .work > .center { grid-column: 3; }
+  .work > #splitR { grid-column: 4; }
+  .work > .insp { grid-column: 5; }
+  /* Live: the dock under everything is the audio mixer (like OBS); no timeline */
+  /* The mixer dock is a meter bridge: always dark, with its own text colours, in either theme. */
+  body > .dock { flex: none; height: var(--dock, 230px); display: flex; flex-direction: column; background: #0a0b0e; min-height: 0;
+    --text: #eef1f6; --text-2: #a9acb4; --muted: #8b8e97; --line: #2a2c32; --surface: #18191d; --surface-2: #222328; color: var(--text); color-scheme: dark; }
+  .dockhead { display: flex; align-items: center; gap: 14px; padding: 4px 12px; border-bottom: 1px solid var(--line); }
+  .dockhead h2 { margin: 0; font-size: .68rem; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); font-stretch: 100%; }
+  .dockhead .check { margin: 0; font-size: .78rem; display: inline-flex; gap: 6px; align-items: center; }
+  .dockhead .fine { margin: 0; font-size: .72rem; }
+  .dock .bridge { display: flex; flex: 1; min-height: 0; border: 0; padding: 8px; }
+  .dock .bridge { align-items: stretch; gap: 6px; }
+  .dock .vstrip { grid-template-rows: auto minmax(0, 1fr) auto auto; width: 104px; }
+  .dock .vstrip.master { width: 92px; }
+  .dock .vbtns { grid-auto-flow: column; gap: 2px; }
+  .dock .vbtns button { min-height: 22px; font-size: .6rem; padding: 0; }
+  .bus { padding: 8px 12px 0; gap: 6px; }
+  .busbtn { min-width: 84px; min-height: 52px; padding: 4px 10px; }
+  .busbtn b { font-size: 1.15rem; }
+  .dock .vmeters { min-height: 0; }
+  body[data-mode="live"] .monitor { background: #000; }
+  body[data-mode="live"] #multi { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .cam { display: grid; gap: 4px; align-content: start; }
+  .tile .pctag { position: absolute; left: 30px; top: 6px; font-size: .6rem; font-weight: 800; letter-spacing: .06em; background: #000b; color: #fff; padding: .1em .4em; border-radius: 3px; }
+  .relaystate.ok { color: #2bd36b; }
+  /* the Monitor button's light: blue while clips or parts are moving, amber when there's news */
+  #monitorBtn { position: relative; }
+  #monitorBtn .mlight { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; display: none; }
+  #monitorBtn.news .mlight { display: block; background: #f0a82b; box-shadow: 0 0 6px #f0a82b; }
+  #monitorBtn.busy .mlight { display: block; background: #3d8bfd; box-shadow: 0 0 6px #3d8bfd; animation: mlight 1.2s ease-in-out infinite; }
+  @keyframes mlight { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { #monitorBtn.busy .mlight { animation: none; } }
+  #ccuBtn { white-space: nowrap; flex: none; font-size: .68rem; padding: 0 .55em; min-height: 22px; line-height: 1; }
+  .ostabs { display: flex; gap: 2px; margin: 6px 0; background: var(--surface-2); border-radius: 8px; padding: 2px; }
+  .insp .ostabs button { flex: 1; min-height: 26px; padding: 0 .3em; font-size: .72rem; background: transparent; border-radius: 6px; }
+  .insp .ostabs button[aria-selected="true"] { background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+  .relaysteps { margin: 4px 0; padding-left: 1.3em; font-size: .78rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .relaysteps li { min-width: 0; }
+  .relaysteps li > span { display: block; color: var(--text-2); }
+  .relaysteps .cmd { display: flex; gap: 4px; align-items: stretch; margin-top: 3px; }
+  .relaysteps code { flex: 1; min-width: 0; font-family: var(--mono); font-size: .72rem; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; overflow-x: auto; white-space: nowrap; user-select: all; }
+  .insp .relaysteps .cmd button { min-height: 0; padding: 0 .6em; font-size: .68rem; }
+  .streamdot { margin-left: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; color: #fff; background: var(--tally); padding: .2em .6em; border-radius: 999px; }
+  .tile .nosync { position: absolute; right: 6px; bottom: 30px; font-size: .58rem; font-weight: 800; letter-spacing: .05em; background: var(--amber); color: #3b2500; padding: .05em .4em; border-radius: 3px; }
+  .tile .aud { position: absolute; right: 6px; bottom: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .05em; background: #000b; color: #fff; padding: .1em .4em; border-radius: 3px; }
+  .clipsbox { border-top: 1px solid var(--line); }
+  .phead.sub { position: static; }
+  .phead .btn.small { min-height: 24px; padding: 0 .6em; font-size: .72rem; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .clipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 10px; }
+  .clipcard { display: grid; gap: 4px; }
+  .tile.media { aspect-ratio: 16 / 9; }
+  .tile.media video, .tile.media img { width: 100%; height: 100%; object-fit: cover; display: block; position: static; }
+  .tile.media .who { max-width: calc(100% - 50px); }
+  .tile.media .kind { position: absolute; right: 6px; top: 6px; font-size: .6rem; font-weight: 800; background: #000b; color: #fff; padding: .1em .4em; border-radius: 3px; letter-spacing: .05em; }
+  .tile.media .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--tally); width: 0; }
+  .clipctl { display: flex; gap: 4px; }
+  .clipctl button { min-height: 24px; padding: 0 .5em; font-size: .7rem; }
+  .clipctl button[aria-pressed="true"] { background: var(--preview); color: #fff; }
+  #clipsEmpty { margin: 0 10px 10px; }
+  .ltrecent { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .ltpill { display: inline-flex; align-items: stretch; max-width: 100%; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .ltpill.on { box-shadow: inset 0 0 0 2px var(--tally); }
+  .insp .ltpill button { min-height: 24px; padding: 0 .35em 0 .75em; font-size: .72rem; border-radius: 0; background: transparent; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .insp .ltpill .ltx { padding: 0 .6em 0 .45em; color: var(--text-2); font-size: .85rem; flex: none; }
+  .insp .ltx:hover, .insp .ltx:focus-visible { background: var(--tally) !important; color: #fff !important; }
+  .momlist { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 4px; max-height: 230px; overflow-y: auto; }
+  .momlist[hidden] { display: none; }
+  .momlist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; background: var(--surface-2); border-radius: 6px; padding: 2px 2px 2px 8px; }
+  .momlist time { font-family: var(--mono); font-size: .7rem; color: var(--text-2); }
+  .insp .momlist input { min-height: 26px; padding: 0 .4em; font-size: .8rem; background: transparent; border: 1px solid transparent; box-shadow: none; }
+  .insp .momlist input:hover, .insp .momlist input:focus { background: var(--field); border-color: var(--line); }
+  .insp .momlist .ltx { min-height: 26px; min-width: 26px; padding: 0; border-radius: 4px; background: transparent; color: var(--text-2); font-size: .9rem; }
+  .slateprev { display: block; max-width: 100%; height: auto; max-height: 190px; border-radius: 4px; background: #000; margin: 6px 0 2px; }
+  #ftbBtn[aria-pressed="true"], #blackBtn[aria-pressed="true"] { background: #000; color: #fff; box-shadow: inset 0 0 0 2px #fff; }
+  #progLabel.black { background: #000; color: #fff; box-shadow: inset 0 0 0 1px #ffffff80; }
+  .frame.black { box-shadow: 0 0 0 3px #5b5f6b; }
+  .ruler .mtag { position: absolute; top: 4px; margin-left: 8px; max-width: 160px; padding: 0 4px; font: 700 .62rem/14px Archivo, system-ui, sans-serif; color: var(--text); background: color-mix(in srgb, var(--surface) 82%, transparent); border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; z-index: 2; }
+  .marker { cursor: grab; }
+  .marker.dragging { cursor: grabbing; filter: brightness(1.35); z-index: 4; }
+  .marker:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+  .renamepop { position: fixed; z-index: 210; padding: 6px; border-radius: 8px; background: var(--surface); box-shadow: 0 10px 30px #0008, 0 0 0 1px var(--line); }
+  .renamepop input { width: 240px; min-height: 30px; font-size: .85rem; }
+  #ltShow[aria-pressed="true"] { background: var(--tally); color: #fff; }
+  /* meters draw from one level value, so the same strip works vertical or horizontal.
+     (Scoped under .bridge so these always win over the older meter rules further down.) */
+  .bridge .vmeter .fill { position: absolute; inset: 0; height: auto; width: auto; background: linear-gradient(to top, #2bd36b 0 70%, #f2c037 70% 90%, #ff3b30 90%);
+    clip-path: inset(calc(100% - var(--lvl, 0%)) 0 0 0); -webkit-mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); }
+  .bridge .vmeter .peak { bottom: var(--pk, 0%); }
+  .bridge .vscale span { bottom: var(--p); }
+  .dock:not(.horiz) .vstrip { flex: 1 1 96px; max-width: 200px; width: auto; }
+  .dock:not(.horiz) .vstrip.master { flex: 0 0 96px; }
+  /* a short dock turns the strips sideways (like OBS) and spreads them across the width */
+  .dock.horiz .bridge { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 4px 12px; align-content: start; overflow-y: auto; padding: 6px 10px; }
+  .dock.horiz .vstrip { width: auto; max-width: none; grid-template-columns: 112px minmax(0, 1fr) 46px auto; grid-template-rows: auto; align-items: center; justify-items: stretch; padding: 4px 8px; gap: 8px; }
+  .dock.horiz .vstrip.master { grid-template-columns: 112px minmax(0, 1fr) 46px; }
+  .dock.horiz .vname { text-align: left; max-width: none; }
+  .dock.horiz .vmeters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; height: auto; min-height: 0; }
+  .dock.horiz .vscale { display: none; }
+  .dock.horiz .vmeter { width: auto; height: 7px; }
+  .dock.horiz .bridge .vmeter .fill { background: linear-gradient(to right, #2bd36b 0 70%, #f2c037 70% 90%, #ff3b30 90%); clip-path: inset(0 calc(100% - var(--lvl, 0%)) 0 0);
+    -webkit-mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px); mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px); }
+  .dock.horiz .bridge .vmeter .peak { bottom: 0; top: 0; height: auto; width: 2px; left: var(--pk, 0%); }
+  .dock.horiz .vmeter .clip { top: 0; bottom: 0; right: 0; left: auto; width: 5px; height: auto; }
+  .dock.horiz .vfader { writing-mode: horizontal-tb; direction: ltr; width: 100%; height: 18px; }
+  .dock.horiz .vbtns { grid-auto-flow: column; width: auto; }
+  .dock.horiz .vbtns button { min-width: 34px; }
+  .cam .dmrow { margin: 0; }
+  body.noleft .work > .sources, body.noright .work > .insp { visibility: hidden; overflow: hidden; }
+  .splitter { background: var(--surface); position: relative; z-index: 3; touch-action: none; }
+  .splitter.v { cursor: col-resize; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  .splitter.h { cursor: row-resize; height: 6px; flex: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .splitter::after { content: ""; position: absolute; inset: 0; margin: auto; background: var(--text-2); opacity: .35; border-radius: 2px; }
+  .splitter.v::after { width: 2px; height: 28px; }
+  .splitter.h::after { height: 2px; width: 36px; }
+  .splitter:hover, .splitter:focus-visible, .splitter.dragging { background: var(--preview); }
+  body > .timeline { height: var(--tl); max-height: none; }
+  .panel { background: var(--surface); min-height: 0; overflow: auto; }
+  .panel + .panel, .center + .panel { border-left: 1px solid var(--line); }
+  .phead { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); background: var(--surface); border-bottom: 1px solid var(--line); }
+
+  #multi { display: grid; gap: 8px; padding: 10px; align-content: start; }
+  .tile { position: relative; width: 100%; aspect-ratio: 16 / 9; padding: 0; min-height: 0; border-radius: 6px; overflow: hidden; background: var(--monitor); box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+  body.portrait .tile { aspect-ratio: 9 / 16; max-height: 220px; }
+  .tile video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; left: 0; top: 0; }
+  body.fit .tile video { object-fit: contain; }
+  .tile .n { position: absolute; left: 6px; top: 4px; font-family: var(--mono); font-weight: 700; font-size: .85rem; color: #fff; background: #000a; border-radius: 4px; padding: 0 .35em; }
+  .tile .who { position: absolute; left: 6px; right: 6px; bottom: 4px; font-size: .74rem; font-weight: 600; text-align: left; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .route { position: absolute; right: 6px; top: 4px; font-size: .64rem; font-weight: 700; padding: .05em .4em; border-radius: 3px; background: #000a; color: #fff; }
+  .tile .route.lan { background: var(--preview); }
+  .tile .route.internet { background: var(--amber); color: #3b2500; }
+  .tile .rec { position: absolute; right: 7px; bottom: 7px; }
+  .tile.off { opacity: .4; }
+  .tile:hover { box-shadow: 0 0 0 2px var(--preview); }
+  .tile.live { box-shadow: 0 0 0 3px var(--tally); }
+  .tile.pvw { box-shadow: 0 0 0 3px #1fa64a; }
+  .addlocal { padding: 6px 10px; }
+  .apbox { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 0 0 8px; }
+  body.autopilot .apbox { border-color: #1fa64a; box-shadow: 0 0 0 1px #1fa64a inset; }
+  .blocked { list-style: none; margin: 0; padding: 0 10px 8px; } .blocked li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; font-size: .85rem; }
+  .localdlg .danger { background: #c8322a; color: #fff; border-color: #e5534b; }
+  .addlocal button { width: 100%; }
+  .localdlg { max-width: 460px; width: 92vw; border: 0; border-radius: 14px; background: var(--surface); color: var(--text); padding: 18px 20px; }
+  .localdlg::backdrop { background: #000a; }
+  .localdlg h2 { margin: 0 0 6px; font-size: 1.1rem; } .localdlg h3 { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin: 14px 0 4px; }
+  .localdlg ul { list-style: none; padding: 0; margin: 0; } .localdlg li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .localdlg form { margin-top: 14px; text-align: right; }
+  .pickdlg { max-width: 560px; } .pickdlg ul { max-height: 60vh; overflow: auto; }
+  .pickdlg li span { display: grid; } .pickdlg li small { color: var(--text-2); font-size: .8rem; }
+  .pickdlg li.gone b { color: var(--text-2); }
+  .pickdlg .btn { padding: .4em .9em; border-radius: 8px; text-decoration: none; border: 1px solid var(--line); color: var(--text); }
+  .pickdlg .btn.primary { background: var(--accent, #e5534b); color: #fff; border-color: transparent; }
+  .localdlg .snd { display: flex; gap: 6px; align-items: center; font-size: .78rem; color: var(--text-2); margin-top: 4px; }
+  .localdlg .snd select { font-size: .78rem; max-width: 220px; min-height: 28px; }
+  .localdlg li > span { display: grid; }
+  .tile.live.pvw { box-shadow: 0 0 0 3px var(--tally), 0 0 0 6px #1fa64a; }
+  /* the switcher: preview / program and a T-bar, beside the program like the sound meters */
+  .switcher { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 3; width: 96px; display: grid; gap: 6px; justify-items: stretch; padding: 8px; border-radius: 12px; background: linear-gradient(#24262c, #15161a); border: 1px solid #ffffff1a; box-shadow: 0 6px 20px #0008; }
+  .switcher[hidden] { display: none; }
+  .swmode { display: grid; gap: 3px; }
+  .switcher button { font: 800 .62rem/1.1 var(--sans, system-ui); letter-spacing: .05em; min-height: 26px; padding: 0 .3em; border-radius: 6px; border: 1px solid #ffffff22; background: #2b2d34; color: #d8dbe2; }
+  .switcher button[aria-pressed="true"] { background: #f2c037; color: #111; border-color: #f2c037; }
+  .switcher #swCut { background: #c8322a; color: #fff; border-color: #e5534b; min-height: 34px; font-size: .78rem; }
+  .switcher #swAuto { background: #2b6fd6; color: #fff; border-color: #3d8bfd; min-height: 34px; font-size: .78rem; }
+  .switcher select { font-size: .7rem; min-height: 26px; padding: 0 4px; }
+  .tbar { position: relative; height: clamp(150px, 34vh, 300px); display: grid; justify-items: center; touch-action: none; cursor: ns-resize; outline-offset: 3px; }
+  .tbar .tlab { position: absolute; left: 0; right: 0; text-align: center; font: 800 .58rem var(--mono); letter-spacing: .1em; color: #8b8e97; }
+  .tbar .tlab.top { top: -2px; } .tbar .tlab.bot { bottom: -2px; }
+  .ttrack { position: absolute; top: 14px; bottom: 14px; width: 12px; border-radius: 6px; background: linear-gradient(90deg, #08090b, #1c1e23 50%, #08090b); box-shadow: inset 0 1px 3px #000; overflow: hidden; }
+  .tfill { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--p, 0) * 100%); background: linear-gradient(#ff6a5f, #c8322a); box-shadow: 0 0 8px #ff3b30; }
+  .thandle { position: absolute; left: 50%; width: 72px; height: 30px; margin-left: -36px; top: calc(14px + (1 - var(--y, 0)) * (100% - 28px) - 15px); border-radius: 8px; background: linear-gradient(#5b5f69, #2c2f36 55%, #1b1d22); border: 1px solid #00000099; box-shadow: 0 4px 10px #000a, inset 0 1px 0 #ffffff33; display: grid; align-content: center; gap: 3px; padding: 0 12px; pointer-events: none; }
+  .thandle i { display: block; height: 2px; border-radius: 1px; background: #ffffff40; }
+  .tbar.held .thandle { box-shadow: 0 4px 14px #000c, 0 0 0 2px #f2c037; }
+  .pvwbox { position: absolute; left: 10px; bottom: 10px; width: 24%; min-width: 150px; aspect-ratio: 16 / 9; border: 3px solid #1fa64a; border-radius: 6px; overflow: hidden; background: #000; z-index: 2; pointer-events: none; }
+  .pvwbox[hidden] { display: none; }
+  .pvwbox canvas { width: 100%; height: 100%; display: block; }
+  .pvwbox .ovl { left: 0; top: 0; background: #1fa64a; font-size: .62rem; padding: 2px 6px; }
+  #swTgl[aria-pressed="true"] { background: var(--preview); color: #fff; }
+  .mic { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px; border-radius: 6px; background: var(--surface-2); font-size: .85rem; }
+  .mic b { grid-column: 2; }
+  .mic .glyph { grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-weight: 800; }
+  .mic.on .glyph { background: var(--preview); color: #fff; }
+  button.mic { width: 100%; text-align: left; border: 2px solid transparent; color: inherit; font: inherit; cursor: pointer; min-height: 0; }
+  button.mic.live { border-color: var(--tally); box-shadow: 0 0 0 1px var(--tally); }
+  button.mic.live .glyph { background: var(--tally); color: #fff; }
+  body[data-mode="edit"] #slateTag { display: none !important; } /* (the break slate is a live thing) */
+  .meter { grid-column: 2; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--preview); }
+  .empty { color: var(--text-2); padding: 14px; border: 1.5px dashed var(--line); border-radius: 8px; font-size: .9rem; }
+
+  .center { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+  .center > * { flex: none; }
+  .center > .monitor { flex: 1 1 auto; }
+  .monitor { position: relative; display: grid; place-items: center; padding: 14px; min-height: 0; }
+  .frame { position: relative; line-height: 0; box-shadow: 0 0 0 3px var(--tally); border-radius: 4px; background: var(--monitor); }
+  body[data-mode="edit"] .frame { box-shadow: 0 0 0 1px var(--line); }
+  #program, #srcCanvas { display: block; border-radius: 4px; } /* sized to the space by script */
+  .monitor { overflow: hidden; }
+  #srcFrame { box-shadow: 0 0 0 2px var(--preview); }
+  .ovl { position: absolute; font-size: .75rem; font-weight: 700; line-height: 1.2; padding: .25em .55em; border-radius: 4px; }
+  #progLabel { left: 8px; top: 8px; background: var(--tally); color: #fff; }
+  body[data-mode="edit"] #progLabel { background: #000b; }
+  #ptc, #srcTc { right: 8px; top: 8px; background: #000b; color: #fff; font-family: var(--mono); }
+  #srcLabel { left: 8px; top: 8px; background: var(--preview); color: #fff; }
+  #slateTag { left: 8px; bottom: 8px; background: var(--amber); color: #3b2500; }
+
+  .transport { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+  .tspace { flex: 1; }
+  .icon { min-width: 34px; padding-left: 0 !important; padding-right: 0 !important; font-size: 1rem !important; }
+  .zoomctl { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-2); margin: 0; }
+  .zoomctl input { width: 120px; }
+
+  /* --- the studio: neutral dark surround (judge the picture, not the chrome), compact pro controls --- */
+  /* Dark is black here, in or out of full screen; light stays light. "Follow the device" follows it. */
+  :root[data-theme="dark"] body { --bg: #0f1013; --surface: #18191d; --surface-2: #222328; --surface-3: #2d2f35; --line: #2a2c32; --text: #ececef; --text-2: #a9acb4; --muted: #8b8e97; --field: #121316; --monitor: #000; color-scheme: dark; background: var(--bg); color: var(--text); font-size: 13.5px; }
+  @media not all and (prefers-color-scheme: light) { :root:not([data-theme]) body { --bg: #0f1013; --surface: #18191d; --surface-2: #222328; --surface-3: #2d2f35; --line: #2a2c32; --text: #ececef; --text-2: #a9acb4; --muted: #8b8e97; --field: #121316; --monitor: #000; color-scheme: dark; background: var(--bg); color: var(--text); font-size: 13.5px; } }
+  body .bar { padding: 5px 10px; gap: 8px; }
+  body .bar .btn, body .bar button { min-height: 28px; padding: .2em .65em; font-size: .8rem; }
+  body .bar kbd { display: none; }
+  body .ev h1 { font-size: .95rem; }
+  body .transport { padding: 5px 10px; gap: 6px; }
+  body .transport button, body .transport .btn, body .addmenu summary { min-height: 28px; padding: .15em .6em; font-size: .8rem; }
+  body .transport .big { font-size: 1.05rem; min-width: 9ch; }
+  body .transport .hint { display: none; }
+  body .montabs { margin: 0; }
+  body .montabs button { min-height: 26px !important; padding: 0 .7em !important; font-size: .76rem !important; }
+  body .monitor { padding: 8px; background: #0b0c0e; }
+  body .phead { padding: 6px 10px; }
+  body .insp section { padding: 10px 12px; }
+  body .insp h2 { font-size: .7rem; margin-bottom: 6px; }
+  body .insp button, body .insp select, body .insp input:not([type=range]):not([type=checkbox]) { min-height: 28px; font-size: .8rem; padding-top: .15em; padding-bottom: .15em; }
+  body .insp .primary { min-height: 32px; }
+  body .tlbar { padding: 3px 8px; gap: 4px; }
+  body .tlbar button { min-height: 26px; padding: 0 .5em; font-size: .74rem; }
+  body .ptabs { margin: 0 8px 6px; }
+  body .ptabs button { min-height: 26px; font-size: .76rem; }
+  body .srcrow button { min-height: 26px; font-size: .76rem; padding: 0 .55em; }
+  body .head, body .trow { height: 34px; }
+
+  .ruler .inout { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--amber) 32%, transparent); border-left: 2px solid var(--amber); border-right: 2px solid var(--amber); pointer-events: none; }
+  .tfgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 8px; }
+  .tfl { display: flex !important; justify-content: space-between; align-items: center; gap: 6px; margin: 0 !important; font-size: .74rem !important; color: var(--text-2); font-weight: 600; }
+  .tfl span { display: inline-flex; align-items: center; gap: 2px; color: var(--text-2); }
+  .tfl input { width: 64px; min-height: 26px !important; padding: 0 .35em !important; font-family: var(--mono); font-size: .76rem !important; text-align: right; }
+  button.small { min-height: 26px; padding: 0 .6em; font-size: .74rem; margin-top: 8px; }
+
+  /* --- transform handles over the Program monitor --- */
+  .xform { position: absolute; left: 0; top: 0; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #000a, inset 0 0 0 1px #000a; transform-origin: 50% 50%; cursor: move; touch-action: none; }
+  .xform .hdl { position: absolute; width: 11px; height: 11px; background: #fff; border: 1px solid #000; border-radius: 2px; margin: -6px 0 0 -6px; }
+  .xform .nw { left: 0; top: 0; cursor: nwse-resize; } .xform .ne { left: 100%; top: 0; cursor: nesw-resize; }
+  .xform .sw { left: 0; top: 100%; cursor: nesw-resize; } .xform .se { left: 100%; top: 100%; cursor: nwse-resize; }
+  .xform .rot { position: absolute; left: 50%; top: -26px; width: 13px; height: 13px; margin-left: -7px; border-radius: 50%; background: var(--preview); border: 2px solid #fff; cursor: grab; }
+  .xform .rot::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 13px; background: #fff; transform: translateX(-50%); }
+  .tlbar .tspace { flex: 1; }
+  .transport .big { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; min-width: 11ch; }
+  .transport button { min-height: 36px; padding: .35em .85em; font-size: .9rem; }
+  .transport .hint { color: var(--muted); font-size: .82rem; }
+  #breakBtn[aria-pressed="true"] { background: var(--amber); color: #3b2500; }
+  #recProgBtn[aria-pressed="true"] { background: var(--tally); color: #fff; }
+
+  .insp section { padding: 12px; border-bottom: 1px solid var(--line); }
+  .insp h2 { font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); margin: 0 0 10px; font-stretch: 100%; }
+  .insp label { font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
+  .insp select, .insp input[type=text] { min-height: 36px; padding: .35em .55em; font-size: .9rem; }
+  .seg2 { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 3px; margin-bottom: 10px; }
+  .seg2 button { min-height: 32px; padding: .2em; font-size: .85rem; background: transparent; border-radius: 6px; }
+  .seg2 button[aria-pressed="true"] { background: var(--surface); box-shadow: var(--shadow); }
+  .check { display: flex; gap: .5em; align-items: center; font-weight: 500; font-size: .88rem; margin: 6px 0; }
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tools button { min-height: 36px; padding: .3em .5em; font-size: .85rem; }
+  .reel { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+  .reel li { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; font-size: .82rem; background: var(--surface-2); border-radius: 6px; padding: 4px; }
+  .reel img, .reel video { width: 44px; height: 30px; object-fit: cover; border-radius: 3px; background: #000; }
+  .reel input { min-height: 28px; padding: .15em .4em; font-size: .8rem; }
+  .reel button { min-height: 28px; padding: 0 .5em; font-size: .78rem; }
+  .fine { color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
+  #credits table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  #credits td { padding: 3px 0; }
+  #credits td + td { text-align: right; color: var(--text-2); }
+
+  .tgroup { display: inline-flex; gap: 4px; }
+
+  /* --- media manager and source monitor ------------------------------------ */
+  .ptabs, .montabs { display: flex; gap: 3px; background: var(--surface-2); border-radius: 8px; padding: 3px; margin: 0 10px 8px; }
+  .montabs { margin: 8px auto 0; width: max-content; }
+  .ptabs button, .montabs button { flex: 1; min-height: 30px; font-size: .82rem; background: transparent; }
+  .ptabs button[aria-selected="true"], .montabs button[aria-selected="true"] { background: var(--text); color: var(--bg); }
+  .mpanel { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; min-height: 0; overflow: hidden; }
+  .mpanel input[type=search] { min-height: 34px; font-size: .85rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chips button { min-height: 24px; padding: 0 .55em; font-size: .72rem; border-radius: 999px; background: var(--surface-2); }
+  .chips button[aria-pressed="true"] { background: var(--preview); color: #fff; }
+  .mlist { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; gap: 4px; align-content: start; }
+  .mlist li { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center; padding: 5px; border-radius: 6px; background: var(--surface-2); cursor: pointer; font-size: .8rem; }
+  .mlist li[aria-selected="true"] { box-shadow: 0 0 0 2px var(--amber); }
+  .mlist li .th { width: 56px; height: 32px; border-radius: 3px; background: #000 center/cover; display: grid; place-items: center; font-size: .7rem; font-weight: 800; color: #fff; }
+  .mlist li .th.aud { background: #1d5c3a; }
+  .mlist li .th.mom { background: var(--amber); color: #3b2500; }
+  .mlist li .th.sub { box-shadow: inset 0 0 0 2px var(--preview); }
+  .mlist li b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mlist li small { color: var(--text-2); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mlist li .tg { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+  .mlist li .tg span { font-size: .62rem; padding: 0 .4em; border-radius: 999px; background: var(--surface-3); }
+  .mlist li .star { background: transparent; min-height: 28px; min-width: 28px; padding: 0; font-size: 1rem; color: var(--text-2); }
+  .mlist li .star[aria-pressed="true"] { color: var(--amber); }
+  .srcbar { padding: 8px 14px 0; display: grid; gap: 6px; }
+  .scrub { position: relative; height: 22px; background: var(--surface-2); border-radius: 4px; cursor: pointer; }
+  .scrub .range { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--preview) 45%, transparent); border-left: 2px solid var(--preview); border-right: 2px solid var(--preview); }
+  .scrub .head { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--tally); }
+  .scrub .tick { position: absolute; top: 0; width: 2px; height: 8px; background: var(--amber); }
+  .srcrow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .srcrow button { min-height: 32px; padding: .2em .65em; font-size: .82rem; }
+  .srcrow .sp { flex: 1; }
+  .tagedit { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .tagedit span { display: inline-flex; align-items: center; gap: 2px; font-size: .75rem; padding: .1em .2em .1em .55em; border-radius: 999px; background: var(--surface-2); }
+  .tagedit span button { min-height: 20px; min-width: 20px; padding: 0; background: transparent; font-size: .8rem; }
+  .quicktags { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0 8px; }
+  .quicktags button { min-height: 24px; padding: 0 .5em; font-size: .7rem; border-radius: 999px; }
+  body[data-mode="live"] #srcFrame { display: none; }
+
+  /* --- full screen control room ------------------------------------------- */
+  .bridge { display: none; gap: 4px; padding: 10px 8px; background: #0a0b0e; border-left: 1px solid var(--line); overflow-x: auto; min-height: 0; color: #eef1f6; }
+  .vstrip { display: grid; grid-template-rows: auto 1fr auto auto; gap: 6px; width: 74px; flex: none; background: #18191d; border-radius: 6px; padding: 6px 4px; justify-items: center; box-shadow: inset 0 0 0 1px #ffffff12; }
+  .vstrip.master { width: 86px; background: #1f2025; }
+  .vstrip.open { box-shadow: inset 0 0 0 2px var(--tally); }
+  .vname { font-size: .68rem; font-weight: 700; text-align: center; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vmeters { display: flex; gap: 3px; align-items: stretch; min-height: 180px; height: 100%; }
+  .vscale { position: relative; width: 16px; font-size: .55rem; color: #8b8e97; font-family: var(--mono); }
+  .vscale span { position: absolute; right: 0; transform: translateY(50%); }
+  .vmeter { position: relative; width: 10px; background: #000; border-radius: 2px; overflow: hidden; }
+  .vmeter .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+    background: linear-gradient(to top, #2bd36b 0 70%, #f2c037 70% 90%, #ff3b30 90%);
+    background-size: 100% var(--mh, 260px); background-position: bottom;
+    -webkit-mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); }
+  .vmeter .peak { position: absolute; left: 0; right: 0; height: 2px; background: #fff; bottom: 0; }
+  .vmeter .clip { position: absolute; top: 0; left: 0; right: 0; height: 6px; background: #3a0d0d; }
+  .vmeter .clip.on { background: #ff3b30; }
+  .vfader { writing-mode: vertical-lr; direction: rtl; width: 22px; min-height: 0; height: 100%; margin: 0; accent-color: #eef1f6; }
+  .vstrip .db { font-family: var(--mono); font-size: .66rem; color: #a9acb4; }
+  .vbtns { display: grid; gap: 3px; width: 100%; }
+  .vbtns button { min-height: 22px; padding: 0; font-size: .64rem; font-weight: 800; background: #26272d; color: #c9cbd2; }
+  .vbtns button[aria-pressed="true"][data-amode="afv"] { background: #f2c037; color: #2b1d00; }
+  .vbtns button[aria-pressed="true"][data-amode="on"] { background: #2bd36b; color: #002910; }
+  .vbtns button[aria-pressed="true"][data-amode="off"], .vbtns button[aria-pressed="true"][data-mute] { background: #ff3b30; color: #fff; }
+  .strip .btns button[aria-pressed="true"][data-amode="afv"] { background: var(--amber); color: #3b2500; }
+  .strip .btns button[aria-pressed="true"][data-amode="on"] { background: var(--preview); color: #fff; }
+  .bus { display: none; gap: 8px; padding: 10px 14px 0; flex-wrap: wrap; }
+  .busbtn { display: grid; gap: 2px; min-width: 96px; min-height: 64px; padding: 6px 10px; text-align: left; background: var(--surface-2); color: var(--text); border-radius: 8px; box-shadow: inset 0 -3px 0 #0003, 0 0 0 1px var(--line); }
+  .busbtn b { font-size: 1.4rem; line-height: 1; }
+  .busbtn small { font-size: .7rem; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+  .busbtn .aud { font-size: .6rem; font-weight: 800; letter-spacing: .05em; opacity: .9; }
+  .busbtn.live { background: var(--tally); color: #fff; }
+  .busbtn.bad { box-shadow: inset 0 -3px 0 var(--amber); }
+  /* The full screen control room keeps your theme (dark is black, light stays light). */
+  body.fs .bar #beaconBtn, body.fs .bar #monitorBtn, body.fs .bar #watchBtn, body.fs #helpBtn { display: none; }
+  body.fs .bridge { display: flex; }
+  body.fs[data-mode="live"] .bus { display: flex; }
+
+  body.fs[data-mode="live"] .timeline, body.fs[data-mode="live"] .tlbar { display: none; }
+  #fsBtn[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .addmenu { position: relative; }
+  .addmenu summary { list-style: none; min-height: 36px; padding: .35em .85em; font-size: .9rem; }
+  .addmenu summary::-webkit-details-marker { display: none; }
+  .addmenu .menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow), 0 0 0 1px var(--line); padding: 6px; display: grid; min-width: 220px; }
+  .addmenu .menu button { justify-content: space-between; background: transparent; min-height: 34px; font-size: .88rem; font-weight: 500; }
+  .addmenu .menu button:hover, .addmenu .menu button:focus-visible { background: var(--surface-2); filter: none; }
+  .mixer { display: grid; gap: 8px; }
+  .strip { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; background: var(--surface-2); border-radius: 8px; padding: 8px; }
+  .strip .nm { font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strip .db { font-family: var(--mono); font-size: .75rem; color: var(--text-2); text-align: right; min-width: 5ch; }
+  .strip .lvl { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; position: relative; }
+  .strip .lvl i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--preview) 0 70%, var(--amber) 70% 90%, var(--tally) 90%); }
+  .strip input[type=range] { grid-column: 1; min-height: 24px; }
+  .strip .btns { display: flex; gap: 4px; }
+  .strip .btns button { min-height: 26px; padding: 0 .5em; font-size: .72rem; }
+  .strip .btns button[aria-pressed="true"] { background: var(--tally); color: #fff; }
+  .strip.master { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .sel .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .85rem; margin-bottom: 8px; }
+  .sel .kv span:nth-child(odd) { color: var(--text-2); }
+  .sel label { margin-top: 8px; }
+  .sel .row button { min-height: 32px; padding: .25em .7em; font-size: .85rem; }
+
+  /* --- timeline ----------------------------------------------------------- */
+  .timeline { display: grid; grid-template-columns: 200px 1fr; border-top: 1px solid var(--line); background: var(--surface); max-height: 38vh; overflow: auto; }
+  .heads { border-right: 1px solid var(--line); }
+  .head { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-bottom: 1px solid var(--line); font-size: .78rem; }
+  .head .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .head .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .head button { min-height: 24px; padding: 0 .4em; font-size: .72rem; }
+  .badge { font-size: .64rem; padding: .05em .35em; border-radius: 3px; background: var(--surface-3); color: var(--text-2); }
+  .badge.optical { background: var(--preview); color: #fff; }
+  .scroller { overflow-x: auto; position: relative; }
+  .tracks { position: relative; min-width: 100%; }
+  .trow { height: 38px; border-bottom: 1px solid var(--line); position: relative; }
+  .trow.ruler { height: 24px; font-size: .68rem; color: var(--muted); font-family: var(--mono); }
+  .tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); padding-left: 3px; }
+  .tlbar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+  .tlbar button { min-height: 30px; padding: .2em .6em; font-size: .8rem; }
+  .tlbar .tools { display: inline-flex; gap: 3px; background: var(--surface-2); border-radius: 8px; padding: 3px; }
+  .tlbar .tools button { background: transparent; min-width: 34px; }
+  .tlbar .tools button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .tlbar button[aria-pressed="true"]#snapBtn { background: var(--preview); color: #fff; }
+  .tlbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .tlbar .fine { margin: 0; }
+  #autoBtn[aria-pressed="true"] { background: var(--preview); color: #fff; }
+  .marker { position: absolute; top: 2px; width: 12px; height: 14px; min-height: 0; padding: 0; margin-left: -6px; background: var(--amber); clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); border-radius: 0; z-index: 2; }
+  .marker.moment { background: var(--tally); }
+  .marker.gap { opacity: .45; }
+  .item .shape { font-style: normal; margin-right: 4px; opacity: .8; }
+  .item.mismatch { background-image: repeating-linear-gradient(135deg, #f0a82b88 0 5px, transparent 5px 10px); }
+  .lane.locked { background-image: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px); }
+  .lane.locked .item { cursor: not-allowed; opacity: .75; }
+  .item .xd { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(to right top, #fff6 49%, transparent 51%); pointer-events: none; border-radius: 4px 0 0 4px; }
+  .tracks[data-tool="razor"] .item { cursor: crosshair; }
+  .tracks[data-tool="slip"] .item, .tracks[data-tool="ripple"] .item .h, .tracks[data-tool="roll"] .item .h { cursor: ew-resize; }
+  .tracks[data-tool="slide"] .item { cursor: move; }
+  .tracks[data-tool="hand"], .tracks[data-tool="hand"] .item { cursor: grab; }
+  .dmrow { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; margin: -2px 0 6px; }
+  .dmrow input { min-height: 30px; font-size: .78rem; padding: .25em .5em; }
+  .dmrow button { min-height: 30px; padding: 0 .6em; font-size: .75rem; }
+  .dmrow .dmstat { grid-column: 1 / -1; font-size: .7rem; color: var(--text-2); min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dmrow .dmstat.reply { color: var(--preview); font-weight: 700; }
+  .tile.paused video { filter: grayscale(1) brightness(.4); }
+  .tile .pz { position: absolute; inset: 0; display: grid; place-items: center; font-size: .75rem; font-weight: 800; letter-spacing: .08em; color: #fff; pointer-events: none; }
+  .tile .q { position: absolute; left: 6px; right: 6px; bottom: 22px; height: 4px; border-radius: 2px; background: #0008; overflow: hidden; }
+  .tile .q i { display: block; height: 100%; width: 0; background: var(--preview); transition: width .3s; }
+  .tile .q.bad i { background: var(--tally); }
+  .tile .why { position: absolute; left: 6px; right: 6px; top: 24px; font-size: .68rem; color: #fff; background: #000b; border-radius: 3px; padding: 0 .3em; text-align: left; }
+  .tile video { position: absolute; max-width: none; }
+  .head.prog .nm { font-weight: 700; }
+  .head.audio { background: color-mix(in srgb, var(--surface) 80%, var(--preview) 8%); }
+  .lane.audio { background: color-mix(in srgb, var(--surface) 88%, var(--preview) 6%); }
+  .lane.hidden .item { opacity: .35; }
+  .lane.muted .item { filter: grayscale(1); opacity: .6; }
+  .follow { position: absolute; left: 8px; top: 8px; font-size: .72rem; color: var(--text-2); pointer-events: none; }
+  .item { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: var(--c); color: #0d1122; font-size: .72rem; font-weight: 700; overflow: hidden; cursor: grab; box-shadow: inset 0 0 0 1px #0003; touch-action: none; }
+  .item:active { cursor: grabbing; }
+  .item .lbl { position: absolute; left: 10px; right: 10px; top: 50%; transform: translateY(-50%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .item .h { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; background: #0000; }
+  .item .h.l { left: 0; border-left: 3px solid #0d112266; }
+  .item .h.r { right: 0; border-right: 3px solid #0d112266; }
+  .item:hover .h { background: #ffffff55; }
+  .item.sel { box-shadow: 0 0 0 2px var(--amber), inset 0 0 0 1px #0003; z-index: 2; }
+  .item.pip { background-image: repeating-linear-gradient(135deg, #ffffff33 0 6px, transparent 6px 12px); }
+  .head button { background: transparent; }
+  .head button:disabled { opacity: .25; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--tally); pointer-events: none; z-index: 3; }
+
+  body[data-mode="live"] [data-mode="edit"], body[data-mode="edit"] [data-mode="live"] { display: none !important; }
+
+  @media (max-width: 1100px) {
+    .work { grid-template-columns: 200px minmax(0, 1fr); }
+    .insp { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .work { grid-template-columns: 1fr; }
+    .sources { max-height: 36vh; }
+    #multi { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .timeline { grid-template-columns: 110px 1fr; }
+    .ev h1 { max-width: 50vw; }
+  }
+
+  .soundoff { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; min-height: 34px; padding: 0 14px; border-radius: 999px; background: var(--amber); color: #2b1d00; font-weight: 800; box-shadow: 0 4px 14px #0006; }
+  .soundoff[hidden] { display: none; }
+  .overflow { border-top: 1px solid var(--line); }
+  .overflow[hidden] { display: none; }
+  .ovlist { list-style: none; margin: 0; padding: 0 10px 10px; display: grid; gap: 4px; }
+  .ovlist li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); font-size: .82rem; }
+  .ovlist .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ovlist .rs { font-size: .72rem; color: var(--text-2); }
+  .ovlist .rs.on { color: var(--tally); font-weight: 800; }
+  .ovlist button { min-height: 26px; padding: 0 .6em; font-size: .74rem; }
+  .warnbox { margin: 0 0 8px; padding: 8px 10px; border-radius: 6px; font-size: .78rem; line-height: 1.4; background: color-mix(in srgb, var(--amber) 18%, transparent); border-left: 3px solid var(--amber); color: var(--text); }
+  .warnbox[hidden] { display: none; }
+  /* --- right-click menus --- */
+  .ctxmenu { position: fixed; z-index: 200; min-width: 220px; max-width: 340px; padding: 4px; border-radius: 8px; background: var(--surface); color: var(--text);
+    box-shadow: 0 10px 30px #0008, 0 0 0 1px var(--line); font-size: .82rem; }
+  .ctxmenu .ctxtitle { padding: 4px 10px 6px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctxmenu button { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 30px; padding: 0 10px; border-radius: 5px; background: transparent; color: inherit; font: inherit; text-align: left; }
+  .ctxmenu button span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctxmenu button:hover, .ctxmenu button:focus-visible, .ctxmenu button.open { background: var(--preview); color: #fff; outline: none; }
+  .ctxmenu button[aria-disabled="true"] { opacity: .5; background: transparent; color: inherit; cursor: default; }
+  .ctxmenu kbd { font-size: .68rem; opacity: .8; }
+  .ctxmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+  /* --- program sound meters beside the picture --- */
+  .monitor { position: relative; }
+  .monitor.withmeters { padding-right: 52px !important; }
+  .monitor.withswitcher { padding-left: 120px !important; } /* the switcher has its own room: the program shrinks beside it */
+  .pmeters { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); height: min(78%, 360px); display: grid; grid-template-columns: auto 9px 9px; grid-template-rows: 1fr auto; gap: 2px 3px; z-index: 2; }
+  .pmeters[hidden] { display: none; }
+  .pmscale { position: relative; width: 18px; font: 600 .55rem/1 var(--mono); color: #9aa0ad; }
+  .pmscale span { position: absolute; right: 0; bottom: var(--p); transform: translateY(50%); }
+  .pm { position: relative; background: #050608; border-radius: 2px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff14; }
+  .pm .fill { position: absolute; inset: 0; background: linear-gradient(to top, #2bd36b 0 70%, #f2c037 70% 90%, #ff3b30 90%);
+    clip-path: inset(calc(100% - var(--lvl, 0%)) 0 0 0); -webkit-mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); }
+  .pm .peak { position: absolute; left: 0; right: 0; height: 2px; background: #fff; bottom: var(--pk, 0%); }
+  .pm .clip { position: absolute; left: 0; right: 0; top: 0; height: 4px; background: #3a0d0d; }
+  .pm.over .clip { background: #ff3b30; }
+  .pmlab { grid-column: 2 / span 2; font: 700 .55rem/1 var(--mono); color: #9aa0ad; text-align: center; letter-spacing: .1em; }
+  #meterTgl[aria-pressed="true"] { background: var(--preview); color: #fff; }
+  /* --- track targets (where Insert and Overwrite land) --- */
+  .head [data-target] { min-width: 22px; padding: 0; font-size: .8rem; }
+  .head [data-target][aria-pressed="true"] { color: var(--amber); }
+  /* ---- kiosk: a screen people walk up to; the studio, stripped down and hands-free ---- */
+  .kioskside, body:not(.kiosk) .kdlg { display: none; }
+  body.kiosk { cursor: default; }
+  body.kiosk.idle, body.kiosk.idle * { cursor: none !important; }
+  body.kiosk header.bar > :not(.mark):not(.ev):not(.status) { display: none !important; }
+  body.kiosk .insp, body.kiosk .dock, body.kiosk .split, body.kiosk .transport, body.kiosk #switcher, body.kiosk #splitD,
+  body.kiosk .sources .phead button, body.kiosk .sources > :not(.phead):not(#multi):not(#blockedBox),
+  body.kiosk .ptabs, body.kiosk .banner, body.kiosk .incoming, body.kiosk .dmrow, body.kiosk .tile .dm { display: none !important; }
+  body.kiosk .work { grid-template-columns: minmax(180px, 20vw) 0 minmax(0, 1fr) 0 minmax(260px, 28vw) !important; }
+  body.kiosk .kioskside { grid-column: 5; grid-row: 1; display: flex; flex-direction: column; gap: 1.4vh; padding: 1.4vh; background: var(--surface); border-left: 1px solid var(--line); min-height: 0; overflow: auto; }
+  /* the panel takes the full height (over the bar too), and everything in it fits: the code
+     takes what's left after the words and the counts */
+  body.kiosk .kioskside { position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; width: max(28vw, 280px); grid-column: auto; overflow: hidden; gap: 1.1vh; padding: 1.6vh 1.2vw; justify-content: space-between; }
+  body.kiosk header.bar { padding-right: calc(max(28vw, 280px) + 12px); }
+  body.kiosk .work { grid-template-columns: minmax(180px, 20vw) 0 minmax(0, 1fr) 0 max(28vw, 280px) !important; }
+  .kcall { margin: 0; text-align: center; font-weight: 800; font-stretch: 125%; font-size: clamp(1.1rem, 4.6vh, 3rem); line-height: 1.05; flex: none; }
+  .kqr { flex: 1 1 0; min-height: 0; display: grid; place-items: center; }
+  .kqr canvas { max-width: 100%; max-height: 100%; width: auto; height: auto; aspect-ratio: 1; background: #fff; border-radius: 14px; padding: 1.2vh; box-sizing: border-box; image-rendering: pixelated; box-shadow: 0 0 0 6px #1fa64a; animation: kpulse 2.2s ease-in-out infinite; }
+  @keyframes kpulse { 0%, 100% { box-shadow: 0 0 0 6px #1fa64a, 0 0 0 0 #1fa64a88; } 50% { box-shadow: 0 0 0 6px #1fa64a, 0 0 0 2.4vh #1fa64a00; } }
+  body.kiosk.onair .kqr canvas { animation-duration: 4s; }
+  @media (prefers-reduced-motion: reduce) { .kqr canvas { animation: none; } }
+  .ktitle { margin: 0; text-align: center; font-size: clamp(1rem, 3.4vh, 2rem); line-height: 1.15; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kcode { margin: 0; text-align: center; color: var(--text-2); font-size: clamp(.75rem, 1.8vh, 1rem); flex: none; }
+  .kcode b { color: var(--text); letter-spacing: .08em; }
+  .kstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; flex: none; }
+  .kstats div { background: var(--surface-2); border-radius: 10px; padding: .8vh 4px; font-size: clamp(.7rem, 1.6vh, .95rem); color: var(--text-2); }
+  .kstats b { display: block; font-size: clamp(1.1rem, 4vh, 2.2rem); line-height: 1.1; font-stretch: 125%; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kstate { font-size: clamp(.85rem, 2.4vh, 1.3rem); font-weight: 700; margin: 0; text-align: center; flex: none; }
+  /* the count-in, over the program, when the first phone taps Go live */
+  .kcount { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; pointer-events: none; }
+  .kcount[hidden] { display: none; }
+  .kcount b { font: 800 min(38vh, 30vw)/1 var(--sans, system-ui); font-stretch: 125%; color: #fff; text-shadow: 0 0 40px #e5534b, 0 0 4px #000; animation: kpop 1s ease-out both; }
+  @keyframes kpop { 0% { transform: scale(1.6); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(.9); opacity: .15; } }
+  .kstate.on { color: #ff6a5f; }
+  .kbtns { display: flex; gap: 8px; }
+  .kbtns button { flex: 1; min-height: 64px; font-size: 1.15rem; font-weight: 800; border-radius: 12px; }
+  .kbtns .danger { background: #7a1f1a; color: #fff; border-color: #b43a32; }
+  .kdlg { border: 0; border-radius: 16px; background: var(--surface); color: var(--text); padding: 28px; max-width: 520px; font-size: 1.15rem; }
+  .kdlg::backdrop { background: #000c; }
+  .kdlg h2 { margin: 0 0 8px; font-size: 1.8rem; }
+  /* the Edit page (/edit): editing only, no Live */
+  body.editpage #liveTab, body.editpage #editTab, body.editpage [data-mode="live"] { display: none !important; }
+  .remotes { list-style: none; margin: 0 0 6px; padding: 0; }
+  .remotes li { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+  .remotes li button { margin-left: auto; }
+  .remotes .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; display: inline-block; }
+  .remotes .dot.live { background: #2fd56b; }
+  .remotedlg { max-width: 420px; text-align: center; }
+  .remotedlg canvas { width: 260px; height: 260px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 6px; }
+  .remotedlg .rcode { font: 700 2rem/1.1 ui-monospace, Menlo, monospace; letter-spacing: .12em; margin: 10px 0 2px; }
+</style>
+</head>
+<body data-mode="live" data-absent='{"anglesTab":"button","mediaTab":"button","srcBar":"div","srcScrub":"div","srcRangeBar":"i","srcTicks":"span","srcHeadBar":"i","srcPlay":"button","srcIn":"button","srcOut":"button","srcRange":"span","srcSubclip":"button","srcInsert":"button","srcOverwrite":"button","srcExport":"button","progTab":"button","srcTab":"button","playBtn":"button","undoBtn":"button","redoBtn":"button","splitBtn":"button","mediaInsp":"section","selPanel":"section","mixer":"div","rangeInfo":"p","rangeClear":"button","renderBtn":"button","syncBtn":"button","autoCutBtn":"button","rebuildBtn":"button","exportBtn":"button","splitT":"div","toolBtns":"span","snapBtn":"button","markerBtn":"button","fitBtnTl":"button","turnsBtn":"button","xdBtn":"button","gapsBtn":"button","toolHelp":"span","zoom":"input","timeline":"section","heads":"div","scroller":"div","tracks":"div"}'>
+<a class="sr-only" href="#program">Skip to program monitor</a>
+<header class="bar">
+  <a class="mark" href="/" aria-label="VUEMesh home"><i aria-hidden="true"></i>VUEMesh</a>
+  <a class="betapill" href="/terms" target="_blank" title="Beta software, provided as is with no warranty">BETA</a>
+  <div class="ev"><h1 id="title">Studio</h1><span class="code" id="code"></span></div>
+  <div class="modes" role="tablist" aria-label="Studio mode">
+    <button type="button" role="tab" id="liveTab" aria-selected="true" aria-controls="program">Live</button>
+    <button type="button" id="editTab" title="Edit opens in its own window, beside the live studio, and builds the edit as recordings land">Edit ↗</button>
+  </div>
+  <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span></div>
+  <span class="spacer"></span>
+  <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software">Program out ↗</button>
+  <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">Beacon</a>
+ <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen control room (F)">Full screen <kbd>F</kbd></button>
+  <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
+  <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
+  <button type="button" id="helpBtn" aria-haspopup="dialog" aria-keyshortcuts="?">Help <kbd>?</kbd></button>
+  <button type="button" id="themeBtn"></button>
+  <button type="button" id="publishBtn" class="primary">Publish</button>
+</header>
+<div class="banner" id="viewOnly" hidden>This device doesn't have the host key. Open the studio link from the device that created this event — the host device is where phones send their footage.</div>
+<div class="incoming" id="incoming" hidden aria-live="polite"></div>
+
+<main class="work">
+  <aside class="panel sources" aria-labelledby="srcHead">
+    <div class="phead"><span id="srcHead">Sources</span><button type="button" class="small" id="ccuBtn" style="margin:0 6px 0 auto" title="Every live camera's picture with histogram and waveform, and its zoom, brightness, contrast and focus, in its own window">Camera control ↗</button><span id="srcCount"></span></div>
+    <!-- (edit only: on the Edit page) -->
+    <div id="multi" role="group" aria-label="Sources. Choose one to cut to it."></div>
+    <div class="addlocal" data-mode="live"><button type="button" id="addLocal" class="small" title="Add a camera or microphone plugged into (or built into) this computer">+ This computer</button></div>
+    <dialog id="eventPicker" class="localdlg pickdlg" aria-labelledby="pickH">
+      <h2 id="pickH">Your events on this computer</h2>
+      <p class="fine" id="pickWhy"></p>
+      <ul id="pickList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:12px"><a class="btn" href="/">Make a new event</a><a class="btn" href="/kiosk">Kiosk</a></div>
+    </dialog>
+    <dialog id="kickDlg" class="localdlg" aria-labelledby="kickH">
+      <h2 id="kickH">Remove <span id="kickWho"></span>?</h2>
+      <p class="fine">Their phone is told and leaves the event. Removing lets them rejoin; blocking keeps them out of this event, and keeps their recordings out of the automatic edit (they stay in Media, marked Blocked, if you want a shot by hand).</p>
+      <form method="dialog" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button value="">Cancel</button><button value="remove">Remove</button><button value="block" class="danger">Remove and block</button>
+      </form>
+    </dialog>
+    <dialog id="localDlg" class="localdlg" aria-labelledby="localH">
+      <h2 id="localH">Cameras and microphones on this computer</h2>
+      <p class="fine">They run on the studio's own clock, so they're in sync without the beacon. A camera brings its sound (its own microphone, or this computer's: change it under Sound) and records while it's on air; a microphone records the whole time it's in the show.</p>
+      <div id="localList"></div>
+      <form method="dialog"><button class="primary">Done</button></form>
+    </dialog>
+    <section class="overflow" id="blockedBox" data-mode="live" hidden aria-labelledby="blkHead">
+      <div class="phead sub"><span id="blkHead">Removed and blocked</span></div>
+      <p class="fine" style="margin:0 10px 6px">They can't rejoin this event, and their recordings are out of the automatic edit.</p>
+      <ul class="blocked" id="blockedList"></ul>
+    </section>
+    <section class="overflow" id="overflowBox" data-mode="live" hidden aria-labelledby="ovHead">
+      <div class="phead sub"><span id="ovHead">Recording only</span><span class="fine" id="ovCount"></span></div>
+      <p class="fine" style="margin:0 10px 6px">The live pictures are full, so these phones aren't shown live. They still record and send every clip. Swap one in to see it.</p>
+      <ul class="ovlist" id="ovList"></ul>
+    </section>
+    <section class="clipsbox" data-mode="live" aria-labelledby="clipsHead">
+      <div class="phead sub"><span id="clipsHead">Clips</span><label class="btn small" for="clipFiles" title="B-roll, commercials, logos: they loop here ready to go">+ Add</label></div>
+      <input type="file" id="clipFiles" accept="video/*,image/*" multiple hidden>
+      <div id="clips" class="clipgrid" role="group" aria-label="Clips. Choose one to put it on air."></div>
+      <p class="fine" id="clipsEmpty">Add b-roll, commercials or a logo. They loop here, ready; click one to put it on air.</p>
+    </section>
+    <div id="mediaPanel" class="mpanel" role="tabpanel" aria-labelledby="mediaTab" hidden>
+      <input type="search" id="mediaSearch" placeholder="Search names, people, tags" aria-label="Search media">
+      <div class="chips" id="mediaFilters" role="group" aria-label="Show"></div>
+      <ul class="mlist" id="mediaList" role="listbox" aria-label="Media"></ul>
+      <p class="fine" id="mediaEmpty" hidden></p>
+    </div>
+  </aside>
+  <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click to hide or show)" aria-controls="srcHead"></div>
+
+  <section class="center" aria-label="Program">
+    <div class="monitor">
+      <button type="button" class="soundoff" id="soundOff" hidden>🔇 Sound is paused by the browser. Click to turn it on.</button>
+      <div class="pmeters" id="pMeters" hidden aria-hidden="true">
+        <div class="pmscale"><span style="--p:100%">0</span><span style="--p:80%">-12</span><span style="--p:60%">-24</span><span style="--p:40%">-36</span><span style="--p:20%">-48</span></div>
+        <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
+        <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
+        <span class="pmlab">L&nbsp;R</span>
+      </div>
+      <div class="frame" id="srcFrame" hidden>
+        <canvas id="srcCanvas" width="1280" height="720" role="img" aria-label="Source monitor"></canvas>
+        <span class="ovl" id="srcLabel">SOURCE</span>
+        <span class="ovl tc" id="srcTc"></span>
+      </div>
+      <div class="switcher" id="switcher" hidden role="group" aria-label="Switcher: preview, transitions and the T-bar" data-mode="live">
+        <div class="swmode" role="group" aria-label="Tapping a source puts it">
+          <button type="button" data-tap="air" aria-pressed="true" title="Tap a source (or press its number) and it's on air">Tap: Air</button>
+          <button type="button" data-tap="preview" aria-pressed="false" title="Tap a source (or press its number) to put it in preview, then CUT, AUTO or the T-bar">Tap: Preview</button>
+        </div>
+        <div class="tbar" id="tbar" role="slider" tabindex="0" aria-label="T-bar: dissolve from program to preview by hand" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="tlab top">T-BAR</span>
+          <i class="ttrack"><i class="tfill" id="tbarFill"></i></i>
+          <i class="thandle" id="tbarHandle"><i></i><i></i><i></i></i>
+        </div>
+        <button type="button" id="swCut" title="Preview straight to air (Shift+Enter)">CUT</button>
+        <button type="button" id="swAuto" title="Dissolve preview to air over the time below (Enter)">AUTO</button>
+        <select id="swDur" aria-label="AUTO dissolve length"><option value="0.25">¼ s</option><option value="0.5">½ s</option><option value="1" selected>1 s</option><option value="2">2 s</option><option value="3">3 s</option></select>
+        <button type="button" id="swMidi" aria-pressed="false" title="Use a hardware fader (MIDI): press, then move the fader">MIDI fader</button>
+      </div>
+      <div class="frame" id="progFrame">
+        <canvas id="program" width="1280" height="720" role="img" aria-label="Program output"></canvas>
+        <div class="kcount" id="kCount" hidden aria-live="assertive"><b></b></div>
+        <div class="pvwbox" id="pvwBox" hidden aria-hidden="true" data-mode="live"><canvas id="pvwCanvas" width="480" height="270"></canvas><span class="ovl" id="pvwLabel">PREVIEW</span></div>
+        <span class="ovl" id="progLabel">ON AIR</span>
+        <span class="ovl tc" id="ptc"></span>
+        <span class="ovl" id="slateTag" hidden>BREAK</span>
+        <div class="xform" id="xform" hidden aria-hidden="true">
+          <i class="hdl nw" data-h="nw"></i><i class="hdl ne" data-h="ne"></i><i class="hdl sw" data-h="sw"></i><i class="hdl se" data-h="se"></i>
+          <i class="rot" data-h="rot" title="Rotate (Shift: 15° steps)"></i>
+        </div>
+      </div>
+    </div>
+    <!-- (edit only: on the Edit page) -->
+    <div class="transport">
+      <button type="button" id="meterTgl" class="icon" aria-pressed="false" title="Program sound meters beside the picture" aria-label="Show program sound meters">♪</button>
+      <button type="button" id="swTgl" class="icon" aria-pressed="false" data-mode="live" title="Switcher: preview, CUT, AUTO dissolve and the T-bar, beside the picture" aria-label="Show the switcher">⇅</button>
+      <!-- (edit only: on the Edit page) -->
+      <span class="big tc" id="clock" aria-live="off">00:00:00</span>
+      <!-- (edit only: on the Edit page) -->
+      <!-- (edit only: on the Edit page) -->
+      <!-- (edit only: on the Edit page) -->
+      <button type="button" id="autoBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="A" title="Let the AI technical director cut">Auto director <kbd>A</kbd></button>
+      <button type="button" id="breakBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="B">Break <kbd>B</kbd></button>
+      <button type="button" id="ftbBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="X" title="Fade the whole program, picture and sound, to black (X). Press again to fade back up.">Fade to black <kbd>X</kbd></button>
+      <button type="button" id="blackBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="Shift+X" title="Cut straight to black (Shift+X). Press again to cut back up.">Black <kbd>⇧X</kbd></button>
+      <button type="button" id="recProgBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="R">Record program <kbd>R</kbd></button>
+      <button type="button" id="markBtn" data-mode="live" aria-keyshortcuts="M" title="Mark this moment to make clips of it later">Mark moment <kbd>M</kbd></button>
+      <span class="tspace"></span>
+      <span class="tgroup" role="group" aria-label="Panels">
+        <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the left panel" title="Left panel">◧</button>
+        <button type="button" class="icon" id="togRight" aria-pressed="true" aria-label="Show the inspector" title="Inspector">◨</button>
+      </span>
+      <span class="hint" data-mode="live" id="directorNote">Press <kbd>1</kbd>–<kbd>9</kbd> to cut, or let the auto director cut for you.</span>
+      <!-- (edit only: on the Edit page) -->
+    </div>
+  </section>
+
+  <div class="splitter v" id="splitR" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the inspector (double-click to hide or show)"></div>
+
+  <aside class="panel insp" aria-label="Inspector">
+    <section>
+      <h2>Output</h2>
+      <label class="check" data-mode="live" style="margin:0 0 8px"><input type="checkbox" id="autoRec"> Cameras record their time on air while you Record program <span class="fine">(cutting around without Record program records nothing; a camera person's own recording is theirs, with your cut as its own clip)</span></label>
+      <label data-mode="live" class="row" style="gap:8px;align-items:center;margin:0 0 8px;font-weight:600">Live pictures: up to <input type="number" id="liveLimit" min="1" max="24" step="1" style="width:4.2em"> cameras <span class="fine" style="font-weight:400">(more phones record only)</span></label>
+      <label class="check" data-mode="live" style="margin:0 0 4px"><input type="checkbox" id="sendPgm"> Send each camera the part of the program they were in <span class="fine">(when you Record program)</span></label>
+      <p class="fine" data-mode="live" id="pgmState" style="margin:0 0 8px"></p>
+      <label class="check" data-mode="live" style="margin:0 0 6px"><input type="checkbox" id="recFades"> Record the program with the fades <span class="fine">(fading up from black starts Record program; fading to black stops it)</span></label>
+      <div class="apbox" data-mode="live">
+        <label class="check" style="margin:0"><input type="checkbox" id="apOn"> <b>Autopilot</b>: the show runs itself</label>
+        <p class="fine" style="margin:2px 0 6px">When a camera arrives: the intro, fade up, record, and the auto director cuts. Each new camera goes to preview, then on air with its name. When everyone's gone: fade to black, stop recording, and each phone gets its part.</p>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <label style="margin:0">Intro <select id="apIntro"><option value="">None</option></select></label>
+          <label style="margin:0">End after nobody's here for <select id="apEnd"><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="180">3 min</option></select></label>
+        </div>
+      </div>
+      <p class="warnbox" id="pgmFormat" hidden role="status"></p>
+      <div class="seg2" role="group" aria-label="Output shape">
+        <button type="button" id="landBtn" aria-pressed="true">Landscape</button>
+        <button type="button" id="portBtn" aria-pressed="false">Portrait</button>
+      </div>
+      <div class="seg2" role="group" aria-label="Framing">
+        <button type="button" id="fillBtn" aria-pressed="true">Fill frame</button>
+        <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
+      </div>
+      <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
+    </section>
+    <!-- (edit only: on the Edit page) -->
+    <!-- (edit only: on the Edit page) -->
+    <!-- (edit only: on the Edit page) -->
+    <section data-mode="live" aria-labelledby="gfxHead">
+      <h2 id="gfxHead">Lower third</h2>
+      <label for="ltText">Name or headline</label>
+      <input type="text" id="ltText" maxlength="60" placeholder="e.g. Rosa Martinez">
+      <label for="ltSub">Second line</label>
+      <input type="text" id="ltSub" maxlength="80" placeholder="e.g. Maid of honour">
+      <div class="row" style="gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+        <button type="button" id="ltShow" aria-pressed="false" aria-keyshortcuts="T" title="Show or hide (T)">Show <kbd>T</kbd></button>
+        <label class="check" style="margin:0"><input type="checkbox" id="ltAuto" checked> Hide after 8 s</label>
+      </div>
+      <div class="ltrecent" id="ltRecent" role="group" aria-label="Recent lower thirds"></div>
+    </section>
+    <section data-mode="live" aria-labelledby="streamHead">
+      <h2 id="streamHead">Stream out</h2>
+      <label for="stSvc">Service</label>
+      <select id="stSvc"></select>
+      <p class="fine" id="stHelp" style="margin:4px 0 6px"></p>
+      <label for="stUrl" id="stUrlLbl">WHIP URL</label>
+      <input type="url" id="stUrl" autocomplete="off" spellcheck="false" placeholder="https://…">
+      <label for="stKey" id="stKeyLbl">Stream key</label>
+      <input type="password" id="stKey" autocomplete="off" spellcheck="false">
+      <div id="stRelayRow" hidden>
+        <label for="stRelay">Relay on this computer</label>
+        <input type="text" id="stRelay" autocomplete="off" spellcheck="false" placeholder="ws://localhost:8935">
+        <p class="fine relaystate" id="stRelayState" aria-live="polite" style="margin:4px 0 0">Looking for the relay…</p>
+        <p class="fine" style="margin:6px 0 4px">A browser can't send RTMP, so a small relay on this computer does it. <a href="/relay/vuemesh-relay.mjs" download="vuemesh-relay.mjs">Download the relay</a>, then set it up once:</p>
+        <div class="ostabs" role="tablist" aria-label="Set-up steps for">
+          <button type="button" role="tab" data-os="win">Windows</button><button type="button" role="tab" data-os="mac">Mac</button><button type="button" role="tab" data-os="linux">Linux</button><button type="button" role="tab" data-os="cros">ChromeOS</button>
+        </div>
+        <ol class="relaysteps" id="relaySteps" aria-live="polite"></ol>
+        <p class="fine" style="margin:4px 0 0">Next time it's only the last command. Your browser may ask to let this page reach apps on this device: allow it.</p>
+        <button type="button" id="stRelayCheck" style="width:100%;margin-top:6px">Check for the relay</button>
+      </div>
+      <label for="stRate">Quality</label>
+      <select id="stRate"><option value="2500">2.5 Mbit/s (a slow connection)</option><option value="4500">4.5 Mbit/s (recommended)</option><option value="6000">6 Mbit/s (best)</option></select>
+      <button type="button" id="stGo" style="width:100%;margin-top:8px">Go live</button>
+      <p class="fine" id="stState" aria-live="polite">Not streaming. The key stays on this computer.</p>
+    </section>
+    <section data-mode="live" aria-labelledby="momHead">
+      <h2 id="momHead">Moments</h2>
+      <ol class="momlist" id="momList" aria-label="Moments marked live" hidden></ol>
+      <p class="fine" id="momEmpty" style="margin:0">Press <kbd>M</kbd> (Mark moment) when something happens. Rename or delete them here; in Edit, make clips of them from every angle.</p>
+    </section>
+    <section data-mode="live">
+      <h2>Crew</h2>
+      <label for="dmAll">Message all cameras</label>
+      <div class="row" style="gap:6px"><input type="text" id="dmAll" maxlength="140" placeholder="e.g. Speeches in 2 minutes" style="flex:1"><button type="button" id="dmAllBtn">Send</button></div>
+      <label for="rundownText">Rundown <span class="fine">(one item per line)</span></label>
+      <textarea id="rundownText" rows="4" placeholder="Entrance&#10;First dance&#10;Toasts&#10;Cake"></textarea>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button type="button" id="rundownSend">Send rundown</button>
+        <button type="button" id="cuePrev" aria-keyshortcuts="[" title="Previous cue ([)">◀ Prev</button>
+        <button type="button" id="cueNext" aria-keyshortcuts="]" title="Next cue (]). On the last item, ends the rundown.">Next ▶</button>
+        <button type="button" id="rundownEnd" title="The rundown is over: take it off the cameras (they keep it in My events)">End</button>
+        <button type="button" id="rundownClear" title="Empty the rundown here and on every camera">Clear</button>
+      </div>
+      <p class="fine" id="cueState" aria-live="polite">No rundown yet. Phones show the current item as one small line.</p>
+    </section>
+    <section data-mode="live">
+      <h2>Phone remote</h2>
+      <p class="fine" style="margin:0 0 6px">Run the show from your phone while you step away: cut cameras, auto-director, fade to black, break, record. Only a phone you add here can; the code shows only when you ask for it.</p>
+      <ul class="remotes" id="remoteList" aria-live="polite"></ul>
+      <p class="fine" id="remoteNone" style="margin:0 0 6px">No phone remotes yet.</p>
+      <button type="button" id="remoteAdd">Add a phone</button>
+    </section>
+    <section data-mode="live">
+      <h2>Network</h2>
+      <p class="fine" id="netState" style="margin-top:0">No phones yet.</p>
+      <button type="button" id="directBtn" style="width:100%;margin-bottom:8px" hidden>Help phones connect directly</button>
+      <button type="button" id="refreshPics" style="width:100%;margin-bottom:8px" title="Restart every live picture in this window. Right-click a camera for just one, or to reconnect it.">Refresh live pictures</button>
+      <label class="check"><input type="checkbox" id="localOnly"> Local network only</label>
+      <p class="fine">Local only refuses connections that go out through the internet. Phones must be on the same Wi-Fi as this computer.</p>
+    </section>
+    <section data-mode="live">
+      <h2>Breaks and black</h2>
+      <label class="check"><input type="checkbox" id="autoSlate" checked> Show the break slate when the cameras drop</label>
+      <label for="slateLook">Slate look</label>
+      <select id="slateLook"></select>
+      <canvas id="slatePrev" class="slateprev" width="320" height="180" role="img" aria-label="Preview of the break slate"></canvas>
+      <label for="slateMsg">Slate message</label>
+      <input type="text" id="slateMsg" value="We'll be right back">
+      <label class="check" style="margin-bottom:0"><input type="checkbox" id="slateSound"> Slate sound</label>
+      <p class="fine" style="margin:0 0 6px">Line-up tone with color bars, hiss with static. It goes into the program and the recording.</p>
+      <label for="micLook" style="margin-top:8px">With only microphones on air</label>
+      <select id="micLook"></select>
+      <p class="fine" style="margin:0 0 6px">No camera picture and a microphone open: the program shows the sound, with the event and who's talking.</p>
+      <label for="ftbTime" style="margin-top:8px">Fade to black takes</label>
+      <select id="ftbTime"><option value="500">½ second</option><option value="1000">1 second</option><option value="2000">2 seconds</option><option value="3000">3 seconds</option></select>
+      <p class="fine">X fades the whole program, picture and sound, to black; Shift+X cuts to black. At black, the lower third, clip and break come off. Press again to come back up.</p>
+      <label for="reelFiles" style="margin-top:10px">Break reel (sponsor images or videos)</label>
+      <input type="file" id="reelFiles" accept="image/*,video/*" multiple>
+      <ul class="reel" id="reel"></ul>
+      <p class="fine">During a break the slate alternates with the reel. The first sponsor also appears on the watch page when you publish.</p>
+    </section>
+    <!-- (edit only: on the Edit page) -->
+    <section id="credits" aria-live="polite" hidden></section>
+  </aside>
+<dialog id="remoteDlg" class="remotedlg" aria-labelledby="remoteH">
+  <h2 id="remoteH">Add a phone remote</h2>
+  <p class="fine" style="margin-top:0">Scan this with the phone that will run the show, or go to the address and type the code.</p>
+  <canvas id="remoteQr" width="360" height="360" aria-label="QR code for the phone remote"></canvas>
+  <p class="rcode" id="remoteCode" aria-label="Code"></p>
+  <p class="fine" id="remoteLink"></p>
+  <p class="fine" id="remoteLeft" aria-live="polite"></p>
+  <div class="row" style="justify-content:flex-end"><button type="button" id="remoteCancel">Cancel</button></div>
+</dialog>
+<aside class="kioskside" id="kioskSide" aria-label="Join this show">
+  <p class="kcall" id="kCall">Scan to start a show</p>
+  <div class="kqr"><canvas id="kQr" aria-label="Scan to join"></canvas></div>
+  <h2 class="ktitle" id="kTitle"></h2>
+  <p class="kcode">or go to <b id="kHost"></b> and enter <b id="kCode"></b></p>
+  <div class="kstats">
+    <div><b id="kCams">0</b>cameras</div>
+    <div><b id="kClips">0</b>clips in</div>
+    <div><b id="kXfer">0</b>sending</div>
+  </div>
+  <p class="kstate" id="kState" role="status">Waiting for cameras</p>
+</aside>
+</main>
+
+<div class="splitter h" id="splitD" data-mode="live" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize the audio mixer (double-click to reset)"></div>
+<section class="dock" data-mode="live" aria-label="Audio mixer">
+  <div class="dockhead"><h2>Audio mixer</h2><button type="button" class="small" style="margin:0;min-height:22px" data-console title="Open the audio console in its own window: EQ, balance, big meters, spectrum and stereo picture">Audio console ↗</button><label class="check"><input type="checkbox" id="listen"> Listen on this computer</label><span class="fine">Use headphones, or you'll get feedback.</span></div>
+  <div class="bridge" id="bridge" aria-label="Audio meters and faders"></div>
+</section>
+<!-- (edit only: on the Edit page) -->
+<!-- (edit only: on the Edit page) -->
+<!-- (edit only: on the Edit page) -->
+
+<dialog class="help" id="renderDlg" aria-labelledby="renderTitle">
+  <div class="hd"><h2 id="renderTitle">Rendering</h2></div>
+  <div class="bd">
+    <p id="renderText">Getting ready…</p>
+    <progress id="renderBar" max="100" value="0" style="width:100%;height:14px"></progress>
+    <p class="fine" id="renderFine"></p>
+    <div id="renderErr" hidden role="alert" style="background:var(--surface-2);border-left:4px solid var(--tally);padding:10px 12px;border-radius:6px;margin-top:8px">
+      <p id="renderErrText" style="margin:0 0 6px;font-weight:600"></p>
+      <p class="fine" id="renderErrHint" style="margin:0"></p>
+    </div>
+    <div class="row" style="margin-top:12px;gap:8px">
+      <button type="button" id="renderCancel">Cancel</button>
+      <button type="button" id="renderRealtime" hidden>Use real-time export</button>
+      <button type="button" id="renderCopy" hidden>Copy details</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="help" id="wrap" aria-labelledby="wrapTitle">
+  <div class="hd"><h2 id="wrapTitle">That's a wrap</h2><button type="button" class="ghost" data-close>Close</button></div>
+  <div class="bd">
+    <p id="wrapText">Your film is published.</p>
+    <div class="row" style="margin-bottom:16px"><button type="button" class="primary" id="wrapShare">Share the watch link</button><a class="btn ghost" id="wrapWatch" target="_blank" rel="noopener">Open watch page</a></div>
+    <h3>Keep VUEMesh going</h3>
+    <p>VUEMesh is built by one person. If tonight worked for you, a few dollars on Patreon keeps the lights (and the servers) on.</p>
+    <div class="row"><a class="btn go" id="wrapPatreon" target="_blank" rel="noopener">Support on Patreon</a><a class="btn ghost" href="/sponsors" target="_blank" rel="noopener">Sponsor or advertise</a></div>
+  </div>
+</dialog>
+
+<script src="/vendor/jsQR.js"></script>
+<script src="/vendor/mp4box.min.js"></script>
+<script src="/vendor/mp4-muxer.js"></script>
+<script src="/vendor/qrcode.js"></script>
+<script src="/config.js"></script>
+<script type="module" src="/js/studio.js"></script>
+</body>
+</html>

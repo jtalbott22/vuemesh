@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh beacon</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0f1013">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  html, body { height: 100%; }
+  body { overflow: hidden; }
+  main { height: 100%; display: grid; grid-template-columns: auto 1fr; gap: 5vmin; align-items: center; padding: 5vmin; padding-top: max(5vmin, env(safe-area-inset-top, 0px)); }
+  .qrbox { background: var(--qr-light, #fff); border-radius: 2vmin; padding: 1.2vmin; line-height: 0; box-shadow: 0 0 0 .8vmin var(--preview); }
+  /* Three separate dimmers:
+     code       — only the white of the QR (keeps it scannable, cuts the glare)
+     background — everything except the code (the page, the text)
+     screen     — the whole display */
+  html { filter: brightness(var(--screen, 1)); }
+  .qrbox { position: relative; z-index: 2; }
+  .bgdim { position: fixed; inset: 0; background: #000; opacity: var(--bgdim, 0); pointer-events: none; z-index: 1; }
+  .hud { z-index: 3; }
+  .dim { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 4px 10px; box-shadow: var(--shadow); }
+  .dim label { margin: 0; font-size: .85rem; white-space: nowrap; }
+  .dim input { width: 120px; }
+  #qr { width: min(78vmin, 60vw); height: auto; image-rendering: pixelated; display: block; }
+  .info h1 { font-size: clamp(2rem, 6vmin, 5rem); max-width: 14ch; }
+  .clock { font-size: clamp(1.6rem, 7vmin, 6rem); font-weight: 700; font-stretch: 125%; margin: .2em 0 .4em; }
+  .say { font-size: clamp(1rem, 2.6vmin, 1.8rem); color: var(--soft); max-width: 30ch; }
+  .live { display: flex; gap: 2.4em; font-size: clamp(1rem, 2.4vmin, 1.6rem); margin-top: 1.4em; }
+  .live b { font-size: 1.8em; display: block; font-stretch: 125%; }
+  .code { color: var(--soft); font-size: clamp(.9rem, 2vmin, 1.3rem); margin-top: 1.4em; }
+  .code strong { color: var(--text); letter-spacing: .1em; }
+  .wifi { display: flex; gap: 1em; align-items: center; margin-top: 1.4em; font-size: clamp(.9rem, 2vmin, 1.3rem); }
+  .wifi .wqr { background: #fff; border-radius: 1vmin; padding: .6vmin; line-height: 0; }
+  .wifi canvas { width: min(16vmin, 150px); height: auto; image-rendering: pixelated; }
+  .wifi span { display: block; color: var(--soft); }
+  @media (orientation: portrait) { .wifi { justify-content: center; text-align: left; } }
+  .hud { position: fixed; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; opacity: .0; transition: opacity .3s; }
+  body:hover .hud, .hud:focus-within, .hud.show { opacity: 1; }
+  @media (hover: none) { .hud { opacity: 1; } }
+  /* inside a kiosk (an iframe beside the program): the code and the essentials, compact */
+  body.embed main { grid-template-columns: 1fr; justify-items: center; text-align: center; align-content: center; gap: 2vmin; padding: 2vmin; }
+  body.embed #qr { width: min(88vmin, 92vw); }
+  body.embed .hud, body.embed .wifi, body.embed .bgdim, body.embed #hostState { display: none !important; }
+  body.embed .info h1 { font-size: clamp(1.2rem, 5vmin, 2.2rem); max-width: none; }
+  body.embed .clock { font-size: clamp(1.1rem, 5vmin, 2rem); margin: .1em 0; }
+  body.embed .say { font-size: clamp(.85rem, 3vmin, 1.1rem); margin: 0 auto; }
+  body.embed .live { justify-content: center; margin-top: .6em; font-size: clamp(.8rem, 3vmin, 1rem); }
+  body.embed .code { margin-top: .6em; font-size: clamp(.8rem, 2.8vmin, 1rem); }
+  @media (orientation: portrait) {
+    main { grid-template-columns: 1fr; justify-items: center; text-align: center; align-content: center; }
+    #qr { width: 82vmin; }
+    .live { justify-content: center; }
+    .say { margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="qrbox"><canvas id="qr" aria-label="Scan to join and sync"></canvas></div>
+  <div class="info">
+    <h1 id="title">Loading…</h1>
+    <div class="clock tc" id="clock" aria-live="off"></div>
+    <p class="say">Scan to join. Your phone syncs to this screen once, and then every clip lines up by itself.</p>
+    <div class="live">
+      <div><b id="nCams">0</b>phones in</div>
+      <div><b id="nRec">0</b><span class="dot rec" aria-hidden="true"></span> recording</div>
+    </div>
+    <p class="code">Or go to <strong id="host"></strong> and enter <strong id="code"></strong></p>
+    <p class="code" id="hostState"></p>
+    <div class="wifi" id="wifi" hidden>
+      <div class="wqr"><canvas id="wifiQr" aria-label="Scan to join the Wi-Fi"></canvas></div>
+      <div><b>First, join the Wi-Fi</b><span id="wifiName"></span><span id="wifiPass"></span></div>
+    </div>
+  </div>
+</main>
+<div class="bgdim" aria-hidden="true"></div>
+<div class="hud" id="hud">
+  <div class="dim"><label for="qrDim">Code brightness</label><input type="range" id="qrDim" min="40" max="100" step="5" value="100"><output id="qrDimOut" class="tc">100%</output></div>
+  <div class="dim"><label for="bgDim">Background</label><input type="range" id="bgDim" min="10" max="100" step="5" value="100"><output id="bgDimOut" class="tc">100%</output></div>
+  <div class="dim"><label for="scrDim">Whole screen</label><input type="range" id="scrDim" min="30" max="100" step="5" value="100"><output id="scrDimOut" class="tc">100%</output></div>
+  <button id="themeBtn" type="button"></button>
+  <button id="wifiBtn" type="button">Venue Wi-Fi</button>
+  <button id="fs" type="button">Full screen</button>
+</div>
+
+<script src="/vendor/qrcode.js"></script>
+<script src="/config.js"></script>
+<script type="module">
+  import { $, api, now, drawQR, timecodeUrl, fmtClock, meshSocket, wakeLock, eventIdFromUrl, toast, themeButton } from '/js/vm.js';
+  if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed'); // (inside a kiosk)
+
+  const id = eventIdFromUrl();
+  const canvas = $('#qr');
+  $('#code').textContent = id;
+  $('#host').textContent = location.host + '/cam';
+
+  try {
+    const ev = await api(`events/${id}`);
+    $('#title').textContent = ev.title;
+    document.title = `${ev.title} — beacon`;
+  } catch (e) {
+    $('#title').textContent = e.message;
+  }
+
+  meshSocket({
+    eventId: id,
+    role: 'beacon',
+    onPeers: (peers) => {
+      const cams = peers.filter((p) => p.role === 'cam');
+      $('#nCams').textContent = cams.length;
+      $('#nRec').textContent = cams.filter((p) => p.rec).length;
+      $('#hostState').textContent = peers.some((p) => p.role === 'host') ? '' : 'Waiting for the host laptop to open the studio.';
+    },
+  });
+
+  // Venue Wi-Fi: phones must be on the same network as the host laptop for
+  // footage to go straight across. The details stay on this screen only.
+  const wifiKey = 'vm_wifi_' + id;
+  function renderWifi() {
+    const w = JSON.parse(localStorage.getItem(wifiKey) || 'null');
+    $('#wifi').hidden = !w?.ssid;
+    if (!w?.ssid) return;
+    const esc = (v) => String(v).replace(/([\\;,:"])/g, '\\$1');
+    drawQR($('#wifiQr'), `WIFI:T:${w.pass ? 'WPA' : 'nopass'};S:${esc(w.ssid)};${w.pass ? `P:${esc(w.pass)};` : ''};`, { size: 360 });
+    $('#wifiName').textContent = w.ssid;
+    $('#wifiPass').textContent = w.pass ? `Password ${w.pass}` : 'No password';
+  }
+  renderWifi();
+  $('#wifiBtn').onclick = () => {
+    const ssid = prompt('Venue Wi-Fi name (everyone shooting joins this network)');
+    if (ssid === null) return;
+    const pass = ssid ? prompt('Wi-Fi password (leave blank if open)') ?? '' : '';
+    localStorage.setItem(wifiKey, JSON.stringify(ssid ? { ssid, pass } : null));
+    renderWifi();
+  };
+
+  // The QR updates ~15 times a second. Each frame encodes the join URL plus the
+  // beacon clock at the moment it was drawn, so any phone that films it can be
+  // placed on the shared timeline. Slower than the display refresh on purpose:
+  // phone cameras capture clean frames instead of torn in-between codes.
+  // Code brightness dims the white of the code (not the black), so contrast stays
+  // high enough to scan while the glare comes down. Saved per screen.
+  themeButton($('#themeBtn'));
+  let qrLight = '#ffffff';
+  const dimKey = 'vm_beacon_dim';
+  const saved = JSON.parse(localStorage.getItem(dimKey) || '{}');
+  function applyDim() {
+    const q = +$('#qrDim').value, bg = +$('#bgDim').value, sc = +$('#scrDim').value;
+    const v = Math.round(255 * q / 100).toString(16).padStart(2, '0');
+    qrLight = `#${v}${v}${v}`;
+    const root = document.documentElement.style;
+    root.setProperty('--qr-light', qrLight);
+    root.setProperty('--bgdim', String(1 - bg / 100));
+    root.setProperty('--screen', String(sc / 100));
+    $('#qrDimOut').textContent = q + '%';
+    $('#bgDimOut').textContent = bg + '%';
+    $('#scrDimOut').textContent = sc + '%';
+    localStorage.setItem(dimKey, JSON.stringify({ q, bg, sc }));
+    last = 0; // redraw now
+  }
+  if (saved.q) $('#qrDim').value = saved.q;
+  if (saved.bg) $('#bgDim').value = saved.bg;
+  if (saved.sc) $('#scrDim').value = saved.sc;
+  ['#qrDim', '#bgDim', '#scrDim'].forEach((id) => ($(id).oninput = applyDim));
+  // Keys: [ and ] dim or brighten the code; H shows the controls.
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, button')) return;
+    if (e.key === '[' || e.key === ']') {
+      $('#qrDim').value = +$('#qrDim').value + (e.key === ']' ? 5 : -5);
+      applyDim();
+    } else if (e.key.toLowerCase() === 'h') $('#hud').classList.toggle('show');
+    else if (e.key.toLowerCase() === 'f') $('#fs').click();
+  });
+
+  const PERIOD = 1000 / 15;
+  let last = 0;
+  applyDim();
+  function frame() {
+    const t = now();
+    if (t - last >= PERIOD) {
+      last = t;
+      drawQR(canvas, timecodeUrl(id, t), { size: 900, light: qrLight });
+    }
+    $('#clock').textContent = fmtClock(t);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  let lock = await wakeLock();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') lock = await wakeLock();
+  });
+
+  $('#fs').onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.().catch(() => toast('Full screen is not available here'));
+  };
+</script>
+</body>
+</html>

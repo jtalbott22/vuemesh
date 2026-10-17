@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh — a production studio in the browser</title>
+<meta name="description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<link rel="canonical" href="https://vuemesh.com/">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/">
+<meta property="og:title" content="VUEMesh — a production studio in the browser">
+<meta property="og:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="VUEMesh — a production studio in the browser">
+<meta name="twitter:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta name="twitter:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0f1013">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link rel="preload" href="/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  :root { --night: var(--bg); --panel: var(--surface); --panel-2: var(--surface-2); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: calc(16px + env(safe-area-inset-top, 0px)) 0 16px; }
+  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
+  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  .nav nav { display: flex; align-items: center; gap: 18px; }
+  .nav nav a:not(.btn) { color: var(--soft); text-decoration: none; font-weight: 500; }
+  .nav .btn { min-height: 40px; padding: .5em 1em; }
+
+  /* Hero ------------------------------------------------------------ */
+  .hero { padding: clamp(12px, 2.6vw, 28px) 0 0; }
+  h1.big { font-size: clamp(2.7rem, 7.4vw, 6.4rem); line-height: .9; letter-spacing: -.025em; margin: 0 0 .28em; font-weight: 800; }
+  h1.big span { display: block; }
+  h1.big span + span { color: var(--soft); }
+  .lede { font-size: clamp(1.05rem, 1.6vw, 1.3rem); color: var(--soft); max-width: 46ch; margin-bottom: 22px; }
+
+  .demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .236fr); gap: 12px; }
+  .program { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 3px var(--tally); background: #0b0c0f; aspect-ratio: 16 / 9; }
+  .program canvas, .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .chip { position: absolute; z-index: 2; font-size: .8rem; font-weight: 700; padding: .3em .65em; border-radius: 5px; background: #0009; display: inline-flex; align-items: center; gap: .45em; }
+  .onair { left: 12px; top: 12px; background: var(--tally); color: #fff; gap: 0; }
+  .ptc { right: 12px; top: 12px; }
+  .mode { left: 12px; bottom: 12px; font-weight: 600; }
+  .mode.you { background: var(--preview); }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 1; }
+  .flash.go { animation: cutflash .18s ease-out; }
+  @keyframes cutflash { from { opacity: .22; } to { opacity: 0; } }
+
+  .tiles { display: grid; grid-template-columns: 1fr; gap: 8px; align-content: space-between; }
+  .tile { position: relative; aspect-ratio: 16 / 9; padding: 0; min-height: 0; border-radius: 8px; overflow: hidden; background: #0b0c0f; box-shadow: 0 0 0 2px var(--panel-2); cursor: pointer; }
+  .tile:hover { box-shadow: 0 0 0 3px var(--preview); filter: none; }
+  .tile.live { box-shadow: 0 0 0 3px var(--tally); }
+  .tile .n { position: absolute; z-index: 2; left: 7px; top: 5px; font-stretch: 125%; font-weight: 800; font-size: 1.05rem; text-shadow: 0 1px 3px #000; }
+  .tile .who { position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 5px; font-size: .74rem; font-weight: 600; text-align: left; text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .ttc { position: absolute; z-index: 2; right: 7px; top: 6px; font-size: .68rem; color: #fffc; text-shadow: 0 1px 3px #000; }
+  .hint { grid-column: 1 / -1; color: var(--soft); margin: 4px 0 0; font-size: .95rem; }
+  .hint kbd { font-size: .85em; }
+
+  .ledger { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; margin-top: 18px; }
+  .panel { background: var(--panel); border-radius: 12px; padding: 16px 18px; }
+  .panel h3 { font-size: 1rem; margin: 0 0 10px; }
+  .strip { position: relative; height: 44px; border-radius: 6px; overflow: hidden; background: #0b0c0f; }
+  .strip canvas { width: 100%; height: 100%; display: block; }
+  .strip-legend { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; margin-top: 6px; }
+  .credit { display: grid; grid-template-columns: 5.2em 1fr 3.4em 3.2em; gap: 10px; align-items: center; font-size: .9rem; margin: 7px 0; }
+  .credit .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
+  .credit .bar i { display: block; height: 100%; border-radius: 4px; transition: width .4s; }
+  .credit .pct { color: var(--soft); text-align: right; }
+  .credit .usd { font-weight: 700; text-align: right; }
+  .fine { color: var(--muted); font-size: .84rem; margin: 10px 0 0; }
+
+  .positioning { padding: clamp(52px, 8vw, 100px) 0 20px; }
+  .positioning h2 { font-size: clamp(2.2rem, 5.5vw, 4.5rem); line-height: .95; letter-spacing: -.02em; margin: 0 0 16px; }
+  .positioning > p { color: var(--soft); font-size: 1.15rem; max-width: 58em; margin: 0; }
+  .positioning .kitgrid { margin-top: 28px; }
+  .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Beacon ------------------------------------------------------------ */
+  .beacon { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(28px, 6vw, 80px); align-items: center; padding: clamp(72px, 12vw, 150px) 0 clamp(40px, 8vw, 90px); }
+  .qrbox { background: #fff; border-radius: 16px; padding: 10px; line-height: 0; box-shadow: 0 0 0 6px var(--preview); width: min(340px, 72vw); }
+  .qrbox canvas { width: 100%; height: auto; image-rendering: pixelated; }
+  .qrcap { margin-top: 18px; color: var(--soft); font-size: .9rem; }
+  .qrcap .tc { color: var(--text); font-weight: 700; font-size: 1.25rem; font-stretch: 125%; display: block; }
+  .beacon h2, .start h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; }
+  .beacon p { color: var(--soft); font-size: 1.1rem; }
+  ol.steps { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 18px; counter-reset: s; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2.4em 1fr; gap: 6px 12px; }
+  ol.steps li::before { content: counter(s); font-stretch: 125%; font-weight: 800; font-size: 1.6rem; line-height: 1.1; color: var(--tally); grid-row: span 2; }
+  ol.steps b { font-size: 1.05rem; }
+  ol.steps span { color: var(--soft); }
+
+  /* What you need ---------------------------------------------------------- */
+  .kit { padding: 0 0 clamp(56px, 9vw, 110px); }
+  .kit h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; margin: 0 0 12px; }
+  .kit > p { color: var(--soft); font-size: 1.1rem; max-width: 46em; margin: 0; }
+  .kitgrid { list-style: none; padding: 0; margin: 32px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .kitgrid li { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 22px 24px; display: grid; align-content: start; gap: 10px; }
+  .kitgrid svg { width: 44px; height: 44px; color: var(--tally); }
+  .kitgrid b { font-stretch: 125%; font-weight: 800; font-size: 1.25rem; line-height: 1.1; }
+  .kitgrid span { color: var(--soft); }
+  .kitgrid small { color: var(--muted); font-size: .86rem; }
+  .kit > p.fine { margin-top: 18px; font-size: .9rem; color: var(--muted); }
+  .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 900px) { .kitgrid, .kitgrid.two { grid-template-columns: 1fr; } }
+
+  /* For ---------------------------------------------------------------- */
+  .for { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: clamp(28px, 5vw, 56px) 0; }
+  .for p { font-stretch: 125%; font-weight: 800; font-size: clamp(1.6rem, 4.6vw, 3.6rem); line-height: 1.02; letter-spacing: -.015em; margin: 0; max-width: none; color: var(--soft); }
+  .for p em { font-style: normal; color: var(--text); }
+
+  /* Find: globe + board -------------------------------------------------- */
+  .findhead { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+  .atlas { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; margin-top: 22px; }
+  .globebox { position: relative; background: radial-gradient(circle at 50% 45%, var(--surface-2), var(--bg) 70%); border-radius: 16px; aspect-ratio: 1; max-height: 620px; touch-action: none; }
+  #globe { width: 100%; height: 100%; display: block; cursor: grab; }
+  #globe:active { cursor: grabbing; }
+  .globehint { position: absolute; left: 14px; bottom: 8px; margin: 0; font-size: .8rem; color: var(--muted); }
+  .board { background: var(--surface); border-radius: 16px; display: flex; flex-direction: column; max-height: 620px; min-height: 280px; }
+  .boardhead { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: .75rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); }
+  #board { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+  #board li button { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 2px 12px; align-items: center; text-align: left; background: transparent; padding: 10px 10px; border-radius: 10px; min-height: 0; font-weight: 500; }
+  #board li button:hover, #board li button[aria-current="true"] { background: var(--surface-2); filter: none; }
+  #board .pin { width: 12px; height: 12px; border-radius: 50%; grid-row: span 2; }
+  #board .pin.live { background: var(--tally); box-shadow: 0 0 0 4px #e8352b33; }
+  #board .pin.film { background: #6d9cf0; }
+  #board .pin.idle { background: var(--muted); }
+  #board b { font-weight: 700; }
+  #board small { grid-column: 2; color: var(--text-2); }
+  #board .go { grid-row: span 2; font-size: .8rem; font-weight: 700; color: var(--text-2); }
+  .detail { border-top: 1px solid var(--line); padding: 14px 16px; }
+  .detail[hidden] { display: none; }
+  .detail h3 { margin: 0 0 4px; }
+  .detail p { margin: 0 0 10px; color: var(--text-2); font-size: .95rem; }
+  .detail .row .btn { min-height: 40px; padding: .5em 1em; }
+  @media (max-width: 900px) { .atlas { grid-template-columns: 1fr; } .globebox { max-height: 440px; } }
+  body:not(.globe) [data-globe] { display: none !important; }
+  body.globe [data-noglobe] { display: none !important; }
+  body:not(.globe) .atlas { grid-template-columns: minmax(0, 760px); }
+
+  /* Find --------------------------------------------------------------- */
+  .find { padding: clamp(64px, 10vw, 120px) 0 0; }
+  .find h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; }
+  .find p { color: var(--soft); font-size: 1.1rem; }
+  ul.near { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; max-width: 760px; }
+  ul.near li { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; }
+  ul.near b { font-size: 1.05rem; }
+  ul.near small { color: var(--soft); grid-column: 1; }
+  ul.near .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 8px; }
+  ul.near .acts .btn { min-height: 38px; padding: .45em .9em; }
+  .livebadge { display: inline-flex; align-items: center; gap: .35em; color: var(--text); font-weight: 700; }
+  fieldset.shape { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: 8px; }
+  fieldset.shape legend { font-weight: 600; margin-bottom: .35em; padding: 0; }
+  fieldset.shape label { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; background: var(--surface-2); border-radius: var(--radius); padding: 10px 12px; margin: 0; cursor: pointer; }
+  fieldset.shape label span { grid-column: 2; font-weight: 400; font-size: .88rem; color: var(--text-2); }
+  fieldset.shape label:has(input:checked) { box-shadow: inset 0 0 0 2px var(--tally); }
+  fieldset.shape input { width: 18px; height: 18px; margin-top: .2em; }
+  label.check { display: flex; gap: .6em; align-items: center; font-weight: 600; }
+  label.check input { width: 20px; height: 20px; min-height: 0; accent-color: var(--tally); }
+
+  /* Start -------------------------------------------------------------- */
+  .start { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); gap: clamp(28px, 6vw, 80px); padding: clamp(64px, 10vw, 130px) 0 clamp(48px, 8vw, 90px); align-items: start; }
+  .start p { color: var(--soft); font-size: 1.1rem; }
+  form.create { background: var(--panel); border-radius: 16px; padding: 24px; }
+  form.create input, form.create select { background: var(--field); border-color: var(--line); color: var(--text); }
+  .pool { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  .pool input { accent-color: var(--tally); padding: 0; border: 0; background: transparent; }
+  .pool output { font-weight: 800; font-stretch: 125%; min-width: 3.4ch; text-align: right; }
+  .hintline { font-size: .85rem; color: var(--muted); margin: .4em 0 0; }
+  .made { display: none; }
+  .made.show { display: block; }
+  .made .btn, .made button { width: 100%; margin-bottom: 10px; }
+  .made .code { font-stretch: 125%; font-weight: 800; font-size: 2.4rem; letter-spacing: .1em; line-height: 1.1; }
+  .mine { margin-top: 24px; }
+  .minehead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .minehead h3 { margin: 0 0 8px; font-size: 1rem; color: var(--text); }
+  .linkish { background: none; color: var(--text-2); text-decoration: underline; min-height: 32px; padding: 0; font-weight: 600; font-size: .88rem; }
+  .minelist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .minelist li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; background: var(--surface); border-radius: 12px; padding: 10px 12px; box-shadow: 0 0 0 1px var(--line); }
+  .minelist .t { font-weight: 700; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .minelist .m { grid-column: 1; font-size: .82rem; color: var(--text-2); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .minelist .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .minelist .acts button, .minelist .acts a { min-height: 32px; padding: .2em .65em; font-size: .8rem; border-radius: 8px; }
+  .badge { font-size: .7rem; font-weight: 800; letter-spacing: .04em; padding: .1em .45em; border-radius: 4px; background: var(--surface-2); color: var(--text); }
+  .badge.gone { background: var(--amber); color: #3b2500; }
+  .badge.live { background: var(--tally); color: #fff; }
+  @media (max-width: 560px) { .minelist li { grid-template-columns: 1fr; } .minelist .acts { grid-column: 1; grid-row: auto; justify-content: flex-start; } }
+
+  footer { color: var(--muted); font-size: .85rem; padding: 24px 0 calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+
+  @media (max-width: 900px) {
+    .demo, .ledger, .start { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .tile .who { display: none; }
+    .tile .ttc { display: none; }
+    .tile .n { font-size: .9rem; }
+    .beacon { grid-template-columns: 1fr; }
+    .nav nav a:not(.btn) { display: none; }
+    .credit { grid-template-columns: 4.6em 1fr 3em 3em; gap: 8px; }
+    .lede { font-size: 1.02rem; }
+    .onair .spot { display: none; }
+  }
+  @media (hover: none) { .keys { display: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .flash.go { animation: none; }
+    .credit .bar i { transition: none; }
+  }
+  /* use it now: the app's front door, before the story */
+  .apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .app { display: grid; gap: 6px; align-content: start; padding: 18px 18px 16px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: transform .15s, border-color .15s, box-shadow .15s; }
+  .app svg { width: 40px; height: 40px; color: var(--ink, currentColor); }
+  .app b { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; line-height: 1.1; }
+  .app small { color: var(--soft); font-size: .88rem; line-height: 1.3; }
+  .app:hover, .app:focus-visible { transform: translateY(-2px); border-color: var(--tally); box-shadow: 0 10px 28px #0006; }
+  .app.studio { background: linear-gradient(160deg, color-mix(in srgb, var(--tally) 22%, var(--panel)), var(--panel)); }
+  @media (max-width: 900px) { .apps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .app.studio { grid-column: 1 / -1; } }
+  .gate { max-width: 460px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: inherit; padding: 24px; }
+  .gate::backdrop { background: #000b; }
+  .gate h2 { margin: 0 0 8px; } .gate p { color: var(--soft); }
+  .gate .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "VUEMesh", "url": "https://vuemesh.com/", "image": "https://vuemesh.com/og.png", "description": "A browser-native multi-camera production system: cameras and microphones join a coordinated session, an Auto Director can cut the program, and the finished production can be published without installing an app.", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any (runs in a web browser)", "browserRequirements": "A current browser with camera access. The studio runs best in Chrome or Edge on Mac or Windows, or Safari on Mac.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["Browser-native multi-camera production", "Multiple cameras and microphones in one coordinated session", "Auto Director for live production switching", "Optical timecode sync from a beacon screen", "Browser-based editing and finished production output", "No app installation required"]}</script>
+<style id="broadcast">
+  /* Barlow and Barlow Condensed, served from this site (SIL Open Font License: /fonts/LICENSE-Barlow-OFL.txt): no outside requests, and they work on a local network */
+  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-condensed-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/barlow-condensed-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/barlow-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/barlow-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/barlow-latin-700-normal.woff2') format('woff2'); }
+  /* The control room. One bold thing: the hero is a multiviewer wall (monitors with their
+     on-screen labels, tally red for on air, preview green, timecode in amber). Everything else
+     stays quiet. Type: Barlow Condensed for display and labels, as on broadcast graphics; Barlow
+     for reading. Colour bars once, at the top. */
+  :root, [data-theme="dark"] {
+    --bg: #121519; --surface: #1a1e24; --surface-2: #242a32; --line: #2f3640; --field: #0e1115;
+    --text: #eef2f6; --text-2: #b4bcc8; --soft: #b4bcc8; --muted: #808a98;
+    --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; --wall: #05070a;
+    --key: linear-gradient(#2b313a, #1c2128); --key-edge: #00000080; --key-led: #3b434f;
+  }
+  [data-theme="light"] {
+    --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
+    --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #646e7b;
+    --tally: #dc211c; --preview: #129a47; --amber: #a86a08; --wall: #0b0e12;
+    --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
+  }
+  body { font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  h1, h2, h3, .mark, .app b, .kitgrid b, .for p, .made .code, ol.steps li::before, .btn, .qrcap .tc {
+    font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif; font-stretch: normal;
+  }
+  /* colour bars: the test signal every broadcast starts from */
+  body::before { content: ''; display: block; height: 6px; background: linear-gradient(90deg, #bfbfbf 0 14.3%, #bfbf00 0 28.6%, #00bfbf 0 42.9%, #00bf00 0 57.1%, #bf00bf 0 71.4%, #bf0000 0 85.7%, #0000bf 0); }
+  .mark { font-size: 1.5rem; font-weight: 800; letter-spacing: .01em; }
+  .mark i { border-radius: 2px; width: 12px; height: 12px; box-shadow: 0 0 10px var(--tally); }
+  .btn { border-radius: 4px; font-weight: 700; letter-spacing: .02em; font-size: 1.05rem; }
+  .btn.primary { background: var(--tally); color: #fff; }
+
+  /* the headline: big, condensed, one colour */
+  h1.big { font-weight: 800; font-size: clamp(3.1rem, 8.6vw, 7.6rem); line-height: .86; letter-spacing: -.005em; }
+  h1.big span + span { color: inherit; }
+  .lede { font-size: clamp(1.1rem, 1.7vw, 1.35rem); max-width: 44ch; }
+
+  /* the multiviewer wall: monitors in a dark bezel, each with its label strip under the picture */
+  .demo { background: var(--wall); padding: 8px; gap: 8px; border-radius: 6px; box-shadow: 0 0 0 1px #ffffff12 inset, 0 30px 60px -30px #000c; }
+  .program { border-radius: 2px; box-shadow: 0 0 0 3px var(--tally); }
+  .tiles { gap: 8px; }
+  .tile { border-radius: 2px; box-shadow: 0 0 0 2px #262c35; }
+  .tile.live { box-shadow: 0 0 0 3px var(--tally); }
+  .tile:hover, .tile:focus-visible { box-shadow: 0 0 0 3px var(--preview); }
+  .tile.live:hover { box-shadow: 0 0 0 3px var(--tally); }
+  .tile .n { left: 0; top: 0; padding: 0 .4em; background: #000c; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem; line-height: 1.5; text-shadow: none; }
+  .tile.live .n { background: var(--tally); }
+  .tile .who { left: 0; right: 0; bottom: 0; padding: 2px 8px 3px; background: #000d; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: .86rem; letter-spacing: .02em; text-shadow: none; }
+  .tile .ttc { color: var(--amber); font-variant-numeric: tabular-nums; font-family: 'Barlow Condensed', sans-serif; font-size: .8rem; }
+  .chip { border-radius: 2px; font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; letter-spacing: .03em; background: #000c; padding: .2em .6em; }
+  .onair { background: var(--tally); }
+  .ptc { color: var(--amber); font-variant-numeric: tabular-nums; }
+  .mode.you { background: var(--preview); color: #04120a; }
+  .demo .hint { color: #aab3bf; padding: 2px 4px 4px; margin: 0; }
+  .panel { border-radius: 4px; }
+  .strip { border-radius: 2px; }
+
+  /* the shortcuts: keys on a switcher panel, each with its light; Start a show is the red one */
+  .apps { gap: 10px; margin: 22px 0 10px; }
+  .app { position: relative; border-radius: 6px; background: var(--key); border: 1px solid var(--key-edge); box-shadow: inset 0 1px 0 #ffffff1c, 0 2px 0 #00000059; padding: 18px 16px 14px; transition: box-shadow .15s, border-color .15s; }
+  .app:hover, .app:focus-visible { transform: none; border-color: var(--key-edge); box-shadow: inset 0 1px 0 #ffffff1c, 0 2px 0 #00000059; }
+  .app::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--key-led); transition: background .15s, box-shadow .15s; }
+  .app:hover::before, .app:focus-visible::before { background: var(--preview); box-shadow: 0 0 12px var(--preview); }
+  .app:active { box-shadow: inset 0 2px 6px #0007; translate: 0 1px; }
+  .app svg { width: 34px; height: 34px; }
+  .app b { font-size: 1.55rem; font-weight: 700; letter-spacing: .01em; }
+  .app small { font-size: .9rem; }
+  .app.studio { background: linear-gradient(#b3231d, #861611); color: #fff; border-color: #00000080; }
+  .app.studio::before { background: #ff7a73; box-shadow: 0 0 14px var(--tally); }
+  .app.studio small { color: #ffd9d6; }
+
+  /* the rest: quiet, square-shouldered panels */
+  .positioning h2, .beacon h2, .start h2, .kit h2, .find h2 { font-weight: 800; letter-spacing: -.005em; line-height: .9; }
+  .positioning h2 span { color: inherit !important; }
+  .kitgrid li { border-radius: 4px; background: var(--surface); }
+  .kitgrid svg { color: var(--amber); }
+  .kitgrid b { font-size: 1.45rem; font-weight: 700; }
+  ol.steps li::before { font-weight: 800; font-size: 2rem; }
+  .qrbox { border-radius: 4px; }
+  .qrcap .tc { color: var(--amber); font-weight: 700; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+  .for p { font-weight: 800; font-size: clamp(1.9rem, 5.4vw, 4.2rem); line-height: .95; }
+  form.create, .board, .globebox, ul.near li, .minelist li { border-radius: 6px; }
+  .gate { border-radius: 8px; }
+  /* (the positioning section is also a .kit, whose later rule took away its top space) */
+  .kit.positioning { padding-top: clamp(64px, 9vw, 120px); }
+  /* on a monitor, labels look the same whatever the page's theme: white, and timecode bright amber */
+  .tile .n, .tile .who, .chip { color: #fff; }
+  .tile .ttc, .ptc { color: #ffb21e; }
+  /* the headline and what it means, side by side when there's room: the wall comes up the page */
+  @media (min-width: 1000px) {
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 40ch); column-gap: clamp(28px, 4vw, 56px); align-items: end; }
+    .hero > * { grid-column: 1 / -1; }
+    .hero > h1.big { grid-column: 1; margin-bottom: .22em; }
+    .hero > .lede { grid-column: 2; margin: 0 0 1.4em; font-size: 1.12rem; }
+    h1.big { font-size: clamp(3.1rem, 7.4vw, 6.8rem); }
+  }
+  /* the films: a layer over the program monitor, and a source bus under the wall (tally on the
+     one on air, a progress bar along its foot) */
+  .filmlayer { position: absolute; inset: 0; z-index: 3; background: #000; }
+  .filmlayer[hidden] { display: none; }
+  .filmlayer video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .filmlayer .chip { position: absolute; }
+  .filmlayer #filmOn { top: 12px; left: 12px; }
+  .filmlayer #filmOf { bottom: 12px; left: 12px; }
+  .filmlayer .soundbtn { bottom: 12px; right: 12px; border: 0; cursor: pointer; font: inherit; font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; letter-spacing: .03em; color: #fff; background: #000c; padding: .35em .8em; border-radius: 2px; }
+  .filmlayer .soundbtn[aria-pressed="true"] { background: var(--preview); color: #04120a; }
+  .bus { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .bus .key { position: relative; display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px 14px; border-radius: 4px; border: 1px solid #00000080; background: linear-gradient(#262c35, #181c22); color: #eef2f6; cursor: pointer; overflow: hidden; box-shadow: inset 0 1px 0 #ffffff14; font: inherit; }
+  .bus .key i { position: absolute; left: 12px; right: 12px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: #3b434f; }
+  .bus .key b { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.25rem; line-height: 1.1; }
+  .bus .key small { color: #aab3bf; font-size: .82rem; }
+  .bus .key .prog { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 100%); background: var(--tally); }
+  .bus .key:hover i, .bus .key:focus-visible i { background: var(--preview); box-shadow: 0 0 10px var(--preview); }
+  .bus .key[aria-pressed="true"] { border-color: #ff2f2a66; }
+  .bus .key[aria-pressed="true"] i { background: var(--tally); box-shadow: 0 0 12px var(--tally); }
+  .bus .key[hidden] { display: none; }
+  @media (max-width: 700px) { .bus { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (prefers-reduced-motion: reduce) { .app, .app::before { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav">
+    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#need">What you need</a>
+      <a href="#find">Events</a>
+      <a href="/sponsors">Sponsors</a>
+      <button type="button" id="themeBtn"></button>
+      <a class="btn primary" href="#start">Start a show</a>
+    </nav>
+  </header>
+
+  <section class="apps" aria-label="Use VUEMesh now">
+    <a class="app" href="/cam?go=solo" data-app>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="13" width="28" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M33 21l10-6v18l-10-6z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="12" cy="19" r="2.5" fill="var(--tally)"/></svg>
+      <b>Camera</b><small>Record on your own, right now</small>
+    </a>
+    <a class="app" href="/cam?go=media" data-app>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 18v12l10-6z" fill="currentColor"/></svg>
+      <b>My media</b><small>Everything recorded on this device</small>
+    </a>
+    <a class="app" href="/kiosk" data-app>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M18 42h12M24 34v8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="17" y="13" width="14" height="14" fill="none" stroke="var(--tally)" stroke-width="2.5"/></svg>
+      <b>Kiosk</b><small>Make this screen a show people scan into</small>
+    </a>
+    <a class="app" href="/cam" data-app>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 16V8h8M32 8h8v8M40 32v8h-8M16 40H8v-8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="17" y="17" width="14" height="14" rx="2" fill="currentColor"/></svg>
+      <b>Join a show</b><small>Scan its code, or type it in</small>
+    </a>
+    <a class="app studio" href="#start">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M5 39h38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="21" r="4" fill="var(--tally)"/><path d="M23 17h14M23 25h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <b>Start a show</b><small>Run the studio from this computer</small>
+    </a>
+  </section>
+  <dialog class="gate" id="gate" aria-labelledby="gateH">
+    <h2 id="gateH">Before you start</h2>
+    <p>VUEMesh records and shares video between devices. By continuing, you agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>, including what's kept on this device and how footage is used. You'll only be asked once (again if the terms change).</p>
+    <label class="check"><input type="checkbox" id="gateOk"> I agree to the Terms of Use</label>
+    <div class="row"><button type="button" class="btn" id="gateNo">Not now</button><button type="button" class="btn primary" id="gateGo" disabled>Continue</button></div>
+  </dialog>
+
+  <section class="hero" aria-labelledby="h">
+    <h1 class="big" id="h"><span>A production studio.</span><span>In the browser.</span></h1>
+    <p class="lede">Multiple cameras and microphones join a shared production. VUEMesh can direct the show automatically, cut the program live, and leave you with the finished production. No app to install.</p>
+
+    <div class="demo">
+      <div class="program" aria-label="Program monitor: the angle on air">
+        <canvas id="program"></canvas>
+        <div class="flash" id="flash"></div>
+        <span class="chip onair" id="onair">On air</span>
+        <span class="chip ptc tc" id="ptc"></span>
+        <span class="chip mode" id="mode">Auto-director</span>
+        <div class="filmlayer" id="filmLayer" hidden>
+          <video id="film" playsinline muted preload="metadata" aria-label="Film"></video>
+          <span class="chip onair" id="filmOn">Now playing</span>
+          <span class="chip mode" id="filmOf"></span>
+          <button type="button" class="chip soundbtn" id="filmSound" aria-pressed="false">Sound on</button>
+        </div>
+      </div>
+      <div class="tiles" id="tiles" role="group" aria-label="Four guests' phones. Pick one to cut to it."></div>
+      <div class="bus" id="bus" role="group" aria-label="Watch the films, or cut the live demo yourself">
+        <button type="button" class="key" data-film="wedding"><i aria-hidden="true"></i><b>First Dance</b><small>A wedding <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
+        <button type="button" class="key" data-film="concert"><i aria-hidden="true"></i><b>Live Tonight</b><small>A concert <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
+        <button type="button" class="key" data-film="arena"><i aria-hidden="true"></i><b>Game Night</b><small>An arena <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
+        <button type="button" class="key demo-key" data-film="demo"><i aria-hidden="true"></i><b>Live demo</b><small>Cut it yourself</small></button>
+      </div>
+      <p class="hint">Take control yourself<span class="keys"> or let the Auto Director choose</span>. Multiple browsers become one production system — cameras, microphones, program and edit.</p>
+    </div>
+
+    <div class="ledger">
+      <div class="panel">
+        <h3>Your production, as it happens</h3>
+        <div class="strip"><canvas id="strip"></canvas></div>
+        <div class="strip-legend"><span>30 seconds ago</span><span>Now</span></div>
+        <p class="fine">The production is assembled from synchronized browser sources. The cut can be directed live and turned into a finished video without a traditional video truck.</p>
+      </div>
+      <div class="panel">
+        <h3>Every source has a place</h3>
+        <div id="credits"></div>
+        <p class="fine">Every camera and microphone is a participant in the production. Source attribution can follow the footage that made the final cut.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="kit positioning" aria-labelledby="ph">
+    <h2 id="ph">Not a video upload service.<br><span style="color:var(--soft)">A production system.</span></h2>
+    <p>VUEMesh coordinates cameras, microphones and production controls in the browser. The cloud helps participants find and join the session; the production happens at the edge, where the cameras and host already are.</p>
+    <ul class="kitgrid two">
+      <li>
+        <b>Browser-native</b>
+        <span>No app to install. A compatible browser is the production client.</span>
+      </li>
+      <li>
+        <b>Distributed by design</b>
+        <span>Sources communicate with the production instead of requiring every video stream to become a cloud-processing job.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="beacon" id="how" aria-labelledby="bh">
+    <div>
+      <div class="qrbox"><canvas id="qr" aria-label="A live beacon code"></canvas></div>
+      <p class="qrcap"><span class="tc" id="qrtc"></span>This code is live. It redraws 15 times a second.</p>
+    </div>
+    <div>
+      <h2 id="bh">One browser coordinates the production.</h2>
+      <p>The beacon gives each camera a way into the same session and a shared clock. A phone, laptop or other browser-capable camera can join without installing an app, becoming another source in the production.</p>
+      <ol class="steps">
+        <li><b>Put the beacon on a screen.</b><span>A TV, a projector, a tablet on a stand.</span></li>
+        <li><b>Cameras join the session.</b><span>A name, one tap to accept, then the browser becomes a synchronized production source.</span></li>
+        <li><b>Direct, publish, rewatch.</b><span>Cut it yourself or let Auto Director choose. When the show is over, the production is ready to watch.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="kit" id="need" aria-labelledby="nh">
+    <h2 id="nh">Nothing to install.</h2>
+    <p>A browser, cameras, microphones and a network. That's the point. VUEMesh turns the devices you already have into a coordinated production system — without asking anyone to install an app.</p>
+    <ul class="kitgrid">
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="28" width="36" height="12" rx="3"/><path d="M14 28V20M34 28V20"/><path d="M17 12a10 10 0 0 1 14 0M13 8a16 16 0 0 1 22 0"/><circle cx="14" cy="34" r="1.2" fill="currentColor"/><circle cx="20" cy="34" r="1.2" fill="currentColor"/></svg>
+        <b>A network that connects the sources</b>
+        <span>The production sources need to communicate reliably. A solid local network is more important than a huge internet connection.</span>
+        <small>Venue Wi-Fi can work. A network you control is the safest bet for production.</small>
+      </li>
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="10" width="30" height="20" rx="2.5"/><path d="M4 36h40l-3-6H7z"/><path d="M21 33h6"/></svg>
+        <b>A browser to run the studio</b>
+        <span>Open the studio in a browser and it becomes the control room: camera views, sound, program output, director controls and recording.</span>
+        <small>Chrome or Edge on a suitable computer is the simplest way to run the studio.</small>
+      </li>
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="16" height="30" rx="3"/><path d="M14 33h4"/><path d="M30 18h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8z"/><path d="M30 25h-3M34 32v8M30 40h8"/></svg>
+        <b>Then the cameras show up</b>
+        <span>Phones become cameras, laptops can provide cameras and microphones, and dedicated devices can become fixed angles you control.</span>
+        <small>Multiple microphones can participate too. Use the sources you already have.</small>
+      </li>
+    </ul>
+    <p class="fine">VUEMesh uses the cloud to coordinate sessions and connect participants. The production is designed to happen between the browsers and the host rather than requiring every video stream to pass through a central video server.</p>
+  </section>
+
+  <section class="kit" id="bigger" aria-labelledby="bigh">
+    <h2 id="bigh">Then make it a real control room.</h2>
+    <p>One computer can run the show. Add screens, dedicated cameras, microphones or a public display and the same browser-native system scales into a full production environment.</p>
+    <ul class="kitgrid two">
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="24" height="16" rx="2"/><rect x="20" y="17" width="24" height="16" rx="2"/><path d="M12 33h8M32 40h-8M28 33v7"/></svg>
+        <b>More screens, more control</b>
+        <span>Put the program on one display, the beacon on another, and keep camera control, sound and monitoring in their own windows. The browser becomes the control room.</span>
+        <small>One screen is enough to start. More screens turn the same system into a larger production desk.</small>
+      </li>
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="24" cy="26" r="4"/><path d="M16 18a11 11 0 0 0 0 16M32 18a11 11 0 0 1 0 16M10 12a19 19 0 0 0 0 28M38 12a19 19 0 0 1 0 28"/></svg>
+        <b>Go live anywhere</b>
+        <span>Send the finished program to YouTube, Facebook, Twitch, Kick, Vimeo, LinkedIn, X, or another service that accepts RTMP or WHIP. The studio guides you through the connection.</span>
+        <small>Then it's paste your stream key, press Go live.</small>
+      </li>
+    </ul>
+  </section>
+</div>
+
+<section class="for">
+  <div class="wrap">
+    <p><em>Podcasts.</em> Shows. <em>Games.</em> Classrooms. <em>Anywhere you need more cameras without a bigger truck.</em></p>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="find" id="find" aria-labelledby="fh">
+    <div class="findhead">
+      <div>
+        <h2 id="fh" data-globe>Happening now, everywhere.</h2>
+        <p data-globe>Every public VUEMesh event on one globe. Red is live right now: walk in, scan the beacon, shoot. Blue has a finished film to watch.</p>
+        <h2 data-noglobe>Happening near you.</h2>
+        <p data-noglobe>Public events within 80 km. Red is live right now: walk in, scan the beacon, shoot. We only ever show distance, never where an event is.</p>
+      </div>
+      <button type="button" class="btn" id="findBtn">Near me</button>
+    </div>
+    <div class="atlas">
+      <div class="globebox" data-globe>
+        <canvas id="globe" role="img" aria-label="Globe of public events. Drag to turn it; use the list to explore by keyboard."></canvas>
+        <p class="globehint">Drag to turn · pinch to zoom · arrow keys when selected</p>
+      </div>
+      <div class="board" role="region" aria-labelledby="boardHead">
+        <div class="boardhead"><span id="boardHead">Events</span><span id="boardCount" class="tc"></span></div>
+        <ul id="board" aria-live="polite"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="start" id="start" aria-labelledby="sh">
+    <div>
+      <h2 id="sh">Build a production tonight.</h2>
+      <p>Create a session, open the studio, put the beacon on a screen, and start bringing cameras and microphones into the production. No app deployment required.</p>
+      <div class="mine" id="mine" hidden>
+        <div class="minehead"><h3>Your events on this device</h3><button type="button" class="linkish" id="archToggle" hidden aria-expanded="false"></button></div>
+        <ul class="minelist" id="mineList"></ul>
+        <ul class="minelist" id="archList" hidden aria-label="Archived events"></ul>
+        <p class="fine" id="mineNote">Recordings and edits live in this browser. Nothing is deleted from here unless you choose to — even if an event has ended on the server.</p>
+      </div>
+    </div>
+    <form class="create" id="create" autocomplete="off">
+      <div id="formBody">
+        <div class="field">
+          <label for="title">Event name</label>
+          <input id="title" required maxlength="120" placeholder="Maya and Jordan's wedding">
+        </div>
+        <div class="field">
+          <label for="kind">What kind of event?</label>
+          <select id="kind">
+            <option value="wedding">Wedding or party</option>
+            <option value="show">Concert or show</option>
+            <option value="game">Game or match</option>
+            <option value="talk">Talk, class, or service</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pool">Contributor revenue share</label>
+          <div class="pool"><input id="pool" type="range" min="0" max="50" step="5" value="0"><output id="poolOut">0%</output></div>
+          <p class="hintline" id="poolHint">No revenue sharing. Guests still get a "shot by" credit for their footage.</p>
+        </div>
+        <fieldset class="field shape">
+          <legend>Shape of the film</legend>
+          <label><input type="radio" name="orientation" value="landscape" checked> Landscape <span>Sideways, like TV. Best for stages, sports, weddings.</span></label>
+          <label><input type="radio" name="orientation" value="portrait"> Portrait <span>Upright, like Stories and Reels.</span></label>
+        </fieldset>
+        <div class="field">
+          <label class="check"><input type="checkbox" id="listPublic"> List it on the globe so people can find it</label>
+          <p class="hintline">Uses this device's location, rounded to about a kilometer. Leave it off for private events.</p>
+        </div>
+        <label class="agree"><input type="checkbox" id="agreeHost" required> <span>I agree to the <a href="/terms" target="_blank">Terms of Use</a>. I understand VUEMesh is beta software with no warranty, and I'm responsible for getting permission from the people I record.</span></label>
+        <button class="primary" type="submit" style="width:100%">Create event</button>
+      </div>
+      <div class="made" id="made" aria-live="polite">
+        <p class="muted" style="margin:0">Event code</p>
+        <div class="code" id="madeCode"></div>
+        <p style="font-size:1rem">Open the beacon on the biggest screen in the room. Guests scan it to join and sync.</p>
+        <a class="btn primary" id="beaconLink" target="_blank" rel="noopener">Open the beacon</a>
+        <a class="btn" id="studioLink" target="_blank" rel="noopener">Open the studio</a>
+        <button type="button" class="ghost" id="copyStudio">Copy studio link</button>
+        <p class="hintline">The studio link carries your host key. Keep it private — it's the only way to publish cuts.</p>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    <span>VUEMesh · Production in the browser.</span>
+    <span class="patreon">Built by one person. <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Sponsor or advertise</a> · <a href="/terms">Terms</a></span>
+  </footer>
+</div>
+
+<script src="/vendor/qrcode.js"></script>
+<script src="/config.js"></script>
+<script src="/vendor/d3-array.min.js"></script>
+<script src="/vendor/d3-geo.min.js"></script>
+<script src="/vendor/topojson-client.min.js"></script>
+<script type="module" src="/js/landing.js"></script>
+<script type="module" src="/js/films.js"></script>
+</body>
+</html>

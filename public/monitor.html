@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh monitor</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  body { font-size: 15px; }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
+  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
+  .bar h1 { font-size: 1.05rem; margin: 0; }
+  .bar .spacer { flex: 1; }
+  .link { font-size: .85rem; color: var(--text-2); display: flex; align-items: center; gap: .4em; }
+  .wrap { padding: 16px; display: grid; gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; }
+  .tile b { display: block; font-size: 1.6rem; font-stretch: 125%; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--text-2); font-size: .82rem; }
+  .tile.warn b { color: var(--amber); }
+  .tile.bad b { color: var(--tally); }
+  .panel { background: var(--surface); border-radius: 12px; overflow: auto; }
+  .panel h2 { font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); font-stretch: 100%; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
+  thead th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); font-weight: 700; position: sticky; top: 0; background: var(--surface); }
+  tbody th { font-weight: 700; }
+  td.num { font-family: var(--mono); text-align: right; }
+  .tag { display: inline-block; font-size: .7rem; font-weight: 700; padding: .1em .45em; border-radius: 4px; background: var(--surface-3); }
+  .tag.lan { background: var(--preview); color: #fff; }
+  .tag.net { background: var(--amber); color: #3b2500; }
+  .tag.air { background: var(--tally); color: #fff; }
+  .warns { white-space: normal; min-width: 160px; }
+  .warns span { display: inline-block; font-size: .75rem; background: #f0a82b33; border-radius: 4px; padding: .05em .4em; margin: 1px 2px; }
+  canvas.spark { width: 120px; height: 28px; display: block; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 16px; }
+  ol.log { list-style: none; margin: 0; padding: 6px 14px 12px; font-size: .86rem; max-height: 420px; overflow: auto; }
+  ol.log li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  ol.log time { font-family: var(--mono); color: var(--text-2); margin-right: .6em; font-size: .78rem; }
+  .waiting { background: var(--amber); color: #3b2500; padding: 12px 16px; border-radius: 12px; font-weight: 600; }
+  .empty { padding: 12px 14px; color: var(--text-2); margin: 0; }
+  .stack { display: grid; gap: 16px; align-content: start; }
+  h3.sub { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 12px 14px 4px; font-stretch: 100%; }
+  h3.sub small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .xrow { display: grid; grid-template-columns: minmax(0, 1fr) 140px 90px; gap: 10px; align-items: center; padding: 6px 14px; font-size: .86rem; }
+  .xrow progress { width: 100%; }
+  .xrow .num { font-family: var(--mono); font-size: .78rem; text-align: right; color: var(--text-2); }
+  .rlist { list-style: none; margin: 0; padding: 4px 0; max-height: 380px; overflow: auto; }
+  .rlist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: .86rem; }
+  .rlist .th { width: 64px; height: 36px; border-radius: 4px; background: var(--surface-3) center/cover no-repeat; display: grid; place-items: center; font-size: .9rem; }
+  .rlist small { display: block; color: var(--text-2); font-size: .76rem; }
+  .rlist .acts { display: flex; gap: 4px; }
+  .rlist .acts button, .rlist .acts a { min-height: 28px; padding: 0 .7em; font-size: .76rem; }
+  dialog#pv { padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--text); width: min(960px, 94vw); }
+  dialog#pv::backdrop { background: #000b; }
+  #pvVideo { width: 100%; max-height: 70vh; background: #000; display: block; border-radius: 14px 14px 0 0; }
+  .pvbar { display: flex; gap: 10px; align-items: center; padding: 10px 14px; }
+  .pvbar .spacer { flex: 1; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .rlist .acts .danger { background: #7a1f1a; color: #fff; border-color: #b43a32; }
+  .rlist li.going { opacity: .45; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+  <h1><span id="title">Monitor</span> <span class="muted" id="code"></span></h1>
+  <span class="spacer"></span>
+  <span class="link" id="linkState" role="status"><span class="dot" id="linkDot"></span><span id="linkText">Waiting for the studio…</span></span>
+  <button type="button" id="themeBtn"></button>
+</header>
+<main class="wrap">
+  <div class="waiting" id="waiting">Open the studio for this event in another tab of this browser. The monitor reads from it directly; nothing is sent anywhere.</div>
+  <section class="tiles" aria-label="Summary" id="tiles"></section>
+  <section class="panel" aria-labelledby="ph">
+    <h2 id="ph">Phones</h2>
+    <div id="peers"><p class="empty">No phones connected.</p></div>
+  </section>
+  <div class="cols">
+    <div class="stack">
+      <section class="panel" aria-labelledby="th"><h2 id="th">Transfers</h2>
+        <h3 class="sub">Coming in from phones</h3><div id="xfIn"><p class="empty">Nothing coming in.</p></div>
+        <h3 class="sub">Going out to cameras <small>(their part of the live cut)</small></h3><div id="xfOut"><p class="empty">Nothing going out.</p></div>
+      </section>
+      <section class="panel" aria-labelledby="rh"><h2 id="rh">Received</h2><div id="received"><p class="empty">Nothing received yet.</p></div></section>
+      <section class="panel" aria-labelledby="sh"><h2 id="sh">Sent to cameras</h2><div id="sent"><p class="empty">Nothing sent yet.</p></div></section>
+    </div>
+    <section class="panel" aria-labelledby="lh"><h2 id="lh">Event log</h2><ol class="log" id="log" aria-live="polite"></ol></section>
+  </div>
+  <dialog id="pv" aria-labelledby="pvTitle"><video id="pvVideo" controls playsinline></video><div class="pvbar"><b id="pvTitle"></b><span class="spacer"></span><a class="btn ghost" id="pvDl" download>Download</a><button type="button" id="pvClose">Close</button></div></dialog>
+</main>
+<script type="module" src="/js/monitor.js"></script>
+</body>
+</html>

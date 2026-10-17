@@ -1,0 +1,14 @@
+{
+  "name": "vuemesh",
+  "private": true,
+  "version": "0.46.4",
+  "type": "module",
+  "scripts": {
+    "dev": "node dev/server.mjs",
+    "test": "node test/core.test.mjs",
+    "relay": "node public/relay/vuemesh-relay.mjs"
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  }
+}

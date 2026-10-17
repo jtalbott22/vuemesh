@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh camera</title>
+<meta name="description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta name="robots" content="noindex, follow">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/cam">
+<meta property="og:title" content="You're invited to film this event — VUEMesh">
+<meta property="og:description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="You're invited to film this event — VUEMesh">
+<meta name="twitter:description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta name="twitter:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  html, body { height: 100%; }
+  body { background: var(--bg); overscroll-behavior: none; }
+  #camView { background: #000; }
+  .toprow button { width: auto; }
+  .panel { max-width: 440px; margin: 0 auto; padding: calc(28px + env(safe-area-inset-top, 0px)) 22px 32px; }
+  .panel h1 { font-size: 2rem; }
+  .terms { background: var(--stage-2); border-radius: var(--radius); padding: 14px 16px; font-size: .92rem; color: var(--soft); margin: 14px 0 18px; }
+  .panel button { width: 100%; }
+
+  #camView { position: fixed; inset: 0; display: none; }
+  #camView.on { display: block; }
+  video#preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+  .bar { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+  .bar.top { top: 0; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: linear-gradient(#000a, #0000); }
+  .bar.bottom { bottom: 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(#0000, #000b); }
+  .pill { background: #000a; border-radius: 999px; padding: .4em .85em; font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: .5em; white-space: nowrap; }
+  .pill.synced { background: var(--preview); }
+  .pill.unsynced { background: var(--amber); color: #3b2500; }
+  .evname { font-weight: 700; font-stretch: 125%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45vw; }
+  .timer { font-size: 1.05rem; font-weight: 700; }
+  .timer[hidden] { display: none; }
+  .shutter { width: 78px; height: 78px; min-height: 78px; border-radius: 50%; padding: 0; background: transparent; box-shadow: inset 0 0 0 5px #fff; display: grid; place-items: center; }
+  .shutter span { width: 60px; height: 60px; border-radius: 50%; background: var(--tally); transition: all .2s; }
+  .shutter.rec span { width: 30px; height: 30px; border-radius: 6px; }
+  .side { width: 78px; display: flex; justify-content: center; }
+  .feedbtn { font-size: .72rem; line-height: 1.1; padding: .45em .6em; border-radius: 999px; background: #0009; color: #fff; border: 1px solid #ffffff55; min-height: 40px; max-width: 78px; white-space: normal; }
+  .feedbtn[aria-pressed="true"] { background: #f2c037; color: #111; border-color: #f2c037; }
+  .side button { background: #000a; min-height: 44px; min-width: 44px; padding: .5em .7em; border-radius: 999px; font-size: .85rem; }
+  .aim { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56vmin; height: 56vmin; border-radius: 16px; box-shadow: 0 0 0 3px #fff9; pointer-events: none; display: none; }
+  .aim.show { display: block; }
+  .aim.hit { box-shadow: 0 0 0 5px var(--preview); }
+  .aimtext { position: absolute; left: 0; right: 0; top: calc(50% + 30vmin); text-align: center; font-weight: 700; text-shadow: 0 1px 3px #000; display: none; padding: 0 20px; }
+  .aimtext.show { display: block; }
+  .uploads { position: absolute; left: 14px; right: 14px; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; }
+  .uploads .pill { background: #000c; }
+  .codealt { display: grid; gap: 8px; margin-top: 14px; }
+  .codealt button { width: 100%; min-height: 48px; }
+  .scanjoin { position: fixed; inset: 0; z-index: 30; background: #000; color: #fff; }
+  .scanjoin video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scanframe { position: absolute; left: 50%; top: 42%; width: min(70vw, 340px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 100vmax #0007; }
+  .scanbar { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); background: #000c; text-align: center; }
+  .scanbar h2 { margin: 0 0 4px; font-size: 1.15rem; }
+  .scanbar p { margin: 0 0 12px; color: #c9cfe0; }
+  .scanbar button { min-height: 44px; min-width: 140px; }
+  .micpick { display: grid; gap: 4px; margin: 10px 0 4px; text-align: left; }
+  .micpick label { font-size: .8rem; font-weight: 700; color: var(--text-2); }
+  .micpick select { min-height: 44px; width: 100%; }
+
+  /* --- my footage: everything this device shot, its status, and the show's messages --- */
+  .library { position: fixed; inset: 0; z-index: 30; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .libbar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .libbar h2 { margin: 0; font-size: 1.05rem; white-space: nowrap; }
+  .libbar button { min-height: 38px; white-space: nowrap; flex: none; }
+  .libbar select { flex: 1; min-width: 0; max-width: none; min-height: 38px; }
+  /* while My events is open, messages pop up at the bottom instead of over the list */
+  .library:not([hidden]) ~ .toast { top: auto !important; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .libtabs { display: flex; gap: 4px; padding: 8px 12px 0; }
+  .libtabs button { flex: 1; min-height: 38px; background: var(--surface-2); }
+  .libtabs button[aria-selected="true"] { background: var(--text); color: var(--bg); }
+  #libClips, #libShow { flex: 1; overflow-y: auto; padding: 10px 12px 20px; }
+  .libnote { margin: 0 0 10px; color: var(--text-2); font-size: .9rem; }
+  .libclips { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .libclips li { display: grid; grid-template-columns: 112px 1fr; gap: 6px 12px; background: var(--surface); border-radius: 12px; padding: 10px; box-shadow: 0 0 0 1px var(--line); }
+  .libclips .thumb { grid-row: span 2; width: 112px; aspect-ratio: 16 / 9; border-radius: 8px; background: #000 center / cover no-repeat; border: 0; padding: 0; min-height: 0; position: relative; }
+  .libclips .thumb::after { content: "▶"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 1.2rem; text-shadow: 0 1px 3px #000; }
+  .libclips .info b { display: block; }
+  .libclips .info small { color: var(--text-2); }
+  .libclips .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .libclips .acts button { min-height: 34px; padding: .2em .7em; font-size: .85rem; }
+  .st { display: inline-block; font-size: .72rem; font-weight: 800; letter-spacing: .03em; padding: .1em .5em; border-radius: 4px; margin-top: 4px; }
+  .st.ok { background: #1f7a45; color: #fff; }
+  .st.wait { background: var(--surface-3); color: var(--text); }
+  .st.send { background: var(--preview); color: #fff; }
+  .st.bad { background: var(--tally); color: #fff; }
+  .libfoot { display: grid; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .showstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .showstats div { background: var(--surface); border-radius: 10px; padding: 10px; box-shadow: 0 0 0 1px var(--line); }
+  .showstats b { display: block; font-size: 1.3rem; }
+  .showstats span { color: var(--text-2); font-size: .8rem; }
+  #libShow h3 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 16px 0 6px; }
+  .player { position: fixed; inset: 0; z-index: 31; background: #000; display: flex; flex-direction: column; }
+  .playbox { flex: 1; position: relative; overflow: hidden; display: grid; place-items: center; }
+  .playbox video { position: absolute; max-width: none; background: #000; }
+  .playerr { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); margin: 0; padding: 14px; border-radius: 12px; background: #1d2129; color: #fff; text-align: center; line-height: 1.45; }
+  .playerr[hidden] { display: none; }
+  .libclips .why { display: block; margin-top: 4px; font-size: .8rem; color: var(--text-2); }
+  .playbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: #111; color: #fff; }
+  .playbar button { min-height: 38px; }
+  .linkish { background: none; color: var(--text-2); text-decoration: underline; min-height: 36px; padding: 0; font-weight: 600; }
+
+  /* Everything that appears near the top stacks in one column, so nothing covers anything:
+     ON AIR, PAUSED, AE/AF LOCK, the rundown line, then a director's message. */
+  .topstack { position: absolute; left: 12px; right: 12px; top: calc(60px + env(safe-area-inset-top, 0px)); z-index: 4;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+  .topstack > * { position: static !important; transform: none !important; left: auto !important; right: auto !important; top: auto !important; margin: 0 !important; pointer-events: auto; }
+  .topstack > .cue, .topstack > .dm { width: 100%; max-width: 520px; box-sizing: border-box; }
+  .topstack > [hidden] { display: none !important; }
+
+  /* --- event link, director messages --- */
+  .evbtn { display: inline-flex; align-items: center; gap: .45em; background: transparent; color: inherit; min-height: 36px; padding: 0; font: inherit; font-weight: 700; font-stretch: 125%; text-align: left; overflow: hidden; }
+  .evbtn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ldot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #8a92b2; box-shadow: 0 0 0 2px #0006; }
+  .ldot.live { background: #2bd36b; }
+  .ldot.wait { background: #f2c037; }
+  .ldot.paused { background: #8a92b2; }
+  .ldot.off { background: #ff3b30; }
+  .statuspill { border: 0; color: #fff; transition: opacity .6s ease; }
+  .statuspill.fade { opacity: 0; pointer-events: none; }
+  .pausedtag { position: absolute; top: calc(62px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); background: #2d2f35; color: #fff; font-size: .72rem; font-weight: 800; letter-spacing: .05em; padding: .25em .6em; border-radius: 4px; z-index: 3; white-space: nowrap; }
+  .dm { position: absolute; left: 12px; right: 12px; top: calc(96px + env(safe-area-inset-top, 0px)); z-index: 4; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+    background: #0d1226e8; color: #fff; border-left: 4px solid var(--amber); border-radius: 10px; padding: 8px 10px; max-width: 520px; margin: 0 auto; box-shadow: 0 6px 20px #0006; }
+  .dm .from { grid-column: 1 / -1; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--amber); }
+  .dm p { margin: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .dmbtns { display: flex; gap: 4px; }
+  .dmbtns button { min-height: 34px; min-width: 34px; padding: 0 .55em; border-radius: 999px; background: #ffffff22; color: #fff; font-size: .85rem; }
+  .cue { position: absolute; left: 12px; right: 12px; top: calc(60px + env(safe-area-inset-top, 0px)); margin: 0 auto; max-width: 520px; z-index: 2; display: flex; gap: .5em; align-items: baseline;
+    background: #0008; color: #fff; border-radius: 8px; padding: .3em .7em; font-size: .82rem; min-height: 0; text-align: left; overflow: hidden; white-space: nowrap; }
+  .cue b { color: var(--amber); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+  .cue span { overflow: hidden; text-overflow: ellipsis; }
+  .cue small { opacity: .7; overflow: hidden; text-overflow: ellipsis; }
+  .cue.flash { animation: cueflash 1.2s ease-out; }
+  @keyframes cueflash { 0% { background: var(--amber); color: #2b1d00; } 100% { background: #0008; } }
+  .switchrow small { color: var(--text-2); }
+  .switchrow[hidden] { display: none !important; }
+  .switchrow { display: flex !important; gap: 12px; align-items: flex-start; background: var(--surface-2); border-radius: 10px; padding: 12px; margin: 10px 0; font-weight: 500 !important; }
+  .switchrow input { width: 44px; height: 26px; flex: none; accent-color: var(--preview); }
+  .switchrow small { color: var(--text-2); }
+  .sheet h3 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 14px 0 6px; }
+  .rundown { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
+  .rundown li.now { font-weight: 800; color: var(--text); text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+  .rundown li.done { opacity: .55; }
+  .msglist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 30vh; overflow-y: auto; }
+  .msglist li { background: var(--surface-2); border-radius: 8px; padding: 6px 10px; font-size: .9rem; }
+  .msglist li time { display: block; font-size: .7rem; color: var(--text-2); }
+  .msglist li em { display: block; font-size: .75rem; color: var(--text-2); }
+
+  /* --- camera-operator controls --- */
+  #camView .bar.top .icon { min-height: 36px; min-width: 36px; padding: 0; border-radius: 50%; background: #0008; color: #fff; font-size: 1rem; flex: none; }
+  /* Narrow phones: the name and sync pill give way so every button stays on screen. */
+  #camView .bar.top { gap: 6px; justify-content: flex-start; }
+  #camView .bar.top .evname { flex: 1 1 auto; min-width: 0; max-width: none; }
+  #camView .bar.top #syncPill { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: .4em .7em; font-size: .8rem; }
+  #camView .bar.top .help-btn { flex: none; min-width: 36px; padding: 0 .6em; }
+  #camView .bar.top .timer { flex: none; }
+  #camView .bar.top .icon[aria-pressed="true"] { background: var(--amber); color: #3b2500; }
+  .vu { position: absolute; left: 10px; top: 32%; height: 34%; width: 26px; display: grid; grid-template-rows: 1fr auto; gap: 4px; justify-items: center; pointer-events: none; z-index: 2; }
+  .vubar { position: relative; width: 10px; height: 100%; background: #000a; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px #fff3; }
+  .vubar .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, #2bd36b 0 70%, #f2c037 70% 90%, #ff3b30 90%); background-size: 100% var(--vh, 280px); background-position: bottom;
+    -webkit-mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); mask: repeating-linear-gradient(to top, #000 0 3px, transparent 3px 4px); }
+  .vubar .peak { position: absolute; left: 0; right: 0; height: 2px; background: #fff; bottom: 0; }
+  .vubar .clip { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: #3a0d0d; }
+  .vubar .clip.on { background: #ff3b30; }
+  .vu b { font-family: var(--mono); font-size: .62rem; color: #fff; text-shadow: 0 1px 2px #000; }
+  .zoomrail { position: absolute; right: 8px; top: 24%; height: 46%; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; justify-items: center; z-index: 2; }
+  .lenses { display: grid; gap: 4px; }
+  .lenses button { min-height: 34px; min-width: 40px; padding: 0 .3em; border-radius: 999px; background: #0009; color: #fff; font-size: .74rem; font-weight: 800; }
+  .lenses button[aria-pressed="true"] { background: #fff; color: #111; }
+  .vslider { writing-mode: vertical-lr; direction: rtl; width: 30px; height: 100%; margin: 0; accent-color: #f2c037; }
+  .ztrack { position: relative; height: 100%; display: grid; justify-items: center; }
+  .ztrack .vslider { pointer-events: none; } /* (the wide pad on top takes the touches) */
+  .zoompad { position: absolute; top: -12px; bottom: -12px; right: -10px; left: -56px; touch-action: none; cursor: ns-resize; }
+  .zoomrail.grabbed .vslider { accent-color: #fff; filter: drop-shadow(0 0 6px #f2c037); }
+  .zoomrail output { font-family: var(--mono); font-size: .78rem; font-weight: 700; color: #f2c037; text-shadow: 0 1px 2px #000; }
+  .grid3 { position: absolute; inset: 0; pointer-events: none; background:
+    linear-gradient(to right, transparent calc(33.33% - .5px), #fff8 calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), #fff8 calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), #fff8 calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), #fff8 calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)); }
+  .levelline { position: absolute; left: 50%; top: 50%; width: 46%; height: 0; transform: translate(-50%, -50%); pointer-events: none; }
+  .levelline::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: #fff6; }
+  .levelline i { position: absolute; left: 15%; right: 15%; top: -1px; height: 2px; background: #fff; transition: transform .08s linear; }
+  .levelline.level i { background: #f2c037; height: 3px; }
+  .zebra { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .focusbox { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border: 1.5px solid #f2c037; pointer-events: none; animation: focus .9s ease-out forwards; }
+  @keyframes focus { 0% { transform: scale(1.5); opacity: 1; } 30% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: .25; } }
+  .aelock { position: absolute; top: calc(100px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); background: #f2c037; color: #2b1d00; font-size: .72rem; font-weight: 800; letter-spacing: .06em; padding: .2em .6em; border-radius: 4px; z-index: 3; }
+  .sheet { max-width: 440px; width: calc(100% - 24px); border: 0; border-radius: 16px; padding: 16px; background: var(--surface); color: var(--text); }
+  .sheet::backdrop { background: #0008; }
+  .sheethead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .sheethead h2 { margin: 0; font-size: 1.1rem; }
+  .sheet label { display: block; font-weight: 600; font-size: .9rem; margin-top: 10px; }
+  .sheet select, .sheet input[type=range] { width: 100%; }
+  .sheet .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+  .sheet .toggles label { margin: 0; font-weight: 500; }
+  body.fs .betabar { display: none; }
+
+  /* On the camera, messages sit up top, away from the record button. */
+  .toast { top: calc(68px + var(--stack-h, 0px) + env(safe-area-inset-top, 0px)); bottom: auto; } /* just below the top notices */
+  .hintrow { position: absolute; left: 14px; right: 14px; bottom: calc(160px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; }
+  .hintpill { background: var(--amber) !important; color: #3b2500; font-size: 1rem; padding: .5em 1em; }
+  #camView.onair::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 6px var(--tally); pointer-events: none; }
+  .tally { position: absolute; top: calc(62px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; background: var(--tally); color: #fff; font-weight: 800; font-size: .85rem; padding: .25em .6em; border-radius: 4px; letter-spacing: .06em; }
+  .rotate { position: absolute; top: calc(64px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); }
+  .rotate[hidden] { display: none; }
+  /* The viewfinder and the microphone screen are always dark, whatever the theme. */
+  #camView, #micView, #pocket { --text: #fff; --text-2: #a9acb4; --muted: #8b8e97; --surface: #18191d; --surface-2: #222328; --surface-3: #2d2f35; --line: #2a2c32; color-scheme: dark; color: #fff; }
+  .roles { display: grid; gap: 8px; margin: 0 0 16px; border: 0; padding: 0; }
+  .roles legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+  .roles label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; font-weight: 600; cursor: pointer; margin: 0; }
+  .roles label input { margin-top: .3em; width: 20px; height: 20px; }
+  .roles label span { grid-column: 2; font-weight: 400; font-size: .9rem; color: var(--text-2); }
+  .roles label:has(input:checked) { box-shadow: inset 0 0 0 2px var(--tally); }
+  .toprow { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .help-btn { background: #000a; color: #fff; min-height: 36px; padding: .3em .75em; border-radius: 999px; font-size: .85rem; }
+
+  /* microphone mode */
+  #micView { position: fixed; inset: 0; display: none; background: #05070f; color: #fff; }
+  #micView.on { display: grid; grid-template-rows: auto 1fr; }
+  #micPreview { width: 100%; max-height: 42vh; object-fit: cover; background: #000; }
+  #micPreview[hidden] { display: none; }
+  .micpanel { padding: 20px 22px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; max-width: 520px; margin: 0 auto; width: 100%; }
+  .micpanel .step { color: #b9bfd6; font-weight: 600; margin: 0; font-size: .9rem; }
+  .micpanel h1 { font-size: 1.7rem; margin: 0; }
+  .micpanel p { margin: 0; color: #b9bfd6; }
+  .micpanel button { width: 100%; }
+  .bigmeter { height: 14px; border-radius: 7px; background: #222328; overflow: hidden; }
+  .bigmeter i { display: block; height: 100%; width: 0; background: var(--preview); transition: width .08s linear; }
+  .elapsed { font-size: 2.6rem; font-weight: 800; font-stretch: 125%; margin: 0; color: #fff !important; }
+  .micstate { font-size: .9rem; }
+  #pocket { position: fixed; inset: 0; background: #000; color: #5b6284; display: none; place-items: center; text-align: center; z-index: 50; font-size: 1rem; padding: 20px; }
+  #pocket.on { display: grid; }
+  #pocket b { display: block; color: #8a92b2; font-size: 2rem; font-weight: 800; }
+
+  /* Notch / Dynamic Island: held sideways, iPhones put the island (and rounded corners) on
+     the left or right edge. Keep every control clear of it using the safe areas the phone
+     reports. (They're zero when held upright, so nothing moves then.) */
+  :root { --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); }
+  .bar { padding-left: calc(14px + var(--sl)); padding-right: calc(14px + var(--sr)); }
+  .vu { left: calc(10px + var(--sl)); }
+  .zoomrail { right: calc(8px + var(--sr)); }
+  .topstack { left: calc(12px + var(--sl)); right: calc(12px + var(--sr)); }
+  .uploads, .hintrow { left: calc(14px + var(--sl)); right: calc(14px + var(--sr)); }
+  .aimtext { padding-left: var(--sl); padding-right: var(--sr); }
+  .panel { padding-left: calc(22px + var(--sl)); padding-right: calc(22px + var(--sr)); }
+  .micpanel { padding-left: calc(22px + var(--sl)); padding-right: calc(22px + var(--sr)); }
+  .libbar, .libtabs { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
+  #libClips, #libShow { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
+  .playbar { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
+  .scanbar { padding-left: calc(18px + var(--sl)); padding-right: calc(18px + var(--sr)); }
+  #pocket { padding-left: calc(20px + var(--sl)); padding-right: calc(20px + var(--sr)); }
+  dialog.sheet { max-width: calc(100vw - var(--sl) - var(--sr) - 16px); }
+  /* Sideways, the screen is short: the beacon guide sits inside the framing square instead of
+     below it, where it would run into the record button. */
+  @media (max-height: 520px) { .aimtext { top: calc(50% - .7em); } }
+  .permtip { background: var(--surface-2, #ffffff14); border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: .9rem; }
+  .permtip p { margin: 0 0 8px; }
+  .rejoin { background: var(--surface-2, #ffffff14); border-radius: 14px; padding: 14px 14px 16px; margin: 0 0 20px; }
+  .rejoin h2 { margin: .1em 0 .2em; }
+  .rejoin .fine { margin: 0 0 12px; }
+  .libtotals { margin: 4px 16px 0; font-size: .8rem; color: var(--text-2, #aab); }
+  .cutwait { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000c; padding: 20px; }
+  .cutwait[hidden] { display: none; }
+  .cutwait > div { background: var(--surface, #18191d); color: var(--text, #fff); border-radius: 16px; padding: 20px; max-width: 420px; width: 100%; }
+  .cutwait h2 { margin: 0 0 6px; }
+  .cutwait progress { width: 100%; }
+  #micView.onair { box-shadow: inset 0 0 0 6px #ff3b30; }
+  .micair { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; background: #ff3b30; color: #fff; font-weight: 800; letter-spacing: .08em; padding: .3em .9em; border-radius: 6px; }
+  .watchpill { display: inline-flex; align-items: center; gap: .45em; margin: 0 0 12px; padding: .45em .9em; border-radius: 999px; background: #ff3b30; color: #fff; font-weight: 700; font-size: .9rem; text-decoration: none; }
+  .watchpill::before { content: ''; width: .55em; height: .55em; border-radius: 50%; background: #fff; animation: wpulse 1.6s ease-in-out infinite; }
+  @keyframes wpulse { 50% { opacity: .35; } }
+  .watchpill.small { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: .78rem; padding: .35em .8em; }
+  .setup { min-height: 100dvh; display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .scard { max-width: 420px; display: grid; gap: 12px; justify-items: center; animation: sin .35s ease-out; }
+  @keyframes sin { from { opacity: 0; transform: translateY(10px); } }
+  @media (prefers-reduced-motion: reduce) { .scard { animation: none; } }
+  .scard h1 { margin: 4px 0 0; font-size: 1.6rem; }
+  .scard p { margin: 0; color: var(--text-2); }
+  .sicon { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; background: var(--surface-2); color: var(--tally, #ff3b30); }
+  .sicon svg { width: 46px; height: 46px; }
+  .sbig { width: 100%; min-height: 54px; font-size: 1.05rem; border-radius: 14px; }
+  .serr { color: #ff6b5f; font-weight: 600; }
+  .sdots { list-style: none; display: flex; gap: 8px; padding: 0; margin: 0 0 22px; }
+  .sdots li { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-3); }
+  .sdots li.on { background: var(--text); width: 22px; border-radius: 4px; }
+  .sdots li[hidden] { display: none; }
+  .schoose { border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px 10px; width: 100%; text-align: left; margin: 0; }
+  .schoose legend { font-size: .8rem; color: var(--text-2); padding: 0 6px; }
+  .schoose label, .setup .check { display: flex; gap: 10px; align-items: center; min-height: 40px; text-align: left; }
+  .ctlnote { position: absolute; z-index: 6; left: 12px; right: 12px; top: calc(70px + env(safe-area-inset-top, 0px)); max-width: 420px; margin: 0 auto; background: #000d; color: #fff; border: 1px solid #ffffff33; border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px; backdrop-filter: blur(8px); }
+  .ctlnote p { margin: 0; font-size: .9rem; color: #ffffffcc; }
+  .ctlnote div { display: flex; gap: 8px; justify-content: flex-end; }
+  .rejoinpair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rejoinpair button { min-height: 48px; line-height: 1.15; }
+  /* Flip and Pause feed share the left, so the zoom rail has the whole right side to itself */
+  .side.left { width: auto; min-width: 78px; gap: 8px; align-items: center; justify-self: start; }
+  /* the record button stays dead centre, whatever sits either side of it */
+  .bar.bottom { display: grid; grid-template-columns: 1fr auto 1fr; }
+  .bar.bottom > .side:last-child { justify-self: end; }
+  .pvwtag { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); top: calc(64px + env(safe-area-inset-top, 0px)); background: #1fa64a; color: #fff; font-weight: 800; letter-spacing: .06em; font-size: .78rem; padding: .3em .8em; border-radius: 6px; }
+  .camback { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: #000c; padding: 24px; text-align: center; }
+  .camback[hidden] { display: none; }
+  .camback > div { max-width: 340px; display: grid; gap: 12px; }
+  .camback h2 { margin: 0; }
+  .camback p { margin: 0; color: #ddd; }
+  .firstbox { background: #f2c03722; border: 1px solid #f2c037; border-radius: 12px; padding: 10px 12px; }
+  .firstbox input { font-size: 1.15rem; }
+  /* Go live: the first phone at a kiosk starts the show, with a count-in */
+  .golive { position: absolute; inset: 0; z-index: 19; display: grid; place-items: end center; padding: 0 16px calc(120px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent 35%, #000b); pointer-events: none; }
+  .golive[hidden] { display: none; }
+  .glbox { pointer-events: auto; display: grid; justify-items: center; gap: 8px; text-align: center; max-width: 360px; }
+  .glbox h2 { margin: 0; font-size: 1.7rem; font-stretch: 125%; }
+  .glbox p { margin: 0; color: #e8e8ea; }
+  .glsmall { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: #f2c037 !important; font-weight: 800; }
+  .glbtn { position: relative; width: 132px; height: 132px; border-radius: 50%; border: 0; background: #e5534b; color: #fff; font: 800 1.35rem/1 inherit; font-stretch: 125%; box-shadow: 0 0 0 6px #e5534b55; animation: glring 1.6s ease-out infinite; margin-top: 6px; }
+  .glbtn:disabled { animation: none; opacity: .6; }
+  @keyframes glring { 0% { box-shadow: 0 0 0 0 #e5534bcc; } 100% { box-shadow: 0 0 0 26px #e5534b00; } }
+  .glcount { position: fixed; inset: 0; display: grid; place-items: center; background: #000a; pointer-events: none; }
+  .glcount[hidden] { display: none; }
+  .glcount b { font: 800 40vmin/1 inherit; font-stretch: 125%; color: #fff; text-shadow: 0 0 30px #e5534b; animation: glpop 1s ease-out both; }
+  .glcount b.live { font-size: 22vmin; color: #fff; background: #e5534b; padding: .1em .35em; border-radius: .15em; text-shadow: none; animation: glpop .9s ease-out both; }
+  @keyframes glpop { 0% { transform: scale(1.7); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(.9); opacity: .2; } }
+  @media (prefers-reduced-motion: reduce) { .glbtn, .glcount b { animation: none; } }
+</style>
+</head>
+<body>
+
+<section class="panel" id="codeView" hidden>
+  <div class="rejoin" id="rejoinCard" hidden>
+    <p class="muted" id="rejoinLabel" style="margin:0">You left</p>
+    <h2 id="rejoinTitle"></h2>
+    <p id="rejoinText" class="fine" aria-live="polite"></p>
+    <div class="rejoinpair" role="group" aria-label="Rejoin">
+      <button type="button" class="primary" id="rejoinBtn">Rejoin as camera</button>
+      <button type="button" id="rejoinMicBtn">Rejoin as microphone</button>
+    </div>
+  </div>
+  <h1>Join an event</h1>
+  <p class="muted">Scan the code on the screen, or type the event code.</p>
+  <form id="codeForm" class="field">
+    <label for="codeInput">Event code</label>
+    <input id="codeInput" maxlength="8" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="ABC234" required style="font-size:1.25rem;letter-spacing:.18em;text-transform:uppercase;font-family:var(--mono)">
+    <p></p>
+    <button class="primary" type="submit">Continue</button>
+  </form>
+  <div class="codealt">
+    <button type="button" id="scanJoinBtn">Scan the beacon instead</button>
+    <button type="button" id="soloBtn">Use the camera on my own</button>
+  </div>
+  <p class="fine">On your own, everything works the same as at an event, and your clips are saved to My events.</p>
+  <button type="button" class="openLib" id="codeLib" hidden style="width:100%;margin-top:6px"></button>
+</section>
+<section class="scanjoin" id="scanJoin" hidden aria-labelledby="scanHead" role="dialog" aria-modal="true">
+  <video id="scanVideo" playsinline muted autoplay></video>
+  <div class="scanframe" aria-hidden="true"></div>
+  <div class="scanbar">
+    <h2 id="scanHead">Point at the beacon screen</h2>
+    <p id="scanMsg" aria-live="polite">Looking for its code…</p>
+    <button type="button" id="scanClose">Cancel</button>
+  </div>
+</section>
+
+<section class="panel" id="joinView" hidden>
+  <div class="toprow"><p class="muted" style="margin:0">You're joining</p><button type="button" id="themeBtn"></button></div>
+  <h1 id="joinTitle"></h1>
+  <p class="note" id="blockedNote" hidden role="alert">The host removed you from this event, so you can't rejoin it. What you recorded is still in My events.</p>
+  <a class="watchpill" id="joinWatch" hidden target="_blank" rel="noopener"></a>
+  <button type="button" class="openLib linkish" id="joinLib" hidden></button>
+  <div class="permtip" id="permTip" hidden role="note"><p id="permTipText"></p><button type="button" id="permTipDone">Got it</button></div>
+  <form id="joinForm">
+    <div class="field firstbox" id="nameShowBox" hidden>
+      <label for="showName">You're first here: name the show</label>
+      <input id="showName" maxlength="80" autocomplete="off" placeholder="e.g. Friday open mic">
+      <small class="fine">Everyone who scans in after you joins this show.</small>
+    </div>
+    <div class="field">
+      <label for="name">Your name for the credits</label>
+      <input id="name" maxlength="40" required autocomplete="nickname" placeholder="First name is fine">
+    </div>
+    <fieldset class="roles">
+      <legend>How are you joining?</legend>
+      <label><input type="radio" name="role" value="cam" checked> Camera <span>Shoot video from where you are.</span></label>
+      <label><input type="radio" name="role" value="mic"> Microphone <span>Set this phone down near the people talking. It records the sound for the whole event.</span></label>
+    </fieldset>
+    <div class="terms" id="terms"></div>
+    <label class="agree"><input type="checkbox" id="agreeGuest" required> <span>I agree to the event terms above and the <a href="/terms" target="_blank">VUEMesh Terms of Use</a>. VUEMesh is beta software with no warranty.</span></label>
+    <button class="primary" type="submit">Accept and open camera</button>
+  </form>
+</section>
+
+<section id="camView" aria-label="Camera">
+  <div class="pvwtag" id="pvwTag" hidden role="status">PREVIEW · you're up next</div>
+  <div class="golive" id="goLive" hidden role="dialog" aria-labelledby="goLiveH">
+    <div class="glbox">
+      <p class="glsmall">You're first in</p>
+      <h2 id="goLiveH">Start the show</h2>
+      <p>Point your camera at what everyone should see, hold it steady, then tap.</p>
+      <button type="button" class="glbtn" id="goLiveBtn"><span>Go live</span></button>
+      <div class="glcount" id="goLiveCount" hidden aria-live="assertive"><b></b></div>
+    </div>
+  </div>
+  <div class="camback" id="camBack" hidden role="alertdialog" aria-labelledby="camBackH">
+    <div>
+      <h2 id="camBackH">The camera went off</h2>
+      <p>Your phone turned the camera off while VUEMesh was in the background. Your clips are safe.</p>
+      <button type="button" class="primary" id="camBackGo">Turn the camera back on</button>
+      <p class="serr" id="camBackErr" role="alert" hidden></p>
+      <button type="button" class="link" id="camBackReload">Reload VUEMesh</button>
+    </div>
+  </div>
+  <div class="ctlnote" id="ctlNote" hidden role="dialog" aria-labelledby="ctlNoteH">
+    <b id="ctlNoteH">You're in control</b>
+    <p>The director can switch between your back cameras and adjust zoom, brightness and focus. Your selfie camera stays private unless you allow it.</p>
+    <div><button type="button" id="ctlNoteChange">Change</button><button type="button" class="primary" id="ctlNoteOk">Got it</button></div>
+  </div>
+  <a class="watchpill small" id="camWatch" hidden target="_blank" rel="noopener"></a>
+  <video id="preview" playsinline muted autoplay></video>
+  <canvas class="zebra" id="zebra" aria-hidden="true" hidden></canvas>
+  <div class="grid3" id="grid3" aria-hidden="true" hidden></div>
+  <div class="levelline" id="levelLine" aria-hidden="true" hidden><i></i></div>
+  <div class="focusbox" id="focusBox" aria-hidden="true" hidden></div>
+  <div class="aim" id="aim"></div>
+  <div class="aimtext" id="aimText">Point at the beacon screen</div>
+  <div class="bar top">
+    <button type="button" class="evname evbtn" id="camTitle" aria-haspopup="dialog" aria-label="Event: live sending, rundown, messages, leave"><i class="ldot" id="linkDot" aria-hidden="true"></i><span id="camTitleText"></span></button>
+    <span class="timer tc" id="timer" hidden><span class="dot rec"></span> <span id="timerText">00:00</span></span>
+    <span class="pill unsynced" id="syncPill" role="button" tabindex="0" aria-label="Sync status. Activate to sync again.">Not synced</span>
+    <button type="button" class="icon" id="torchBtn" aria-pressed="false" aria-label="Torch" hidden>⚡</button>
+    <button type="button" class="icon" id="setBtn" aria-haspopup="dialog" aria-label="Camera settings">⚙</button>
+    <button type="button" class="help-btn" id="camHelp" aria-haspopup="dialog">?</button>
+  </div>
+  <div class="vu" id="camVu" role="meter" aria-label="Microphone level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60">
+    <div class="vubar"><i class="fill"></i><i class="peak"></i><span class="clip"></span></div>
+    <b id="camVuDb">-∞</b>
+  </div>
+  <div class="zoomrail" id="zoomRail" role="group" aria-label="Zoom">
+    <div class="lenses" id="lenses"></div>
+    <div class="ztrack"><input type="range" id="zoomSlider" class="vslider" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><div class="zoompad" id="zoomPad" aria-hidden="true"></div></div>
+    <output id="zoomOut">1×</output>
+  </div>
+  <div class="pill rotate" id="rotate">Turn your phone sideways</div>
+  <div class="uploads"><button type="button" class="pill statuspill" id="upPill" hidden aria-live="polite"></button></div>
+  <div class="topstack" id="topstack">
+    <span class="tally" id="tally" hidden>ON AIR</span>
+    <span class="pausedtag" id="pausedTag" hidden>PAUSED · host can't see you</span>
+    <span class="aelock" id="aeLock" hidden>AE/AF LOCK</span>
+    <button type="button" class="cue" id="cue" hidden aria-label="Rundown"><b>Now</b> <span id="cueNow"></span><small id="cueNext"></small></button>
+    <div class="dm" id="dm" role="status" aria-live="assertive" hidden>
+    <span class="from">Director</span>
+    <p id="dmText"></p>
+    <div class="dmbtns">
+      <button type="button" data-reply="👍 Got it" aria-label="Reply: got it">👍</button>
+      <button type="button" data-reply="Can't right now">Can't</button>
+      <button type="button" data-dmclose aria-label="Dismiss message">×</button>
+    </div>
+  </div>
+  </div>
+  <div class="hintrow"><span class="pill hintpill" id="hint" hidden role="status"></span></div>
+  <div class="bar bottom">
+    <div class="side left"><button type="button" id="flip" aria-label="Switch camera">Flip</button><button type="button" id="feedBtn" class="feedbtn" aria-pressed="false" hidden title="Stop sending your picture and sound to the director for a moment">Pause feed</button></div>
+    <button type="button" class="shutter" id="shutter" aria-label="Start recording"><span></span></button>
+    <div class="side" aria-hidden="true"></div>
+  </div>
+</section>
+
+
+<section class="library" id="library" hidden aria-labelledby="libTitle" role="dialog" aria-modal="true">
+  <header class="libbar">
+    <button type="button" id="libClose" aria-label="Back to the camera">← Back</button>
+    <h2 id="libTitle">My events</h2>
+    <label class="sr-only" for="libEvent">Event</label>
+    <select id="libEvent"></select>
+  </header>
+  <p class="libtotals" id="libTotals"></p>
+  <div class="libtabs" role="tablist" aria-label="My events">
+    <button type="button" role="tab" id="tabClips" aria-selected="true" aria-controls="libClips">Clips</button>
+    <button type="button" role="tab" id="tabShow" aria-selected="false" aria-controls="libShow">Show</button>
+  </div>
+  <div id="libClips" role="tabpanel" aria-labelledby="tabClips">
+    <p class="libnote" id="libSummary"></p>
+    <ul class="libclips" id="libList"></ul>
+    <div class="libfoot">
+      <label class="check"><input type="checkbox" id="keepCopies"> Keep a copy of each clip after the host gets it</label>
+      <button type="button" id="delDelivered">Delete delivered clips from this device</button>
+      <button type="button" class="diagOpen">Something wrong? Copy diagnostics…</button>
+    </div>
+  </div>
+  <div id="libShow" role="tabpanel" aria-labelledby="tabShow" hidden>
+    <div class="showstats" id="showStats"></div>
+    <h3>Messages from the director</h3>
+    <ul class="msglist" id="libMsgs"></ul>
+    <h3>Rundown</h3>
+    <ol class="rundown" id="libRundown"></ol>
+    <button type="button" class="danger" id="delEvent" style="width:100%;margin-top:22px">Delete this event</button>
+    <p class="fine">Clears its clips, the live cut, messages and the rundown from here, so it no longer takes up space.</p>
+  </div>
+  <div class="player" id="player" hidden role="dialog" aria-modal="true" aria-label="Clip player">
+    <div class="playbox" id="playBox"><video id="playVideo" playsinline controls></video><p class="playerr" id="playErr" hidden role="alert"></p></div>
+    <div class="playbar"><span id="playInfo"></span><button type="button" id="playClose">Close</button></div>
+  </div>
+</section>
+<dialog class="sheet" id="linkSheet" aria-labelledby="lsTitle">
+  <div class="sheethead"><h2 id="lsTitle">Event</h2><button type="button" id="lsClose">Done</button></div>
+  <p class="fine" id="lsState" style="margin-top:0"></p>
+  <label class="switchrow"><input type="checkbox" id="liveSwitch" role="switch" checked>
+    <span><b>Send my camera live</b><br><small>Off: the host can't see or hear you. You can still record, and your clips still send.</small></span></label>
+  <div id="lsRundown" hidden><h3>Rundown</h3><ol class="rundown" id="rundownList"></ol></div>
+  <div id="lsMsgs" hidden><h3>Messages from the director</h3><ul class="msglist" id="msgList"></ul></div>
+  <button type="button" class="openLib" style="width:100%;margin-top:14px">My events and messages</button>
+  <button type="button" class="diagOpen" style="width:100%;margin-top:8px">Copy diagnostics…</button>
+  <button type="button" id="leaveBtn" class="danger" style="width:100%;margin-top:8px">Leave event</button>
+</dialog>
+
+
+<section class="cutwait" id="cutWait" hidden role="dialog" aria-modal="true" aria-labelledby="cutWaitHead">
+  <div>
+    <h2 id="cutWaitHead">Getting your copy of the show</h2>
+    <p id="cutWaitText" aria-live="polite"></p>
+    <progress aria-label="Waiting for the director's cut"></progress>
+    <button type="button" id="cutWaitGo" style="width:100%;margin-top:12px">Leave now (it comes next time you join)</button>
+  </div>
+</section>
+
+<dialog class="sheet" id="camSettings" aria-labelledby="csTitle">
+  <div class="sheethead"><h2 id="csTitle">Camera</h2><button type="button" id="csClose">Done</button></div>
+  <label for="camSel">Camera</label><select id="camSel"></select>
+  <label for="micSel">Microphone</label><select id="micSel"></select>
+  <p class="fine">Camera and microphone are separate: use the back lens with a clip-on or Bluetooth mic, say. Both can change while recording.</p>
+  <label for="qualSel">Quality</label><select id="qualSel"></select>
+  <label for="evSlider">Exposure <output id="evOut">0.0</output></label>
+  <input type="range" id="evSlider" min="-2" max="2" step="0.1" value="0">
+  <label for="micGain">Microphone level <output id="micGainOut">0 dB</output></label>
+  <input type="range" id="micGain" min="-12" max="12" step="1" value="0">
+  <div class="toggles">
+    <label class="check"><input type="checkbox" id="tgGrid"> Grid</label>
+    <label class="check"><input type="checkbox" id="tgLevel"> Level</label>
+    <label class="check"><input type="checkbox" id="tgZebra"> Zebras</label>
+    <label class="check" id="wbWrap" hidden><input type="checkbox" id="tgWb"> Lock white balance</label>
+    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="tgRemote" checked> Let the director adjust this camera (zoom, brightness, contrast, focus)</label>
+    <fieldset class="schoose" style="margin-top:8px;grid-column:1/-1"><legend>Cameras the director can switch to</legend><div id="setLenses"><p class="fine">They show here once the camera is on.</p></div></fieldset>
+  </div>
+  <p class="fine" id="csNote"></p>
+</dialog>
+
+<section class="panel setup" id="setupView" hidden aria-labelledby="setupTitle">
+  <ol class="sdots" aria-hidden="true"><li data-dot="perm"></li><li data-dot="motion"></li><li data-dot="choose"></li></ol>
+  <div class="scard" data-step="perm">
+    <div class="sicon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="13" width="30" height="22" rx="4"/><path d="M35 21l8-5v16l-8-5"/></svg></div>
+    <h1 id="setupTitle">Your camera and microphone</h1>
+    <p id="setupWhy">VUEMesh uses them to show the director your shot and to record your clips. Nothing goes anywhere but this event, and you can pause any time.</p>
+    <button type="button" class="primary sbig" id="setupAllow">Allow camera and microphone</button>
+    <p class="fine" id="setupHint">Your phone will ask next: tap Allow.</p>
+    <p class="serr" id="setupErr" role="alert" hidden></p>
+        <button type="button" class="link" id="setupReload" hidden>Reload VUEMesh</button>
+  </div>
+  <div class="scard" data-step="motion" hidden>
+    <div class="sicon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="15" y="6" width="18" height="36" rx="4"/><path d="M6 18a14 14 0 0 0 0 12M42 18a14 14 0 0 1 0 12"/></svg></div>
+    <h1>Keep it level</h1>
+    <p>The motion sensor keeps your video upright and level, and helps the director pick the steadiest shots. It doesn't track where you are.</p>
+    <button type="button" class="primary sbig" id="setupMotion">Allow motion</button>
+    <button type="button" class="ghost sbig" id="setupMotionSkip">Not now</button>
+  </div>
+  <div class="scard" data-step="choose" hidden>
+    <div class="sicon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 5l15 6v11c0 10-6.5 17-15 21C15.5 39 9 32 9 22V11z"/><path d="M17 24l5 5 9-10"/></svg></div>
+    <h1>You're in control</h1>
+    <p>Choose what the director can do with this phone. Change it any time in Settings.</p>
+    <fieldset class="schoose"><legend>Cameras the director can switch to</legend><div id="setupLenses"></div></fieldset>
+    <label class="check"><input type="checkbox" id="setupRemote" checked> Let the director adjust zoom, brightness, contrast and focus</label>
+    <button type="button" class="primary sbig" id="setupDone">Start</button>
+  </div>
+</section>
+<section id="micView" aria-label="Microphone">
+  <a class="watchpill small" id="micWatch" hidden target="_blank" rel="noopener"></a>
+  <video id="micPreview" playsinline muted autoplay></video>
+  <div class="micair" id="micOnAir" hidden role="status">ON AIR</div>
+  <div class="micpanel">
+    <p class="step" id="micStep">Step 1 of 2 · Sync</p>
+    <h1 id="micHead">Point this phone at the beacon</h1>
+    <p id="micSub">The code on the screen lines your sound up with every camera, to the frame.</p>
+    <div class="bigmeter" role="meter" aria-label="Microphone level" aria-valuemin="0" aria-valuemax="100"><i id="micLevel"></i></div>
+    <div class="micpick"><label for="micPick">Microphone</label><select id="micPick"></select></div>
+    <p class="elapsed tc" id="micElapsed" hidden>00:00</p>
+    <button type="button" class="go" id="micGo" disabled>Waiting for the beacon…</button>
+    <button type="button" class="ghost" id="micSkip">Start without syncing</button>
+    <button type="button" id="micDim" hidden>Dim the screen</button>
+    <button type="button" class="ghost" id="micResync" hidden>Re-sync with the beacon</button>
+    <button type="button" id="micStop" hidden>Stop recording</button>
+    <button type="button" class="ghost" id="micLeave" hidden>Leave the event</button>
+    <p class="micstate" id="micState" aria-live="polite"></p>
+  </div>
+</section>
+<div id="pocket" role="button" tabindex="0" aria-label="Screen dimmed while recording. Tap to show controls."><div><b id="pocketTime">00:00</b>Recording · tap to show controls</div></div>
+
+<script src="/vendor/jsQR.js"></script>
+<script src="/config.js"></script>
+<script type="module" src="/js/cam.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1013">
+<title>VUEMesh remote</title>
+<script src="/js/theme-boot.js"></script>
+<style>
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 500; src: url('/fonts/barlow-condensed-latin-500-normal.woff2') format('woff2'); font-display: swap; }
+  :root { color-scheme: dark; --bg: #0f1013; --panel: #1a1d23; --line: #2c313a; --ink: #f3f4f6; --dim: #a7adb8; --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { padding: env(safe-area-inset-top, 0) 12px calc(env(safe-area-inset-bottom, 0) + 12px); min-height: 100vh; }
+  h1, .big, button, .cam b { font-family: 'Barlow Condensed', system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 8px; padding: 12px 0 8px; }
+  header h1 { font-size: 1.35rem; margin: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7280; flex: none; }
+  .dot.on { background: var(--preview); }
+  .mark { font-weight: 700; letter-spacing: .02em; }
+  .mark i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); margin-right: 5px; }
+  [hidden] { display: none !important; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 10px 0; }
+  label { display: block; color: var(--dim); font-size: .9rem; margin: 10px 0 4px; }
+  input { width: 100%; font: 600 1.2rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: .08em; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: #0b0c0f; color: var(--ink); text-transform: uppercase; }
+  input#name { text-transform: none; letter-spacing: 0; font: 500 1.05rem/1.2 system-ui, sans-serif; }
+  button { font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; border: 1px solid #00000080; border-radius: 10px; padding: 14px; min-height: 56px; background: linear-gradient(#2b313b, #1c2027); color: var(--ink); width: 100%; cursor: pointer; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--preview); color: #04120a; }
+  button[aria-pressed="true"] { background: var(--amber); color: #2b1d00; }
+  button.rec[aria-pressed="true"] { background: var(--tally); color: #fff; }
+  .say { color: var(--dim); margin: 8px 0 0; }
+  .say.err { color: #ff8a80; }
+  .status { display: flex; align-items: center; gap: 10px; background: #000; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; border: 2px solid var(--line); }
+  .status.air { border-color: var(--tally); }
+  .status .big { font-size: 1.5rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status .rec { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--tally); }
+  .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cam { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px solid #3b434f; background: #000; border-radius: 8px; aspect-ratio: 16 / 9; }
+  .cam img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cam b { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; background: linear-gradient(transparent, #000c); font-size: 1.05rem; }
+  .cam .nopic { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: .85rem; }
+  .cam.air { border-color: var(--tally); }
+  .cam.pvw { border-color: var(--preview); }
+  .cam .tag { position: absolute; top: 6px; left: 6px; font: 700 .8rem 'Barlow Condensed', sans-serif; background: var(--tally); color: #fff; padding: 1px 6px; border-radius: 2px; }
+  .cam .rdot { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); }
+  h2.sub { font: 700 .85rem 'Barlow Condensed', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 14px 0 6px; }
+  .cams.sound .cam { aspect-ratio: auto; min-height: 64px; background: radial-gradient(circle at 50% 40%, #15203f, #04060c); }
+  .cam .snd { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; }
+  .cams.sound .cam b { position: static; display: block; padding: 18px 10px 18px 46px; background: none; }
+  .cams.sound .cam .tag { left: auto; right: 6px; }
+  .status .big { white-space: normal; line-height: 1.15; }
+  .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .fine { color: var(--dim); font-size: .85rem; }
+  .toast { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0) + 12px); background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+</style>
+</head>
+<body>
+  <header><span class="mark"><i aria-hidden="true"></i>VUEMesh</span><h1 id="title">Remote</h1><span class="dot" id="conn" title="Connection to the studio" aria-label="Not connected"></span></header>
+
+  <section id="pairView" class="card" aria-labelledby="pairH">
+    <h1 id="pairH" style="margin:0 0 4px;font-size:1.4rem">Run the show from this phone</h1>
+    <p class="fine" style="margin:0">In the studio, open <b>Phone remote</b> and press <b>Add a phone</b>, then scan its code, or type it here.</p>
+    <label for="show">Show</label>
+    <input id="show" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123">
+    <label for="code">Code from the studio</label>
+    <input id="code" inputmode="text" autocomplete="one-time-code" maxlength="9" placeholder="ABCD-EFGH">
+    <label for="name">Call this phone</label>
+    <input id="name" maxlength="40" value="Phone remote">
+    <button type="button" class="primary" id="pairBtn" style="margin-top:14px">Connect</button>
+    <p class="say" id="pairSay" role="status"></p>
+  </section>
+
+  <section id="ctlView" hidden aria-label="The show">
+    <div class="status" id="status"><span class="big" id="onAir">Waiting for the studio…</span><span class="rec" id="recTime" hidden></span></div>
+    <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
+    <p class="fine" id="noCams" hidden>No cameras yet.</p>
+    <h2 class="sub" id="soundH" hidden>Sound</h2>
+    <div class="cams sound" id="sound" role="group" aria-labelledby="soundH" hidden></div>
+    <div class="ctl">
+      <button type="button" id="autoBtn" aria-pressed="false">Auto-director</button>
+      <button type="button" id="blackBtn" aria-pressed="false">Fade to black</button>
+      <button type="button" id="breakBtn" aria-pressed="false">Break</button>
+      <button type="button" id="recBtn" class="rec" aria-pressed="false">Record program</button>
+    </div>
+    <p class="fine" style="margin-top:14px">Tap a camera or a sound to cut to it. This phone stays a remote until it's removed in the studio.</p>
+  </section>
+
+  <div class="toast" id="toast" hidden role="status"></div>
+  <script src="/config.js"></script>
+  <script type="module" src="/js/remote.js"></script>
+</body>
+</html>

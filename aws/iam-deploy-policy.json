@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFormationStacks",
+      "Effect": "Allow",
+      "Action": "cloudformation:*",
+      "Resource": [
+        "arn:aws:cloudformation:*:ACCOUNT_ID:stack/vuemesh/*",
+        "arn:aws:cloudformation:*:ACCOUNT_ID:stack/aws-sam-cli-managed-default/*"
+      ]
+    },
+    {
+      "Sid": "SamTransformAndTemplateChecks",
+      "Effect": "Allow",
+      "Action": ["cloudformation:CreateChangeSet", "cloudformation:GetTemplateSummary", "cloudformation:ValidateTemplate"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Buckets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::aws-sam-cli-managed-default-*",
+        "arn:aws:s3:::aws-sam-cli-managed-default-*/*",
+        "arn:aws:s3:::vuemesh-sitebucket-*",
+        "arn:aws:s3:::vuemesh-sitebucket-*/*"
+      ]
+    },
+    {
+      "Sid": "Functions",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:vuemesh-*"
+    },
+    {
+      "Sid": "Apis",
+      "Effect": "Allow",
+      "Action": "apigateway:*",
+      "Resource": [
+        "arn:aws:apigateway:*::/apis",
+        "arn:aws:apigateway:*::/apis/*",
+        "arn:aws:apigateway:*::/tags/*"
+      ]
+    },
+    {
+      "Sid": "Table",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:*:ACCOUNT_ID:table/vuemesh-Table-*",
+        "arn:aws:dynamodb:*:ACCOUNT_ID:table/vuemesh-Table-*/index/*"
+      ]
+    },
+    {
+      "Sid": "CloudFront",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "FunctionRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:PassRole", "iam:TagRole", "iam:UntagRole",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy", "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies", "iam:UpdateAssumeRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/vuemesh-*"
+    },
+    {
+      "Sid": "OnlyTheBasicLogsPolicy",
+      "Effect": "Allow",
+      "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/vuemesh-*",
+      "Condition": {
+        "ArnEquals": { "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" }
+      }
+    }
+  ]
+}

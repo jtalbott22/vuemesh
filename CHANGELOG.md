@@ -1,0 +1,944 @@
+# Changelog
+
+## 0.46.4 — sound sources on the phone remote
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The phone remote has a Sound section:** each sound-only source (a microphone, this computer's sound) as a card; a tap cuts to it, as clicking it in the studio does (the program shows its sound picture), with its tally while it's on air, and the status reads "On air · Computer sound · sound only". The status line wraps rather than cutting a long name short.
+
+**Tests:** `e2e_remote.py`: a microphone of the studio's computer shows under Sound, and a tap puts it on air (the studio: ON AIR · MIC).
+
+## 0.46.3 — this computer's sound in Monitor; the receiver takes busy cuts
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Monitor shows this computer's own microphones and sound** (Computer sound): "This computer", the device, "straight in, no network, no compression" (cameras of this computer already did).
+- **The WHIP receiver (`tools/whip_receiver.py`) no longer sticks or breaks up on a cut to something busy.** aiortc's video jitter buffer holds 128 packets (about 150 KB): a frame bigger than that (the first after a hard cut, a sharp screen, a keyframe at a good rate, all bigger since the stream runs at its full rate) lost its start, couldn't be decoded, and the keyframe it asked for was bigger still, round and round. Measured with a hard cut every 3 s: six keyframe requests in 15 s with aiortc's buffer, none with the receiver's (4096 packets, about 5 MB; `VM_RX_JITTER` to change it). VUEMesh's program itself always runs at 30 frames a second at one size whatever's on air, so a source's size or frame rate never reaches the stream.
+
+## 0.46.2 — the remote keeps up; camera control that takes
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **A camera that joined while the remote was open didn't show until a reload.** A phone's connection drops now and then and comes back (the screen sleeps, it goes to the background, the Wi-Fi blips); the studio let go of the remote and wasn't told it was back, so nothing new reached it. The remote now checks in every five seconds (which binds it again), and asks for everything if nothing's come for twelve.
+- **Brightness and contrast often did nothing.** Camera settings were asked for as "advanced" constraints with values between the camera's steps (a brightness of 159.4 on a camera that steps by 1; an exposure of 0.7 EV on a phone that steps by a sixth), and a set with one value a camera can't do exactly is dropped whole, without an error. Every value now goes inside the camera's range and on its step (`snapToCamera` in `camctl.js`, for phones and this computer's cameras alike); a camera of this computer that still doesn't take a setting is named in the event log.
+
+**Tests:** `e2e_remote.py`: after the studio loses track of the remote, a camera that joins still shows up on it. `quality.test.mjs`: settings put on the camera's steps and inside its range.
+
+## 0.46.1 — a WHIP receiver that doesn't hold the stream back; this computer's cameras in Monitor
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The stream out's low rate was the receiver.** A WHIP receiver built on aiortc (Python) tells the browser its own estimate of the link's bandwidth, and it's far too low: measured here, the studio's encoder was told 5.2 Mbit/s, then 0.5 within three seconds, creeping to 0.8, overriding VUEMesh's floor. Against MediaMTX the same program stayed near 5. **`tools/whip_receiver.py`** (new, on-brand) leaves out what that estimate needs (abs-send-time, goog-remb), so the browser's own congestion control sets the rate: measured, the encoder's target stays at the chosen 6 Mbit/s. It also fixes: Stop streaming reaching it (it gave a stop address it didn't answer); the token visible to anyone opening the dashboard (the dashboard now needs its key); the incoming video piling up while nobody watched; a second stream not replacing the first; the preview's quality (raised from aiortc's 0.5 Mbit/s); recordings saying 640x480 (aiortc's recorder, with sound, wrote the size before it knew it). It keeps its token between runs, makes its own certificate, shows the rate, picture and recording time, and lists recordings to download.
+- **Monitor shows this computer's own cameras** (USB webcams): "This computer", the picture's size and frame rate, "straight in, no network, no compression"; no more dashes, and no "not on the venue Wi-Fi".
+- **Monitor's stream tiles say what the encoder was asked for**, beside what it sends: near the chosen rate and sending less means the picture doesn't need more; far below it (flagged) means the receiver or the network is holding it back.
+
+## 0.46.0 — sharper live pictures, faster starts
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The camera on air sends its full picture, generously.** Every phone's live picture was 1.2 Mbps at half size, whatever it was doing, and the program, Record program and the stream are made of those pictures: no stream rate could put back what they didn't have. Now the live picture follows the show: on air, full size up to 8 Mbps on the local network (less over the internet, a relay or mobile data); in preview, full size at 3 Mbps, so a cut to it is sharp at once; standby, the small picture as before, so a room full of phones doesn't fill the Wi-Fi. (The phones' own recordings, which Edit uses, were always full quality.) Each phone checks its link every two seconds and steps its ceiling down for loss or congestion, and back up when it clears.
+- **Links start near their target,** not at a few hundred kbit/s creeping up: the cameras' links at 2.5 Mbps; the WHIP stream at three-quarters of its chosen rate, with a floor at 30%; Program out's Edit picture (this computer to itself) at 12 Mbps with a floor of 8 and a ceiling of 30 (it was 8, starting low, which is why it looked soft). Chrome and Edge take the start and floor hints; every browser takes the ceiling.
+- **Monitor** has a **Live picture** column: on air, preview or standby; what it's sending of what it may (and what it was stepped down from); its size and frame rate, and whether the encoder is hardware; what's holding it back (the network, or the phone's encoder), with warnings when it's the picture on air. The stream out gets a summary tile (rate of the chosen rate, picture, what limits it).
+
+**Tests:** `test/quality.test.mjs` (the hints in an answer; the table); run by `run_all.py`. Checked here with two phones: before any cut both send the small picture; cutting to one puts it on air at its full size with an 8 Mbps ceiling while the other stays small; Monitor shows both; the Edit page test (Program out's Edit picture at full size) passes.
+
+## 0.45.0 — a phone remote for the studio
+**Deploy:** `./aws/deploy.sh` (the server changed: it accepts a remote's connection; no new AWS resources).
+
+- **Phone remote** (the studio's right-hand panel): **Add a phone** shows a QR and a one-time code (two minutes, one phone; five wrong tries take it away); the code shows only when asked for. The phone (`/remote`) shows what's on air and whether the program is recording, the cameras by name with tally and a small picture every few seconds (only while it's open and on screen), and cuts to a camera, turns the auto-director on and off, fades to black and up, takes a break, and starts and stops Record program (asking before it stops). It keeps the phone's screen awake while open.
+- **Only that phone:** pairing gives it its own session key, checked on every command; the code is spent once used or expired, and a made-up key gets nothing. Paired phones are remembered on the studio computer for the show (a reload doesn't unpair them, and a reload of the phone carries on); **Remove** unpairs one at once. A remote's messages go only between it and the studio, never to the cameras' links. Remotes aren't counted as cameras or viewers.
+
+**Tests:** `test/e2e_remote.py`: no code until asked; pairing by the QR's link (a wrong code turned away; the code leaves the phone's address bar); both cameras' pictures; cut, auto-director, break, fade to black and up, Record program start and stop; the used code refused, a made-up key refused, five wrong codes ending the pairing; a reload carrying on; Remove.
+
+## 0.44.0 — the films on the home page, web traffic in Admin, footage counted right
+**Deploy:** `./aws/deploy.sh`. **The server changed** (page views and visitors, Admin's traffic and day correction, a limit on footage); same command, no new AWS resources. Put the films in `public/media/` first (`wedding.mp4`, `concert.mp4`, `arena.mp4`).
+
+**The films on the home page**
+- **A playlist in the hero's program monitor:** when it comes into view the three films play one after another (muted; browsers only start sound when asked), then the live demo takes over. Keys under the wall (switcher keys: the one on air has its tally lit and a progress bar) pick a film or the demo; Sound turns the sound on. Off screen the film pauses, and carries on when it's back. A film that isn't uploaded yet is left out, its key hidden. Nothing plays by itself for anyone who's asked their device for less motion. The demo underneath doesn't draw while a film covers it.
+
+**Web traffic, in Admin**
+- **Visitors, page views, pages per visitor, films played and watched to the end;** a visitors-a-day chart; top pages, where visitors came from, landing pages, campaigns (`utm_source`), devices, browsers, countries (when the edge provides them), films; a CSV. One anonymous page view per page load: no cookies, nothing stored about anyone (a visitor is counted once a day by a salted fingerprint that's deleted after two days); bots, the admin pages and browsers asking not to be tracked (Do Not Track, Global Privacy Control) aren't counted.
+
+**Footage counted right**
+- **Three days in October had about 7.16 million seconds (83 days) of footage each:** a recording with a nonsense length was counted. The studio now counts only plausible lengths (more than 0, up to 6 hours) and names any other in the event log (and diagnostics), so the cause can be found; and the server won't add more footage for an event than its devices could have recorded since it was made.
+- **Correct a day** (Admin, under Growth): days whose footage can't be right are listed (more than their cameras and microphones could record in a day); correct a count, and the original is kept beside it (`was_footage_sec`), shown in the list.
+
+**Tests:** `test/core.test.mjs` covers traffic counting (visitors once a day, bots and the admin not counted, referrers, campaigns, devices, browsers, film plays), the footage limit and correcting a day. Checked here in a browser: the films play in turn, a missing one is skipped, the demo takes over; scrolling away pauses; plays and page views reach Admin; correcting 10-08 from the flagged list.
+
+## 0.43.1 — Program out's Edit keeps full size
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Program out (Edit) showed the edit at 640×360, not 1280×720.** The Edit window's picture travels to Program out over a connection on the same computer (since the Edit window runs in its own process, 0.42), and a connection left to itself lowers the resolution when it judges the link busy. The sender is now set to keep the picture at full size, at the program's bitrate and 30 fps. Live is unchanged: it never crossed a connection.
+
+**Tests:** `e2e_editpage` checks that Program out's Edit picture arrives at the size the Edit window draws the program (it passed at 640×360 in the earlier run; the check should have caught it then).
+
+## 0.43.0 — the kiosk screen is its own page
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **`/kiosk` is the screen itself** (`kiosk.html`), with only what a sign needs: the program, the cameras and the join-code panel; the switcher, inspector, mixer dock, transport and the rest are gone from its markup (26 parts). Its design can change without touching the studio. Before, `/kiosk` was a launcher that opened the studio in kiosk mode, which hid those parts with CSS.
+- **The launcher is folded in:** `/kiosk` with no show in the address starts one (or carries on this screen's), shows "Getting the show ready…", and comes back as `/kiosk?e=…`; each next show opens there too. Embeds pointing at `/kiosk` work as before; older links to the studio in kiosk mode (`/studio?…&kiosk=1`) still work.
+- The shared code gets stand-ins for the kiosk page's missing parts, as on the Live and Edit pages; four button-label updates (full screen, fade, black, lower third) skip when their button isn't on the page. `tools/make_kiosk_page.py` did the one-time build.
+
+**Tests:** `e2e_kiosk` and `e2e_home` expect `/kiosk?e=…`. Checked here: `/kiosk` starts a show and lands on it with no errors; a phone names it, taps Go live, and the kiosk goes on air and records; every stand-in handed out is one of the page's listed parts.
+
+## 0.42.0 — the Edit window in its own process
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Edit runs in its own browser process,** so a heavy export (or anything else busy) in the Edit window can't make the live program stutter: the studio opens it without a link back, which browsers give a process of its own (checked: 1 → 2 page processes). Edit ↗ with the Edit window already open asks it to come forward (over the channel between them) and sends what's recording so far; closed, it says so, and Edit ↗ opens a new one. If no Edit window says hello within a few seconds of opening one, the studio says to allow pop-ups.
+- **Program out (Edit)** gets the edit's picture and sound from the Edit window over a WebRTC connection on this computer (set up over a channel; nothing leaves the computer), since the two windows can't reach into each other any more. It asks again every few seconds until an Edit window answers, and hangs up when switched back to Live. While it's showing the edit, the Edit window keeps drawing even when covered.
+
+**Tests:** `e2e_editpage` (Program out's Edit comes from the Edit window's own process, with picture and sound; close and reopen), `e2e_pages` checks the Edit window is its own process; tests waiting on a newly opened window wait for its page to exist.
+
+## 0.41.1 — the Edit page says "edit" when it's ready
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The Edit page starts as "loading"** and becomes "edit" once it has built the edit (as before the split, when it started as a copy of the studio). In 0.41.0 it said "edit" from the first moment, so anything waiting for it (the tests' Edit window, for one) went ahead before the timeline and title were there.
+
+**Tests:** layout counts a missing Live mixer dock as hidden on the Edit page; mic break reads the studio's Live mixer (the dock; `#mixer` is Edit's); the phone-setup test's fake iPhone says it's an iPhone (the motion step is for phones and tablets).
+
+## 0.41.0 — Live and Edit are separate pages
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Two pages, each with only its own markup:** `studio.html` is Live (14 Edit blocks out, about 5,000 characters lighter), `edit.html` is Edit (28 Live blocks out, about 12,000 lighter). They're edited on their own from here: change one page's design without touching the other. (`tools/split_pages.py` did the one-time split, for the record.)
+- **The code still serves both** (`js/studio.js`; moving Edit's code into its own file is next). Each page lists the other page's elements on `<body data-absent>`; asked for one of those, the code gets a harmless detached stand-in, so wiring the other page's controls does nothing here. Anything else missing is still missing, so real mistakes still show. A few lookups by class (the stream-out tabs, the mixer dock, the monitor's resize watch) skip when their element isn't on the page.
+
+**Tests:** `test/e2e_pages.py` — each page shows its own controls and none of the other's; pressing around both (full screen, fades, breaks, help; play, marks, gaps, export) raises nothing; every stand-in handed out is one of the other page's listed elements.
+
+## 0.40.3 — no motion-sensor step on a computer
+**Deploy:** `./aws/deploy.sh` (site only).
+
+**Fixed**
+- **A computer joining as a camera could be shown the "Keep it level" motion-sensor step** (and wait there) when its browser offers the motion permission, as newer ones do. The step is for phones and tablets (iPhones and iPads ask for it); a computer goes straight to its camera now.
+
+**Tests**
+- The control room, layout and events suites updated for Edit in its own window (opening a pop-up ends a browser's full screen, and the studio's layout follows); phone recovery says what the phone is showing if it gets stuck (`wait_or_show` in `test/vmtest.py`).
+
+## 0.40.2 — the studio loads again
+**Deploy:** `./aws/deploy.sh` (site only). **Deploy this over 0.40.1.**
+
+**Fixed**
+- **0.40.1 broke the studio** (and so the Edit window and the kiosk): the time-limit helper added to the export code landed between `export` and `class RenderError`, so the module exported the helper instead of `RenderError`; the studio imports `RenderError`, and a missing import stops the whole page loading. The export test passed because it doesn't import it.
+
+**Tests**
+- `test/imports.test.mjs`: every name a page imports from one of the site's modules must be exported by it (a second to run; it fails on 0.40.1's file). `run_all.py` runs it first, every time, even with `--failed`.
+
+## 0.40.1 — a damaged recording can't stall (or freeze) an export
+**Deploy:** `./aws/deploy.sh` (site only).
+
+**Fixed**
+- **An export could stall for ever on a damaged recording** (and, on some computers, take the computer with it): when a clip couldn't be decoded quickly, the export switched to the slower route, which seeks a hidden player frame by frame, and waited for each seek to finish with no limit. A damaged file never finishes it. Now a seek gives up after 4 s and any frame after 8 s, on either route; that clip is left out of the export (whatever's underneath shows) and named in the report ("the clip stops partway (it may be damaged)"), and the rest renders. Checked: a good clip with a damaged one renders in about 5 s, the damaged one reported unreadable, the film decoding cleanly.
+
+**Tests**
+- `test/run_all.py`: runs everything and writes `test-results.txt`; checks for Pillow, Playwright and ffmpeg first.
+- The suites that switch to Edit with the backtick key (audio console, control room, show control) use the Edit window; context menu and sync lock start Record program (cameras record on air only then); the project export accepts the live cut when Edit hasn't been opened; the home page's own palette is expected.
+- `e2e_render`: makes its own samples (in VP9, which every Chromium decodes, so the damaged one really is decoded), and a watchdog stops the test's browser if any export runs past two minutes.
+
+## 0.40.0 — Live and Edit, apart: the studio is Live only, the edit is its own window
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.39.0).
+
+**One job each**
+- **The studio is Live only.** Its Edit ↗ button opens the edit in its own window beside it, or brings it forward (finishing the recordings in progress as it does). The studio never goes into Edit.
+- **The edit belongs to the Edit window, always.** The studio records (every camera, the live cut, the program as aired) and tells the Edit window; the Edit window builds the edit from them when it opens and keeps it current as things arrive. Close it and open it again: your edits are all there. (Before, the timeline changed hands between the studio and an open Edit window, every couple of seconds; that's gone.)
+- **Each computer camera recording keeps whether it has sound,** so the Edit window knows without checking again (on a busy computer its own check could time out and show "sound ?").
+
+**Tests**
+- All 22 suites that edited inside the studio now do their editing in the Edit window (`test/vmtest.py`: `edit_window()` opens it, or finds it if it's open). Run here: the Edit window, computer cameras, black and fades, second takes, and aired clips. The heavier two-phone suites (dissolves, the editor, breaks in Edit) need a machine with more than one CPU to run; run them on yours.
+
+**Next:** slimming the two pages (each still carries the other's hidden markup), the editing code in its own file, the Edit window in its own browser process (so a heavy export can't stutter the live program), and the kiosk as its own page.
+
+## 0.39.0 — the home page in broadcast clothes; studio recordings in My media
+**Deploy:** `./aws/deploy.sh` (site only; it now uploads the site's fonts with the right type).
+
+**The home page, redesigned for the people it's for**
+- **The control room:** the hero is a multiviewer wall (the program and each camera in a dark bezel, each with its label strip, red tally on air, green on hover, timecode in amber); the shortcuts are keys on a switcher panel, each with its light (Start a show is the red one); a strip of colour bars at the top.
+- **Type:** Barlow Condensed for headlines and on-screen labels, as on broadcast graphics, and Barlow for reading, served from the site itself (no requests to Google; they work on a local network). License: `fonts/LICENSE-Barlow-OFL.txt`.
+- **Palette:** control-room slate, with tally red and preview green used only as signals, and amber for time; light and dark themes. Text on a monitor stays white (and timecode bright amber) whatever the theme.
+- **Layout:** on wide screens the headline and what it means sit side by side, so the wall starts above the fold. "Start a show" everywhere (the top bar said "Start an event").
+- **Fixed:** the "Not a video upload service" section had lost its top space (it's also a kit section, whose later rule overrode it).
+
+**My media**
+- **Studio shows are in it:** everything recorded on this device, including the recordings a studio here received or made (each camera's, the program as aired), under their show, with no need to open the show. Play, Save, and Delete (which also removes it from the studio's editor: at once if the studio is open, and from its saved timeline).
+
+**Tests:** `test/e2e_mymedia.py`.
+
+## 0.38.0 — the home page is the app; Delete in Monitor; the Edit page finds its event; your new home page and terms
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.37.0).
+
+**The home page works right away**
+- **Camera, My media, Kiosk, Join a show and Start a show** sit at the top of the home page, no event needed. **Camera** starts the camera on your own (straight away if the browser already allows the camera, else one tap); **My media** opens what's recorded on this device; **Kiosk** opens a kiosk show; **Join a show** scans or takes a code.
+- **The terms, once:** the first tap asks to agree to the Terms of Use (again only when they change); after that a tap goes straight in.
+
+**Monitor**
+- **Delete** on a received recording (after a confirm) removes it from this computer and from the editor: the file, everywhere it's used on the timeline, and its subclips. (Before, only Media in Edit, or My events, could.) An open Edit window drops it too.
+
+**The Edit page**
+- **Opened without its event code** (a bookmark, a reopened tab) it finds its event: from the studio that opened it, or the last event edited here. It used to show the studio's event list, whose links went back to the studio. Its list now asks "Edit which event?" and opens events in Edit.
+
+**Your new home page and terms**
+- **Home page:** your new words ("A production studio. In the browser."), plus two fixes: the new two-card section ("Not a video upload service") had no two-column layout (it would have left an empty third column), and two sections shared a heading id (screen readers named the wrong one).
+- **Terms:** your new section 9, VUEMesh intellectual property (the rest renumbered; nothing else refers to section numbers). The terms are dated October 11, 2026, so people agree again.
+
+**Words**
+- **"Device", not "laptop":** the studio can be any computer, and the camera page any phone, tablet or computer ("Saved on this device", "Recording the program to this device").
+
+**Tests:** `test/e2e_home.py`, `test/e2e_monitordel.py`.
+
+## 0.37.0 — Edit in its own window, beside the live studio; Program out's Live / Edit
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.36.0).
+
+**Edit in its own window** (the first step of giving Live, Edit and the kiosk their own pages)
+- **Edit ↗** (beside the Live and Edit tabs) opens `/edit` in its own window: keep the show live in the studio, and watch the edit come together in the other window.
+- **It only edits:** it connects to no phones or cameras (the studio does that), has no Live, and draws no live program, so it doesn't slow the studio down.
+- **It follows the show:** opening it (or coming back to it) finishes the recordings in progress; every recording the studio receives and every change to the live cut shows up in it as it happens (changes to the live cut come in batches, one rebuild a second at most).
+- **While it's open, it owns the timeline:** the studio leaves the timeline alone, so edits made there stay, and new takes go on the end. **Close it**, and the studio's own Edit has what was done there.
+- `edit.html` is its own page now (for now the same layout as the studio; it'll be slimmed down as the pages separate).
+
+**Program out: Live or Edit**
+- Program out has a **Live / Edit** switch (remembered): Live is the program going to air; Edit is the edit as it plays in the Edit window, with its sound. The window says which (PROGRAM / EDIT).
+
+**Fixed**
+- **A flickering break flooded the live cut:** on a busy computer the automatic break could flicker on and off as frames came late, and each flicker went into the live cut. A break goes in once it has lasted 1.5 s now, and ends once it has been off 1 s (dated from when it really began or ended).
+
+**Tests:** `test/e2e_editpage.py` (Edit ↗ beside a live studio, a take arriving in it, a hand edit kept and a second take on its end, Program out showing Live or Edit, the studio taking the edits back when it closes).
+
+## 0.36.0 — cameras record only while the show is recorded; identical webcams; the audio console
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.35.0).
+
+**Recording follows the director**
+- **Cameras record their time on air only while you Record program.** Cutting around without it shows the cameras live and records nothing: there's no point editing what you weren't recording. With it, the camera on air records (phones, with "Cameras record their time on air while you Record program", on by default; this computer's cameras always). When you stop Record program, the cameras hear at once (not after the program has finished saving) and stop.
+- **A camera person's own recording is theirs, and comes first.** If they're recording when you cut to them (recording), their recording carries on and a new clip starts at your cut (your in-point); when you cut away, that clip ends there and their recording carries on until they stop it. Stopping Record program doesn't stop them.
+
+**Fixed**
+- **Identical webcams** (three of the same Logitech) could only be added once: a camera on this computer was known by its name. Each device is its own camera now ("Logitech BRIO", "Logitech BRIO 2", "Logitech BRIO 3"), and they come back as three when the studio reopens.
+- **The audio console could grow forever** (a strip "expanding into infinity", meters and faders gone, then the browser giving up), on high-density screens such as a Retina Mac: each meter's drawing was sized from its box, and the drawing's size pushed the box a little taller every frame. The boxes decide now and the drawing follows, with a cap as a backstop.
+- **A dissolve could crawl on a very busy computer** (each slow frame moved it only a little); it keeps pace now.
+
+**Tests:** `test/e2e_recpolicy.py` (nothing recorded without Record program; the on-air camera records with it; a person's own recording gets the director's cut as its own clip and carries on; stopping Record program stops only the director's recording), `test/e2e_console2.py` (two microphones on a 2× screen: steady; on 0.35 the meters grew 928 → 1248 px in six seconds). Tests that need on-air recordings now start Record program, as a director would.
+
+## 0.35.0 — nothing records at black, fades in Edit, kiosk vs studio (and time used) in Admin
+**Deploy:** `./aws/deploy.sh`. **The server changed** (camera time counted from connect to disconnect; the studio's live, edit and kiosk time; the admin's view of both); same command, no new AWS resources.
+
+**Fixed**
+- **A camera on this computer kept recording at black** (and its clips kept arriving in Edit), and finishing the recordings (going to Edit, ending Record program) started a new one even at black. Black means nothing's on air: once the program has faded to black, this computer's cameras stop recording (5 s on) and stay stopped; finishing a recording only starts another if the camera's still on air. Fading up starts it again.
+- **A fade to black wasn't in Edit.** The live cut keeps it now: the shot before fades out to black (over the fade's length), the time at black is empty, and the shot after a fade up fades in.
+- **Going back to Edit soon after** (within 15 s) didn't bring in what had been recorded since; it does now (not more than once in 3 s).
+
+**Kiosk**
+- **A kiosk records no clips of its own** (cameras or microphones on its computer): it never edits. It records only the program, which goes back to the phones. (Phones already keep their clips at a kiosk.)
+
+**Admin**
+- **Each event says where it ran: KIOSK or STUDIO** (the filter takes "kiosk" or "studio" too), and **the time used on each part**: the studio live, editing, a kiosk, and the phones (cameras and microphones, from joining to leaving).
+- **Growth** has the same times by day: Studio (live), Editing, Kiosks running, Phones in shows (hours).
+
+**Tests:** `test/e2e_blackrec.py`; `test/sequence.test.mjs` covers fades in the rebuild; `test/core.test.mjs` covers the kind and the times; `test/e2e_admin_monitor.py` knows the new Kind column.
+
+## 0.34.0 — Go live at the kiosk, breaks and dissolves in Edit, the studio's own event list
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.33.0).
+
+**Kiosk**
+- **The side panel fills the screen's height** (beside the bar too) and everything in it fits: the code takes what's left after the words and the counts, and stays square. (The counts and the line under them were cut off.)
+- **Go live:** the first phone in (the one that named the show), once it's locked in to the code (or after 20 s), gets a big **Go live** button. A tap counts in 3-2-1, on the phone (a buzz with each) and big over the kiosk's program, then the program fades up and records. The kiosk says "Ana: tap Go live on your phone to start" meanwhile. If that phone leaves, the next one gets it; after 3 minutes the show starts anyway.
+- **No "Leave site?"** when the kiosk moves on to its next show.
+- **Phones keep their clips** at a kiosk (a kiosk doesn't collect them: nobody edits there); they show as "Kept on this phone" in My events, and each phone still gets its part of the live cut. (This also keeps big clips off the sign's computer; one had failed to send with Safari's "The object can not be found here.")
+- **A camera on the kiosk's own computer** (a webcam added in the studio) never starts or keeps a show going: it joins the rotation while phones are on.
+- **Setting up a kiosk on a sign:** README and Help (set the look and timing in the studio on that computer first; the kiosk uses that browser's settings).
+
+**Edit**
+- **Breaks taken live are their own items** in the automatic edit, "Break (live): …" with what the slate said and its look, drawn at full quality: keep, change or delete them like anything else.
+- **Dissolve button and D:** a half-second dissolve into the selected shot (or the shot at the playhead); again takes it off. (Right-click a clip for other lengths.)
+
+**Studio**
+- **Opened with no event, or one that's gone,** it lists the events on this computer, each with Open (or Forget, if it has expired), plus Make a new event and Kiosk.
+
+**Tests:** `test/e2e_kiosk.py` (the panel fits the height, a webcam doesn't start a show, Go live and its count-in, phones keep their clips, a fresh show with no Leave site?), `test/e2e_editbreaks.py` (a live break between the shots in Edit, Dissolve and D, the studio's event list); `test/sequence.test.mjs` covers breaks in the rebuild.
+
+## 0.33.0 — a hands-free kiosk, named by the first phone; events kept apart on phones
+**Deploy:** `./aws/deploy.sh`. **The server changed** (a kiosk show without a name, named once by the first phone; a few private fields left out of the public event); same command, no new AWS resources.
+
+**The kiosk, as it should be**
+- **Nothing to press, nothing asked for.** `/kiosk` opens this screen's show (or starts one) straight into the stripped-down studio. No buttons, no inputs, and it asks the browser for nothing (no camera, microphone or screen): it only receives phones. In an iframe, nothing has to be allowed.
+- **Its own join code**, drawn by the studio (moving, like the beacon's, so phones sync to it), whole on screen and pulsing, with "Scan to start a show", then "Scan to join" and the show's name. (It was the beacon in a frame before, and the code got cropped.)
+- **The first phone to scan in names the show** ("You're first here: name the show"); the screen shows the name within seconds, and everyone after joins that show. If two phones name it at once, the first wins and the other is told and joins it.
+- **After each show:** when everyone's gone, the autopilot fades out and stops recording; once nothing's still being sent (or 3 minutes on), the screen thanks them and starts a fresh show with a new code, waiting for a name. The old one is deleted (phones keep what they recorded). A show also deletes itself 12 hours after it started.
+
+**Events kept apart on phones**
+- **My events lists each event by name, when, and code** ("Test · Oct 6, 9:03 PM · U9AC45"), newest first, so events with the same name are told apart.
+- **Codes come round again** once an event's gone: if a phone has things from an older event with the same code, they're moved aside when it meets the new one (still in My events, under the old date), so nothing mixes.
+
+**Tests:** `test/e2e_kiosk.py` (in an iframe: no buttons, the code whole on screen, the first phone names it, the second joins that show, a fresh show with a new code once everyone's gone, the old one deleted); `test/e2e_eventsapart.py`; `test/core.test.mjs` covers naming (once, terms remade with the name, ordinary events can't be renamed this way).
+
+## 0.32.0 — autopilot, recording with the fades, a kiosk for signs, screens and computer sound
+**Deploy:** `./aws/deploy.sh`. **The server changed** (kiosk shows that delete themselves after 12 hours; the host can delete an event); same command, no new AWS resources.
+
+**Autopilot: the show runs itself** (Output, in the studio)
+- With no camera the program sits at black. When a camera arrives (picture steady for 3 s): the intro clip (if chosen) plays, the program fades up and records, the auto director takes over, and that camera's name goes up on a lower third.
+- Each camera that arrives later is queued: in preview (PREVIEW on its phone), then it dissolves to air with "joined the show". The auto director doesn't take it before it's been welcomed.
+- When no camera's been here for the time chosen (15 s to 3 min), the program fades to black, the recording stops (kept in this browser and in Media; no download, no pop-up), and each phone gets its part of the live cut. Then it waits for the next camera.
+
+**Record the program with the fades** (Output): fading up from black starts Record program; fading to black stops it. Off by default; Record program by hand works as before.
+
+**Kiosk: a screen people walk up to, or a digital sign** (`/kiosk`)
+- Name the show and Start the show. The studio opens stripped down: the cameras, the program, the join code (the beacon) beside them, cameras / clips in / sending, the state ("On air · recording 3:12"), **End show** (then **Start again**) and **Delete show**. The autopilot runs it; the pointer hides when nobody's touching; no menus, pop-ups or downloads.
+- **Delete show** deletes it on the server now, and this screen's recordings (phones keep theirs). **If nobody does**, it deletes itself 12 hours after it started, and the screen goes back to the start half an hour after the last camera left. Coming back to `/kiosk` with a show running offers it (and goes back by itself in 5 s), or deletes it.
+- **In an iframe on a sign:** `allow="camera; microphone; display-capture; autoplay; fullscreen; screen-wake-lock"` (README). VUEMesh doesn't stop it being framed.
+
+**A screen, a window, or this computer's sound as a source** (+ This computer, Share…)
+- A screen or window is a source like a camera, with its sound if the browser shares it. **This computer's sound** keeps only the sound, as a microphone. Windows and ChromeOS share the whole computer's sound; on a Mac, Chrome shares a tab's. The browser asks each time, so they aren't brought back next time.
+
+**Tests:** `test/e2e_autopilot.py`, `test/e2e_kiosk.py` (inside an iframe), `test/e2e_screen.py`; `test/core.test.mjs` covers kiosk shows (12 hours) and the host's delete.
+
+## 0.31.0 — the program as a camera for video calls; phones that recover
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.30.0; the relay is part of the site: anyone using it downloads it again for the camera feature).
+
+**The program as a camera in Zoom, Teams or Meet**
+- **Stream out → Zoom, Teams or Meet (as a camera)**, through the relay (now version 2). No address or key: the relay makes the camera.
+  - **Mac and Windows:** OBS Studio makes the camera. The relay sends the program to OBS on this computer (MPEG-TS over local UDP, `udp://127.0.0.1:9998`, quick to arrive); OBS's Media Source picks it up and Start Virtual Camera makes "OBS Virtual Camera". Sound goes through OBS's monitoring to BlackHole (Mac) or VB-CABLE (Windows), picked as the call's microphone.
+  - **Linux:** no OBS: with a loopback camera (v4l2loopback, labelled VUEMesh) and a sound sink named VUEMesh, the relay writes the program straight into them ("VUEMesh" camera, "Monitor of VUEMesh" microphone).
+  - **ChromeOS** (and anywhere, with nothing to install): open Program out and Share screen in the call, with its sound.
+- The set-up steps for your computer show under it, each command with Copy. The status reads "On as a camera"; the studio says what to pick in the call.
+
+**The live cut on phones**
+- **A phone that can't save a part says why**, and the studio's event log shows it ("Live cut part 2 didn't reach Rosa: the phone couldn't save it here: …. Trying again."). It's tried again on the next round.
+- **Phones whose browser won't keep the part as a file** (some iPhones refuse certain files in their storage) now keep it as raw data instead; it shows and plays in My events the same way.
+- **While a phone waits for its live cut before leaving, its screen is kept on** (a locked iPhone stops receiving). If it leaves with parts still owed, its home screen says how many are waiting and to rejoin (with the screen on) to get them.
+- Note: a phone that's recording doesn't take its live cut until it stops (so the transfer never disturbs a recording); the studio shows "waiting on Rosa (recording)".
+
+**Phones that lose the camera**
+- **Joining never hangs on a camera that won't start** (a home-screen app reopened, or a phone back from the background): after 8 s it asks again, with Allow, and a Reload VUEMesh button.
+- **If the camera stops while VUEMesh is in the background**, "The camera went off" comes up with **Turn the camera back on** (one tap) and Reload VUEMesh, instead of a frozen picture. Clips are kept either way.
+
+**Tests:** `test/e2e_vcam.py` (the relay to a stand-in for OBS: H.264 1280×720 + AAC over local UDP); `test/e2e_phonerobust.py` (storage that refuses the part, a camera that stops, a camera that never answers on join). `test/e2e_whip.py` knows the new video-call group.
+
+## 0.30.0 — dissolves in Edit, and a quarter-second dissolve
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.29.1).
+
+- **Edit has dissolves.** A dissolve into a shot: the shot before it carries on underneath (from its recording, past its end) while this one fades in over it, and camera sound crossfades with the picture, in playback and in the exported film.
+- **Live dissolves arrive in Edit as dissolves**, as they were made: on the shot they went into, from when they began, and as long as they took (AUTO or the T-bar, cameras or clips).
+- **To make sure both shots are recorded through a dissolve**, the incoming camera is on air from the moment the dissolve begins: its tally comes on and it starts recording then (phones, and this computer's cameras), as on a real switcher.
+- **Add, change or take off a dissolve:** right-click a clip on the timeline (**Dissolve in**), or **Dissolve in** in the Selection panel: Cut, ¼, ½, 1 or 2 s (plus the live length, if it came from live). The timeline marks it with a shaded corner at the start of the shot. A split keeps it on the left half only.
+- **The switcher's AUTO has ¼ s** as well as ½, 1, 2 and 3 s.
+- Tests: `test/e2e_dissolve.py` (a live 1 s AUTO dissolve lands in the edit as long as it took; halfway through, both cameras play with their sound at half each; ¼ s and Cut from the Selection panel; a render through it); `test/sequence.test.mjs` covers the model (live dissolves through the automatic edit, the sound crossfade, splits, never longer than the shot).
+
+## 0.29.1 — every time on air makes Edit, second takes included
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.29.0).
+
+- **A second take could be missing from Edit.** Two causes, both fixed:
+  - **The automatic edit only followed a camera into a new recording if it started right where the last one ended.** A camera that stopped recording and started again while still on air (after a break, or a second take) was dropped until the next cut. Now the edit stays with the camera on air and picks it up again wherever it recorded; the time between is a gap.
+  - **Once the timeline had been edited by hand** (Collapse gaps, a trim, a move), new live footage never reached it. Now it goes on the end of the timeline, after a gap as long as the real time since the last part, with its microphone sound lined up; Collapse gaps takes the empty time out. Your hand edits stay as they are, nothing is added twice, and it waits until the clips have stopped arriving so cameras land together. Undo takes it back off.
+- **Edit shows the whole timeline** when it has grown since you were last there.
+- Tests: `test/e2e_secondtake.py` (this computer's camera: a take with a break, Collapse gaps, a second take, then Edit puts it on the end after the real gap, and Collapse gaps closes it up); `test/sequence.test.mjs` covers adding after hand edits (gap kept, mic lined up, nothing twice, only the new part of a recording that spans the end).
+
+## 0.29.0 — anything aired makes Edit
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.28.1).
+
+- **A camera on this computer records whenever it's on air**, whatever "Cameras record while they're on air" says (that setting is for phones' storage).
+- **Going to Edit finishes the recordings in progress**, so what's been on air is there now, even if a camera is still on air: this computer's cameras and microphones roll to a new recording, and phones that are recording are asked to do the same (each keeps recording; a phone's part arrives as it sends). Ending Record program does the same.
+- **Clips that aired go into Edit where they aired:** the live cut cuts to the clip, and a copy of its file is placed at that time (one per time round if it loops), with its sound on Camera sound. Stills aren't in Edit yet.
+- **Record program's recording goes into Media** as "Program (as aired)", on the cameras' clock, for shots by hand (titles, slates, anything that aired). It stays out of the automatic edit and out of Auto-sync.
+- **Auto-sync:** this computer's recordings count as locked (they're on the studio's own clock); aired clips and the program recording aren't lined up by sound.
+- Tests: `test/e2e_aired.py` (with the phones' setting off: camera, clip, camera on air, straight to Edit with the camera still on air, and the program track has all three; the program recording in Media, not in the edit).
+
+## 0.28.1 — this computer's cameras keep their sound in Edit
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.28.0).
+
+- **A camera on this computer could record without its sound** (the live picture had sound; the recording in Edit didn't). Its recordings were made in the studio's program format (on a Mac, MP4 with AAC sound), and that recorder can drop a live microphone. They're now recorded as WebM with Opus sound first, the steadiest way a browser records a live mic; they play in Edit and export the same.
+- **Every recording from this computer's cameras is checked for its sound.** If a format ever comes out without it, the studio says so (in the event log and on screen) and the next recordings use another format.
+- **Diagnostics: a new "Edit sound" section:** each sound track (level, muted, whether Camera sound follows the picture and ducks under microphones), how much of the film microphone recordings cover, and, for the latest recordings, their format and whether they have sound.
+- Tests: `test/e2e_local.py` now plays the camera's recording in Edit and checks its sound, and reads the new diagnostics.
+
+## 0.28.0 — clips cue in preview
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.27.1).
+
+- **With Tap: Preview, clicking a clip cues it in preview:** paused at its first frame, with a green outline on its tile and "PREVIEW · CLIP … · cued" in the preview box. It stays there until you take it.
+- **It starts playing as it goes on air:** when the dissolve to it begins (AUTO or the T-bar), or when CUT puts it on air. Its sound fades in with its picture; a clip going out fades its sound out with its picture. A T-bar pulled back before the end puts the clip back at its start, paused.
+- **Flip-flop with clips:** going from a camera to a clip puts the camera in preview; going from a clip back to a camera puts the clip back in preview, cued at the start again. While a clip is on air, the camera under it can be put in preview.
+- **Tap: Air** still puts a clicked clip straight on air from the top, as before.
+- Tests: `test/e2e_clipcue.py`.
+
+## 0.27.1 — a camera on this computer brings its sound
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.27.0).
+
+- **A camera added with + This computer comes with its sound**, as a phone does: one source, picture and sound, with its own mixer strip, and its recordings carry the sound. Which microphone: the one in the same device (a USB webcam's own mic, which the browser groups with it), else one whose name matches the camera's, else this computer's own microphone (a built-in camera like the FaceTime HD Camera has no mic of its own). The picker shows it under **Sound** for each camera; pick another, or **No sound**. Cameras added before come back with the sound they had.
+- If the camera's microphone isn't available (busy, unplugged), the camera is added without sound and says so, rather than not at all.
+- Pressing Add twice no longer tries to add the same camera twice.
+- Tests: `test/e2e_local.py` checks the camera brings sound (a live sound track and its own mixer strip) and that its recording has the sound in it.
+
+## 0.27.0 — this computer's cameras and mics, moderation, the new terms
+**Deploy:** `./aws/deploy.sh`. **The server changed** (the event keeps a blocked list, and signaling turns blocked phones away); the same command deploys it, no new AWS resources.
+
+**Cameras and microphones on the studio computer**
+- **+ This computer** (under the sources) adds the built-in camera, USB cameras or capture cards, and microphones. They're sources like phones: a tile marked THIS PC with a number, on air or in preview, Camera control (through the camera's own zoom, brightness and contrast, where it has them), and the mixer.
+- **No beacon needed:** they run on the studio's own clock, so their recordings line up in Edit from the start.
+- **Recording:** a camera records while it's on air (with "Cameras record while they're on air"), or right-click it for Record until you stop it; a microphone records the whole time it's in the show. Recordings roll every 5 minutes and land in Edit like phones' clips. Right-click to rename or remove; they come back next time the studio opens (when the browser remembers its permission).
+
+**Moderation**
+- **Remove from the event…** (right-click a camera or microphone): **Remove** (their phone is told and leaves; they can rejoin) or **Remove and block** (they can't rejoin this event: the server turns them away and their phone says so; their recordings stay out of the automatic edit, still in Media). **Removed and blocked** under the sources lists them, with **Let back in**. Blocking goes by the phone's identity for this event: someone who wipes their browser data comes back as a new phone.
+
+**The switcher and Camera control**
+- **The program shrinks beside the switcher** instead of being covered by it.
+- **The preview box goes away** with Tap: Air, when the switcher closes, or once its source is on air (it used to freeze), and **never shows in Edit**.
+- **Camera control shows PAUSED** when a phone pauses its feed, as the studio's tile does.
+
+**The camera**
+- **The record button is centred** again (Flip and Pause feed on the left don't push it over).
+
+**Terms of Use**
+- **Your new terms** (October 4, 2026) replace the old ones, including the usage-counts paragraph. Because they changed, phones ask people to agree again (the agree box isn't pre-ticked until they do).
+
+**Tests:** `test/e2e_local.py`, `test/e2e_v27.py`; `test/core.test.mjs` covers blocking (refused at connect, only valid ids kept, only the host can block, let back in).
+
+## 0.26.0 — a switcher with preview and a T-bar, a bank of camera controls
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.25.1).
+
+**The switcher** (⇅ beside the program, like the sound meters ♪)
+- **Tap: Air / Tap: Preview.** Air keeps the old way (tap a source, it's on air). Preview puts a tapped source (or its number key) in preview: a green outline on its tile, a preview box in the corner of the program monitor (only on this screen, never in the program), and a green PREVIEW tag on the phone. Right-click a camera for **Put in preview** either way.
+- **CUT** (Shift+Enter) takes preview straight to air. **AUTO** (Enter) dissolves over 0.5, 1, 2 or 3 s. **The T-bar** dissolves by hand: push it from one end to the other (it rests at whichever end it last reached, like a real one); stop halfway and both pictures are on air. It glides, eased every frame like the phones' zoom, so a mouse, a finger or a fader gives a smooth dissolve, never steps.
+- **MIDI fader:** press it, move a fader on any MIDI controller, and that fader is the T-bar (remembered).
+- After a transition, what was on air goes to preview (flip-flop). Cameras on AFV crossfade their sound with the picture. Edit starts from a cut at the middle of each dissolve (dissolves in Edit come later).
+
+**Camera control**
+- **A bank of strips:** narrow camera strips side by side, like a truck's camera controls, with a **Strip width** slider (remembered).
+- **Message the person on each camera** from their strip (the same message the studio's box under the tile sends).
+
+**The camera**
+- **Pause feed moved to the left**, beside Flip, so the zoom rail has the whole right side.
+- **The full-screen button is gone** (phones go full screen from their own home-screen app; the button rarely did anything).
+
+**Tests:** `test/e2e_switcher.py` (preview, AUTO's length and landing, the T-bar held halfway then pushed through, CUT, Tap: Air, the Camera control strips and a message). `test/e2e_camera_pro.py` no longer looks for the full-screen button.
+
+## 0.25.1 — the terms say what's counted
+**Deploy:** `./aws/deploy.sh` (site only changed since 0.25.0).
+
+- **Terms of Use, What we store:** now describe the anonymous daily usage counts added in 0.25.0: what's counted, that the studio sends its event's running totals, the one-way code that counts a rejoining phone once per event (kept with the event and deleted with it), that the totals identify no one and no event, that they're kept past 30 days, and that they may be shared (for example with investors). "No analytics" now reads "no third-party analytics"; the 30-day deletion is now worded as everything stored about an event. The terms page shows the version (0.25.1), which dates the change.
+
+## 0.25.0 — growth numbers, with the 30-day policy intact
+**Deploy:** `./aws/deploy.sh`. **The server changed this time** (the same command deploys it; no new AWS resources, the existing table holds the counts).
+
+- **Anonymous day counts, kept:** one record per day of events created (by kind), events run (a studio opened that day), cameras, microphones and viewers joining (each once per event: a phone's camera id is hashed and kept on the event, so it goes when the event does), recordings received, hours of footage, live cut and streaming, and films published. They never expire; events and everything in them still delete themselves after 30 days. Nothing in a day's counts names a person, phone, place or event.
+- **The studio reports its event's running totals** (recordings, footage, live cut and streaming time) every 10 minutes, a minute after a recording arrives, and when it closes; the server adds only what's new, and a smaller report (a studio on another computer) never subtracts.
+- **Admin → Growth:** the chosen period (30 or 90 days, 12 months, or since counting began) against the one before with ▲▼%, cameras per event run, a chart with the running total (by day, or by week over 120 days), a month table, **Download CSV**, **Investor snapshot** (a printable one-pager with both charts and how it's counted: Print, then Save as PDF), **Save snapshot** (freezes the numbers for the record; Open shows that report again), and **Fill in earlier days** (counts the events still stored into days from before counting began; never counts a day twice).
+- Tests: `test/e2e_growth.py`; `test/core.test.mjs` covers the counts (once per phone per event, only new usage, nothing identifying), that they outlive the events, backfill and snapshots.
+
+## 0.24.0 — edit sound, recordings that keep moving, a gentler start on the phone
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick it up when they next load the page.
+
+**Fixed**
+- **No sound in Edit once a microphone had joined.** Camera sound was set to silent for the whole film, so anything the microphone didn't cover had no sound at all. Now it ducks: it steps aside only while a microphone recording plays, and is heard everywhere else (in Edit and in the exported film). A **Duck** switch on Camera sound (Edit mixer and Audio console) turns that off. Edits saved in the old silent state are moved over, unless you'd set the track yourself.
+- **A second program recording could freeze its picture** (the sound went on). Record program, the live cut, streaming and Program out now share one program picture whose frames are pushed on every redraw, so it keeps moving even when the studio window is hidden or covered (Program out full screen over it).
+- **Typing the event code:** capitals and digits only as you type (spaces, dashes and autocorrect can't slip in), and a clear message if it isn't 6 characters.
+- **Leaving with the live cut:** the phone waits up to 10 s for the studio's answer (saying so, with Leave now), and leaves after 45 quiet seconds; anything not finished comes on rejoin. While sending parts, the studio keeps responding.
+
+**On the phone**
+- **Guided setup:** the browser's questions come one at a time, each after a screen that says what it's for (camera and microphone; then motion on iPhones), and only when the browser is actually going to ask. A phone whose browser remembers goes straight to the camera.
+- **You're in control:** a one-time card says what the director can do and where to change it (it gets out of the way for a director's message, and goes by itself after 20 s). Settings lists the cameras the director may switch to. **The selfie camera is kept from the director unless you allow it**; a request for a private camera is refused and the phone says so.
+- **Pause feed** stays available on air (that's when it matters).
+- **A new lens starts at 1×** (zoom isn't remembered per lens).
+- **Rejoin as camera / Rejoin as microphone:** two buttons after leaving. The one you were is highlighted and is one tap; the other opens the event's join screen with that role chosen.
+
+**Landing page and help**
+- A "Then make it bigger" section: more screens for the control room, and going live anywhere (some services straight from the browser, the rest with a small helper set up once with a few copy-and-paste steps).
+- Help: a new "More screens" topic; Microphones on air and Camera control now show their headings; Only microphones, Stream out and Audio console brought up to date.
+
+**Not in this release:** the watch link (where people can watch the stream, on phones and the beacon). It needs a server change and isn't verified yet; it comes in a later release.
+
+**Tests**
+- New: `test/e2e_editaudio.py`, `test/e2e_v24.py`, `test/e2e_rejoin.py`. Updated for this release's behaviour: Pause feed on air, Rejoin's two buttons, the live cut's rejoin fallback, and waits that suit a slow machine.
+
+## 0.23.0 — microphones on air (podcasts)
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick it up when they next load the page.
+
+- **Microphones are live sources:** each microphone phone has a tile in Sources with a number (after the cameras'). Click it or press its number to put it on air: the program shows its sound and its name ("ON AIR · MIC 4 Ana"), and the phone shows ON AIR (red frame), like a camera's tally. In the mixer a microphone stays ON (always heard) unless set to AFV (heard while on air) or OFF.
+- **The auto director for sound:** with no cameras up and two or more microphones, A goes to whoever's talking (louder by about 4 dB, held at least 2.5 s), from each microphone's own level before its fader.
+- **No break slate while there's sound:** with no camera up, the first microphone goes on air by itself; and while a microphone is live, a camera dropping puts the sound on air instead of the break slate. The break slate comes on by itself only when there's nothing to show or hear (B still puts it up by hand).
+- **The Edit page no longer shows the live AUTO BREAK tag.**
+- Edit still starts from the camera cuts: a microphone on air doesn't change the picture there.
+- **Fixed:** deleting an event on a phone right after leaving could leave one clip behind (the clip that was still being finished was saved after the delete).
+- Tests: `test/e2e_v23.py`. The microphone test now expects the microphone on air when the camera drops; the audio test accepts the studio waking its own sound.
+
+## 0.22.0 — a sturdier media engine, a quieter studio, Pause feed
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick it up when they next load the page.
+
+**Recording**
+- A take stopped about a second after the phone turned could come out 0 s long (and drop out of the edit): a clip's length came from the recorder's start and stop events, which arrive late on a busy phone. Now it comes from the recording itself, ending when it was told to stop; the start time and the orientation log move to match.
+
+**The media engine**
+- The studio now follows every track a phone sends, not just the first: sound that arrives after the picture, a track that's swapped or ends. The mixer listens to the sound track itself, so a late or replaced one is always the one heard (before, the sound could stay silent until the studio was reloaded).
+- A sound watchdog every 2 s keeps each phone's player and the audio engine running, and rebuilds a sound source that has given pure digital silence for 8 seconds (real microphones always hiss a little).
+- Camera control's drawing can't stop: each camera is drawn on its own, so one camera's trouble (a picture not ready yet, a phone that just left) no longer freezes the window (the waveforms that only showed after a reload).
+- The live program is drawn 30 times a second, the rate it's captured at, instead of the screen's 60: half the work, and the studio stays responsive when clips arrive.
+
+**Camera control**
+- Each camera's cameras are listed (front, ultra wide, wide, tele…): pick one and the phone switches to it.
+- Brightness and contrast now reach the studio from iPhones too. Safari can't filter a canvas, so the live picture ignored them there (the phone's own viewfinder showed them); now they're done by blending: brightness exactly, contrast within a few levels.
+- The Camera control button stays one line at any width.
+
+**A quieter studio: transfers and news in the Monitor**
+- No pop-ups for clips arriving, and no "Receiving…" line in the top bar (it moved the layout as it came and went).
+- The Monitor button has a light: blue (pulsing) while recordings come in or parts go out to cameras, amber when there's news in the event log since you last looked. Looking at the Monitor puts it out.
+- The Monitor's transfers: Coming in from phones, Going out to cameras (their part of the live cut), each with progress; Received, with a thumbnail, Preview (plays right there) and Download; and Sent to cameras.
+
+**The camera**
+- Save is gone from the viewfinder (every clip is in My events, to watch, send again or save). In its place, **Pause feed**: stop sending your picture and sound to the director for a moment (the same as Live off in the event sheet). It's only offered when you're not on air and not recording.
+
+**Tests**
+- New: `test/e2e_v22.py`. The tests that waited for the studio's "arrived" pop-up now wait for a quiet arrival signal; the devices test reads the Program meter's level directly; the media test closes its phones before exporting; the audio console test waits for the edit's sound to start.
+
+## 0.21.0 — camera control from the studio, and a zoom you can grab
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick it up when they next load the page; Camera control needs the phones on 0.21.
+
+- **Camera control window** (Sources → Camera control ↗, or right-click a camera): every live camera's picture with a histogram (R, G, B and brightness) and a waveform, and a warning when whites clip or blacks crush. The scopes are worked out in the studio from the pictures it already receives, so phones do no extra work.
+- **The director can adjust each camera remotely:** zoom (the phone glides there), brightness (the camera's own exposure where it has it, else digital), contrast (digital), focus by clicking a point in the picture (like tapping the phone), AE/AF lock, white balance lock, Auto to put it all back, and Cut. The phone shows each change ("The director adjusted this camera: zoom 2.0×"), and its owner can turn remote control off in the camera's settings ("Let the director adjust this camera").
+- **Digital contrast** joins digital brightness: in the live picture, on the phone's viewfinder, and logged with native recordings so the edit plays it too; the recording itself stays as shot.
+- **The zoom rail is easy to grab:** an invisible touch pad about three times the slider's width runs the length of the rail. Put a thumb anywhere on it and drag (up to zoom in); double-tap for 1×.
+- **Every zoom glides,** from the rail, a pinch, a lens chip or the director: eased every frame in equal steps of magnification, like a zoom lens, never in notches. A native zoom is sent to the camera as fast as it takes it (always the latest value); a digital zoom moves with every frame, and is logged up to 30 times a second so the edit's zoom is smooth too.
+- Tests: `test/e2e_ccu.py`.
+
+## 0.20.3 — fewer "Allow" questions
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick it up when they next load the page.
+
+A page can't give itself permanent permission to the camera and microphone: the browser decides. Chrome, Edge and Firefox remember once you choose to; Safari on iPhone and iPad asks on every visit until the site is set to Allow in its Website Settings (and iPhones ask about motion on every visit, with no way to keep it). So:
+- **Scanning the beacon from the camera's home joins on the same page.** It used to load a new page, and an iPhone asked for the camera a second time.
+- **Someone coming back whose browser is going to ask again gets the steps to make it remember, once, on the join screen:** Safari's Website Settings on iPhone and iPad (or "only Safari can keep it" in other iPhone browsers), "Allow while visiting the site" in Chrome and Edge, "Remember this decision" in Firefox, or how to unblock a blocked camera. "Got it" puts it away for good; a browser that already remembers never sees it.
+- **The studio's blocked-window message** (Program out, Audio console) now says how to always allow this site's windows, so it only happens once.
+- Tests: `test/e2e_permtip.py`.
+
+## 0.20.2 — a mixer with no empty space
+**Deploy:** `./aws/deploy.sh` (site only changed).
+
+- The Live audio mixer is now always exactly as tall as its strips when they lie flat, even if its edge was dragged before (0.20.1 kept a dragged height, empty space and all, and wouldn't drag below 120 px). With no phones it's one row for the program; each phone adds a row. Drag its edge up past 175 px and the strips stand up, faders upright, at the height you drag to; drag it back down and it snaps to fit again. Double-click the edge to fit.
+- Tests: `test/e2e_v201.py` also checks a mixer dragged tall before, dragging it up (strips stand up) and back down (fits again).
+
+## 0.20.1 — clips that keep up with the show, and polish
+**Deploy:** `./aws/deploy.sh` (site only changed). Phones pick up the new upload pacing when they next load the page.
+
+- **Clips upload as fast as the network allows, while live.** v0.19 held a live camera's clip uploads to a fixed trickle, so clips crawled until you turned the camera's live picture off by hand. Now uploads pace themselves like the internet's own congestion control, watching the live picture: a little faster every second while the picture stays healthy, backing off quickly when it shows strain (the round trip grows as the router's queue fills, packets go missing, or the browser holds the picture back for bandwidth). Nothing to switch by hand. The phone notes in its diagnostics when it eased off, and reports its upload rate to the studio.
+- **RTMP relay set-up for each computer.** Stream out shows the steps for Windows (winget), Mac (Homebrew), Linux (apt) and ChromeOS (the Linux development environment), opening on the one you're using, with Copy buttons for each command.
+- **The Live mixer fits its strips:** no empty space below them. Drag its edge to set your own height (tall enough, and the faders stand up); double-click the edge to fit it again.
+- **Live has the panel buttons** (left panel, inspector) at the right of the transport bar, like Edit.
+- **Program out fills the screen with one click** anywhere on the picture (browsers only allow full screen after a click); Esc, F or the button bring it back.
+- **One dark theme:** the home page, beacon, monitor, watch and camera pages now use the studio's neutral black instead of navy.
+- Tests: `test/e2e_v201.py`; `test/e2e_controlroom.py` expects the fitted mixer's flat faders.
+
+## 0.20.0 — RTMP streaming
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes). The relay is a separate download for streaming hosts.
+
+- Stream out now has RTMP: YouTube Live, Facebook Live, Twitch (RTMP), Kick, Vimeo, LinkedIn Live, X (Media Studio Producer) and any RTMP or RTMPS server, alongside the WHIP services. Server URLs are filled in where a service has a standard one; paste the stream key and Go live.
+- A browser can't send RTMP, so RTMP goes through the **VUEMesh relay**: one small file (`relay/vuemesh-relay.mjs`, downloadable from Stream out) that runs on the studio computer with Node.js and ffmpeg, nothing else to install. The studio records the program in quarter-second pieces and passes them to the relay over a WebSocket; ffmpeg sends them on as H.264 (2-second keyframes, constant 30 fps) and AAC, as services want.
+- The studio checks for the relay and says plainly if it's missing or has no ffmpeg; while live it shows the rate ffmpeg is sending at, and says so if the computer can't keep up.
+- The relay listens on this computer only, takes connections only from VUEMesh pages, only sends to rtmp:// and rtmps:// addresses, and never prints the stream key.
+- Tests: `test/e2e_rtmp.py` streams through the relay to an ffmpeg RTMP server and checks what arrives (H.264 + AAC); `test/e2e_whip.py` checks the WHIP path on its own.
+
+## 0.19.0 — comings and goings, microphones alone, the live cut that gets there, sound sync, streaming out
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Leaving and rejoining**
+- Leaving an event, as a camera or a microphone, goes back to the camera's home (join by code or scan, the camera on its own, My events), with the event you left at the top and a one-tap Rejoin. The separate "You've left" screen is gone.
+- The microphone screen has Leave the event (stopping the recording first, if it's running; what's not sent yet goes when you rejoin). Rejoin brings it back as the microphone and, if it's still synced, locks straight back in.
+- Coming back later (after a reload, or the next day), the home offers the last event; the join screen remembers whether you were the microphone.
+
+**My events** (was My footage)
+- Shows how many events and clips are on the phone. The Show tab can delete a whole event from the phone: its clips, the live cut, messages, rundown and the rest (it warns about clips the host hasn't got yet).
+
+**Sync with the beacon, and by sound**
+- The phone stops telling you to aim at the beacon for each clip; "Synced" now says you're set. Every clip carries its beacon lock (when it was read), the studio counts it, and a phone that never synced is marked NO SYNC on its live tile.
+- Auto-sync no longer says "No clips include a shot of the beacon": it says how many clips are locked, fine-tunes any with the beacon in shot, then lines clips up by their sound (GCC-PHAT cross-correlation at 8 kHz, to a fraction of a millisecond), starting from the most trustworthy clip (beacon in shot, then a synced microphone). A microphone that was off from the cameras now lines up with them. In an edit you've cut by hand, the moved clips' pieces keep showing the same moments; undo puts it back.
+
+**Microphones on their own**
+- A microphone is heard with no camera live. Chrome only passes a remote stream's sound to Web Audio while a media element plays it; cameras had their tile, microphones had nothing, so they were silent until a camera joined. Every stream now gets a muted player.
+- With no camera picture and a microphone open, the program shows the sound: a rolling waveform, spectrum bars or a ring (Breaks and black), with the event and who's talking.
+
+**The live cut gets to everyone, without crowding the show**
+- Someone leaving during Record program is sent their part first: the studio finishes the part being recorded if they were in it, and their phone waits for it, showing how far each part has got (with Leave now). Before, the last part was made after they'd gone, so they never got it unless they rejoined.
+- A sending pass worked through the list of parts while new parts kept being added, so with a long backlog it could run on and on and some phones never got a turn. Each pass now works from a fixed list, and someone leaving cuts in at the next part. A phone that said it was leaving no longer counts as "there" while it waits for its copy.
+- The studio asks each phone before sending (one that's recording, sending its own clips or short of space says "not now" and gets it later) and holds transfers to 2 Mbit/s while the show is live (1 Mbit/s to the camera on air). The studio says who's still owed and why.
+- Phones pace their own clip uploads by WebRTC's estimate of what the link can carry: a trickle while on air, part of what the live picture leaves spare while live, full speed otherwise.
+
+**Tests**
+- New: `test/e2e_v19.py`. Tests that waited for clips to arrive now keep checking until they do, since a live camera paces its uploads.
+
+**Landing page**
+- A "What you need" section (and menu link): a decent Wi-Fi router, a laptop, desktop or tablet to host, then the phones (or your own fixed cameras) show up; plus a note that the video goes over the Wi-Fi, so a slow internet connection is fine. "How it works" now says guests scan the beacon once to join and sync, instead of glancing at it on every recording.
+
+**Stream out**
+- One streaming output from the Live inspector: the program, picture and mix, sent from the browser over WHIP (RFC 9725). Templates for Twitch (direct), Restream (to YouTube, Facebook, LinkedIn, Kick and more), Cloudflare Stream, Dolby OptiView, and any WHIP server; YouTube and Facebook entries explain the relay they need (a browser can't send RTMP, and WebAssembly can't open the sockets either). 2.5 / 4.5 / 6 Mbit/s, H.264 first, the key kept on this computer, a STREAMING badge in the top bar.
+
+## 0.18.0 — sound on both sides, moments that stay put, the audio console
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes). Phones pick up the sound fix when they next load the page.
+
+**Sound on both sides**
+- Some phone browsers hand a mono microphone to the page as "stereo" with a silent right side, so clips came out left-only (the Source monitor's right meter stayed flat). Phones now play the left on both sides until the microphone shows it really has a right channel; a phone with stereo microphones records true stereo (VUEMesh now asks for two channels). Clips say which they are.
+- The studio fixes clips already recorded left-only: the Source monitor, Edit playback and Render MP4 fill the empty side from the left (true stereo clips are left alone). Live strips do the same for phones still on the old version.
+
+**Moments and markers stay on their footage**
+- A moment keeps the event-clock time it was marked at, and a marker (added over footage) the time of the footage under it. They're placed wherever that footage now sits, so Collapse gaps, trims, moves, ripple deletes and speed changes carry them along, and undo brings them back. Before, moments were placed by the clock alone, so they drifted off their footage as soon as the edit moved anything.
+- A moment where no camera was recording sits by the footage either side of it, faded; if its gap was taken out, it sits at the cut.
+- Dragging a moment or marker re-anchors it to the footage you drop it on.
+
+**Audio console (pop-out)**
+- "Audio console ↗" in the Edit mixer and on the Live mixer dock opens a window for mixing. Each channel (each phone and the Clips in Live; each audio track in Edit) has AFV / ON / OFF or Mute / Mono, a high-pass at 80 Hz, low / mid / high EQ (±12 dB) with its curve drawn, balance (centre stays at full level), a big meter with peak hold, and a fader.
+- The output side shows L / R meters, peak, RMS level, balance and phase correlation, a spectrum, the waveform, and a stereo (vector) scope. Quiet sound is scaled up to be seen.
+- It follows the room: switch Live / Edit and it switches with you. Changes go to the same sound engine, so they're in the program recording (Live) and in Render MP4 (Edit, where EQ and balance are saved with the edit). Double-click any control to reset it. The studio's keys work from the console window (1–9 to cut, B, X, T, M, `).
+
+**Fixes**
+- The Clips strip's fader in the Live mixer didn't change the level of a clip that was already playing.
+
+## 0.17.1 — timing that stays locked, and full screen in your theme
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes). Phones pick it up when they next load the page.
+
+**Sync with the beacon once**
+- Once a phone has synced, the timing is locked in for as long as the page runs. New clips no longer ask anyone to aim at the beacon: not when the director's cut starts a recording, not after fade to black stops it and you come back up, not after leaving and rejoining or reloading the page.
+- It still glances for the beacon quietly in the first seconds of each clip, with nothing on screen, in case it's in shot (that sharpens the studio's Auto-sync).
+- It's forgotten only if the phone's clock slips: it slept, or the browser froze the page in the background. The phone notices the jump, says so once, and looks for the beacon again. A quick trip to another app that doesn't stop the clock keeps it.
+- Tap the Synced pill to take a fresh reading (worth it every few hours: phone clocks drift a little). The old timing stays in use until three new readings are in.
+
+**Full screen keeps your theme**
+- In light mode, full screen stayed light only until you entered it, then switched to a dark blue look that isn't one of the themes. The control room now keeps your theme: light stays light, dark is the studio's black.
+- The studio also follows the device properly when the theme is set to follow it (it used to stay dark on a device set to light).
+- The meter bridge's strips and buttons are neutral black and grey, like the rest of the dark studio, instead of navy. The theme button is available in full screen too.
+
+## 0.17.0 — black, slate looks, editable moments and markers, pictures that don't stick
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Fade to black**
+- Fade to black (X) and Black (Shift+X), next to Break. The whole program goes black, picture and sound together; the program recording, Program out and the live mix all follow. Fade time is under Breaks and black (½ to 3 seconds).
+- Once it's black, the lower third, any clip and the break come off air. Press again (the buttons now read Fade up and Cut up) to come back on the camera you were on. Cameras show off air while it's black. Cutting to a camera while black lines it up and reminds you how to come back up.
+
+**Break slate looks**
+- Choose the look under Breaks and black: color bars (as before), static (snow with a rolling band), Please stand by (an old television set), a test card with a running clock, a VHS blue screen (PLAY, a counter of how long the break has run, the date, tracking noise), or a station clock whose dots light up as the minute goes round. Your message and the event's name sit on every one, and a small preview shows it as you choose. "Starting soon" uses the same look, and slates on the Edit timeline have their own Look setting, which renders too.
+- Slate sound (off by default): the 1 kHz line-up tone with color bars, hiss with static. It goes into the program (and the recording) only while the slate itself is up, not the sponsor reel, and fades with black.
+
+**Lower thirds**
+- Each saved lower third has an ×. Right-click one to show it, edit it without putting it on air (showing the edit replaces it instead of adding another), or delete it. The one on air is outlined. Up to 16 are kept.
+
+**Moments and markers**
+- Live has a Moments list: everything marked with M, newest first. Click a name to rename it; × deletes it.
+- On the Edit timeline, markers and moments show their names on the ruler. Drag one to move it (it snaps); double-click it, or select it and press Enter, to rename it; Delete removes it. Right-click for: go to it, rename, move it to the playhead, delete, and for moments, make clips from every angle or show it in Media. Marker edits undo.
+- Renaming a moment in the Media inspector now updates the ruler as well.
+
+**Rundown**
+- Next ▶ on the last item ends the rundown, and End does it any time: it comes off every camera's screen, but phones keep it (marked ended, at the item it reached) in My footage. Prev or Next picks it back up.
+- Clear empties it in the studio and on every camera, including phones that were away when you cleared it.
+
+**Live pictures that get stuck**
+- The studio checks every live picture every two seconds and fixes just the part that's stuck, without a reload:
+  - the tile's player has stopped, or shows nothing while video is still being decoded: a fresh player is swapped in once it has a frame, so the program doesn't blink;
+  - video arrives but stops decoding, or the phone is drawing its picture but it isn't getting through: that one phone reconnects (at most every 45 seconds; after three in five minutes it stops and asks you to check the phone).
+- Each fix is written to the Monitor log and to diagnostics, saying which kind it was.
+- Right-click a camera tile in Live: Cut to this camera, Refresh picture, Reconnect phone. Refresh live pictures (under Network) does every tile.
+- Phones keep their live preview drawing: if the viewfinder stops handing over frames (after a lens change or an interruption), the drawing restarts within a second. Phones also report how many preview frames they draw, so the studio can tell a picture stuck on the way from a phone that has stopped.
+
+**Fixes**
+- Microphone tiles disappeared from Live after a visit to Edit.
+- A phone that reconnected could lose its live picture to a recording-only phone, because the slot was handed on before it got back. It now gets 8 seconds to return, and keeps its place in the queue.
+
+## 0.16.0 — record-only overflow, sharing, formats and diagnostics
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Record-only overflow**
+- The studio shows up to a set number of live pictures (Live → Output, 12 by default). Phones that join beyond that record only: no live picture or sound, but every clip still arrives, and their phone says so ("RECORDING ONLY · studio full").
+- They're listed under "Recording only" rather than as tiles. When a live camera leaves, the phone that has waited longest moves up automatically; Swap in brings any waiting phone up now (the live camera off air longest steps back; never one that's on air).
+- Past about 12 live cameras the studio says that more can stutter.
+
+**Sharing and search**
+- A share image (1200×630) for link previews: "Everyone shoots. One film." with the product at work, and a beacon card whose QR code opens vuemesh.com.
+- Titles, descriptions, canonical addresses, Open Graph and Twitter/X large-image cards on every public page. Join and watch links show inviting previews but stay out of search; the studio, admin, monitor, program and beacon pages are kept out entirely. Structured data on the home page, robots.txt, sitemap.xml, and home-screen icons.
+
+**Files every phone can play**
+- The studio prefers H.264 when it records the program and the live cut. At startup it test-records half a second and reads the real format; if iPhones can't play it (Chromium and Chrome on Linux record VP9), a notice under Live → Output says so and which browsers fix it (Chrome or Edge on Mac or Windows, or Safari on Mac).
+- Phones test-play each live-cut part. One they can't play is marked "Can't play on this phone" with the reason, and the player explains instead of showing a broken icon. Save still works.
+
+**Diagnostics**
+- Copy diagnostics: in the phone's event menu and My footage, and in studio Help. A report of the version, device, browser, which formats it can record and play, connection, each recording's format and status, and recent errors, to send to whoever helps you. It doesn't include recordings.
+
+**Documentation**
+- docs/HOW-IT-WORKS.md and studio Help: the roles and where each runs; one beacon clock per event (any device can show it, but everyone must sync to the same one); what only the studio computer does; why a phone can't be the studio (an iPad might); which browser to use; network, capacity and router advice; record-only overflow; satellite studios (planned).
+
+**Fixes**
+- A shooter who stopped recording while on air could have it restarted by the studio after a moment off air (the break slate flashing up during a Wi-Fi hiccup). The stop now holds until they've really been off air.
+- The edit could skip a camera's first clip when the phone rolled to a new clip within 5 seconds of a live cut. A cut now belongs to the clip actually rolling at that moment.
+- Live-cut parts are confirmed as soon as they're saved, so the next part follows straight away.
+
+## 0.15.0 — the live cut for every camera person, and speed
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes). Includes everything in 0.14.1.
+
+**The live cut, sent to the crew** (Live → Output: "Send each camera the part of the program they were in", on by default)
+- Record program still downloads the full-quality recording, and now also keeps a copy in this browser.
+- While it records, a lighter copy is cut into parts of a few minutes. Each part goes, over the local link (nothing via the cloud), to every camera and microphone person who was connected while it was recorded. Someone who leaves gets only their part; anything that finished while they were away arrives when they come back.
+- On the phone, parts land in My footage as "Live cut · part N, From the director", to watch, save to Photos or Files, or delete.
+- The studio shows progress, e.g. "5 parts of the live cut · sent 7 of 7".
+- Phones now tell the studio when they leave, so it knows exactly who was there when.
+
+**Speed** (right-click a timeline clip → Speed: 25%, 50%, 100%, 200%, 400%)
+- Same content, slower or faster. A slowed clip stretches where there's room; against the next clip it keeps its slot and shows less of its source, so cameras and sound stay in sync. Clips show their speed on the timeline ("1 Rosa · 50%").
+- A clip at another speed plays without its sound, in the preview and in the render alike.
+- Split, trims, slip, slide, Collapse gaps and exporting In to Out all cut a changed-speed clip at the right source frame.
+
+## 0.14.1 — sound in the editor
+**Deploy:** `./aws/deploy.sh` (site only changed).
+
+- The Source monitor's sound now shows on the program meters while it plays (it used to play straight to the speakers, past the meters). You still hear it.
+- The right program meter stayed flat: phones record mono and the edit mix is mono, so only the left channel carried sound. The meters now spread mono across both sides, as speakers do (Live's meters too).
+- Edit playback could go silent, with the meters dead, in two ways, both fixed:
+  - Each clip's sound was wired to its track once, when the clip first loaded; if that track's audio wasn't set up yet, the clip stayed silent for the whole session. It's now checked every frame and fixes itself.
+  - Browsers can pause a page's sound (before the first click, or when the audio device changes). Any click or key press in the studio now wakes it, and if sound is still paused while something should be playing, a notice over the monitor says so; click it to turn sound on.
+
+## 0.14.0 — right-click editing, program meters, recording on air
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Edit like an editor**
+- Right-click menus (or Shift+F10 / the Menu key; arrows, Enter, Esc):
+  - Timeline clips: Replace media with another camera at the same moment (stays in sync) or with the Source monitor clip from its In; Open in Source monitor; Split at playhead; Picture-in-picture (corners, halves) or Full frame; Reset transform; fill or whole shot; Mute this clip's sound; Delete; Ripple delete.
+  - Camera tiles and media items: Open in Source monitor; Insert or Overwrite at the playhead; add as picture-in-picture; cut the Program to that camera.
+- Picture-in-picture uses the clip in the Source monitor (click any media item to load it), or another camera rolling at the playhead, and says which. Before, it took whichever other camera came first.
+- Track targets: the ◉ on a track header is where Insert and Overwrite land.
+
+**Program meters**
+- Left and right meters beside the program picture in Live and Edit (never over it). The ♪ button shows or hides them.
+
+**Cameras record while they're on air** (on by default; Live → Output)
+- Cut to a camera that isn't recording and it starts. Off air, a recording the director started stops after 8 seconds unless the camera comes back on air. A recording the shooter started keeps going, and a stop while on air holds. The host's choice carries over to new events.
+
+## 0.13.1 — clear of the notch and Dynamic Island
+**Deploy:** `./aws/deploy.sh` (site only changed).
+
+- Held sideways, iPhones put the notch or Dynamic Island on the left or right edge, and it covered whatever was there: the microphone meter on one side, the zoom controls on the other. Every control and screen on the camera page now keeps clear of the safe areas the phone reports: the meter, zoom rail, top and bottom bars, notices, status line, My footage, the player, microphone mode, the join and scan screens. Held upright nothing moves.
+- Sideways, the "Point at the beacon screen" guide sits inside the framing square instead of running into the record button.
+
+## 0.13.0 — export a range, collapse gaps, the camera on its own
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Editing a long day**
+- In and Out on the timeline: with the Program monitor showing, press I and O to mark a range (an amber band on the ruler). Render exports just that range ("Render In to Out"); Alt/Option+X or "Clear in/out" goes back to the whole timeline. (With the Source monitor showing, I and O still mark the source clip.)
+- Collapse gaps (timeline toolbar): takes out every stretch where no camera was recording, on all tracks at once, so sound stays in sync with picture. Sound after the last picture stays. One step to undo.
+
+**The camera page**
+- Scan the beacon to join: on the event-code screen, "Scan the beacon instead" opens the camera and joins the event from the beacon's code. No typing.
+- Use the camera on its own: the same camera app and controls with no event. Clips are saved to My footage ("On my own"), so people can get used to the app before they shoot at an event.
+- The theme toggle is now a small symbol (◐ follows the device, ☀ light, ☾ dark) on every page, so it no longer crowds the event title.
+
+## 0.12.0 — real resolution recordings, microphone choice
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Recordings at the resolution you chose**
+- Phones now record the camera's own picture at the quality picked in settings (1920×1080 at 30, 1080p60, or 4K), like any camera app, at a bitrate to match (about 12 Mbps at 1080p30). Before, they recorded a 1440×1440 square that the phone redrew every frame: the shot inside was really about 1440×810, frames were lost to the redrawing (22 fps on an iPhone 17 Pro Max), and it was only 6 Mbps. The square now only feeds the small live preview to the director.
+- Turned mid-take with rotation lock on, the picture is stored as the sensor gives it and the clip remembers how to stand upright. The studio, renders and the My footage player straighten it, and Save writes the turn into the MP4 (the way iPhone camera files mark portrait), so Photos shows it upright — no re-encoding.
+- Turning the phone or switching lenses mid-take carries on in a new clip. The new one starts before the old one stops, so they overlap rather than leave a gap, and the edit follows the camera from one clip into the next.
+- Digital zoom and digital exposure (on cameras that can't do them natively, like iPhone exposure) are no longer baked into the file: the studio applies them from the clip's log. A clip saved straight from My footage doesn't include them.
+- Files are bigger: about 90 MB a minute at 1080p30, about 370 MB a minute at 4K.
+
+**Microphone mode**
+- Choose the microphone (a lav, a USB mic, a headset). The list updates when one is plugged in. Before recording it switches straight away; while recording it carries on in a new piece from the new microphone, overlapping the last, so nothing is lost.
+
+**My footage**
+- The room-code screen (the camera page with no event) offers My footage when the device holds clips, opening on the event with footage.
+
+**Editor**
+- When the selected clip isn't under the playhead, the inspector says why there are no handles on the viewer.
+
+## 0.11.0 — My footage, and delivery that can't jam
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Delivery fixes (why a recording sometimes didn't make it)**
+- A clip the host refused used to stay at the front of the phone's queue, holding up every clip recorded after it until the connection dropped and came back. Now it's set aside, marked "Didn't arrive" with the reason, and the rest keep going.
+- If the host never confirmed a clip while the connection stayed up, sending stopped for good. Confirmation now has a deadline that scales with the clip's size.
+- Clips that didn't arrive retry by themselves up to three times, further apart each time. A dropped connection still resumes the same clip, as before.
+
+**My footage (camera people)**
+- Open it from the event menu (tap the event name), the join screen, the "You've left" screen, or the home page, without rejoining. It covers every event this device shot at.
+- Clips: thumbnail, time, length, size and status (✓ Delivered, Sending, Waiting for the host, Didn't arrive: reason). Retry or Send again (also for delivered clips, in case the director lost one), Save (the share sheet on phones, so it lands in Photos or Files; a download on computers), and Delete (asks first, and warns harder if the host doesn't have it yet). The player shows just the shot, not the square recording around it.
+- A copy of each clip stays on the device after delivery, unless you untick "Keep a copy". "Delete delivered clips" frees space in one tap.
+- Show: clips, total recorded, time on air (and how many times), the director's messages with your replies, and the rundown with where it ended. Messages and the rundown now survive closing the tab.
+- Home page: events you shot at as a guest have a My footage button.
+
+**Known limits**
+- Phones may clear a website's stored data if it isn't opened for a few weeks (iPhones especially). Save anything you want to keep.
+
+## 0.10.0 — Android lenses, computers as cameras, fixes
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Fixes**
+- Live audio mixer meters didn't draw (a stylesheet ordering bug from 0.9: the bars had no height). They light up again, vertical or sideways.
+- Android phones with several back cameras couldn't switch lenses: many Android phones can't run two cameras at once. A switch that fails now releases the current camera and tries again, and puts the previous camera back if that fails too. iPhones (which hand over between cameras by themselves) are unchanged.
+- On the camera screen, the rundown line was hidden under the ON AIR light. ON AIR, PAUSED, AE/AF LOCK, the rundown line and director messages now stack in one column and never cover each other.
+
+**Android lenses**
+- Extra back cameras are named plainly ("Cam 2", "Cam 3"), since Android's camera names don't say which lens is which.
+- If the phone offers zoom below 1× (often how Android reaches its wide lens), the rail shows it, e.g. 0.6×.
+
+**Computers as cameras**
+- The camera page tells phones from computers. A computer's webcam can't be turned, so it never hears "Hold your phone upright"; it gets one plain note instead (its landscape picture will be cropped for a portrait film, nothing to change). No level overlay (no gyro); Flip steps through the computer's cameras; messages say "computer", not "phone".
+- The studio marks computer cameras with a PC badge. The auto director scores a fixed camera in the wrong shape more gently than a phone held the wrong way, and describes it as "a landscape camera in a portrait film". Auto-cut in Edit does the same, using what each recording says it was shot on.
+- Motion coaching (hold steady, pan slower) still appears if a computer really has a gyro, like a 2-in-1.
+
+## 0.9.0 — live playout, and Program out on one screen
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Program out that keeps going**
+- Fixed: the "Waiting for the studio" message stayed over the picture.
+- Fixed: the program froze when the Program out window covered the studio (browsers pause drawing in a covered window). Program out now drives the studio's drawing itself, and a background clock keeps drawing, program recording and the auto director running even with no Program out window. Works full screen on a single laptop.
+
+**Live room**
+- No cut buttons under the program: click a source tile to cut. Tiles show each camera's sound mode.
+- Clips: add b-roll, commercials or a logo under Clips in the Sources panel. Each loops silently in its tile so it's ready; click to put it on air from the top. Loop keeps it going until you cut to a camera; otherwise it plays once and returns to the camera you were on. Clip sound has its own strip in the mixer. While a clip is on air, phones' ON AIR lights go dark and the auto director waits. Clips also play in the break rotation.
+- Lower third: type a name and second line, press Show (or T). It fades in, hides itself after 8 seconds unless you untick that, and recent ones are a click away. It's part of the program, so recordings and Program out include it.
+- The audio mixer dock adapts: tall, its strips stand up and widen to fill the space; short, they turn sideways (like OBS) and spread across the full width.
+
+**Director**
+- A "better shot" now has to stay better for 1.5 seconds before the director cuts to it (quality scores are noisy; no more twitchy cuts). Cutting away from a bad shot stays fast.
+
+**Known gap**
+- Clips aired live are in the program recording, but not yet placed on the Edit timeline when it's rebuilt from live cuts.
+
+## 0.8.0 — two rooms, transforms, program out, and your events
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**The studio, redesigned**
+- Live is an OBS-style control room: program is the hero, every camera is a card in a multiview grid (with its message box), the switcher bus sits under the program, and the audio mixer is a resizable dock along the bottom with vertical meters, faders, AFV / ON / OFF and stereo Program meters. No timeline while you're switching.
+- Edit is an editor: media browser, a large viewer with Program/Source tabs and icon transport, inspector, a slim tool palette, and the timeline.
+- Every divider drags (or use the arrow keys on it); double-click a side divider to hide that panel, or the timeline/mixer divider to reset it. Live and Edit remember their own layouts. Panel toggle buttons in Edit.
+- Compact, professional sizing and a neutral dark look across the studio (choosing Light still gives light; the mixer dock stays dark like a meter bridge).
+
+**Transform any layer**
+- Select a clip or image and handles appear on the viewer: drag to move, corners to scale, the dot to rotate (snaps to centre and right angles; Shift for 15° steps). Click the picture to select the layer under the pointer.
+- Exact position, scale, rotation, opacity and crop in the inspector, plus layout presets (full, corners, halves) and Reset.
+- Crop trims edges in place, so the layer below shows through. Layers stack like any editor: the top track draws last. Everything renders into the MP4.
+
+**Program out**
+- One click opens a clean program-only window, with sound, for a TV, projector or OBS window capture. It takes the picture and sound straight from the studio tab; nothing leaves the computer.
+
+**Your events on this device (home page)**
+- Each event shows whether you hosted or shot at it, how much it stores here, and whether the server still has it ("Ended on server" when it's gone there — footage on this device is untouched).
+- Export: one ZIP of every recording, unsent clips and break media, plus the edit and metadata (project.json). Archive tucks an event away. Delete from this device asks first and removes only that event's data.
+- The server never deletes anything on anyone's device.
+
+**From your iPhone 17 Pro Max testing**
+- Cameras are requested in their native shape, so iPhones no longer crop (that was the "zoomed in more" stretch). First open uses the plain 1× lens front and back; after that the phone remembers each person's camera, zoom, exposure, quality, mic and overlays.
+- Orientation changes only count after a steady one-second hold; orientation advice waits 1.5 s; hints no longer flicker. Phones hear when the film's shape changes.
+- "Connected to host" shows briefly and fades (tap to dismiss); a status dot by the event name stays. Tap the event name to pause sending your camera, see the rundown and messages, or leave — and rejoin in one tap. Clips shot before leaving still deliver.
+- Director messages: a box under each camera, or message everyone; phones show a small banner with 👍 / Can't, and the studio shows sent, seen and replies. A rundown with Prev/Next cues (also [ and ]) shows on phones as one line: Now · Next.
+
+**Fixes**
+- The director names the problem when it cuts away from a bad shot.
+- Accessibility: zero automated WCAG 2.1 AA violations across every page and the new screens, both themes.
+
+## 0.7.0 — control room, camera operator, media manager
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Full screen control room (F)**
+- The studio becomes the control surface: program, multiview, a switcher bus (big numbered buttons, red when on air, showing each camera's sound mode), and a vertical meter bridge — a strip per phone with a dB scale, peak hold, clip light and vertical fader, plus stereo Program meters. Edit gets the bridge too (audio tracks and Master). Always dark, whatever the theme.
+
+**Pictures and sound switched independently**
+- Every phone has its own mixer strip with a broadcast audio mode: AFV (heard only while that camera is on air), ON (always in the mix) or OFF. Microphone phones start ON; cameras start AFV, and go OFF when a microphone joins unless you've set them.
+- Shift + 1–9 steps a camera's sound AFV → ON → OFF (a "breakaway").
+- Program meters are stereo; the mixer updates in place, so no button press is ever lost to a redraw.
+
+**The phone as a real camera**
+- Lenses and zoom: a zoom rail with lens buttons (0.5×, 1×, 2× where the phone has them), a vertical slider and pinch. Native zoom where the phone allows it, otherwise a digital crop that is really in the recording.
+- Tap to focus and expose; press and hold for AE/AF LOCK.
+- Settings (⚙): camera and microphone chosen separately (a clip-on or Bluetooth mic with the back lens, say), quality (720p to 4K, 30 or 60 fps), exposure, microphone level, grid, level, zebras, white-balance lock. Torch (⚡) where there is one.
+- Camera, lens, zoom and microphone can all change mid-recording without stopping the take.
+- A vertical microphone meter (dB, peak hold, clip light). Full screen (⛶); iPhones are offered Add to Home Screen, since iPhone browsers can't go full screen.
+
+**Media manager (Edit → Media)**
+- Every recording, subclip and marked moment in one list: search, filter by kind or tag, star, tag (quick tags or your own), notes.
+- Source monitor (Shift + 2): play a recording, mark In and Out (I / O), Make subclip, Insert (,) or Overwrite (.) at the playhead on the selected track (the Program if nothing is selected), or Export clip as its own MP4.
+- Mark moment (M) during the event; later, "Make clips from every angle" makes one clip per camera that was rolling (10 s before to 5 s after), tagged Moment. Moments show on the timeline ruler.
+- Trim keeps only part of a recording in use; the phone's signed file is untouched. Delete removes a recording from this computer, every use of it on the timeline, and its subclips.
+
+**Fixes**
+- Monitors size themselves to the space they have (no more overlapping the controls below).
+- Shift + digit is read from the physical key, so it works on any keyboard layout.
+- Phone top bar fits every button on narrow phones.
+- Accessibility: zero automated WCAG 2.1 AA violations across all pages and the new screens, both themes.
+
+## 0.6.0 — right way up, a director, and real editing tools
+**Deploy:** `./aws/deploy.sh` (site only changed; no backend changes).
+
+**Rotation, fixed at the source**
+- Phones now record an always-upright picture into a square frame, using the gravity sensor to undo any turn the screen didn't follow (rotation lock). Turning mid-shot is fine: every turn is logged with the clip.
+- The studio slices clips exactly where a phone turned (▭ landscape, ▯ portrait). Shots that don't match the output shape are striped; change the output shape after the fact and the flags follow. Per-item rotation override for the rare phone that lay flat and guessed wrong. "Split at turns" for hand-made edits.
+- Live tiles and the live program show exactly the shot inside each phone's square.
+- iPhone clips recorded with a "rotated" flag (earlier versions) now render the right way up — the old renderer drew them sideways.
+
+**AI technical director**
+- Every phone rates its own shot twice a second from its gyroscope (shake), gravity (pointed at the floor or ceiling), compass (whip pans) and picture (too dark, blown out, covered, blurry), plus whether it's held the right way for the output.
+- Live (A): holds each shot at least 3 s, cuts away from a bad one within about two seconds and says why, varies the angle, goes to the break slate if nothing is usable, and waits 8 s after you cut by hand.
+- On-air tally: the phone that's live gets a red frame and ON AIR. Phones coach their shooters ("Hold steady", "Point the camera at the action", "Turn your phone sideways", "Too dark: find some light").
+- Edit: Auto-cut uses each clip's recorded quality log to avoid shaky, dark or sideways moments.
+
+**Premiere Pro tools and keys**
+- Selection (V), Ripple Edit (B), Rolling Edit (N), Razor (C), Slip (Y), Slide (U), Hand (H). Add edit (Ctrl/⌘ K), ripple trim to playhead (Q / W), ripple delete (Shift + Delete), markers (M), previous/next edit point (↑ / ↓), snapping (S), nudge (Alt + ←/→), zoom (= / - / \), track locks. Ripples keep overlays in sync with the Program.
+- Live/Edit switch moved to the ` key.
+
+**Local connections**
+- Connections are judged by address, not just type: LAN (direct), LAN·NAT (same network through the router), CELL (mobile data), NET, RELAY. Peer-reflexive local addresses were wrongly shown as NET before.
+- "Help phones connect directly": browsers only share a computer's local address after microphone permission; one click grants it and reconnects phones.
+- "Local network only" refuses anything that goes out through the internet.
+- Monitor shows each phone's shot quality, shape and connection path.
+
+**Render MP4 that doesn't give up**
+- Encoders are tested by encoding real frames, then tried in order: H.264 High, Main, Baseline (what Chrome on Linux can do), VP9. This is the likely cause of "codec" errors on Linux.
+- Each clip's decoder is tested first; a clip that can't use the fast path drops to a compatible one, even mid-render. A clip that can't be read at all no longer stops the film: those moments show the layer below, and the clip is named.
+- Clear failures: what stopped, what to do, copyable details, and one-click real-time export.
+
+**Fixes**
+- Messages on the camera screen no longer sit on top of the record button; messages never block taps anywhere.
+- Beacon scanning runs in the background and backs off, so the camera no longer stutters while looking for the beacon.
+- A live cut made just before a phone started recording now lands when its clip begins (no black gap).
+- Phone identity is filled in if its picture arrives before its name.
+
+## 0.5.0 — the beta
+**Deploy:** `./aws/deploy.sh`. The first run creates your admin key in `aws/.admin-keys` and prints it once. Publishing and the events map are off by default, on both the site and the server.
+
+**Safer to run in public**
+- Terms of Use page (beta, as-is, no warranty, limitation of liability, consent and recording responsibilities, what is stored). A beta notice on every page. Hosts and guests must tick an agreement box. No accounts, no cookies, no analytics.
+- Publishing films to the cloud is switched off (site and server). Hosts render and share the file themselves.
+- The events globe is switched off (site and server). "Near me" still works and only ever shows whole-kilometre distances, never locations.
+- Everything expires 30 days after an event is created: the database record (enforced the moment it expires, not when DynamoDB gets round to it) and any published film (S3 lifecycle rule). Stale half-finished uploads are cleared after a day.
+- Admin panel at `/admin`: totals, every event, rename, list or unlist, change expiry, delete a film, delete an event and all its files. Keys live only on your machine; AWS stores their SHA-256 hashes.
+
+**A real editor**
+- Layered timeline, top track wins. Drag items to move them (with snapping), drag their edges to trim, ▲▼ to change a track's priority, show/hide and mute per track, split (S), trim to playhead ([ ]), delete, duplicate, undo/redo (Ctrl/⌘ Z).
+- The Program track is your multicam cut, built from live cuts until you edit it by hand ("Rebuild cuts" starts over). Number keys cut it to another angle at the playhead.
+- Add lower thirds (T), title cards, break slates, images and logos, and picture-in-picture of another angle (P), with position presets and fades.
+- Angles are phones: camera 3 is the same person live and in the edit.
+- **Render MP4**: a new renderer that decodes every source with WebCodecs, composites every layer, mixes audio offline, and writes a standard MP4 (H.264 + AAC in Chrome and Edge; VP9 + Opus where H.264 encoding isn't available). No longer tied to real time; real-time export is still there as a fallback.
+
+**Sound**
+- Mixer with level, mute and meter for every source, live and in the edit, plus a master meter and a limiter so stacked sources don't clip.
+- Mono fix: phone microphones are summed to mono, so a phone that records only one side plays in both ears. Phones now also ask for mono at the source.
+- A microphone phone becomes its own audio track and quiets camera sound by default.
+
+**Monitor tab** (`Monitor ↗` in the studio): every phone's link (LAN or not), round trip, jitter, packet loss, preview resolution and bitrate over the last minute, camera resolution, battery, free storage, device, how long it's been connected, and plain-language warnings (low battery, low storage, not on the venue Wi-Fi, clips waiting, not synced). Transfers and an event log. It reads from the studio inside your browser; nothing is sent anywhere.
+
+**Fixes**
+- Beacon: "Code brightness", "Background" and "Whole screen" are now three separate controls; background no longer dims the code.
+- Published-film playback: films are now standard MP4 files from the new renderer (the old path could produce files some players wouldn't open).
+
+## 0.4.0
+**Deploy:** run `./aws/deploy.sh`. It adds one DynamoDB index (for the globe), updates both Lambdas, and uploads the new site. The index takes a few minutes to build; the globe shows events created after this deploy (and any you re-list).
+
+- **Studio redesign.** Sources | program monitor | inspector, with a timeline underneath. Broadcast tally (red = on air), mono timecode, Live and Edit modes, light and dark themes.
+- **Break slate.** Press B (or let it happen automatically when the on-air camera drops): color bars and your message, alternating with a sponsor reel of images or videos. Returns to the same camera when it recovers. Whatever the program shows is what OBS streams.
+- **Microphone phones.** A guest can join as Microphone: sync with the beacon, lock in, and the phone records the room for the whole event in overlapping 10-minute pieces (no gaps), each sent to the host. Its live sound can drive the live program; in Edit it becomes the film's sound. Re-sync button for long events. Screen dimming and recovery if the phone interrupts the recording.
+- **Portrait or landscape.** Chosen per event (and switchable in the studio). Every shot is shaped to one output — fill (crop) or whole shot (bars) — so the two never mix. Phones are told which way to hold. The watch page takes the film's shape.
+- **Events globe.** The Events section is a spinning globe (d3-geo + Natural Earth, served with the site: no map keys) with a board of every public event; live events pulse red. "Near me" sorts by distance.
+- **Beacon dimming.** Code brightness and screen brightness sliders (and [ ] keys) so a bright screen doesn't blow out cameras in a dark room.
+- **Money.** Patreon ask after publishing or exporting, Patreon links in footers, a "Presented by" sponsor card on the watch page (from the break reel), and a /sponsors page describing placements for advertisers. Set `sponsorEmail` in `public/js/brand.js`.
+- **Accessibility.** Help dialog with every shortcut (press ?), screen-reader announcements for cuts and arrivals, labeled controls, visible focus, reduced motion respected. Zero automated WCAG 2.1 AA violations (axe-core) on every page in both themes; tally red and green deepened to pass contrast.
+- **Themes.** Auto / light / dark on every page, remembered per device, no flash on load.
+
+## 0.3.2
+- `aws/functions/api.mjs`: answer the browser's CORS preflight (OPTIONS) in the Lambda. The API's catch-all route also catches OPTIONS, so API Gateway was forwarding it to the Lambda, which rejected it, and "Create event" failed with a CORS error. Backend-only change: run `./aws/deploy.sh` again.
+
+## 0.3.1
+Fixes and cost work since the first 0.3 zip. **Only the last item changes the deployed backend**, so if you already deployed the earlier 0.3.x fixes, run `./aws/deploy.sh` once more to pick it up. The website files are unchanged.
+
+- `aws/functions/package.json`: added the missing `version` so `sam build` works.
+- `aws/deploy.sh`: no longer passes empty `DomainName=` / `CertificateArn=` to `sam deploy`; refuses `DOMAIN` without `CERT_ARN`.
+- Added `aws/iam-deploy-policy.json` and `aws/iam-domain-policy.json` (scoped deploy permissions) and switched the docs and prompt from Amazon Q Developer to Kiro.
+- `aws/functions/lib/core.mjs` (backend): presence messages now go only to the host and beacon, not to every phone, so signaling cost grows linearly with the crowd instead of quadratically. Phones still hear when the host arrives or leaves. Phones that vanish without disconnecting drop out of the list after 11 quiet minutes.
+
+## 0.3.0
+LAN-first rebuild: phones stream a live preview and send signed clips to the host laptop over WebRTC; AWS only does event discovery, signaling and film publishing.
+
+## 0.2.0
+New landing page with the live multi-angle demo.
+
+## 0.1.0
+First Cloudflare-based version (all clips through the cloud).
