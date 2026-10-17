@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.0 — stereo in the live mixer; balance and Mono on every channel
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **This computer's sound, a shared screen and the Clips stay stereo.** The live mixer folded every channel to mono before its EQ, so stereo sources reached the program (and its recording and stream) as mono, and the Program meters always read the same on both sides. Each live channel now has a **Mono** switch: on for phones (as before), off for this computer's sound, a shared screen, a stereo input of this computer and the Clips. Mono folds both sides into one and puts it in the middle; off, each side keeps its own.
+- **A stereo channel shows two meters** (left and right, after its balance) in the mixer dock, the full-screen meter bridge and the inspector.
+- **Balance on every strip in the mixer dock** (it was only in the audio console): pans a mono channel, balances a stereo one; double-click to centre. In Edit it sets the track's balance, with the track's Mono beside it.
+- Sharing asks the browser for two channels of sound.
+
+**Tests:** `e2e_screen.py`: shared stereo sound arrives on a stereo strip (two meters, each side its own); balance hard left takes the right side away; Mono folds it to one channel and back.
+
 ## 0.46.4 — sound sources on the phone remote
 **Deploy:** `./aws/deploy.sh` (site only).
 

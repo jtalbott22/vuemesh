@@ -225,7 +225,7 @@ const help = helpDialog('Studio help', [
   },
   {
     heading: 'Audio console',
-    text: 'Audio console ↗ (on the Live mixer dock, and in the Edit mixer) opens a window for mixing. Each channel has AFV / ON / OFF (Live) or Mute / Mono (Edit), an 80 Hz high-pass, low / mid / high EQ with its curve, balance, a meter and a fader. The output side shows meters, peak and RMS level, balance, phase, a spectrum, the waveform and a stereo scope. Live, it changes the program and its recording; in Edit, the settings are saved with the edit and rendered. Double-click a control to reset it. The studio’s keys work from the console window too. In Edit, Camera sound has a Duck switch (on when a microphone joins): camera sound steps aside wherever a microphone recording plays and is heard everywhere else; turn it off to hear camera sound throughout.',
+    text: 'Audio console ↗ (on the Live mixer dock, and in the Edit mixer) opens a window for mixing. Each channel has AFV / ON / OFF and Mono (Live) or Mute / Mono (Edit), an 80 Hz high-pass, low / mid / high EQ with its curve, balance, a meter and a fader. The output side shows meters, peak and RMS level, balance, phase, a spectrum, the waveform and a stereo scope. Live, it changes the program and its recording; in Edit, the settings are saved with the edit and rendered. Double-click a control to reset it. The studio’s keys work from the console window too. In Edit, Camera sound has a Duck switch (on when a microphone joins): camera sound steps aside wherever a microphone recording plays and is heard everywhere else; turn it off to hear camera sound throughout.',
   },
   {
     heading: 'Stream out',
@@ -1578,18 +1578,27 @@ async function updateNetwork() {
 //   OFF  never in the mix
 // So pictures and sound switch independently. Everything feeds the program bus
 // (recorded with the program), through a limiter, with stereo meters.
+// A channel is mono or stereo (its Mono switch): phones are mono to start with; this
+// computer's sound, a shared screen, a stereo input and the Clips keep both sides. Balance
+// pans a mono channel and balances a stereo one.
 
 const mix = { strips: new Map(), bus: null, dest: null, listen: null, meterL: null, meterR: null };
 const mixSaved = () => JSON.parse(localStorage.getItem('vm_livemix_' + eventId) || '{}');
 const MODES = ['afv', 'on', 'off'];
 const MODE_LABEL = { afv: 'AFV', on: 'ON', off: 'OFF' };
-function mixDefault(role) {
-  if (role === 'media') return { gain: 1, mode: 'afv' };
+/** Whether a channel's source has two sides of its own (see mixAttach). */
+function srcStereo(id) {
+  if (id === 'media') return true;
+  const l = live.get(id) || [...live.values()].find((x) => x.cid === id);
+  return !!l?.stereo;
+}
+function mixDefault(role, id) {
+  if (role === 'media') return { gain: 1, mode: 'afv', mono: false };
   const micHere = [...live.values()].some((l) => l.role === 'mic');
-  return { gain: 1, mode: role === 'mic' ? 'on' : micHere ? 'off' : 'afv' };
+  return { gain: 1, mode: role === 'mic' ? 'on' : micHere ? 'off' : 'afv', mono: !srcStereo(id) };
 }
 function mixState(id, role = 'cam') {
-  return { ...mixDefault(role), ...(mixSaved()[id] || {}) };
+  return { ...mixDefault(role, id), ...(mixSaved()[id] || {}) };
 }
 function mixSave(id, st) {
   const all = mixSaved();
@@ -1637,24 +1646,29 @@ function mixInit() {
   applyStripFx(mix.media, mixState('media', 'media'));
 }
 
-/** A live channel: (mono) → EQ → fader → meter; fader → balance → gate (AFV / ON / OFF) → program bus. */
-function liveChain(ctx, monoIn = true) {
-  const mono = ctx.createGain();
-  if (monoIn) {
-    mono.channelCount = 1;
-    mono.channelCountMode = 'explicit';
-    mono.channelInterpretation = 'speakers';
-  }
+/** A live channel: input (one side or two: the Mono switch) → EQ → fader → meter; fader → balance → L/R meters, gate (AFV / ON / OFF) → program bus. */
+function liveChain(ctx, mono = true) {
+  const input = ctx.createGain();
+  input.channelCountMode = 'explicit';
+  input.channelInterpretation = 'speakers';
   const eq = eqChain(ctx), fader = ctx.createGain(), meter = ctx.createAnalyser(), bal = balance(ctx), gate = ctx.createGain();
   meter.fftSize = 1024;
   gate.gain.value = 0;
-  mono.connect(eq.input);
+  input.connect(eq.input);
   eq.output.connect(fader);
   fader.connect(meter);
   fader.connect(bal.input);
   bal.output.connect(gate);
   gate.connect(mix.bus);
-  return { mono, eq, fader, meter, bal, gate };
+  const nodes = {
+    mono: input, eq, fader, meter, bal, gate, meters: stereoMeters(ctx, bal.output),
+    /** Both sides as one (folded to the middle, then placed by the balance), or each side its own. */
+    setMono(on) {
+      input.channelCount = on ? 1 : 2;
+    },
+  };
+  nodes.setMono(mono);
+  return nodes;
 }
 function applyStripFx(nodes, st, smooth = false) {
   if (!nodes) return;
@@ -1662,6 +1676,16 @@ function applyStripFx(nodes, st, smooth = false) {
   else nodes.fader.gain.value = st.gain ?? 1;
   nodes.eq.set(st.eq, smooth);
   nodes.bal.set(st.pan || 0, smooth);
+  nodes.setMono(st.mono !== false);
+}
+const stripNodes = (r) => (r.id === 'media' ? mix.media : mix.strips.get(r.peer));
+/** A live channel's Mono switch. */
+function toggleStripMono(r) {
+  const st = { ...mixState(r.id, r.role), mono: !r.st.mono };
+  mixSave(r.id, st);
+  applyStripFx(stripNodes(r), st);
+  renderMixer();
+  announce(`${r.name}: ${st.mono ? 'mono' : 'stereo'}`);
 }
 
 function mixAttach(peer) {
@@ -1689,11 +1713,14 @@ function mixAttach(peer) {
   }
   if (st.trackId !== at.id || !st.src) {
     try { st.src?.disconnect(); } catch {}
+    // Two sides of its own: this computer's sound or a shared screen, or an input of this
+    // computer that opened in stereo. A phone's sound starts mono (Mono off makes it stereo).
+    l.stereo = !!l.local && (!!l.screen || (at.getSettings?.().channelCount || 1) > 1);
     const only = new MediaStream([at]);
     st.src = ctx.createMediaStreamSource(only);
     st.src.connect(st.fix.input);
     st.src.connect(st.pre);
-    st.fix.reset(false);
+    st.fix.reset(!!l.screen); // a stereo input of this computer may still be one mic on the left: the fix finds out
     st.trackId = at.id;
     st.stream = l.stream;
     st.silentSince = 0;
@@ -1792,9 +1819,9 @@ function mixerRows() {
       if (!st) continue;
       const id = l.cid || peer;
       const n = l.role === 'mic' ? null : angleOfCid(l.cid);
-      rows.push({ id, peer, role: l.role, name: l.role === 'mic' ? `Mic · ${l.name}` : `${n} ${l.name}`, meter: () => st.meter, st: mixState(id, l.role), live: true, open: () => st.open });
+      rows.push({ id, peer, role: l.role, name: l.role === 'mic' ? `Mic · ${l.name}` : `${n} ${l.name}`, meter: () => st.meter, meters: () => st.meters, st: mixState(id, l.role), live: true, open: () => st.open });
     }
-    if (reel.some((r) => r.type.startsWith('video/'))) rows.push({ id: 'media', role: 'media', name: 'Clips', meter: () => mix.media.meter, st: mixState('media', 'media'), live: true, open: () => mix.media?.open });
+    if (reel.some((r) => r.type.startsWith('video/'))) rows.push({ id: 'media', role: 'media', name: 'Clips', meter: () => mix.media.meter, meters: () => mix.media.meters, st: mixState('media', 'media'), live: true, open: () => mix.media?.open });
     rows.push({ id: 'master', name: 'Program', meters: () => [mix.meterL, mix.meterR], master: true });
   } else {
     for (const tr of seq.tracks.filter((t) => t.kind === 'audio')) {
@@ -1807,9 +1834,12 @@ function mixerRows() {
 }
 
 let mixSig = '';
+const fmtPan = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
+/** A live channel in stereo shows both sides (its meters are after the balance). */
+const twoSides = (r) => r.master || (r.live && !r.st.mono);
 function renderMixer() {
   mixRows = mixerRows();
-  const sig = mode + '|' + mixRows.map((r) => `${r.id}:${r.name}:${r.master ? 'm' : r.live ? 'l' : 't'}`).join('|');
+  const sig = mode + '|' + mixRows.map((r) => `${r.id}:${r.name}:${r.master ? 'm' : r.live ? 'l' : 't'}${twoSides(r) ? '2' : ''}`).join('|');
   if (sig === mixSig && $('#mixer').childElementCount) {
     // Same sources as before: update the strips in place, so a click never lands on a strip that's being replaced.
     for (const r of mixRows) {
@@ -1819,8 +1849,12 @@ function renderMixer() {
         el.querySelector('[data-mute]')?.setAttribute('aria-pressed', String(!!r.st.muted));
         el.querySelector('[data-mono]')?.setAttribute('aria-pressed', String(!!r.st.mono));
         el.querySelector('[data-duck]')?.setAttribute('aria-pressed', String(!!r.track?.duck));
-        const range = el.querySelector('input[type=range]');
+        const range = el.querySelector('input[type=range]:not([data-pan])');
         if (range && document.activeElement !== range) range.value = String(gainToDb(r.st.gain));
+        const pan = el.querySelector('input[data-pan]');
+        if (pan && document.activeElement !== pan) pan.value = String(Math.round((r.st.pan || 0) * 100));
+        const po = el.querySelector('.pano');
+        if (po) po.textContent = fmtPan(r.st.pan || 0);
         const out = el.querySelector('.db');
         if (out) out.textContent = `${gainToDb(r.st.gain)} dB`;
         if (r.live) el.classList.toggle('open', !!r.open?.());
@@ -1833,12 +1867,15 @@ function renderMixer() {
   }
   mixSig = sig;
   const modeBtns = (r) => MODES.map((m) => `<button type="button" data-amode="${m}" aria-pressed="${r.st.mode === m}" title="${{ afv: 'Audio follows video: heard only while on air', on: 'Always in the mix', off: 'Never in the mix' }[m]}">${MODE_LABEL[m]}</button>`).join('');
+  const monoBtn = (r, label = 'Mono') => `<button type="button" data-mono aria-pressed="${!!r.st.mono}" title="Play both channels as one (off: stereo)" aria-label="${esc(r.name)}: mono">${label}</button>`;
+  const panIn = (r, cls = '') => `<input type="range" data-pan${cls ? ` class="${cls}"` : ''} min="-100" max="100" step="1" value="${Math.round((r.st.pan || 0) * 100)}" title="Balance (double-click: centre)" aria-label="${esc(r.name)} balance">`;
   // inspector: horizontal strips
   $('#mixer').innerHTML = mixRows.map((r) => `<div class="strip${r.master ? ' master' : ''}" data-strip="${esc(r.id)}">
       <span class="nm">${esc(r.name)}</span>
-      ${r.master ? '<span></span>' : `<span class="btns">${r.live ? modeBtns(r) : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">Duck</button>` : ''}<button type="button" data-mono aria-pressed="${r.st.mono}" title="Play both channels as one">Mono</button><button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">Mute</button>`}</span>`}
-      <span class="lvl" aria-hidden="true">${r.master ? '<i data-ch="0"></i>' : '<i></i>'}</span>
-      ${r.master ? '' : `<input type="range" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels"><output class="db">${gainToDb(r.st.gain)} dB</output>`}
+      ${r.master ? '<span></span>' : `<span class="btns">${r.live ? modeBtns(r) + monoBtn(r) : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">Duck</button>` : ''}${monoBtn(r)}<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">Mute</button>`}</span>`}
+      ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<span class="lvl" aria-hidden="true"><i data-ch="${c}"></i></span>`).join('')}
+      ${r.master ? '' : `<input type="range" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels"><output class="db">${gainToDb(r.st.gain)} dB</output>
+      ${panIn(r)}<output class="db pano">${fmtPan(r.st.pan || 0)}</output>`}
     </div>`).join('');
   // full screen: vertical meter bridge
   const scale = [0, -6, -12, -18, -24, -36, -48].map((db) => `<span style="--p:${((db + 60) / 60) * 100}%">${db}</span>`).join('');
@@ -1846,10 +1883,11 @@ function renderMixer() {
       <div class="vname" title="${esc(r.name)}">${esc(r.name)}</div>
       <div class="vmeters">
         <div class="vscale" aria-hidden="true">${scale}</div>
-        ${(r.master ? [0, 1] : [0]).map((c) => `<div class="vmeter" aria-hidden="true"><i class="fill" data-ch="${c}"></i><i class="peak" data-ch="${c}"></i><span class="clip" data-ch="${c}"></span></div>`).join('')}
+        ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<div class="vmeter" aria-hidden="true"><i class="fill" data-ch="${c}"></i><i class="peak" data-ch="${c}"></i><span class="clip" data-ch="${c}"></span></div>`).join('')}
         ${r.master ? '' : `<input type="range" class="vfader" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels">`}
       </div>
       <output class="db">${r.master ? 'L R' : gainToDb(r.st.gain) + ' dB'}</output>
+      ${r.master ? '' : `<div class="vpan">${panIn(r, 'vpanr')}${monoBtn(r, 'MONO')}</div>`}
       ${r.master ? '' : `<div class="vbtns">${r.live ? modeBtns(r) : `<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">M</button>`}</div>`}
     </div>`).join('');
   renderBusAudio();
@@ -2260,7 +2298,7 @@ function flushRecordings(why) {
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -2793,12 +2831,11 @@ $('#ccuBtn').onclick = () => openCcu();
 document.querySelectorAll('[data-console]').forEach((b) => (b.onclick = openConsole));
 
 const fmtEq = (v) => (v > 0 ? '+' : '') + (+v).toFixed(1);
-const fmtPan = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
 function conStrip(r) {
   const st = r.st, eq = eqOf(st.eq), pan = st.pan || 0;
   const knob = (k, label, v, min, max, step, shown) => `<label class="k"><span>${label}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${esc(r.name)}: ${label}"><output data-o="${k}">${shown}</output></label>`;
   const btns = r.live
-    ? MODES.map((m) => `<button type="button" data-amode="${m}" aria-pressed="${st.mode === m}">${MODE_LABEL[m]}</button>`).join('')
+    ? MODES.map((m) => `<button type="button" data-amode="${m}" aria-pressed="${st.mode === m}">${MODE_LABEL[m]}</button>`).join('') + `<button type="button" data-mono aria-pressed="${!!st.mono}" title="Play both channels as one (off: stereo)">MONO</button>`
     : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">DUCK</button>` : ''}<button type="button" data-mono aria-pressed="${!!st.mono}" title="Play both channels as one">MONO</button><button type="button" data-mute aria-pressed="${!!st.muted}">MUTE</button>`;
   return `<div class="ch${r.live && r.open?.() ? ' open' : ''}" data-strip="${esc(r.id)}">
     <h3 title="${esc(r.name)}">${esc(r.name)}</h3>
@@ -2861,7 +2898,7 @@ function conSet(r, k, v) {
       player.refreshMix();
     } else {
       mixSave(r.id, { ...mixState(r.id, r.role), gain: g });
-      (r.id === 'media' ? mix.media : mix.strips.get(r.peer))?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
+      stripNodes(r)?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
     }
   } else {
     const patch = k === 'pan' ? { pan: v / 100 } : { eq: { ...eqOf(r.st.eq), [k]: k === 'hp' ? !!v : v } };
@@ -2871,7 +2908,7 @@ function conSet(r, k, v) {
       player.refreshMix();
     } else {
       mixSave(r.id, { ...mixState(r.id, r.role), ...patch });
-      applyStripFx(r.id === 'media' ? mix.media : mix.strips.get(r.peer), mixState(r.id, r.role), true);
+      applyStripFx(stripNodes(r), mixState(r.id, r.role), true);
     }
   }
   renderMixer();
@@ -2903,6 +2940,7 @@ function bindConsole(w) {
       setStripMode(r.id, r.role, b.dataset.amode);
       announce(`${r.name}: ${MODE_LABEL[b.dataset.amode]}`);
     } else if (b.hasAttribute('data-hp')) conSet(r, 'hp', !eqOf(r.st.eq).hp);
+    else if (r.live && b.hasAttribute('data-mono')) toggleStripMono(r);
     else if (r.track && (b.hasAttribute('data-mute') || b.hasAttribute('data-mono') || b.hasAttribute('data-duck'))) {
       if (b.hasAttribute('data-mute')) {
         r.track.muted = !r.track.muted;
@@ -3401,9 +3439,10 @@ for (const box of [$('#mixer'), $('#bridge')]) {
     const el = range?.closest('[data-strip]');
     const r = el && mixRows.find((x) => x.id === el.dataset.strip);
     if (!r || r.master) return;
+    if (range.hasAttribute('data-pan')) return conSet(r, 'pan', +range.value);
     const g = dbToGain(+range.value);
     document.querySelectorAll(`[data-strip="${CSS.escape(r.id)}"]`).forEach((x) => {
-      const rr = x.querySelector('input[type=range]');
+      const rr = x.querySelector('input[type=range]:not([data-pan])');
       if (rr && rr !== range) rr.value = range.value;
       const out = x.querySelector('.db');
       if (out) out.textContent = `${range.value} dB`;
@@ -3415,8 +3454,14 @@ for (const box of [$('#mixer'), $('#bridge')]) {
       player.refreshMix();
     } else {
       mixSave(r.id, { ...mixState(r.id, r.role), gain: g });
-      (r.id === 'media' ? mix.media : mix.strips.get(r.peer))?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
+      stripNodes(r)?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
     }
+  });
+  box.addEventListener('dblclick', (e) => {
+    const pan = e.target.closest('input[data-pan]');
+    const el = pan?.closest('[data-strip]');
+    const r = el && mixRows.find((x) => x.id === el.dataset.strip);
+    if (r) conSet(r, 'pan', 0);
   });
   box.addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -3426,7 +3471,8 @@ for (const box of [$('#mixer'), $('#bridge')]) {
     if (b.dataset.amode) {
       setStripMode(r.id, r.role, b.dataset.amode);
       announce(`${r.name}: ${MODE_LABEL[b.dataset.amode]}`);
-    } else if (b.hasAttribute('data-mute') && r.track) {
+    } else if (b.hasAttribute('data-mono') && r.live) toggleStripMono(r);
+    else if (b.hasAttribute('data-mute') && r.track) {
       r.track.muted = !r.track.muted;
       r.track.touched = true;
       saveSeq();
@@ -3465,7 +3511,7 @@ const holds = new Map();
 (function meters() {
   const t = performance.now();
   for (const r of mixRows) {
-    const levels = r.master ? (r.meters?.() || []).map(peakOf) : [peakOf(r.meter?.())];
+    const levels = twoSides(r) ? (r.meters?.() || []).map(peakOf) : [peakOf(r.meter?.())];
     levels.forEach((p, ch) => {
       const pct = toPct(p);
       const k = r.id + ':' + ch;
@@ -3476,8 +3522,8 @@ const holds = new Map();
       document.querySelectorAll(`[data-strip="${CSS.escape(r.id)}"]`).forEach((el) => {
         const fill = el.querySelector(`.fill[data-ch="${ch}"]`);
         if (fill) fill.style.setProperty('--lvl', pct + '%');
-        else if (ch === 0) {
-          const bar = el.querySelector('.lvl i');
+        else {
+          const bar = el.querySelector(`.lvl i[data-ch="${ch}"]`);
           if (bar) bar.style.width = pct + '%';
         }
         el.querySelector(`.peak[data-ch="${ch}"]`)?.style.setProperty('--pk', h.v + '%');
