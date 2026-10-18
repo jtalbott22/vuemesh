@@ -15,8 +15,6 @@ const ICON = {
   tv: '<rect x="4" y="9" width="40" height="25" rx="2"/><path d="M16 41h16M24 34v7"/>',
   stick: '<rect x="4" y="9" width="40" height="25" rx="2"/><path d="M16 41h16M24 34v7"/><rect x="31" y="35" width="11" height="5" rx="1"/>',
   stream: '<circle cx="24" cy="24" r="3.5"/><path d="M16 16a11 11 0 0 0 0 16M32 16a11 11 0 0 1 0 16M10 10a19 19 0 0 0 0 28M38 10a19 19 0 0 1 0 28"/>',
-  cloud: '<path d="M14 36h21a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-1 18z"/>',
-  lock: '<rect x="11" y="21" width="26" height="20" rx="3"/><path d="M17 21v-6a7 7 0 0 1 14 0v6"/>',
   file: '<path d="M12 5h16l9 9v29H12z"/><path d="M28 5v9h9"/><path d="M21 22v12l9-6z"/>',
   sound: '<path d="M8 19h7l9-7v24l-9-7H8z"/><path d="M30 18a8 8 0 0 1 0 12M35 13a15 15 0 0 1 0 22"/>',
 };
@@ -130,7 +128,6 @@ function show(id) {
   box.classList.add('fresh');
 }
 
-$('#rigCloud').innerHTML = `${icon('cloud')}<span><b>VUEMesh cloud</b><small>Introductions only</small></span>`;
 $('#rigTabs').innerHTML = SETUPS.map((s, i) => `<button type="button" role="tab" data-setup="${s.id}" aria-selected="${i === 0}" aria-controls="rigFlow">${s.tab}</button>`).join('');
 $('#rigTabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-setup]');
