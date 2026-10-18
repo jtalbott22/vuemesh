@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sponsor or advertise — VUEMesh</title>
-<meta name="description" content="Put your brand in front of every guest at real events, and help keep VUEMesh free to use.">
+<title>Partner with VUEMesh</title>
+<meta name="description" content="VUEMesh is early, honest about it, and looking for partners: gear makers, venues, local sponsors and technology partners. What works today, what you get, and how to start.">
 <link rel="canonical" href="https://vuemesh.com/sponsors">
 <meta property="og:site_name" content="VUEMesh">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vuemesh.com/sponsors">
-<meta property="og:title" content="Sponsor VUEMesh">
-<meta property="og:description" content="Put your brand in front of every guest at real events, and help keep VUEMesh free to use.">
+<meta property="og:title" content="Partner with VUEMesh">
+<meta property="og:description" content="VUEMesh is early, honest about it, and looking for partners: gear makers, venues, local sponsors and technology partners. What works today, what you get, and how to start.">
 <meta property="og:image" content="https://vuemesh.com/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Sponsor VUEMesh">
-<meta name="twitter:description" content="Put your brand in front of every guest at real events, and help keep VUEMesh free to use.">
+<meta name="twitter:title" content="Partner with VUEMesh">
+<meta name="twitter:description" content="VUEMesh is early, honest about it, and looking for partners: gear makers, venues, local sponsors and technology partners. What works today, what you get, and how to start.">
 <meta name="twitter:image" content="https://vuemesh.com/og.png">
 <meta name="twitter:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -31,17 +31,26 @@
   .nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: clamp(28px, 6vw, 64px); }
   .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
   .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
-  h1 { font-size: clamp(2.4rem, 7vw, 5rem); line-height: .95; letter-spacing: -.02em; max-width: 14ch; }
-  .lede { font-size: 1.2rem; color: var(--text-2); max-width: 56ch; }
-  .spots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 36px 0; }
-  .spot { background: var(--surface); border-radius: 14px; padding: 18px; }
-  .spot .tag { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: .2em .6em; border-radius: 4px; background: var(--surface-2); color: var(--text-2); margin-bottom: 10px; }
-  .spot .tag.now { background: var(--preview); color: #fff; }
-  .spot h2 { font-size: 1.25rem; margin: 0 0 6px; }
-  .spot p { color: var(--text-2); margin: 0; }
-  .rules { background: var(--surface); border-radius: 14px; padding: 18px 22px; }
+  h1 { font-size: clamp(2.4rem, 7vw, 5rem); line-height: .95; letter-spacing: -.02em; max-width: 15ch; }
+  .lede { font-size: 1.2rem; color: var(--text-2); max-width: 60ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .facts li { font-size: .85rem; font-weight: 600; padding: .35em .8em; border-radius: 999px; background: var(--surface); color: var(--text-2); }
+  .partners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 36px 0; }
+  @media (max-width: 720px) { .partners { grid-template-columns: 1fr; } }
+  .partner { background: var(--surface); border-radius: 14px; padding: 20px; display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; }
+  .partner .who { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tally); }
+  .partner h2 { font-size: 1.35rem; margin: 0; line-height: 1.1; }
+  .partner dl { margin: 0; display: grid; gap: 8px; }
+  .partner dt { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .partner dd { margin: 0; color: var(--text-2); }
+  .partner .btn { justify-self: start; margin-top: 6px; }
+  .plan, .rules, .later { background: var(--surface); border-radius: 14px; padding: 18px 22px; margin: 14px 0; }
+  .plan h2, .rules h2, .later h2 { font-size: 1.2rem; margin: 0 0 8px; }
+  .plan p, .later p { color: var(--text-2); margin: 0; }
+  .later p + p { margin-top: 8px; }
   .rules li { margin: .4em 0; }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  .cta p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -51,30 +60,80 @@
     <button type="button" id="themeBtn"></button>
   </header>
   <main>
-    <h1>Be part of the moment, not an interruption.</h1>
-    <p class="lede">VUEMesh turns every phone at an event into one synced film. Sponsors show up in a few deliberate places, clearly labeled, and only where the host says yes. We'd like to plan campaigns with you directly.</p>
+    <h1>Partner with VUEMesh early.</h1>
+    <p class="lede">VUEMesh turns the phones, laptops and webcams people already own into a multicam production studio in the browser. It's early, and we'll be straight with you about that: it's built by one person, in public beta, and its audience is just starting. That's also why now is a good time. Early partners shape what it becomes, and they get remembered for it.</p>
+    <ul class="facts" aria-label="Where VUEMesh is today">
+      <li>Free during the beta</li>
+      <li>Nothing to install</li>
+      <li>Video stays on the local network</li>
+      <li>Built by one developer</li>
+    </ul>
 
-    <section class="spots" aria-label="Placements">
-      <article class="spot"><span class="tag now">Available now</span><h2>Break slate</h2><p>When a live stream takes a break, or the cameras drop, the program shows color bars and a "we'll be right back" card, alternating with your full-frame image or video. Seen by everyone watching live, and in the recording.</p></article>
-      <article class="spot"><span class="tag">When publishing opens</span><h2>Film page card</h2><p>A "Presented by" card under every published film, linking to you. It stays as long as the film does.</p></article>
-      <article class="spot"><span class="tag">Planned</span><h2>Beacon strip</h2><p>A quiet "presented by" line on the screen every guest scans to join. The most-looked-at screen in the room.</p></article>
-      <article class="spot"><span class="tag">Planned</span><h2>Featured on the globe</h2><p>Sponsored events highlighted on the public globe, so people nearby find them first.</p></article>
-      <article class="spot"><span class="tag">Planned</span><h2>Event passes</h2><p>Sponsor the passes for a season of games, services, or shows: "This film brought to you by…" on every one.</p></article>
+    <section class="partners" aria-label="Ways to partner">
+      <article class="partner">
+        <span class="who">Gear makers</span>
+        <h2>Be the kit people buy for their first show.</h2>
+        <dl>
+          <dt>Real today</dt><dd>VUEMesh's whole pitch is "use what's already in the drawer," and the home page shows real setups: USB mics in phones, webcams on a desktop, a stick PC on the TV. People who try it start asking what to add next.</dd>
+          <dt>What you get</dt><dd>Your mic, webcam, mount, tripod, travel router or stick PC tested with VUEMesh and featured, by name, in the setups and guides for the shows it fits. Honest results, published either way.</dd>
+        </dl>
+        <a class="btn primary" data-subject="Gear: test our product with VUEMesh" target="_blank" rel="noopener">Send gear to test</a>
+      </article>
+      <article class="partner">
+        <span class="who">Venues and organizations</span>
+        <h2>Run a founding pilot.</h2>
+        <dl>
+          <dt>Real today</dt><dd>Churches, schools, leagues, theaters and event spaces can run their shows on VUEMesh now, free: live switching, streaming out, every angle recorded, a kiosk at the door.</dd>
+          <dt>What you get</dt><dd>Direct help setting up your room, your needs at the front of the line (permanent installs, your branding, longer storage), and founding-partner pricing locked in when paid plans arrive.</dd>
+        </dl>
+        <a class="btn primary" data-subject="Pilot: our venue or organization" target="_blank" rel="noopener">Start a pilot</a>
+      </article>
+      <article class="partner">
+        <span class="who">Local sponsors</span>
+        <h2>Sponsor the breaks in a show people watch.</h2>
+        <dl>
+          <dt>Real today</dt><dd>Every show has a break slate. A host can add your image or video, and it plays full screen during breaks: to the room, to everyone watching the stream, and in the recording. It's on air today.</dd>
+          <dt>What you get</dt><dd>A spot in the home games, services, recitals and open mics your customers already watch. Tell us where you are and what you'd like to sponsor, and we'll help you find the hosts.</dd>
+        </dl>
+        <a class="btn primary" data-subject="Sponsor: break slates in local shows" target="_blank" rel="noopener">Sponsor a show</a>
+      </article>
+      <article class="partner">
+        <span class="who">Technology and platforms</span>
+        <h2>Build something together.</h2>
+        <dl>
+          <dt>Real today</dt><dd>VUEMesh streams to YouTube, Twitch, Facebook and any service that takes RTMP or WHIP, sends the live program to TV screens on the local network, and its demo films were made with open models on one home PC.</dd>
+          <dt>What you get</dt><dd>An integration that ships, a working showcase for your platform, device or model, and a builder who writes it up. Streaming services, TV and device makers, and AI labs especially welcome.</dd>
+        </dl>
+        <a class="btn primary" data-subject="Technology partnership" target="_blank" rel="noopener">Talk integration</a>
+      </article>
+    </section>
+
+    <section class="plan" aria-labelledby="ph">
+      <h2 id="ph">How VUEMesh will pay for itself</h2>
+      <p>Personal shows stay free. Paid plans for organizations (permanent rooms, their own branding, longer storage, priority help) and partnerships like these keep it running and keep it independent. If that's a business you'd like to be part of, say hello.</p>
+    </section>
+
+    <section class="later" aria-labelledby="lh">
+      <h2 id="lh">Coming as the audience grows</h2>
+      <p>When publishing and the public map of events open, there'll be room for a few more places a sponsor can appear: a "Presented by" card under published films, a quiet line on the beacon guests scan to join, and featured events on the map. They aren't for sale yet, because they aren't built yet.</p>
+      <p><a data-subject="Placements: keep me posted" target="_blank" rel="noopener">Get on the list for them.</a></p>
     </section>
 
     <section class="rules" aria-labelledby="rh">
       <h2 id="rh">How we keep it good</h2>
       <ul>
-        <li>The host decides. Nothing runs on an event unless the host adds it.</li>
-        <li>Weddings and private events are ad-free unless the couple asks otherwise.</li>
-        <li>Nothing ever appears on a guest's camera screen while they're shooting.</li>
-        <li>Every placement is labeled as sponsored. No tracking pixels on film pages.</li>
+        <li>The host decides. Nothing runs on a show unless the host adds it.</li>
+        <li>Weddings and private events are ad-free unless the hosts ask otherwise.</li>
+        <li>Nothing ever appears on a camera's screen while it's shooting.</li>
+        <li>Every placement is labeled as sponsored. No tracking pixels.</li>
+        <li>Reviews of gear are honest, partner or not.</li>
       </ul>
     </section>
 
     <div class="cta">
-      <a class="btn primary" id="contact" target="_blank" rel="noopener">Talk to us about a campaign</a>
-      <a class="btn ghost" id="patreon" target="_blank" rel="noopener">Or support the project on Patreon</a>
+      <a class="btn primary" data-subject="Partnership" target="_blank" rel="noopener">Talk to us</a>
+      <a class="btn ghost" id="patreon" target="_blank" rel="noopener">Or back the project on Patreon</a>
+      <p id="contactNote"></p>
     </div>
   </main>
 </div>
@@ -83,8 +142,9 @@
   betaBanner();
   import { BRAND, sponsorContactHref } from '/js/brand.js';
   themeButton($('#themeBtn'));
-  $('#contact').href = sponsorContactHref();
-  if (!BRAND.sponsorEmail) $('#contact').textContent = 'Message us on Patreon about a campaign';
+  // every call to action writes to the same place, with its own subject line
+  document.querySelectorAll('[data-subject]').forEach((a) => (a.href = sponsorContactHref(a.dataset.subject)));
+  if (!BRAND.sponsorEmail) $('#contactNote').textContent = 'Each button opens our Patreon page: send a message there and it comes straight to the developer.';
   $('#patreon').href = BRAND.patreon;
 </script>
 </body>

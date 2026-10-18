@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.55.0 — Partners, not just sponsors
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The sponsors page is a partners page**, honest about where VUEMesh is (one developer, public beta, an audience just starting) and organised by who could pay: **gear makers** (get tested and featured in the setups), **venues and organizations** (founding pilots, founding pricing), **local sponsors** (the break slate, on air today) and **technology and platforms** (integrations and showcases). Each says what's real today, what the partner gets, and has its own button, each with its own subject line.
+- **How VUEMesh will pay for itself**: personal shows stay free; paid plans for organizations and partnerships keep it running.
+- The placements that need publishing and the public map (film page card, beacon line, featured events) are now under "Coming as the audience grows", not offered as if they were for sale.
+- Links to it read **Partners** / **Partner with us**. `BRAND.sponsorEmail` (in `brand.js`) makes every button an email with its own subject; while it's empty they go to Patreon messages, and the page says so.
+
 ## 0.54.2 — the row under the program stays on one line
 **Deploy:** `./aws/deploy.sh` (site only).
 
