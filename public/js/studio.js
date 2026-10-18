@@ -8412,8 +8412,10 @@ function remoteState() {
   // its sound picture, as it does from the studio
   const sound = [...live].filter(([, l]) => l.role === 'mic').map(([p, l]) => ({ peer: p, name: l.name || 'Microphone', onAir: p === liveActive && !mediaOn && !brk && !atBlack, local: !!l.local }));
   const mics = sound.map((s) => s.name);
+  // the clips loaded in the studio (the Clips panel): cut to one, as clicking it there does
+  const clips = reel.map((r) => ({ id: r.id, name: r.name, kind: r.type.startsWith('video/') ? 'video' : 'image', onAir: mediaOn?.id === r.id && !brk && !atBlack }));
   return {
-    title: $('#title')?.textContent || 'Studio', cams, sound, mics, auto: !!autoOn, black: atBlack, brk,
+    title: $('#title')?.textContent || 'Studio', cams, sound, clips, mics, auto: !!autoOn, black: atBlack, brk,
     media: mediaOn ? reelOf(mediaOn.id)?.name || 'A clip' : null, rec: !!(progRec && !progRec.stopping),
   };
 }
@@ -8423,6 +8425,11 @@ function remoteAct(a, arg) {
   if (a === 'cut') {
     if (!live.has(arg)) return 'That camera has gone';
     cutLive(arg);
+    return '';
+  }
+  if (a === 'clip') {
+    if (!reelOf(arg)) return 'That clip has gone';
+    cutMedia(arg);
     return '';
   }
   if (a === 'auto') return void setAuto(!!arg) || '';

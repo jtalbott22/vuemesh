@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.56.1 — the remote sees the clips
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Clips loaded in the studio show on the phone remote**, under Clips (🎞 a video, 🖼 a picture): tap one and it goes on air, as clicking it in the studio does, with ON AIR on the one playing. The studio only ever told the remote which clip was on air, never which clips there were.
+
 ## 0.56.0 — the tour
 **Deploy:** `./aws/deploy.sh` (site only).
 
