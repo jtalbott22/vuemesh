@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.54.2 — the row under the program stays on one line
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The controls under the program don't drop to a second line** when there's room for them. As it gets tight they give way in steps: the key hints go first (the keys still work; the buttons' titles name them), then the clock gets smaller, then the labels get short (Auto, Fade, Record, Mark). Only if even that doesn't fit does the row wrap, so nothing is ever cut off.
+
 ## 0.54.1 — the device chart knows kiosks, and webcam mics
 **Deploy:** `./aws/deploy.sh` (site only).
 

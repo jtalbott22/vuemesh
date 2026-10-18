@@ -268,7 +268,15 @@
   #srcLabel { left: 8px; top: 8px; background: var(--preview); color: #fff; }
   #slateTag { left: 8px; bottom: 8px; background: var(--amber); color: #3b2500; }
 
-  .transport { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+  /* one line, always: when it gets tight the key hints go first, then the clock shrinks */
+  .transport { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface); flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+  .transport > * { flex-shrink: 0; }
+  .transport button { white-space: nowrap; }
+  .transport.tight button kbd { display: none; }
+  .transport.tighter .big.tc { min-width: 0; font-size: .95rem; }
+  .transport.tightest button[data-short] { font-size: 0 !important; padding: 0 9px !important; }
+  .transport.tightest button[data-short]::before { content: attr(data-short); font-size: .8rem; }
+  .transport.wrap { flex-wrap: wrap; } /* (only when even the short labels don't fit: wrapped beats cut off) */
   .tspace { flex: 1; }
   .icon { min-width: 34px; padding-left: 0 !important; padding-right: 0 !important; font-size: 1rem !important; }
   .zoomctl { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-2); margin: 0; }
@@ -752,10 +760,10 @@
       <!-- (edit only: on the Edit page) -->
       <!-- (edit only: on the Edit page) -->
       <!-- (edit only: on the Edit page) -->
-      <button type="button" id="autoBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="A" title="Let the AI technical director cut">Auto director <kbd>A</kbd></button>
-      <button type="button" id="ftbBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="X" title="Fade the whole program, picture and sound, to black (X). Press again to fade back up.">Fade to black <kbd>X</kbd></button>
-      <button type="button" id="recProgBtn" data-mode="live" aria-pressed="false" aria-keyshortcuts="R">Record program <kbd>R</kbd></button>
-      <button type="button" id="markBtn" data-mode="live" aria-keyshortcuts="M" title="Mark this moment to make clips of it later">Mark moment <kbd>M</kbd></button>
+      <button type="button" id="autoBtn" data-short="Auto" data-mode="live" aria-pressed="false" aria-keyshortcuts="A" title="Let the AI technical director cut">Auto director <kbd>A</kbd></button>
+      <button type="button" id="ftbBtn" data-short="Fade" data-mode="live" aria-pressed="false" aria-keyshortcuts="X" title="Fade the whole program, picture and sound, to black (X). Press again to fade back up.">Fade to black <kbd>X</kbd></button>
+      <button type="button" id="recProgBtn" data-short="Record" data-mode="live" aria-pressed="false" aria-keyshortcuts="R">Record program <kbd>R</kbd></button>
+      <button type="button" id="markBtn" data-short="Mark" data-mode="live" aria-keyshortcuts="M" title="Mark this moment to make clips of it later">Mark moment <kbd>M</kbd></button>
       <span class="tspace"></span>
       <span class="tgroup" role="group" aria-label="Panels">
         <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the left panel" title="Left panel">◧</button>

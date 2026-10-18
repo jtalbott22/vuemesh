@@ -5108,6 +5108,25 @@ function setSwitcher(on) {
   renderSwitcher();
 }
 $('#swTgl').onclick = () => setSwitcher($('#switcher').hidden);
+// The row under the program stays on one line: when it doesn't fit, the key hints go (the keys
+// still work, and the buttons' titles say them), then the clock gets smaller, then the labels get
+// short (Auto, Fade, Record, Mark). Only if even that doesn't fit does it wrap: never cut off.
+{
+  const row = document.querySelector('.transport');
+  const fit = () => {
+    if (!row?.offsetParent) return;
+    const steps = ['tight', 'tighter', 'tightest', 'wrap'];
+    row.classList.remove(...steps);
+    for (const s of steps) {
+      if (row.scrollWidth <= row.clientWidth + 1) break;
+      row.classList.add(s);
+    }
+  };
+  if (row) {
+    new ResizeObserver(fit).observe(row);
+    new MutationObserver(fit).observe(row, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+  }
+}
 // a short monitor (a small laptop, a tall mixer dock): the MIDI button goes, so the T-bar keeps its throw
 new ResizeObserver(([e]) => $('#switcher').classList.toggle('tight', e.contentRect.height < 380)).observe(document.querySelector('.monitor') || document.body);
 setSwitcher(localStorage.getItem('vm_switcher') === '1');
