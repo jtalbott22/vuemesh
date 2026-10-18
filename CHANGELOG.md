@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.54.0 — the home page says how its films were made
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The three films are labelled AI-made** where they play ("Film 1 of 3 · made with AI", and "see how" under the monitor), instead of passing for real footage.
+- **"The films up top were made on one gaming PC"** (new, after the control room): the pipeline in six steps (write the shots, draw the stills with Qwen-Image, pick the best, bring them to life with LTX image-to-video, score with ACE-Step, cut with ffmpeg), what it runs on (ComfyUI in Docker and a Jupyter notebook on a home NVIDIA PC: no cloud, no upload), links to the film pipeline (jupyter-notebooks/vuemesh-films) and the home AI stack (self-hosted-ai-stack), and a nod to the bird-spotting notebook.
+
 ## 0.53.1 — the setups say where everything goes
 **Deploy:** `./aws/deploy.sh` (site only).
 

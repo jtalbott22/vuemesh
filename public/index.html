@@ -200,6 +200,28 @@
   .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   @media (max-width: 900px) { .kitgrid, .kitgrid.two { grid-template-columns: 1fr; } }
 
+  /* How the films were made -------------------------------------------------- */
+  .filmsmade { padding: 0 0 clamp(56px, 9vw, 110px); }
+  .filmsmade h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; margin: 0 0 12px; }
+  .filmsmade > p { color: var(--text-2); font-size: 1.1rem; max-width: 46em; margin: 0; }
+  ol.makesteps { list-style: none; padding: 0; margin: 28px 0 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; counter-reset: m; }
+  ol.makesteps li { counter-increment: m; position: relative; display: grid; align-content: start; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; }
+  ol.makesteps li::before { content: counter(m); font-stretch: 125%; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--tally); }
+  ol.makesteps li:not(:last-child)::after { content: ""; position: absolute; right: -9px; top: 50%; width: 8px; height: 2px; background: var(--tally); }
+  ol.makesteps b { font-stretch: 125%; font-weight: 800; line-height: 1.1; }
+  ol.makesteps span { color: var(--text-2); font-size: .9rem; }
+  ol.makesteps small { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--tally); margin-top: auto; }
+  .madebelow { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .runs { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .runs h3 { margin: 0 0 8px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .runs p { margin: 0; color: var(--text-2); }
+  .filmsmade .links { display: grid; gap: 10px; align-content: start; }
+  .filmsmade .links .btn { display: grid; justify-items: start; justify-content: stretch; text-align: left; gap: 2px; padding: 14px 18px; min-height: 0; text-decoration: none; }
+  .filmsmade .links .btn span { font-weight: 400; font-size: .85rem; color: var(--text-2); }
+  .filmsmade .fine { margin-top: 16px; font-size: .9rem; color: var(--muted); max-width: 52em; }
+  @media (max-width: 1000px) { ol.makesteps { grid-template-columns: repeat(3, minmax(0, 1fr)); } ol.makesteps li::after { display: none; } }
+  @media (max-width: 700px) { ol.makesteps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .madebelow { grid-template-columns: 1fr; } }
+
   /* For ---------------------------------------------------------------- */
   .for { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: clamp(28px, 5vw, 56px) 0; }
   .for p { font-stretch: 125%; font-weight: 800; font-size: clamp(1.6rem, 4.6vw, 3.6rem); line-height: 1.02; letter-spacing: -.015em; margin: 0; max-width: none; color: var(--soft); }
@@ -504,7 +526,7 @@
         <button type="button" class="key" data-film="arena"><i aria-hidden="true"></i><b>Game Night</b><small>An arena <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
         <button type="button" class="key demo-key" data-film="demo"><i aria-hidden="true"></i><b>Live demo</b><small>Cut it yourself</small></button>
       </div>
-      <p class="hint">Take control yourself<span class="keys"> or let the Auto Director choose</span>. Multiple browsers become one production system — cameras, microphones, program and edit.</p>
+      <p class="hint">The three films are AI-made: <a href="#films">see how</a>. Take control yourself<span class="keys"> or let the Auto Director choose</span>. Multiple browsers become one production system — cameras, microphones, program and edit.</p>
     </div>
 
     <div class="ledger">
@@ -654,6 +676,32 @@
         <small>Then it's paste your stream key, press Go live.</small>
       </li>
     </ul>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="filmsmade" id="films" aria-labelledby="madeh">
+    <h2 id="madeh">The films up top were made on one gaming PC.</h2>
+    <p>Nobody filmed that wedding. First Dance, Live Tonight and Game Night are AI-made: 28 shots, written as prompts, drawn and brought to life by open models running at home, then cut, scored and titled by a script. The recipe is open, so you can make your own.</p>
+    <ol class="makesteps">
+      <li><b>Write the shots</b><span>Every shot as a prompt: what's in frame, and how it moves.</span><small>shots.json</small></li>
+      <li><b>Draw the stills</b><span>Four pictures per shot, to choose from.</span><small>Qwen-Image</small></li>
+      <li><b>Pick the best</b><span>A review page: click the take you like.</span><small>You</small></li>
+      <li><b>Bring it to life</b><span>Each picked still becomes a moving shot.</span><small>LTX image-to-video</small></li>
+      <li><b>Score it</b><span>Music written to the exact length of the cut.</span><small>ACE-Step</small></li>
+      <li><b>Cut it</b><span>Trims, dissolves, titles, a grade and the music.</span><small>ffmpeg</small></li>
+    </ol>
+    <div class="madebelow">
+      <div class="runs">
+        <h3>What it runs on</h3>
+        <p>An NVIDIA gaming PC, with ComfyUI in Docker drawing the pictures, motion and music, and a Jupyter notebook driving it all, one cell at a time. No cloud, no subscription, no upload: the same idea as VUEMesh, pointed at making films.</p>
+      </div>
+      <div class="links">
+        <a class="btn" href="https://github.com/jtalbott22/jupyter-notebooks/tree/main/vuemesh-films" target="_blank" rel="noopener">The film pipeline <span>Notebook, script and every prompt</span></a>
+        <a class="btn" href="https://github.com/jtalbott22/self-hosted-ai-stack" target="_blank" rel="noopener">The home AI stack it runs on <span>ComfyUI, Jupyter and more, in Docker</span></a>
+      </div>
+    </div>
+    <p class="fine">The screens in the shots are left blank on purpose, for VUEMesh's real screens to go on afterwards. Your own shows, of course, are real footage from real cameras. Same PC, another notebook: <a href="https://github.com/jtalbott22/jupyter-notebooks" target="_blank" rel="noopener">one that teaches a camera to name the birds at a feeder</a>.</p>
   </section>
 </div>
 

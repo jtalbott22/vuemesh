@@ -21,4 +21,4 @@ export const sponsorContactHref = () =>
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.53.1';
+export const APP_VERSION = '0.54.0';
