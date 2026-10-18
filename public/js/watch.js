@@ -34,7 +34,7 @@ async function init() {
   $('#note').textContent = ev.published.title || '';
   const manifest = await fetch(ev.published.manifestUrl).then((r) => r.json()).catch(() => null);
   if (!manifest) return;
-  renderCredits(manifest, ev.poolPct);
+  renderCredits(manifest);
   if (manifest.sponsor?.name) {
     $('#sponsorName').textContent = manifest.sponsor.name;
     if (manifest.sponsor.image?.startsWith('data:image/')) $('#sponsorImg').src = manifest.sponsor.image;
@@ -46,14 +46,13 @@ async function init() {
   verify(manifest);
 }
 
-function renderCredits(m, poolPct) {
+function renderCredits(m) {
   const list = m.credits || [];
   $('#credits').hidden = !list.length;
   $('#creditList').innerHTML = list
     .map((c) => {
       const pct = (c.share * 100).toFixed(c.share < 0.1 ? 1 : 0);
-      const pool = poolPct ? `, ${(c.poolShare * 100).toFixed(2)}% of this film’s revenue` : '';
-      return `<li>${esc(c.name)} <span>— ${pct}% of the film${pool}</span></li>`;
+      return `<li>${esc(c.name)} <span>— ${pct}% of the film</span></li>`;
     })
     .join('') + (m.sound ? `<li>${esc(m.sound)} <span>— sound</span></li>` : '');
   if (m.sound) $('#credits').hidden = false;

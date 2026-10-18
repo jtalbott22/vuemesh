@@ -1,17 +1,32 @@
 # A screen or window, and this computer's sound, as sources: + This computer, Share… (the
 # browser's own picker): the screen is a source like a camera, with its sound (a tile, on
 # air, a mixer strip, recorded on air); "This computer's sound" is a microphone source. They
-# aren't brought back next time (sharing asks each time).
+# aren't brought back next time (sharing asks each time). The computer's sound stays stereo
+# in the mixer (two meters, each side its own), with a Mono switch and a balance.
 # Run: node dev/server.mjs &  then  python3 test/e2e_screen.py
 import os, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
 def step(m): print('ok  ' + m, flush=True)
+# shared sound in stereo: a loud left, a quieter right
+STEREO_SHARE = """(() => {
+  const orig = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getDisplayMedia = async (c) => {
+    const s = await orig(c);
+    const ctx = new AudioContext(), m = ctx.createChannelMerger(2), d = ctx.createMediaStreamDestination();
+    for (const [ch, lvl] of [[0, 0.4], [1, 0.08]]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 440 + ch * 220; g.gain.value = lvl; o.connect(g); g.connect(m, 0, ch); o.start(); }
+    m.connect(d); ctx.resume();
+    s.getAudioTracks().forEach((t) => { s.removeTrack(t); t.stop(); });
+    s.addTrack(d.stream.getAudioTracks()[0]);
+    return s;
+  };
+})();"""
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS)
     errors = []
     ctx = b.new_context(viewport={'width': 1440, 'height': 900}, permissions=['camera', 'microphone'])
+    ctx.add_init_script(STEREO_SHARE)
     host = ctx.new_page(); host.on('pageerror', lambda e: errors.append(f'host: {e}'))
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Slides'})})).json()""")
@@ -31,6 +46,25 @@ with sync_playwright() as p:
     mic = host.inner_text('button.mic[data-peer^="local-mic"]')
     assert 'Computer sound' in mic, mic
     step(f'This computer\'s sound: a microphone source ("{mic.strip().splitlines()[-1] if mic.strip() else mic}"), recording')
+    strip = '#bridge .vstrip[data-strip^="L"]:has(.vname[title*="Computer sound"])'
+    host.wait_for_selector(strip, timeout=5000)
+    peaks = f"""() => [...document.querySelectorAll('{strip} .fill')].map((f) => parseFloat(f.style.getPropertyValue('--lvl')) || 0)"""
+    assert host.get_attribute(f'{strip} [data-mono]', 'aria-pressed') == 'false'
+    host.wait_for_function(f"(({peaks})()).length === 2 && (({peaks})())[0] > 50", timeout=8000)
+    time.sleep(0.5); l, r = host.evaluate(peaks)
+    assert l > r + 10 and r > 30, (l, r)
+    step(f'its strip is stereo: two meters, each side its own (L {l:.0f}%, R {r:.0f}%)')
+    host.fill(f'{strip} input[data-pan]', '-100'); host.dispatch_event(f'{strip} input[data-pan]', 'input'); time.sleep(0.8)
+    l2, r2 = host.evaluate(peaks)
+    assert l2 > 50 and r2 < 5, (l2, r2)
+    host.dblclick(f'{strip} input[data-pan]'); time.sleep(0.8)
+    assert host.input_value(f'{strip} input[data-pan]') == '0'
+    step(f'balance hard left takes the right side away (L {l2:.0f}%, R {r2:.0f}%); double-click centres it')
+    host.click(f'{strip} [data-mono]'); time.sleep(0.8)
+    assert host.get_attribute(f'{strip} [data-mono]', 'aria-pressed') == 'true' and len(host.evaluate(peaks)) == 1
+    host.click(f'{strip} [data-mono]'); time.sleep(0.8)
+    assert len(host.evaluate(peaks)) == 2
+    step('Mono folds it to one channel (one meter), and back to stereo')
     saved = host.evaluate("localStorage.getItem('vm_local_sources')")
     assert 'screen' not in (saved or '') and 'sound-' not in (saved or ''), saved
     step('neither is remembered for next time (sharing asks each time)')

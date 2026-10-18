@@ -77,10 +77,10 @@ with sync_playwright() as p:
     assert max(px) > 20 and 'Rosa' in host.inner_text('#progLabel'), (px, host.inner_text('#progLabel'))
     step(f'X again faded back up on the camera ({host.inner_text("#progLabel")})')
     host.keyboard.press('Shift+X'); time.sleep(0.2)
-    assert max(host.evaluate(PIXEL, [0.5, 0.5])) < 6 and host.get_attribute('#blackBtn', 'aria-pressed') == 'true'
-    host.click('#blackBtn'); time.sleep(0.3)
+    assert max(host.evaluate(PIXEL, [0.5, 0.5])) < 6 and host.get_attribute('#multi [data-special="black"]', 'aria-pressed') == 'true'
+    host.click('#multi [data-special="black"]'); time.sleep(0.3)
     assert max(host.evaluate(PIXEL, [0.5, 0.5])) > 20 and not host.evaluate("document.querySelector('#progLabel').classList.contains('black')")
-    step('Shift+X cut straight to black; Cut up came straight back')
+    step('Shift+X cut straight to black (the Black tile lights); tapping the Black tile came straight back')
 
     # ---- slate looks
     host.keyboard.press('b'); time.sleep(0.5)

@@ -1,5 +1,120 @@
 # Changelog
 
+## 0.56.0 — the tour
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **`/tour`** (new, not linked yet): every screen in the order a show happens. Set up (the studio, the beacon, the kiosk), bring in sources (camera, microphone), run the show (audio mixer, camera control, monitor, the phone remote), show it (TV screens), afterwards (my media). Each with what it's for, what it runs on, and a link to open it.
+- **Screenshots drop in by name:** `public/media/screens/<name>.webp` (studio, beacon, kiosk, camera, mic, mixer, ccu, monitor, remote, tv, media). Until a file is there, a labelled frame stands in. **`docs/SCREENSHOTS.md`** is the shot list: what each should show, sizes, theme, and what to keep out of frame.
+- The dev server serves `.webp` as images.
+
+## 0.55.1 — partners write to you directly; integrations first
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Every button on the Partners page emails jtalbott22@gmail.com**, each with its own subject line ("Technology partnership", "Pilot: our venue or organization"…), instead of going to Patreon messages. The Terms page's contact link goes there too, with a subject for questions, notices and removal requests.
+- **Integrations come first** on the Partners page ("Build an integration that ships"), now backed by who's building it: someone who has run countless live events and knows what breaks on the night. Camera and audio companies are named alongside streaming services, TV and device makers and AI labs.
+
+## 0.55.0 — Partners, not just sponsors
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The sponsors page is a partners page**, honest about where VUEMesh is (one developer, public beta, an audience just starting) and organised by who could pay: **gear makers** (get tested and featured in the setups), **venues and organizations** (founding pilots, founding pricing), **local sponsors** (the break slate, on air today) and **technology and platforms** (integrations and showcases). Each says what's real today, what the partner gets, and has its own button, each with its own subject line.
+- **How VUEMesh will pay for itself**: personal shows stay free; paid plans for organizations and partnerships keep it running.
+- The placements that need publishing and the public map (film page card, beacon line, featured events) are now under "Coming as the audience grows", not offered as if they were for sale.
+- Links to it read **Partners** / **Partner with us**. `BRAND.sponsorEmail` (in `brand.js`) makes every button an email with its own subject; while it's empty they go to Patreon messages, and the page says so.
+
+## 0.54.2 — the row under the program stays on one line
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The controls under the program don't drop to a second line** when there's room for them. As it gets tight they give way in steps: the key hints go first (the keys still work; the buttons' titles name them), then the clock gets smaller, then the labels get short (Auto, Fade, Record, Mark). Only if even that doesn't fit does the row wrap, so nothing is ever cut off.
+
+## 0.54.1 — the device chart knows kiosks, and webcam mics
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **"Any device, any job" has a Kiosk column**, with a line saying what one is (a screen that runs a whole show by itself: its code on screen, guests scan in, and it directs and records): a laptop or desktop, newer tablets, and a TV with a stick PC.
+- **A USB webcam is a microphone too** (its own mic), as it is in the studio.
+
+## 0.54.0 — the home page says how its films were made
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The three films are labelled AI-made** where they play ("Film 1 of 3 · made with AI", and "see how" under the monitor), instead of passing for real footage.
+- **"The films up top were made on one gaming PC"** (new, after the control room): the pipeline in six steps (write the shots, draw the stills with Qwen-Image, pick the best, bring them to life with LTX image-to-video, score with ACE-Step, cut with ffmpeg), what it runs on (ComfyUI in Docker and a Jupyter notebook on a home NVIDIA PC: no cloud, no upload), links to the film pipeline (jupyter-notebooks/vuemesh-films) and the home AI stack (self-hosted-ai-stack), and a nod to the bird-spotting notebook.
+
+## 0.53.1 — the setups say where everything goes
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The setup diagrams show the data's path:** the wires in are labelled "your network" and the wires out "straight out"; the VUEMesh cloud sits off to the side of the studio on a thin dashed line, marked "introductions only"; and each setup's recordings and stream say where they end up (on the studio computer, and on each camera; live only if you choose, straight from the studio).
+- **Where everything goes**, under the diagram: pictures and sound go device to device on your own network and are never uploaded; the cloud only makes introductions (the event's code and name, who's in it, the handshake), and with Local network only that's all that leaves the room; recordings go straight to your studio computer and stay in its browser, with each camera keeping its own copy; going live goes straight from the studio, only while you stream.
+
+## 0.53.0 — the home page shows how your own devices fit together
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **"Use what's already in the drawer"** (new, before the beacon; How it works goes here): pick a setup (Just phones, Podcast desk, Living room, Everything in the drawer) and a diagram shows what sees and hears, the studio in the middle, and what shows, sends and keeps, each device labelled with its job (camera, microphone, screen, remote, goes live, keeps), with the setup in a line and three steps to make it. The setups are plain data in `public/js/rig.js`.
+- **"Any device, any job"**: a chart of which devices can be the studio, a camera, a microphone, a screen or the remote, and a tip that says out loud what nobody would guess: a USB mic plugged into a phone (USB‑C, or Apple's adapter on older iPhones) makes it a camera with studio sound, and webcams and mics on the studio computer join with + This computer.
+- **The beacon section is plainer**: "One scan to join", what a phone does with the code, and why it keeps changing (it's a clock).
+
+## 0.52.0 — the home page, for your own multicam shows; no revenue sharing
+**Deploy:** `./aws/deploy.sh` (functions and site: new events' terms leave revenue out).
+
+- **No more revenue sharing anywhere you can see it.** Gone: the home page's "Every source has a place" panel (names, screen-time shares and dollar amounts), the Contributor revenue share slider when you make an event, the revenue line on the watch page's credits and in the Edit credits, and the line on Sponsors. New events share no revenue whatever a client asks, and the terms a camera agrees to on joining no longer mention it (events already made keep the terms they were made with).
+- **The home page's live demo labels its cameras by device** (Phone, Tablet, Phone 2, Laptop), not people's names.
+- **New copy** for personal multicam productions: the description, the opening lines, "When the lights come up" (the show as it aired, every angle in full quality, a first edit already made) where the attribution panel was, a sharper line on why nothing is uploaded, and a new call to start a show. "Then make it a real control room" gains **Direct from your pocket** (the phone remote) and **Every screen in the room is a monitor** (`/tv`: the program, the night's recordings, or the beacon; "coming to more" big screens, without naming the Apple TV yet).
+
+## 0.51.0 — TVs browse recordings and show the beacon, with PIP
+**Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
+
+- **A TV that's been let in shows one of four things**: the program, **Browse** (the event's recordings), the **Beacon**, or the event card. The studio picks it under TV screens, or the TV does: the bar at the top of `/tv`, or Menu on the Apple TV remote (from any mode; on the event card the modes are on screen). The studio remembers each TV's choice.
+- **Browse**: the TV lists the recordings on the studio computer (names, lengths, pictures), and the one you pick comes over peer to peer on a data channel of its own (`media`), as phones send clips, then plays on the TV with its own controls. Nothing goes through the cloud. `/tv` plays everything; the Apple TV plays MP4, QuickTime and AAC (what phones record) and lists WebM ones dimmed. Recordings already on the TV play straight away (`/tv` keeps up to about 1.5 GB, the Apple TV the last six).
+- **PIP**: in Browse or Beacon, the live program small in a corner (picture only; the studio sends the picture only while it's shown).
+- **Beacon on a TV**: phones scan and sync to it like any beacon. It draws the **studio's** clock, learnt from pings over the local network (a few ms), so phones synced to the TV line up with this computer and its cameras. A TV shows a picture late (20 ms in game mode, often 100 ms or more without), so the TV's beacon draws ahead by its lag. Until that's measured the TV asks for Game mode and Calibrate.
+- **Calibrate** (studio, TV screens, in Beacon): the studio shows a beacon of its own; scan it with a phone and `/tvcal` opens, reads this screen's beacon and the TV's in turn, and sends the difference back (the phone camera's delay drops out). The TV's lag is set, shown in the row, and its beacon lines up.
+- **Monitor** says what each TV is doing (program, browsing, sending a recording, beacon, + PIP), and counts a recording going to a TV in its rate.
+
+- **The Apple TV's mode menu takes focus when it opens.** It came up over the program with nothing focused, so nothing could be chosen until the app was left and re-entered; focus now goes to the mode on screen. Its buttons draw their focus from the button itself.
+- **A TV says when the studio is too old for modes.** A studio before 0.51 ignores Browse, Beacon and PIP; the TV now tells (the Apple TV's menu says so, `/tv` greys those out) instead of doing nothing.
+
+**Tests:** `e2e_display.py`: Browse chosen on the TV (the studio follows), the program recording listed, pulled and played; PIP shows the program in a corner (the studio ticks PIP); Beacon on the studio's clock with the game-mode hint until a lag is set, and a set lag reaching the TV.
+
+## 0.50.0 — the Apple TV shows the picture; TVs and streams in Monitor; no TV code
+**Deploy:** `./aws/deploy.sh` (site only). The Apple TV app: build and run it again from Xcode.
+
+- **The Apple TV app showed the program's sound over a black screen.** It drew only frames the Apple TV's hardware had decoded from H.264, and dropped anything else without a word on screen: when the studio's browser sends VP8 or VP9 (a Chromium without H.264, say), that was every frame. Frames decoded in software are now copied into a picture the TV can show, so the program appears whatever the codec. The picture's track is also picked up once the studio's answer arrives, not only when WebRTC announces it, and attached once.
+- **The Apple TV keypad's focus no longer spills over the keys beside it.** tvOS's plain button style still draws its own light focus slab behind a button; the keys (and the app's other buttons) now draw only their own amber focus, and the focused key sits above its neighbours.
+- **No more TV codes.** A TV gets in with the event code and Accept in the studio's TV screens, nothing else: Show a TV code (the studio), Enter a TV code (/tv and the Apple TV app) and the `pair` message are gone.
+- **Monitor's Transfers shows everything going in and out**: Coming in lists each live picture and sound arriving (name, size, codec, rate) as well as recordings; Going out lists each TV (program or event card, size, codec, route and rate), the stream out, and cameras' parts of the live cut. A TV's codec there tells you whether the Apple TV is getting H.264.
+
+**Tests:** `e2e_display.py`: the second screen gets in with Accept (no TV code anywhere), with its event code pasted with a dash into the fourth cell; Monitor lists both TVs going out, with a rate, and the camera coming in.
+
+## 0.49.0 — Break and Black as sources; a T-bar that fits; TV screens you can paste into
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Break and Black are sources**, two tiles above the cameras with their pictures (the break slate as it's set, and black), instead of buttons under the program. With Tap: Preview, tap one to put it in preview; then AUTO dissolves to the slate or fades to black over the dissolve time, the T-bar fades by hand as slowly as you like (picture and sound), and CUT takes it straight there. Coming back works the same way, and whatever you left waits in preview (flip-flop): the camera after you go to black, black after you come back up. With Tap: Air, or tapping the one on air, it cuts straight there and back. B, X and Shift+X still work, and Fade to black stays under the program. With two fewer buttons, the row under the program fits on one line on a laptop.
+- **Microphone tiles show their picture**: what the program shows while that microphone is on air (the waveform, bars or ring, from its own sound), the same size as a camera's tile; the preview box shows the same.
+- **The T-bar works in a short window.** The switcher was sized for a tall monitor and ran off the top and bottom of a short one (a laptop with the mixer dock open), taking the T-bar's handle with it. It now stays inside the monitor: the T-bar gives up height first, and under about 380 px the MIDI button goes too.
+- **TV screens (/tv):** a code pastes in whole (the event code, or a TV code as the studio shows it, ABCD-EFGH), into any cell; it used to keep only the first character. **Full screen** (or F, or a double-click on the picture) and **Leave** (back to the code screen, and the studio stops sending) beside Sound; all three fade with the label, and so does the pointer.
+
+**Tests:** `e2e_switcher.py`: Black in preview, AUTO fades to black and back up (flip-flop both ways); the break by CUT and back; no Break or Black buttons. `e2e_showcontrol.py`: the Black tile lights on Shift+X and cuts back up. `e2e_display.py`: a pasted event code and a pasted TV code (with its dash, into the fourth cell) fill every cell; Full screen in and out; Leave.
+
+## 0.48.0 — TV screens: the program on an Apple TV, or any browser at /tv
+**Deploy:** `./aws/deploy.sh` (functions and site: the cloud learns the TV role).
+
+- **TV screens** (new, beside Phone remote): a TV joins with the event code and waits there until you press **Accept**, or types a one-time code from **Show a TV code** (8 characters, two minutes, five tries, as the phone remote). Knowing the event code isn't enough: it's on every beacon. Once in, each TV gets its own key, remembered on both sides, so a reload or a restart comes straight back. Each TV has **Program** or **Event card**, and **Remove** stops it at once.
+- **The picture goes straight from this computer** over the local network: the same program picture as Program out, with the live mix, H.264 first (an Apple TV decodes it in hardware) at up to 6 Mbit/s. Nothing but the handshake touches the cloud, and there's no relay. A TV that can't reach the studio in 10 s says so (two networks, or Wi-Fi that keeps devices apart).
+- **/tv**: any screen with a browser can be a TV screen, with the same protocol as the Apple TV app (so it's the app's reference): six code cells, the event's name, and a broadcast-style label that fades.
+- **The Apple TV app** (`apple-tv/`, SwiftUI, new): join by code with a keypad of only the characters codes use, wait or pair, then the program full screen. See `apple-tv/README.md`.
+- **Cloud:** a `display` role; TVs hear who's here, as the beacon does; they can only message the studio, as phones can; a `displays` count per day.
+
+**Not yet:** Edit as a TV's source, Browse, Beacon mode and its Wi-Fi phase, the device key. If the program's sound starts after a TV has joined, that TV gets sound when it next connects. The design is in docs/APPLE-TV.md and the spec doc.
+
+**Tests:** `core.test.mjs`: a TV joins as a display, reaches only the studio, can't message a phone, and hears the studio come and go. `e2e_display.py` (new): /tv waits, Accept shows the program, Event card and back, a reload needs no second Accept, a TV code pairs a second screen (a wrong one is turned away), Remove stops one and not the other.
+## 0.47.0 — stereo in the live mixer; balance and Mono on every channel
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **This computer's sound, a shared screen and the Clips stay stereo.** The live mixer folded every channel to mono before its EQ, so stereo sources reached the program (and its recording and stream) as mono, and the Program meters always read the same on both sides. Each live channel now has a **Mono** switch: on for phones (as before), off for this computer's sound, a shared screen, a stereo input of this computer and the Clips. Mono folds both sides into one and puts it in the middle; off, each side keeps its own.
+- **A stereo channel shows two meters** (left and right, after its balance) in the mixer dock, the full-screen meter bridge and the inspector.
+- **Balance on every strip in the mixer dock** (it was only in the audio console): pans a mono channel, balances a stereo one; double-click to centre. In Edit it sets the track's balance, with the track's Mono beside it.
+- Sharing asks the browser for two channels of sound.
+
+**Tests:** `e2e_screen.py`: shared stereo sound arrives on a stereo strip (two meters, each side its own); balance hard left takes the right side away; Mono folds it to one channel and back.
+
 ## 0.46.4 — sound sources on the phone remote
 **Deploy:** `./aws/deploy.sh` (site only).
 

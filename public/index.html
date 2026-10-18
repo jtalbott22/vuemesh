@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VUEMesh — a production studio in the browser</title>
-<meta name="description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta name="description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <link rel="canonical" href="https://vuemesh.com/">
 <meta property="og:site_name" content="VUEMesh">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vuemesh.com/">
 <meta property="og:title" content="VUEMesh — a production studio in the browser">
-<meta property="og:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta property="og:description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <meta property="og:image" content="https://vuemesh.com/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -18,7 +18,7 @@
 <meta property="og:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="VUEMesh — a production studio in the browser">
-<meta name="twitter:description" content="Every phone at your event becomes a synced camera. Cut it live, share it tonight, and everyone who shot gets the credit. No app to install.">
+<meta name="twitter:description" content="Every phone, tablet and laptop you own becomes a synced camera. Cut your multicam show live in the browser, and walk away with every angle and a finished film. No app to install.">
 <meta name="twitter:image" content="https://vuemesh.com/og.png">
 <meta name="twitter:image:alt" content="VUEMesh: phones filming the same moment at an evening event, a live program monitor marked On Air, and a sync beacon.">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -75,11 +75,10 @@
   .strip { position: relative; height: 44px; border-radius: 6px; overflow: hidden; background: #0b0c0f; }
   .strip canvas { width: 100%; height: 100%; display: block; }
   .strip-legend { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; margin-top: 6px; }
-  .credit { display: grid; grid-template-columns: 5.2em 1fr 3.4em 3.2em; gap: 10px; align-items: center; font-size: .9rem; margin: 7px 0; }
-  .credit .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
-  .credit .bar i { display: block; height: 100%; border-radius: 4px; transition: width .4s; }
-  .credit .pct { color: var(--soft); text-align: right; }
-  .credit .usd { font-weight: 700; text-align: right; }
+  .haul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 12px; }
+  .haul li { display: grid; gap: 2px; padding-left: 14px; border-left: 3px solid var(--tally); }
+  .haul b { font-stretch: 125%; font-weight: 800; }
+  .haul span { color: var(--soft); font-size: .9rem; }
   .fine { color: var(--muted); font-size: .84rem; margin: 10px 0 0; }
 
   .positioning { padding: clamp(52px, 8vw, 100px) 0 20px; }
@@ -87,6 +86,93 @@
   .positioning > p { color: var(--soft); font-size: 1.15rem; max-width: 58em; margin: 0; }
   .positioning .kitgrid { margin-top: 28px; }
   .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Setups: what you own → the studio → where it goes -------------------- */
+  .rig { padding: clamp(64px, 10vw, 120px) 0 0; }
+  .rig h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; margin: 0 0 12px; }
+  .rig > p { color: var(--text-2); font-size: 1.1rem; max-width: 46em; margin: 0; }
+  .rigtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 16px; }
+  .rigtabs button { min-height: 40px; padding: .45em 1em; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--text-2); font-weight: 600; }
+  .rigtabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr) 78px minmax(0, .82fr) 78px minmax(0, 1fr); align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: clamp(14px, 2.4vw, 26px); }
+  .flow h3 { margin: 0 0 10px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .flow ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .flow li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--panel-2); border-radius: 12px; padding: 9px 12px; border-left: 3px solid var(--job); }
+  .flow li svg, .hubcard svg, .remotechip svg { width: 34px; height: 34px; color: var(--job, var(--tally)); }
+  .flow li b, .remotechip b { display: block; font-weight: 700; line-height: 1.15; }
+  .flow li small, .remotechip small { display: block; color: var(--text-2); font-size: .84rem; line-height: 1.25; }
+  .flow li em, .hubcard em { font-style: normal; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--job, var(--tally)); white-space: nowrap; }
+  .hub { display: grid; gap: 10px; justify-items: stretch; }
+  .hubcard { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 22px 16px; border-radius: 16px; background: var(--bg); box-shadow: 0 0 0 3px var(--tally), 0 10px 30px #0003; }
+  .hubcard svg { width: 56px; height: 56px; }
+  .hubcard b { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; line-height: 1.1; }
+  .hubcard small { color: var(--text-2); font-size: .88rem; }
+  .remotechip { --job: #d9962b; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; border: 1px dashed var(--job); }
+  .remotechip[hidden] { display: none; }
+  /* the wires: dots flowing in to the studio, and out of it */
+  .wire { position: relative; height: 3px; margin: 0 6px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 16px 3px; animation: wire 0.9s linear infinite; opacity: .8; }
+  .wire span { position: absolute; left: 0; right: 0; top: 10px; font-size: .62rem; line-height: 1.15; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); text-align: center; }
+  /* the cloud: off to the side of the show, a thin dashed line, nothing flowing */
+  .cloudchip { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: center; justify-self: center; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--muted); color: var(--text-2); }
+  .cloudchip svg { width: 30px; height: 30px; color: var(--muted); }
+  .cloudchip b { display: block; font-size: .82rem; line-height: 1.1; color: var(--text); }
+  .cloudchip small { display: block; font-size: .74rem; color: var(--text-2); }
+  .cloudline { justify-self: center; width: 0; height: 16px; border-left: 2px dashed var(--muted); margin: -6px 0; }
+  .where { margin-top: 16px; padding: 18px 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .where h3 { margin: 0 0 12px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .where ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+  .where li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-2); font-size: .95rem; }
+  .where li b { color: var(--text); }
+  .where .k { display: block; width: 34px; height: 3px; margin-top: .65em; border-radius: 2px; }
+  .where .k.solid { background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 12px); }
+  .where .k.dash { height: 0; border-top: 2px dashed var(--muted); }
+  .where .k.keep { background: #8a8f99; }
+  .where .k.live { background: #a46fe0; }
+  @keyframes wire { to { background-position: 16px 0; } }
+  .flow.fresh li, .flow.fresh .hubcard { animation: rigin .35s ease-out both; }
+  .flow.fresh li:nth-child(2) { animation-delay: .04s; } .flow.fresh li:nth-child(3) { animation-delay: .08s; } .flow.fresh li:nth-child(4) { animation-delay: .12s; } .flow.fresh li:nth-child(5) { animation-delay: .16s; }
+  @keyframes rigin { from { opacity: 0; transform: translateY(6px); } }
+  .rigbelow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 40px; margin-top: 16px; align-items: start; }
+  .rigsay { margin: 0; font-size: 1.15rem; font-weight: 600; }
+  ol.rigsteps { margin: 0; padding: 0; list-style: none; counter-reset: r; display: grid; gap: 8px; }
+  ol.rigsteps li { counter-increment: r; display: grid; grid-template-columns: 1.8em 1fr; color: var(--text-2); }
+  ol.rigsteps li::before { content: counter(r); font-stretch: 125%; font-weight: 800; color: var(--tally); }
+  .jobs { margin-top: clamp(36px, 6vw, 60px); }
+  .jobs h3 { font-size: clamp(1.4rem, 3vw, 2rem); margin: 0 0 6px; }
+  .jobs > p { color: var(--text-2); margin: 0 0 16px; }
+  .jobscroll { overflow-x: auto; border-radius: 16px; }
+  .jobs .short { display: none; }
+  .jobs table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .jobs th, .jobs td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+  .jobs tr:last-child th, .jobs tr:last-child td { border-bottom: 0; }
+  .jobs thead th { font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .jobs tbody th { text-align: left; font-weight: 700; white-space: nowrap; }
+  .jobs tbody th svg { width: 26px; height: 26px; vertical-align: middle; margin-right: 10px; color: var(--soft); }
+  .jobs .yes { color: var(--tally); font-size: 1.1rem; }
+  .jobs .no { color: var(--muted); }
+  .jobs td small { display: block; color: var(--muted); font-size: .76rem; line-height: 1.2; margin-top: 2px; }
+  .tip { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; margin-top: 16px; padding: 16px 18px; border-radius: 14px; background: var(--panel-2); }
+  .tip svg { width: 40px; height: 40px; color: var(--tally); }
+  .tip p { margin: 0; color: var(--text-2); }
+  .tip b { color: var(--text); }
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .wire { width: 3px; height: 34px; margin: 6px auto; background: repeating-linear-gradient(180deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 3px 16px; animation-name: wiredown; }
+    @keyframes wiredown { to { background-position: 0 16px; } }
+    .rigbelow { grid-template-columns: 1fr; }
+    .where ul { grid-template-columns: 1fr; }
+    .wire span { left: 14px; right: auto; top: 50%; transform: translateY(-50%); white-space: nowrap; }
+    .jobs table { font-size: .82rem; }
+    .jobs th, .jobs td { padding: 8px 2px; }
+    .jobs tbody th { padding-left: 8px; font-size: .78rem; }
+    .jobs thead th { font-size: .56rem; letter-spacing: 0; }
+    .jobs td small { font-size: .66rem; }
+    .jobs .long { display: none; }
+    .jobs .short { display: inline; }
+    .jobs tbody th { white-space: normal; }
+    .jobs tbody th svg { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .wire, .flow.fresh li, .flow.fresh .hubcard { animation: none; } }
 
   /* Beacon ------------------------------------------------------------ */
   .beacon { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(28px, 6vw, 80px); align-items: center; padding: clamp(72px, 12vw, 150px) 0 clamp(40px, 8vw, 90px); }
@@ -115,6 +201,28 @@
   .kit > p.fine { margin-top: 18px; font-size: .9rem; color: var(--muted); }
   .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   @media (max-width: 900px) { .kitgrid, .kitgrid.two { grid-template-columns: 1fr; } }
+
+  /* How the films were made -------------------------------------------------- */
+  .filmsmade { padding: 0 0 clamp(56px, 9vw, 110px); }
+  .filmsmade h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; margin: 0 0 12px; }
+  .filmsmade > p { color: var(--text-2); font-size: 1.1rem; max-width: 46em; margin: 0; }
+  ol.makesteps { list-style: none; padding: 0; margin: 28px 0 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; counter-reset: m; }
+  ol.makesteps li { counter-increment: m; position: relative; display: grid; align-content: start; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; }
+  ol.makesteps li::before { content: counter(m); font-stretch: 125%; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--tally); }
+  ol.makesteps li:not(:last-child)::after { content: ""; position: absolute; right: -9px; top: 50%; width: 8px; height: 2px; background: var(--tally); }
+  ol.makesteps b { font-stretch: 125%; font-weight: 800; line-height: 1.1; }
+  ol.makesteps span { color: var(--text-2); font-size: .9rem; }
+  ol.makesteps small { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--tally); margin-top: auto; }
+  .madebelow { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .runs { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .runs h3 { margin: 0 0 8px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .runs p { margin: 0; color: var(--text-2); }
+  .filmsmade .links { display: grid; gap: 10px; align-content: start; }
+  .filmsmade .links .btn { display: grid; justify-items: start; justify-content: stretch; text-align: left; gap: 2px; padding: 14px 18px; min-height: 0; text-decoration: none; }
+  .filmsmade .links .btn span { font-weight: 400; font-size: .85rem; color: var(--text-2); }
+  .filmsmade .fine { margin-top: 16px; font-size: .9rem; color: var(--muted); max-width: 52em; }
+  @media (max-width: 1000px) { ol.makesteps { grid-template-columns: repeat(3, minmax(0, 1fr)); } ol.makesteps li::after { display: none; } }
+  @media (max-width: 700px) { ol.makesteps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .madebelow { grid-template-columns: 1fr; } }
 
   /* For ---------------------------------------------------------------- */
   .for { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: clamp(28px, 5vw, 56px) 0; }
@@ -175,9 +283,6 @@
   .start p { color: var(--soft); font-size: 1.1rem; }
   form.create { background: var(--panel); border-radius: 16px; padding: 24px; }
   form.create input, form.create select { background: var(--field); border-color: var(--line); color: var(--text); }
-  .pool { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
-  .pool input { accent-color: var(--tally); padding: 0; border: 0; background: transparent; }
-  .pool output { font-weight: 800; font-stretch: 125%; min-width: 3.4ch; text-align: right; }
   .hintline { font-size: .85rem; color: var(--muted); margin: .4em 0 0; }
   .made { display: none; }
   .made.show { display: block; }
@@ -208,14 +313,12 @@
     .tile .n { font-size: .9rem; }
     .beacon { grid-template-columns: 1fr; }
     .nav nav a:not(.btn) { display: none; }
-    .credit { grid-template-columns: 4.6em 1fr 3em 3em; gap: 8px; }
     .lede { font-size: 1.02rem; }
     .onair .spot { display: none; }
   }
   @media (hover: none) { .keys { display: none; } }
   @media (prefers-reduced-motion: reduce) {
     .flash.go { animation: none; }
-    .credit .bar i { transition: none; }
   }
   /* use it now: the app's front door, before the story */
   .apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 18px 0 8px; }
@@ -362,10 +465,10 @@
   <header class="nav">
     <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
     <nav>
-      <a href="#how">How it works</a>
+      <a href="#setups">How it works</a>
       <a href="#need">What you need</a>
       <a href="#find">Events</a>
-      <a href="/sponsors">Sponsors</a>
+      <a href="/sponsors">Partners</a>
       <button type="button" id="themeBtn"></button>
       <a class="btn primary" href="#start">Start a show</a>
     </nav>
@@ -402,7 +505,7 @@
 
   <section class="hero" aria-labelledby="h">
     <h1 class="big" id="h"><span>A production studio.</span><span>In the browser.</span></h1>
-    <p class="lede">Multiple cameras and microphones join a shared production. VUEMesh can direct the show automatically, cut the program live, and leave you with the finished production. No app to install.</p>
+    <p class="lede">The phones in your pockets are better cameras than most studios had ten years ago. VUEMesh syncs them into one multicam production: switch it live, let the Auto Director cut it for you, and walk away with the finished show. No app to install.</p>
 
     <div class="demo">
       <div class="program" aria-label="Program monitor: the angle on air">
@@ -418,14 +521,14 @@
           <button type="button" class="chip soundbtn" id="filmSound" aria-pressed="false">Sound on</button>
         </div>
       </div>
-      <div class="tiles" id="tiles" role="group" aria-label="Four guests' phones. Pick one to cut to it."></div>
+      <div class="tiles" id="tiles" role="group" aria-label="Four cameras. Pick one to cut to it."></div>
       <div class="bus" id="bus" role="group" aria-label="Watch the films, or cut the live demo yourself">
         <button type="button" class="key" data-film="wedding"><i aria-hidden="true"></i><b>First Dance</b><small>A wedding <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
         <button type="button" class="key" data-film="concert"><i aria-hidden="true"></i><b>Live Tonight</b><small>A concert <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
         <button type="button" class="key" data-film="arena"><i aria-hidden="true"></i><b>Game Night</b><small>An arena <span class="dur"></span></small><span class="prog" aria-hidden="true"></span></button>
         <button type="button" class="key demo-key" data-film="demo"><i aria-hidden="true"></i><b>Live demo</b><small>Cut it yourself</small></button>
       </div>
-      <p class="hint">Take control yourself<span class="keys"> or let the Auto Director choose</span>. Multiple browsers become one production system — cameras, microphones, program and edit.</p>
+      <p class="hint">The three films are AI-made: <a href="#films">see how</a>. Take control yourself<span class="keys"> or let the Auto Director choose</span>. Multiple browsers become one production system — cameras, microphones, program and edit.</p>
     </div>
 
     <div class="ledger">
@@ -436,16 +539,19 @@
         <p class="fine">The production is assembled from synchronized browser sources. The cut can be directed live and turned into a finished video without a traditional video truck.</p>
       </div>
       <div class="panel">
-        <h3>Every source has a place</h3>
-        <div id="credits"></div>
-        <p class="fine">Every camera and microphone is a participant in the production. Source attribution can follow the footage that made the final cut.</p>
+        <h3>When the lights come up</h3>
+        <ul class="haul">
+          <li><b>The show, as it aired</b><span>The live cut, recorded while you switched.</span></li>
+          <li><b>Every angle, in full quality</b><span>Each camera's own recording, synced to the frame.</span></li>
+          <li><b>A first edit, already made</b><span>Rearrange it, trim it, render it. No ingest, no syncing by hand.</span></li>
+        </ul>
       </div>
     </div>
   </section>
 
   <section class="kit positioning" aria-labelledby="ph">
     <h2 id="ph">Not a video upload service.<br><span style="color:var(--soft)">A production system.</span></h2>
-    <p>VUEMesh coordinates cameras, microphones and production controls in the browser. The cloud helps participants find and join the session; the production happens at the edge, where the cameras and host already are.</p>
+    <p>Nothing you shoot is uploaded to be processed somewhere else. VUEMesh coordinates your cameras, microphones and controls in the browser; the cloud only introduces your devices to each other, and the pictures go straight between them on your own network.</p>
     <ul class="kitgrid two">
       <li>
         <b>Browser-native</b>
@@ -458,18 +564,61 @@
     </ul>
   </section>
 
+  <section class="rig" id="setups" aria-labelledby="righ">
+    <h2 id="righ">Use what's already in the drawer.</h2>
+    <p>Every screen with a browser can take a job in your show: the studio, a camera, a microphone, a screen, or the remote. Pick a setup and see how it fits together.</p>
+    <div class="rigtabs" id="rigTabs" role="tablist" aria-label="Example setups"></div>
+    <div class="flow" id="rigFlow" role="tabpanel" aria-live="polite">
+      <div><h3>Sees and hears</h3><ul id="rigIn"></ul></div>
+      <div class="wire" aria-hidden="true"><span>your network</span></div>
+      <div class="hub">
+        <div class="cloudchip" id="rigCloud" title="The cloud introduces your devices to each other. Your pictures and sound never go through it."><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 36h21a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-1 18z"/></svg><span><b>VUEMesh cloud</b><small>Introductions only</small></span></div>
+        <div class="cloudline" aria-hidden="true"></div>
+        <div class="hubcard" id="rigStudio"></div><div class="remotechip" id="rigRemote" hidden></div>
+      </div>
+      <div class="wire" aria-hidden="true"><span>straight out</span></div>
+      <div><h3>Shows, sends and keeps</h3><ul id="rigOut"></ul></div>
+    </div>
+    <div class="where" aria-labelledby="whereH">
+      <h3 id="whereH">Where everything goes</h3>
+      <ul>
+        <li><i class="k solid" aria-hidden="true"></i><span><b>Pictures and sound go device to device,</b> over your own Wi‑Fi or network. They're never uploaded, and there's no server in the middle to pass them through.</span></li>
+        <li><i class="k dash" aria-hidden="true"></i><span><b>The cloud only makes introductions:</b> the event's code and name, who's in it, and the handshake that lets your devices find each other. Turn on <b>Local network only</b> in the studio and that's all that ever leaves the room.</span></li>
+        <li><i class="k keep" aria-hidden="true"></i><span><b>Recordings stay yours.</b> Each camera records itself in full quality and hands the file straight to your studio computer, where it stays in the browser until you export or delete it. The camera keeps its own copy.</span></li>
+        <li><i class="k live" aria-hidden="true"></i><span><b>Going live is your call.</b> The show goes to YouTube or wherever you choose straight from your studio computer, and only while you're streaming.</span></li>
+      </ul>
+    </div>
+    <div class="rigbelow">
+      <p class="rigsay" id="rigSay"></p>
+      <ol class="rigsteps" id="rigSteps"></ol>
+    </div>
+
+    <div class="jobs">
+      <h3>Any device, any job.</h3>
+      <p>The same laptop can be your studio tonight and a camera tomorrow. Nothing to install on any of them; each one opens a page. A <a href="/kiosk"><b>kiosk</b></a> is a screen that runs a whole show by itself: it shows its code, guests scan in with their phones, and it directs and records, with nobody at the controls.</p>
+      <div class="jobscroll"><table id="jobs">
+        <thead><tr><th scope="col"><span class="sr-only">Device</span></th><th scope="col">Studio</th><th scope="col">Kiosk</th><th scope="col">Camera</th><th scope="col"><span class="long">Microphone</span><span class="short" aria-hidden="true">Mic</span></th><th scope="col">Screen</th><th scope="col">Remote</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="tip">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="18" y="4" width="12" height="20" rx="6"/><path d="M12 19a12 12 0 0 0 24 0M24 31v5"/><rect x="17" y="36" width="14" height="8" rx="2"/></svg>
+        <p><b>That good USB mic works in a phone, too.</b> Plug it into a phone's USB‑C port (older iPhones need Apple's Lightning to USB camera adapter), choose it as the phone's microphone, and that phone is a camera with studio sound. Webcams and mics plugged into the studio computer join with <b>+ This computer</b>, and record on their own, in full quality.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="beacon" id="how" aria-labelledby="bh">
     <div>
       <div class="qrbox"><canvas id="qr" aria-label="A live beacon code"></canvas></div>
-      <p class="qrcap"><span class="tc" id="qrtc"></span>This code is live. It redraws 15 times a second.</p>
+      <p class="qrcap"><span class="tc" id="qrtc"></span>A real beacon. It keeps changing because it's a clock.</p>
     </div>
     <div>
-      <h2 id="bh">One browser coordinates the production.</h2>
-      <p>The beacon gives each camera a way into the same session and a shared clock. A phone, laptop or other browser-capable camera can join without installing an app, becoming another source in the production.</p>
+      <h2 id="bh">One scan to join.</h2>
+      <p>Every show has a beacon: a code on a screen. A phone points its camera at it, taps the link, and it's in your show. While the camera sees the code, it also reads the time in it, so every angle lines up to the frame later, with nothing to sync by hand.</p>
       <ol class="steps">
-        <li><b>Put the beacon on a screen.</b><span>A TV, a projector, a tablet on a stand.</span></li>
-        <li><b>Cameras join the session.</b><span>A name, one tap to accept, then the browser becomes a synchronized production source.</span></li>
-        <li><b>Direct, publish, rewatch.</b><span>Cut it yourself or let Auto Director choose. When the show is over, the production is ready to watch.</span></li>
+        <li><b>Put the beacon on any screen.</b><span>A TV, a spare laptop, a tablet on a stand.</span></li>
+        <li><b>Point a phone at it.</b><span>Tap the link, type a name, and it's a camera or a microphone.</span></li>
+        <li><b>Cut the show.</b><span>Yourself, or with the Auto Director. Every angle stays on its own device, in full quality.</span></li>
       </ol>
     </div>
   </section>
@@ -505,6 +654,18 @@
     <p>One computer can run the show. Add screens, dedicated cameras, microphones or a public display and the same browser-native system scales into a full production environment.</p>
     <ul class="kitgrid two">
       <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="4"/><path d="M21 38h6"/><circle cx="24" cy="18" r="5"/><path d="M19 28h10"/></svg>
+        <b>Direct from your pocket</b>
+        <span>Pair a phone as a remote and walk the room: cut cameras, call a break, fade to black, start the recording, all while you keep an eye on the real thing.</span>
+        <small>The studio runs the show. You don't have to stand next to it.</small>
+      </li>
+      <li>
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="40" height="26" rx="2.5"/><path d="M16 42h16M24 34v8"/><path d="M20 16v10l8-5z" fill="currentColor"/></svg>
+        <b>Every screen in the room is a monitor</b>
+        <span>Open <a href="/tv">/tv</a> on a smart TV, phone, tablet, a spare laptop or a projector, and it shows the live program straight from the studio, browses the night's recordings, or becomes the beacon guests scan.</span>
+        <small>Built for the big screen, and coming to more of them.</small>
+      </li>
+      <li>
         <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="24" height="16" rx="2"/><rect x="20" y="17" width="24" height="16" rx="2"/><path d="M12 33h8M32 40h-8M28 33v7"/></svg>
         <b>More screens, more control</b>
         <span>Put the program on one display, the beacon on another, and keep camera control, sound and monitoring in their own windows. The browser becomes the control room.</span>
@@ -517,6 +678,32 @@
         <small>Then it's paste your stream key, press Go live.</small>
       </li>
     </ul>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="filmsmade" id="films" aria-labelledby="madeh">
+    <h2 id="madeh">The films up top were made on one gaming PC.</h2>
+    <p>Nobody filmed that wedding. First Dance, Live Tonight and Game Night are AI-made: 28 shots, written as prompts, drawn and brought to life by open models running at home, then cut, scored and titled by a script. The recipe is open, so you can make your own.</p>
+    <ol class="makesteps">
+      <li><b>Write the shots</b><span>Every shot as a prompt: what's in frame, and how it moves.</span><small>shots.json</small></li>
+      <li><b>Draw the stills</b><span>Four pictures per shot, to choose from.</span><small>Qwen-Image</small></li>
+      <li><b>Pick the best</b><span>A review page: click the take you like.</span><small>You</small></li>
+      <li><b>Bring it to life</b><span>Each picked still becomes a moving shot.</span><small>LTX image-to-video</small></li>
+      <li><b>Score it</b><span>Music written to the exact length of the cut.</span><small>ACE-Step</small></li>
+      <li><b>Cut it</b><span>Trims, dissolves, titles, a grade and the music.</span><small>ffmpeg</small></li>
+    </ol>
+    <div class="madebelow">
+      <div class="runs">
+        <h3>What it runs on</h3>
+        <p>An NVIDIA gaming PC, with ComfyUI in Docker drawing the pictures, motion and music, and a Jupyter notebook driving it all, one cell at a time. No cloud, no subscription, no upload: the same idea as VUEMesh, pointed at making films.</p>
+      </div>
+      <div class="links">
+        <a class="btn" href="https://github.com/jtalbott22/jupyter-notebooks/tree/main/vuemesh-films" target="_blank" rel="noopener">The film pipeline <span>Notebook, script and every prompt</span></a>
+        <a class="btn" href="https://github.com/jtalbott22/self-hosted-ai-stack" target="_blank" rel="noopener">The home AI stack it runs on <span>ComfyUI, Jupyter and more, in Docker</span></a>
+      </div>
+    </div>
+    <p class="fine">The screens in the shots are left blank on purpose, for VUEMesh's real screens to go on afterwards. Your own shows, of course, are real footage from real cameras. Same PC, another notebook: <a href="https://github.com/jtalbott22/jupyter-notebooks" target="_blank" rel="noopener">one that teaches a camera to name the birds at a feeder</a>.</p>
   </section>
 </div>
 
@@ -551,8 +738,8 @@
 
   <section class="start" id="start" aria-labelledby="sh">
     <div>
-      <h2 id="sh">Build a production tonight.</h2>
-      <p>Create a session, open the studio, put the beacon on a screen, and start bringing cameras and microphones into the production. No app deployment required.</p>
+      <h2 id="sh">Your next show has more angles than you think.</h2>
+      <p>Count the phones in the room. Create a session, open the studio, put the beacon on a screen, and every one of them can be a camera in the next five minutes.</p>
       <div class="mine" id="mine" hidden>
         <div class="minehead"><h3>Your events on this device</h3><button type="button" class="linkish" id="archToggle" hidden aria-expanded="false"></button></div>
         <ul class="minelist" id="mineList"></ul>
@@ -575,11 +762,6 @@
             <option value="talk">Talk, class, or service</option>
             <option value="other">Something else</option>
           </select>
-        </div>
-        <div class="field">
-          <label for="pool">Contributor revenue share</label>
-          <div class="pool"><input id="pool" type="range" min="0" max="50" step="5" value="0"><output id="poolOut">0%</output></div>
-          <p class="hintline" id="poolHint">No revenue sharing. Guests still get a "shot by" credit for their footage.</p>
         </div>
         <fieldset class="field shape">
           <legend>Shape of the film</legend>
@@ -607,7 +789,7 @@
 
   <footer>
     <span>VUEMesh · Production in the browser.</span>
-    <span class="patreon">Built by one person. <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Sponsor or advertise</a> · <a href="/terms">Terms</a></span>
+    <span class="patreon">Built by one person. <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Partner with us</a> · <a href="/terms">Terms</a></span>
   </footer>
 </div>
 
@@ -618,5 +800,6 @@
 <script src="/vendor/topojson-client.min.js"></script>
 <script type="module" src="/js/landing.js"></script>
 <script type="module" src="/js/films.js"></script>
+<script type="module" src="/js/rig.js"></script>
 </body>
 </html>

@@ -37,7 +37,7 @@ function play(id) {
   window.vmFilmPlaying = true;
   const list = available();
   $('#filmOn').textContent = `Now playing · ${f.title}`;
-  $('#filmOf').textContent = `Film ${list.indexOf(f) + 1} of ${list.length}`;
+  $('#filmOf').textContent = `Film ${list.indexOf(f) + 1} of ${list.length} · made with AI`;
   if (!video.src.endsWith(f.src)) {
     video.src = f.src;
     video.currentTime = 0;

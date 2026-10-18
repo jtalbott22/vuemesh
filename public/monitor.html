@@ -51,6 +51,9 @@
   .xrow { display: grid; grid-template-columns: minmax(0, 1fr) 140px 90px; gap: 10px; align-items: center; padding: 6px 14px; font-size: .86rem; }
   .xrow progress { width: 100%; }
   .xrow .num { font-family: var(--mono); font-size: .78rem; text-align: right; color: var(--text-2); }
+  .xrow .live { font-size: .72rem; font-weight: 700; color: var(--text-2); }
+  .xrow .live i { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: var(--preview); margin-right: .35em; }
+  .xrow .live.off i { background: var(--surface-3); }
   .rlist { list-style: none; margin: 0; padding: 4px 0; max-height: 380px; overflow: auto; }
   .rlist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: .86rem; }
   .rlist .th { width: 64px; height: 36px; border-radius: 4px; background: var(--surface-3) center/cover no-repeat; display: grid; place-items: center; font-size: .9rem; }
@@ -85,8 +88,8 @@
   <div class="cols">
     <div class="stack">
       <section class="panel" aria-labelledby="th"><h2 id="th">Transfers</h2>
-        <h3 class="sub">Coming in from phones</h3><div id="xfIn"><p class="empty">Nothing coming in.</p></div>
-        <h3 class="sub">Going out to cameras <small>(their part of the live cut)</small></h3><div id="xfOut"><p class="empty">Nothing going out.</p></div>
+        <h3 class="sub">Coming in <small>(live pictures and sound, and recordings)</small></h3><div id="xfIn"><p class="empty">Nothing coming in.</p></div>
+        <h3 class="sub">Going out <small>(TVs, the stream, and cameras' parts of the live cut)</small></h3><div id="xfOut"><p class="empty">Nothing going out.</p></div>
       </section>
       <section class="panel" aria-labelledby="rh"><h2 id="rh">Received</h2><div id="received"><p class="empty">Nothing received yet.</p></div></section>
       <section class="panel" aria-labelledby="sh"><h2 id="sh">Sent to cameras</h2><div id="sent"><p class="empty">Nothing sent yet.</p></div></section>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>VUEMesh</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array><string>arm64</string></array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>barlow-condensed-latin-600-normal.ttf</string>
+		<string>barlow-condensed-latin-800-normal.ttf</string>
+		<string>barlow-latin-500-normal.ttf</string>
+		<string>barlow-latin-600-normal.ttf</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>VUEMesh shows the program straight from the studio computer on this network.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- the dev server (http://laptop:8790) on the local network; vuemesh.com is HTTPS -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

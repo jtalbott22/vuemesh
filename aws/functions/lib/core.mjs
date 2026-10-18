@@ -196,7 +196,7 @@ async function route(req, deps) {
 }
 
 async function createEvent(body, store, now, deps) {
-  const poolPct = Math.min(90, Math.max(0, Math.round(Number(body.poolPct) || 0)));
+  const poolPct = 0; // (revenue sharing is off for now: whatever a client asks for, new events share none)
   // a kiosk show can start without a name: the first phone to scan in names it
   const untitledKiosk = !!body.kiosk && !String(body.title || '').trim();
   const title = untitledKiosk ? 'New show' : String(body.title || 'Untitled event').trim().slice(0, 120) || 'Untitled event';
@@ -330,7 +330,8 @@ export async function signal(evt, deps) {
     const meta = /^[A-Z0-9]{6}$/.test(eventId) ? await store.getEvent(eventId) : null;
     if (!alive(meta, now)) return { status: 404 };
     // (a remote: a phone the studio paired to control the show; it proves itself to the studio, not here)
-    const role = ['host', 'cam', 'mic', 'beacon', 'viewer', 'remote'].includes(q.role) ? q.role : 'viewer';
+    // (a display: a TV the studio shows its program on, the Apple TV app or /tv; it's let in by the studio, not here)
+    const role = ['host', 'cam', 'mic', 'beacon', 'viewer', 'remote', 'display'].includes(q.role) ? q.role : 'viewer';
     if (role === 'host' && sha256hex(String(q.k || '')) !== meta.hostKeyHash) return { status: 403 };
     // a camera or microphone the host removed and blocked can't come back into this event
     if (role !== 'host' && q.cid && (meta.blocked || []).includes(String(q.cid))) return { status: 403 };
@@ -338,7 +339,7 @@ export async function signal(evt, deps) {
     // hash kept on the event, which goes when the event does), and the event itself the first
     // time its studio opens each day. Nothing about who.
     const counts = {}, fields = {};
-    const stat = { cam: 'cameras', mic: 'mics', viewer: 'viewers' }[role];
+    const stat = { cam: 'cameras', mic: 'mics', viewer: 'viewers', display: 'displays' }[role];
     if (stat) {
       // (by the phone's camera id for this event, which survives a reload; else this connection's)
       const tag = `${role}:${sha256hex(String(q.cid || q.peer || conn)).slice(0, 16)}`, joined = meta.joined || [];
@@ -441,7 +442,8 @@ function peerList(conns, now = Date.now()) {
 }
 
 // Who needs to hear about a change? Phones only care whether the host is here,
-// so a phone starting or stopping a recording only notifies the host and beacon.
+// so a phone starting or stopping a recording only notifies the host, the beacon and TVs
+// (a TV, like the beacon, shows who's here).
 // That keeps message cost linear in the number of phones instead of quadratic.
 async function broadcastPeers(eventId, deps, skipConn, toEveryone = false) {
   const now = deps.now ? deps.now() : Date.now();
@@ -450,7 +452,7 @@ async function broadcastPeers(eventId, deps, skipConn, toEveryone = false) {
   await Promise.all(
     conns.map(async (c) => {
       if (c.connId === skipConn) return; // can't post during $connect; it says hello instead
-      if (!toEveryone && c.role !== 'host' && c.role !== 'beacon') return;
+      if (!toEveryone && c.role !== 'host' && c.role !== 'beacon' && c.role !== 'display') return;
       const ok = await deps.post(c.connId, { type: 'peers', you: c.peer, peers });
       if (!ok) await deps.store.removeConn(eventId, c.connId);
     }),

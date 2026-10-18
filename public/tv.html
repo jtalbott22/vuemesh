@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV screen — VUEMesh</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  /* A TV screen: the program from a VUEMesh studio, the same protocol as the Apple TV app.
+     Read from across a room: big type, few words, a broadcast monitor's under-monitor label. */
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url('/fonts/barlow-condensed-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-weight: 500; font-display: swap; src: url('/fonts/barlow-latin-500-normal.woff2') format('woff2'); }
+  :root {
+    --black: #000; --surface: #18191d; --cell: #121316; --line: #2d2f35;
+    --text: #ececef; --text-2: #a9acb4; --tally: #d93025; --preview: #2fd56b; --amber: #f0a82b;
+    --cond: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif; --body: 'Barlow', system-ui, sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--black); color: var(--text); font: 500 clamp(16px, 1.6vw, 28px)/1.35 var(--body); overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--black); }
+
+  .screen { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; padding: 6vh 6vw; gap: 2.4vh; }
+  .mark { font: 800 1.2em/1 var(--cond); letter-spacing: .02em; display: flex; align-items: center; gap: .45em; color: var(--text-2); }
+  .mark i { width: .6em; height: .6em; border-radius: 50%; background: var(--tally); display: inline-block; }
+  h1 { font: 800 clamp(40px, 6.4vw, 120px)/.95 var(--cond); margin: 0; max-width: 18ch; text-wrap: balance; }
+  .say { color: var(--text-2); margin: 0; max-width: 34ch; }
+
+  /* the code: one tall cell per character, like a character generator's slots */
+  .cells { display: flex; gap: clamp(8px, 1vw, 18px); }
+  .cells input { width: 1.25em; height: 1.55em; text-align: center; font: 800 clamp(48px, 7vw, 132px)/1 var(--cond); text-transform: uppercase;
+    background: var(--cell); border: 0; border-bottom: .07em solid var(--line); border-radius: .08em .08em 0 0; caret-color: var(--amber); padding: 0; }
+  .cells input:focus { border-bottom-color: var(--amber); outline: none; }
+  .cells.bad input { border-bottom-color: var(--tally); }
+  .row { display: flex; gap: 1em; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .name { display: flex; gap: .5em; align-items: center; color: var(--text-2); }
+  .name input { background: var(--cell); border: 0; border-bottom: 2px solid var(--line); padding: .25em .4em; width: 12ch; }
+  .go { background: var(--text); color: var(--black); border: 0; border-radius: .3em; padding: .45em 1.2em; font-weight: 600; cursor: pointer; }
+  .link { background: none; border: 0; color: var(--text-2); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; padding: .2em; }
+  .err { color: #ff8a80; margin: 0; min-height: 1.35em; }
+
+  /* the under-monitor label: who this is, and whether it's live */
+  .umd { position: fixed; left: 3vw; bottom: 3vh; display: flex; align-items: center; gap: .6em; padding: .35em .8em .35em .6em;
+    background: #000c; border-radius: .25em; font: 600 .95em/1.1 var(--cond); letter-spacing: .01em; transition: opacity .6s; }
+  .umd .lamp { width: .7em; height: .7em; border-radius: 50%; background: var(--line); }
+  .umd.live .lamp { background: var(--tally); box-shadow: 0 0 .6em var(--tally); }
+  .umd .route { color: var(--text-2); font-weight: 600; }
+  body.quiet .umd { opacity: 0; }
+  /* the modes: what this screen shows, chosen here or by the studio */
+  .modes { position: fixed; top: 3vh; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: .4em; padding: .3em; background: #000c; border-radius: .5em; transition: opacity .6s; }
+  .modes button { background: none; border: 0; border-radius: .35em; padding: .35em .9em; cursor: pointer; font: 600 .95em/1.1 var(--cond); color: var(--text-2); }
+  .modes button[aria-pressed="true"] { background: var(--text); color: var(--black); }
+  .modes #pipBtn[aria-pressed="true"] { background: var(--amber); }
+  .modes button:disabled { opacity: .4; cursor: not-allowed; }
+  body.quiet .modes { opacity: 0; }
+  /* PIP: the program small, over the recordings or the beacon */
+  body.pip video#out { inset: auto 3vw 3vh auto; width: 26vw; height: auto; aspect-ratio: 16 / 9; z-index: 6; border: 3px solid var(--tally); border-radius: .3em; }
+  /* Browse */
+  .browse { position: fixed; inset: 0; overflow-y: auto; padding: 12vh 4vw 6vh; }
+  .browse .head { display: flex; align-items: baseline; gap: 1em; margin-bottom: 2vh; }
+  .browse h2 { font: 800 clamp(28px, 3.4vw, 64px)/1 var(--cond); margin: 0; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(180px, 18vw, 340px), 1fr)); gap: 1.4vw; }
+  .item { display: grid; gap: .3em; text-align: left; background: var(--surface); border: 0; border-radius: .4em; padding: .5em; cursor: pointer; }
+  .item:focus-visible, .item:hover { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .item .th { aspect-ratio: 16 / 9; border-radius: .25em; background: #000 center / cover no-repeat; display: grid; place-items: center; font-size: 2em; }
+  .item b { font: 600 1em/1.2 var(--cond); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item small { color: var(--text-2); font-size: .75em; }
+  .fetch { position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%); z-index: 7; background: #000e; border-radius: .4em; padding: .8em 1.2em; display: grid; gap: .4em; min-width: 40vw; }
+  .fetch progress { width: 100%; }
+  .player { position: fixed; inset: 0; z-index: 4; background: #000; }
+  .player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .player .bar { position: absolute; left: 3vw; top: 3vh; display: flex; gap: .8em; align-items: center; transition: opacity .6s; }
+  body.quiet .player .bar { opacity: 0; }
+  /* Beacon: the code big on the left, the rest beside it */
+  .beacon { position: fixed; inset: 0; display: grid; grid-template-columns: auto 1fr; gap: 5vmin; align-items: center; padding: 5vmin; background: #fff; color: #111; }
+  .beacon canvas { width: min(84vh, 56vw); height: auto; image-rendering: pixelated; display: block; }
+  .beacon h2 { font: 800 clamp(32px, 6vmin, 96px)/1 var(--cond); margin: 0 0 .2em; }
+  .beacon .bclock { font: 800 clamp(28px, 7vmin, 110px)/1 var(--cond); font-variant-numeric: tabular-nums; margin: 0 0 .3em; }
+  .beacon p { margin: .4em 0; color: #444; max-width: 30ch; }
+  .beacon .hint { color: #8a5a00; }
+  .ctl { position: fixed; right: 3vw; bottom: 3vh; display: flex; gap: .5em; transition: opacity .6s; z-index: 5; }
+  body.pip .ctl { bottom: calc(5vh + 14.7vw); } /* (above the PIP: 26vw wide, 16:9) */
+  .ctl button { background: #000c; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .95em/1.1 var(--cond); }
+  body.quiet .ctl { opacity: 0; }
+  body.quiet { cursor: none; }
+  @media (prefers-reduced-motion: reduce) { .umd, .ctl { transition: none; } }
+</style>
+</head>
+<body>
+<video id="out" autoplay playsinline muted aria-label="Program" hidden></video>
+
+<section class="screen" id="joinView" aria-labelledby="joinH">
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <h1 id="joinH">Show an event on this screen</h1>
+  <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
+  <form id="joinForm" class="screen" style="position:static;padding:0">
+    <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
+    <div class="row">
+      <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
+      <button class="go" type="submit">Connect</button>
+    </div>
+    <p class="err" id="joinErr" aria-live="polite"></p>
+  </form>
+</section>
+
+<section class="screen" id="waitView" aria-labelledby="waitTitle" hidden>
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <h1 id="waitTitle"></h1>
+  <p class="say" id="waitSay"></p>
+  <div class="row">
+    <button class="link" type="button" id="leaveBtn">Another event</button>
+  </div>
+  <p class="err" id="waitErr" aria-live="polite"></p>
+</section>
+
+<nav class="modes" id="modes" aria-label="What this screen shows" hidden>
+  <button type="button" data-want="program" aria-pressed="false">Program</button>
+  <button type="button" data-want="browse" aria-pressed="false">Browse</button>
+  <button type="button" data-want="beacon" aria-pressed="false">Beacon</button>
+  <button type="button" id="pipBtn" aria-pressed="false" title="The live program in a corner">PIP</button>
+</nav>
+
+<section class="browse" id="browseView" aria-labelledby="browseH" hidden>
+  <div class="head"><h2 id="browseH">Recordings</h2><button class="link" type="button" id="refreshList">Refresh</button></div>
+  <div class="items" id="items" role="list"></div>
+  <p class="err" id="browseErr" aria-live="polite"></p>
+</section>
+<div class="fetch" id="fetch" hidden role="status"><b id="fetchName"></b><progress id="fetchBar" max="100" value="0"></progress><span class="route" id="fetchSay"></span></div>
+<div class="player" id="player" hidden>
+  <video id="clip" controls playsinline aria-label="Recording"></video>
+  <div class="bar"><button class="go" type="button" id="playerBack">Back</button><b id="playerName"></b></div>
+</div>
+
+<section class="beacon" id="beaconView" aria-label="Beacon" hidden>
+  <canvas id="bq" aria-label="Scan to join and sync"></canvas>
+  <div>
+    <h2 id="bTitle"></h2>
+    <div class="bclock" id="bClock" aria-live="off"></div>
+    <p>Scan to join. Your phone syncs to this screen once, and then every clip lines up by itself.</p>
+    <p id="bJoin"></p>
+    <p class="hint" id="beaconHint" hidden>Turn on this TV's Game mode, then Calibrate it in the studio (TV screens), so phones synced here line up exactly.</p>
+  </div>
+</section>
+
+<div class="umd" id="umd" hidden><span class="lamp" aria-hidden="true"></span><span id="umdTitle"></span><span class="route" id="umdRoute"></span></div>
+<div class="ctl" id="progCtl" hidden>
+  <button type="button" id="soundBtn">Sound off</button>
+  <button type="button" id="fullBtn">Full screen</button>
+  <button type="button" id="exitBtn" title="Stop showing this event on this screen">Leave</button>
+</div>
+
+<script src="/vendor/qrcode.js"></script>
+<script src="/config.js"></script>
+<script type="module" src="/js/tv.js"></script>
+</body>
+</html>

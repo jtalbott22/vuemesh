@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The tour — VUEMesh</title>
+<meta name="description" content="Every screen in VUEMesh, in the order a show happens: the studio, the beacon, cameras and microphones, the audio mixer, camera control, the monitor, TV screens and your media.">
+<link rel="canonical" href="https://vuemesh.com/tour">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/tour">
+<meta property="og:title" content="The VUEMesh tour">
+<meta property="og:description" content="Every screen in VUEMesh, in the order a show happens.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  .wrap { max-width: 1180px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) clamp(16px, 4vw, 40px) calc(48px + env(safe-area-inset-bottom, 0px)); }
+  .nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: clamp(28px, 6vw, 56px); }
+  .nav nav { display: flex; align-items: center; gap: 14px; }
+  .nav nav a:not(.btn) { color: var(--text-2); text-decoration: none; font-weight: 500; }
+  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
+  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  h1 { font-size: clamp(2.4rem, 7vw, 5rem); line-height: .95; letter-spacing: -.02em; max-width: 16ch; margin: 0 0 14px; }
+  .lede { font-size: 1.2rem; color: var(--text-2); max-width: 60ch; margin: 0; }
+  /* the stages, as a contents line */
+  .stages { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; list-style: none; }
+  .stages a { display: inline-block; padding: .4em .9em; border-radius: 999px; background: var(--surface); color: var(--text-2); text-decoration: none; font-weight: 600; font-size: .9rem; }
+  .stages a:hover { color: var(--text); }
+  .stage { margin-top: clamp(48px, 8vw, 90px); }
+  .stage > h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--tally); margin: 0 0 18px; }
+  /* one screen: the picture and what it's for, side by side (alternating) */
+  .screen { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: center; margin: 0 0 clamp(36px, 6vw, 64px); }
+  .screen:nth-of-type(even) .shot { order: 2; }
+  .screen.phone { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .shot { position: relative; margin: 0; border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 18px 40px #0002; aspect-ratio: 16 / 10; }
+  .phone .shot { aspect-ratio: 9 / 19.5; max-width: 300px; justify-self: center; width: 100%; border-radius: 28px; box-shadow: 0 0 0 8px #15161a, 0 0 0 9px var(--line), 0 18px 40px #0003; }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+  /* until the screenshot is there: a quiet frame with the screen's name */
+  .shot .ph { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 20px;
+    background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--line) 50%, transparent) 14px 15px); }
+  .shot .ph svg { width: 48px; height: 48px; }
+  .shot .ph b { color: var(--text-2); font-size: 1rem; }
+  .shot.has .ph { display: none; }
+  .copy .who { font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .copy h3 { font-size: clamp(1.6rem, 3.4vw, 2.4rem); line-height: 1; letter-spacing: -.01em; margin: 6px 0 10px; }
+  .copy p { color: var(--text-2); margin: 0 0 10px; font-size: 1.05rem; }
+  .copy ul { margin: 0 0 14px; padding-left: 1.1em; color: var(--text-2); }
+  .copy li { margin: .25em 0; }
+  .copy .btn { margin-top: 4px; }
+  .end { margin-top: clamp(48px, 8vw, 90px); background: var(--surface); border-radius: 16px; padding: clamp(20px, 4vw, 36px); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .end h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); }
+  .end .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 600px) { .nav nav a:not(.btn) { display: none; } }
+  @media (max-width: 820px) {
+    .screen, .screen.phone { grid-template-columns: 1fr; }
+    .screen:nth-of-type(even) .shot { order: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav">
+    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <nav><a href="/#setups">How it works</a><a href="/sponsors">Partners</a><button type="button" id="themeBtn"></button><a class="btn primary" href="/#start">Start a show</a></nav>
+  </header>
+
+  <main>
+    <h1>Every screen, in the order a show happens.</h1>
+    <p class="lede">VUEMesh is a handful of pages, each one a job: the studio that runs the show, the beacon people scan, the cameras and microphones, the tools to mix and watch it, the screens that show it, and everything you recorded afterwards. Each opens in a browser. Here's what each one looks like.</p>
+    <ul class="stages" aria-label="Stages">
+      <li><a href="#setup">Set up</a></li>
+      <li><a href="#sources">Bring in sources</a></li>
+      <li><a href="#run">Run the show</a></li>
+      <li><a href="#show">Show it</a></li>
+      <li><a href="#after">Afterwards</a></li>
+    </ul>
+
+    <section class="stage" id="setup" aria-labelledby="setupH">
+      <h2 id="setupH">Set up</h2>
+      <article class="screen" data-shot="studio">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On a laptop or desktop</span>
+          <h3>The studio</h3>
+          <p>The control room. Every camera and microphone as a tile, the program on air, and a switcher with CUT, AUTO and a T-bar.</p>
+          <ul><li>Cut it yourself, or let the Auto Director</li><li>Break and black, lower thirds, clips</li><li>Record the program, stream it live</li></ul>
+          <a class="btn" href="/#start">Start a show</a>
+        </div>
+      </article>
+      <article class="screen" data-shot="beacon">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On any screen</span>
+          <h3>The beacon</h3>
+          <p>One code on a screen. A phone scans it to join, and while the camera sees it, it reads the time inside, so every angle lines up to the frame later.</p>
+          <ul><li>Put it on a TV, a spare laptop or a tablet</li><li>Shows who's in and who's recording</li></ul>
+        </div>
+      </article>
+      <article class="screen" data-shot="kiosk">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On a computer, a stick PC on a TV, or a newer tablet</span>
+          <h3>The kiosk</h3>
+          <p>A screen that runs a whole show by itself. It shows its code; guests scan in with their phones, and it directs and records with nobody at the controls.</p>
+          <a class="btn" href="/kiosk">Open a kiosk</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="stage" id="sources" aria-labelledby="sourcesH">
+      <h2 id="sourcesH">Bring in sources</h2>
+      <article class="screen phone" data-shot="camera">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On a phone, a tablet or a laptop</span>
+          <h3>The camera</h3>
+          <p>Scan, tap, type a name: it's a camera in the show. It records itself in full quality and sends the file to the studio, while the studio sees a live picture.</p>
+          <ul><li>Zoom, lens, exposure and focus</li><li>A tally light when it's on air</li><li>Messages from the director</li></ul>
+          <a class="btn" href="/cam?go=solo">Try the camera</a>
+        </div>
+      </article>
+      <article class="screen phone" data-shot="mic">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On a phone or a tablet</span>
+          <h3>The microphone</h3>
+          <p>Any phone can be a microphone instead: set it down near the voice, or plug in a USB mic, and it records clean sound for the show.</p>
+          <ul><li>Its own level meter</li><li>Pick which microphone it uses</li></ul>
+        </div>
+      </article>
+    </section>
+
+    <section class="stage" id="run" aria-labelledby="runH">
+      <h2 id="runH">Run the show</h2>
+      <article class="screen" data-shot="mixer">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">In the studio, or its own window</span>
+          <h3>The audio mixer</h3>
+          <p>A strip for every source: audio follows video, always on or off, a fader, EQ, balance and mono or stereo, with stereo meters for the program.</p>
+          <ul><li>Pop out the audio console for spectrum and phase</li></ul>
+        </div>
+      </article>
+      <article class="screen" data-shot="ccu">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">In its own window</span>
+          <h3>Camera control</h3>
+          <p>Every camera side by side with a histogram and waveform, and its zoom, exposure, contrast and focus, set from here. Click the picture to focus there.</p>
+        </div>
+      </article>
+      <article class="screen" data-shot="monitor">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">In its own window</span>
+          <h3>The monitor</h3>
+          <p>The health of the show at a glance: each source's network, battery and bitrate, what's coming in and going out, and the event log.</p>
+        </div>
+      </article>
+      <article class="screen phone" data-shot="remote">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On your phone</span>
+          <h3>The remote</h3>
+          <p>Pair a phone and run the show from anywhere in the room: cut cameras, call a break, fade to black, start the recording.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="stage" id="show" aria-labelledby="showH">
+      <h2 id="showH">Show it</h2>
+      <article class="screen" data-shot="tv">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On a TV, a projector, or any browser</span>
+          <h3>TV screens</h3>
+          <p>Open <b>/tv</b>, enter the show's code, and once the studio lets it in it shows the live program straight from the studio, browses the night's recordings, or becomes the beacon.</p>
+          <a class="btn" href="/tv">Open /tv</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="stage" id="after" aria-labelledby="afterH">
+      <h2 id="afterH">Afterwards</h2>
+      <article class="screen" data-shot="media">
+        <figure class="shot"></figure>
+        <div class="copy">
+          <span class="who">On every device that recorded</span>
+          <h3>My media</h3>
+          <p>Everything this device recorded, kept on the device: play it, download it, share it, or delete it. Nothing is uploaded anywhere.</p>
+          <a class="btn" href="/cam?go=media">Open my media</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="end" aria-label="Start">
+      <h2>Count the screens in your room.</h2>
+      <div class="row"><a class="btn primary" href="/#start">Start a show</a><a class="btn" href="/#setups">See the setups</a></div>
+    </section>
+  </main>
+</div>
+<script type="module">
+  import { $, themeButton, betaBanner } from '/js/vm.js';
+  betaBanner();
+  themeButton($('#themeBtn'));
+  // Each screen's picture is /media/screens/<name>.webp (see docs/SCREENSHOTS.md). Until it's there,
+  // a frame with the screen's name stands in; drop the file in and it appears.
+  const PH = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="38" height="26" rx="3"/><path d="M17 41h14M24 35v6"/></svg>';
+  for (const el of document.querySelectorAll('[data-shot]')) {
+    const fig = el.querySelector('.shot'), name = el.dataset.shot, title = el.querySelector('h3').textContent;
+    fig.innerHTML = `<div class="ph">${PH}<b>${title}</b><span>Screenshot coming</span></div>`;
+    const img = new Image();
+    img.alt = `VUEMesh: ${title}`;
+    img.decoding = 'async';
+    img.loading = 'lazy';
+    img.onload = () => fig.classList.add('has');
+    img.onerror = () => img.remove();
+    img.src = `/media/screens/${name}.webp`;
+    fig.append(img);
+  }
+</script>
+</body>
+</html>

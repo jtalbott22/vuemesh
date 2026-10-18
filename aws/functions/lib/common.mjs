@@ -11,14 +11,12 @@ export function randomId(n) {
 export const sha256hex = (s) => createHash('sha256').update(s).digest('hex');
 export const b64url = (buf) => Buffer.from(buf).toString('base64url');
 
-export function termsText({ title, poolPct }) {
-  const money = poolPct > 0
-    ? `If this production earns money (tickets, sponsors, ads), ${poolPct}% of net revenue goes to a contributor pool, split by how much of your footage appears in each published cut.`
-    : `This event does not share revenue. You still get a "shot by" credit for every second of your footage in a published cut.`;
+// (what a camera or microphone agrees to on joining; kept with the event when it's made, so an
+// event's terms never change under it)
+export function termsText({ title }) {
   return [
     `By joining "${title}" you add your angle to one shared production.`,
     `The host may use your clips in cuts of this event and publish them.`,
-    money,
     `Your phone signs every clip you send, so your contribution is provably yours.`,
   ].join(' ');
 }

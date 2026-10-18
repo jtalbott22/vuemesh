@@ -5,10 +5,10 @@ const TAU = Math.PI * 2;
 const VOID = '#0e1329';
 
 export const ANGLES = [
-  { key: 1, who: 'Rosa', spot: 'front row', color: '#6d9cf0', pos: [0.5, 1.35, 3.3], target: [0, 1.25, -0.4], fov: 56, wob: 0.018 },
-  { key: 2, who: 'Dev', spot: 'balcony', color: '#f0b44d', pos: [-6.5, 7.6, 9.6], target: [0, 0.3, -1], fov: 42, wob: 0.006 },
-  { key: 3, who: 'Priya', spot: 'dance floor', color: '#4cc2b3', pos: [-1.4, 1.55, 1.1], target: [0.1, 1.35, -0.2], fov: 64, wob: 0.035, orbit: true },
-  { key: 4, who: 'Marcus', spot: 'side stage', color: '#c883dc', pos: [4.4, 1.75, -2.4], target: [0, 1.25, -0.3], fov: 44, wob: 0.014 },
+  { key: 1, who: 'Phone', spot: 'front row', color: '#6d9cf0', pos: [0.5, 1.35, 3.3], target: [0, 1.25, -0.4], fov: 56, wob: 0.018 },
+  { key: 2, who: 'Tablet', spot: 'balcony', color: '#f0b44d', pos: [-6.5, 7.6, 9.6], target: [0, 0.3, -1], fov: 42, wob: 0.006 },
+  { key: 3, who: 'Phone 2', spot: 'dance floor', color: '#4cc2b3', pos: [-1.4, 1.55, 1.1], target: [0.1, 1.35, -0.2], fov: 64, wob: 0.035, orbit: true },
+  { key: 4, who: 'Laptop', spot: 'side stage', color: '#c883dc', pos: [4.4, 1.75, -2.4], target: [0, 1.25, -0.3], fov: 44, wob: 0.014 },
 ];
 
 // ---------------------------------------------------------------- world ----
