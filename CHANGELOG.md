@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.56.0 — the tour
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **`/tour`** (new, not linked yet): every screen in the order a show happens. Set up (the studio, the beacon, the kiosk), bring in sources (camera, microphone), run the show (audio mixer, camera control, monitor, the phone remote), show it (TV screens), afterwards (my media). Each with what it's for, what it runs on, and a link to open it.
+- **Screenshots drop in by name:** `public/media/screens/<name>.webp` (studio, beacon, kiosk, camera, mic, mixer, ccu, monitor, remote, tv, media). Until a file is there, a labelled frame stands in. **`docs/SCREENSHOTS.md`** is the shot list: what each should show, sizes, theme, and what to keep out of frame.
+- The dev server serves `.webp` as images.
+
 ## 0.55.1 — partners write to you directly; integrations first
 **Deploy:** `./aws/deploy.sh` (site only).
 
