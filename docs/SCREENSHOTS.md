@@ -39,5 +39,5 @@ for portrait phones.
 
 ## When they're in
 
-All eleven are in (October 2026), taken from a real show. The tour isn't linked from anywhere
-yet: the home page's "How it works" and the Partners page are the natural places.
+All eleven are in (October 2026), taken from a real show. The tour is linked from the home page's
+"How it works" and from the Partners page.
