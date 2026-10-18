@@ -147,12 +147,12 @@ show('phones');
 // ---- any device, any job ------------------------------------------------------------
 const YES = '<span class="yes" aria-label="Yes">●</span>', NO = '<span class="no" aria-label="No">–</span>';
 const JOBS = [
-  // [device, icon, studio, camera, mic, screen, remote]
-  ['Laptop or desktop', 'laptop', 1, 1, 1, 1, 1],
-  ['Phone, new or old', 'phone', 0, 1, 1, 1, 1],
-  ['Tablet', 'tablet', 0, 1, 1, 1, 1],
-  ['TV, stick PC or projector', 'tv', 0, 0, 0, 1, 0],
-  ['USB webcam', 'webcam', 0, 'into a computer', 0, 0, 0],
-  ['USB microphone', 'mic', 0, 0, 'into a computer or a phone', 0, 0],
+  // [device, icon, studio, kiosk, camera, mic, screen, remote]
+  ['Laptop or desktop', 'laptop', 1, 1, 1, 1, 1, 1],
+  ['Phone, new or old', 'phone', 0, 0, 1, 1, 1, 1],
+  ['Tablet', 'tablet', 0, 'newer ones', 1, 1, 1, 1],
+  ['TV, stick PC or projector', 'tv', 0, 'a stick PC', 0, 0, 1, 0],
+  ['USB webcam', 'webcam', 0, 0, 'into a computer', 'its own mic', 0, 0],
+  ['USB microphone', 'mic', 0, 0, 0, 'into a computer or a phone', 0, 0],
 ];
 $('#jobs tbody').innerHTML = JOBS.map(([name, ic, ...cells]) => `<tr><th scope="row">${icon(ic)}${name}</th>${cells.map((c) => `<td>${c === 1 ? YES : c ? `${YES}<small>${c}</small>` : NO}</td>`).join('')}</tr>`).join('');

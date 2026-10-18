@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.54.1 — the device chart knows kiosks, and webcam mics
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **"Any device, any job" has a Kiosk column**, with a line saying what one is (a screen that runs a whole show by itself: its code on screen, guests scan in, and it directs and records): a laptop or desktop, newer tablets, and a TV with a stick PC.
+- **A USB webcam is a microphone too** (its own mic), as it is in the studio.
+
 ## 0.54.0 — the home page says how its films were made
 **Deploy:** `./aws/deploy.sh` (site only).
 
