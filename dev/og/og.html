@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- The social share picture (public/og.png, 1200 × 630). Render it with: python3 dev/og/render.py
+     The frames are stills from the home page's live demo; the look is the home page's control room. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('../../public/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 800; src: url('../../public/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-weight: 500; src: url('../../public/fonts/barlow-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Barlow'; font-weight: 600; src: url('../../public/fonts/barlow-latin-600-normal.woff2') format('woff2'); }
+  :root { --bg: #121519; --surface: #1a1e24; --line: #2f3640; --text: #eef2f6; --text-2: #b4bcc8; --muted: #808a98;
+    --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; --wall: #05070a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1200px; height: 630px; overflow: hidden; position: relative; font-family: 'Barlow', sans-serif; color: var(--text);
+    background: radial-gradient(900px 520px at 88% 50%, #1d2633 0%, transparent 70%), var(--bg); }
+  .cond { font-family: 'Barlow Condensed', sans-serif; }
+  /* colour bars, as on the site */
+  .bars { position: absolute; inset: 0 0 auto; height: 8px; background: linear-gradient(90deg, #bfbfbf 0 14.3%, #bfbf00 0 28.6%, #00bfbf 0 42.9%, #00bf00 0 57.1%, #bf00bf 0 71.4%, #bf0000 0 85.7%, #0000bf 0); }
+
+  .left { position: absolute; left: 64px; top: 56px; bottom: 50px; width: 620px; display: flex; flex-direction: column; }
+  .mark { display: flex; align-items: center; gap: 12px; font-size: 38px; font-weight: 800; letter-spacing: .01em; }
+  .mark i { width: 17px; height: 17px; border-radius: 3px; background: var(--tally); box-shadow: 0 0 14px var(--tally); }
+  h1 { font-weight: 800; font-size: 80px; line-height: .88; letter-spacing: -.005em; margin: 40px 0 24px; white-space: nowrap; }
+  h1 span { display: block; }
+  p { max-width: 560px; font-size: 25px; line-height: 1.32; color: var(--text-2); margin: 0; font-weight: 500; }
+  p b { color: var(--text); font-weight: 600; }
+  .foot { margin-top: auto; display: flex; align-items: center; gap: 18px; }
+  .url { font-size: 30px; font-weight: 700; letter-spacing: .04em; color: var(--amber); }
+  .free { font-size: 19px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); border: 1.5px solid var(--line); border-radius: 4px; padding: 5px 10px 4px; }
+
+  /* the multiviewer wall */
+  .wall { position: absolute; right: 48px; top: 170px; width: 440px; padding: 10px; background: var(--wall); border-radius: 8px; box-shadow: 0 0 0 1px #ffffff10, 0 30px 70px #000a; }
+  .mon { position: relative; border-radius: 3px; overflow: hidden; background: #000; }
+  .mon img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .mon .who { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 9px; background: #000c; font-size: 15px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .mon .n { position: absolute; left: 8px; top: 5px; font-size: 22px; font-weight: 800; text-shadow: 0 1px 3px #000; }
+  .pgm { box-shadow: inset 0 0 0 0 transparent; outline: 3px solid var(--tally); outline-offset: -3px; }
+  .chip { position: absolute; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; border-radius: 3px; }
+  .onair { left: 10px; top: 10px; background: var(--tally); color: #fff; font-size: 18px; padding: 3px 10px; letter-spacing: .02em; }
+  .tc { right: 10px; top: 10px; background: #000b; color: var(--amber); font-size: 18px; padding: 3px 9px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .pvw { outline: 3px solid var(--preview); outline-offset: -3px; }
+</style>
+</head>
+<body>
+  <div class="bars"></div>
+  <div class="left">
+    <div class="mark cond"><i></i>VUEMesh</div>
+    <h1 class="cond"><span>A production studio.</span><span>In the browser.</span></h1>
+    <p>The phones, tablets, laptops and webcams you already own become <b>synced cameras</b>. Switch it live, and keep every angle. <b>No app to install.</b></p>
+    <div class="foot"><span class="url cond">VUEMESH.COM</span><span class="free cond">Free in beta</span></div>
+  </div>
+  <div class="wall">
+    <div class="mon pgm">
+      <img src="program.jpg" alt="">
+      <span class="chip onair">ON AIR · PHONE 1</span>
+      <span class="chip tc">00:42:17:08</span>
+    </div>
+    <div class="row cond">
+      <div class="mon pvw"><img src="balcony.jpg" alt=""><span class="n" style="color:#f0b44d">2</span><span class="who">Tablet · balcony</span></div>
+      <div class="mon"><img src="dancefloor.jpg" alt=""><span class="n" style="color:#4fd0c8">3</span><span class="who">Phone · dance floor</span></div>
+      <div class="mon"><img src="sidestage.jpg" alt=""><span class="n" style="color:#c48cf0">4</span><span class="who">Laptop · side stage</span></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.56.4 — a new share picture
+**Deploy:** `./aws/deploy.sh` (site only). Links already shared keep the old picture until the site refetches it: paste vuemesh.com into Facebook's Sharing Debugger or LinkedIn's Post Inspector to refresh it there.
+
+- **`og.png`, redrawn to match the site:** the home page's headline ("A production studio. In the browser."), what it does in one line, and a multiviewer wall (one camera on air, one in preview, two waiting) in the control-room look: colour bars, Barlow Condensed, tally red, amber timecode. "Everyone shoots. One film." and the QR code are gone; a QR shrunk into a link preview is too small to scan.
+- **Made from a page:** `dev/og/og.html`, rendered with `python3 dev/og/render.py`. The frames are stills from the home page's live demo. The alt text on every page says what's in it now.
+
 ## 0.56.3 — the tour, linked
 **Deploy:** `./aws/deploy.sh` (site only).
 
