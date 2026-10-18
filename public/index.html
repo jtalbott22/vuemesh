@@ -94,7 +94,7 @@
   .rigtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 16px; }
   .rigtabs button { min-height: 40px; padding: .45em 1em; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--text-2); font-weight: 600; }
   .rigtabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .flow { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, .82fr) 56px minmax(0, 1fr); align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: clamp(14px, 2.4vw, 26px); }
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr) 78px minmax(0, .82fr) 78px minmax(0, 1fr); align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: clamp(14px, 2.4vw, 26px); }
   .flow h3 { margin: 0 0 10px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .flow ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .flow li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--panel-2); border-radius: 12px; padding: 9px 12px; border-left: 3px solid var(--job); }
@@ -110,7 +110,24 @@
   .remotechip { --job: #d9962b; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; border: 1px dashed var(--job); }
   .remotechip[hidden] { display: none; }
   /* the wires: dots flowing in to the studio, and out of it */
-  .wire { height: 3px; margin: 0 6px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 16px 3px; animation: wire 0.9s linear infinite; opacity: .8; }
+  .wire { position: relative; height: 3px; margin: 0 6px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 16px 3px; animation: wire 0.9s linear infinite; opacity: .8; }
+  .wire span { position: absolute; left: 0; right: 0; top: 10px; font-size: .62rem; line-height: 1.15; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); text-align: center; }
+  /* the cloud: off to the side of the show, a thin dashed line, nothing flowing */
+  .cloudchip { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: center; justify-self: center; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--muted); color: var(--text-2); }
+  .cloudchip svg { width: 30px; height: 30px; color: var(--muted); }
+  .cloudchip b { display: block; font-size: .82rem; line-height: 1.1; color: var(--text); }
+  .cloudchip small { display: block; font-size: .74rem; color: var(--text-2); }
+  .cloudline { justify-self: center; width: 0; height: 16px; border-left: 2px dashed var(--muted); margin: -6px 0; }
+  .where { margin-top: 16px; padding: 18px 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .where h3 { margin: 0 0 12px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .where ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+  .where li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-2); font-size: .95rem; }
+  .where li b { color: var(--text); }
+  .where .k { display: block; width: 34px; height: 3px; margin-top: .65em; border-radius: 2px; }
+  .where .k.solid { background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 12px); }
+  .where .k.dash { height: 0; border-top: 2px dashed var(--muted); }
+  .where .k.keep { background: #8a8f99; }
+  .where .k.live { background: #a46fe0; }
   @keyframes wire { to { background-position: 16px 0; } }
   .flow.fresh li, .flow.fresh .hubcard { animation: rigin .35s ease-out both; }
   .flow.fresh li:nth-child(2) { animation-delay: .04s; } .flow.fresh li:nth-child(3) { animation-delay: .08s; } .flow.fresh li:nth-child(4) { animation-delay: .12s; } .flow.fresh li:nth-child(5) { animation-delay: .16s; }
@@ -143,6 +160,8 @@
     .wire { width: 3px; height: 34px; margin: 6px auto; background: repeating-linear-gradient(180deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 3px 16px; animation-name: wiredown; }
     @keyframes wiredown { to { background-position: 0 16px; } }
     .rigbelow { grid-template-columns: 1fr; }
+    .where ul { grid-template-columns: 1fr; }
+    .wire span { left: 14px; right: auto; top: 50%; transform: translateY(-50%); white-space: nowrap; }
     .jobs table { font-size: .82rem; }
     .jobs th, .jobs td { padding: 9px 4px; }
     .jobs thead th { font-size: .62rem; letter-spacing: .04em; }
@@ -527,10 +546,23 @@
     <div class="rigtabs" id="rigTabs" role="tablist" aria-label="Example setups"></div>
     <div class="flow" id="rigFlow" role="tabpanel" aria-live="polite">
       <div><h3>Sees and hears</h3><ul id="rigIn"></ul></div>
-      <div class="wire" aria-hidden="true"></div>
-      <div class="hub"><div class="hubcard" id="rigStudio"></div><div class="remotechip" id="rigRemote" hidden></div></div>
-      <div class="wire" aria-hidden="true"></div>
+      <div class="wire" aria-hidden="true"><span>your network</span></div>
+      <div class="hub">
+        <div class="cloudchip" id="rigCloud" title="The cloud introduces your devices to each other. Your pictures and sound never go through it."></div>
+        <div class="cloudline" aria-hidden="true"></div>
+        <div class="hubcard" id="rigStudio"></div><div class="remotechip" id="rigRemote" hidden></div>
+      </div>
+      <div class="wire" aria-hidden="true"><span>straight out</span></div>
       <div><h3>Shows, sends and keeps</h3><ul id="rigOut"></ul></div>
+    </div>
+    <div class="where" aria-labelledby="whereH">
+      <h3 id="whereH">Where everything goes</h3>
+      <ul>
+        <li><i class="k solid" aria-hidden="true"></i><span><b>Pictures and sound go device to device,</b> over your own Wi‑Fi or network. They're never uploaded, and there's no server in the middle to pass them through.</span></li>
+        <li><i class="k dash" aria-hidden="true"></i><span><b>The cloud only makes introductions:</b> the event's code and name, who's in it, and the handshake that lets your devices find each other. Turn on <b>Local network only</b> in the studio and that's all that ever leaves the room.</span></li>
+        <li><i class="k keep" aria-hidden="true"></i><span><b>Recordings stay yours.</b> Each camera records itself in full quality and hands the file straight to your studio computer, where it stays in the browser until you export or delete it. The camera keeps its own copy.</span></li>
+        <li><i class="k live" aria-hidden="true"></i><span><b>Going live is your call.</b> The show goes to YouTube or wherever you choose straight from your studio computer, and only while you're streaming.</span></li>
+      </ul>
     </div>
     <div class="rigbelow">
       <p class="rigsay" id="rigSay"></p>

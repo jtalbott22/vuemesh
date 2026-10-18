@@ -15,6 +15,8 @@ const ICON = {
   tv: '<rect x="4" y="9" width="40" height="25" rx="2"/><path d="M16 41h16M24 34v7"/>',
   stick: '<rect x="4" y="9" width="40" height="25" rx="2"/><path d="M16 41h16M24 34v7"/><rect x="31" y="35" width="11" height="5" rx="1"/>',
   stream: '<circle cx="24" cy="24" r="3.5"/><path d="M16 16a11 11 0 0 0 0 16M32 16a11 11 0 0 1 0 16M10 10a19 19 0 0 0 0 28M38 10a19 19 0 0 1 0 28"/>',
+  cloud: '<path d="M14 36h21a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-1 18z"/>',
+  lock: '<rect x="11" y="21" width="26" height="20" rx="3"/><path d="M17 21v-6a7 7 0 0 1 14 0v6"/>',
   file: '<path d="M12 5h16l9 9v29H12z"/><path d="M28 5v9h9"/><path d="M21 22v12l9-6z"/>',
   sound: '<path d="M8 19h7l9-7v24l-9-7H8z"/><path d="M30 18a8 8 0 0 1 0 12M35 13a15 15 0 0 1 0 22"/>',
 };
@@ -43,7 +45,7 @@ const SETUPS = [
     ],
     out: [
       { icon: 'tv', name: 'The TV', job: 'screen', note: 'The beacon to join, then the show' },
-      { icon: 'file', name: 'Every angle', job: 'keep', note: 'And the show as it aired' },
+      { icon: 'file', name: 'Every angle', job: 'keep', note: 'On the laptop, and on each phone' },
     ],
     steps: ['Start a show and open the studio on the laptop.', 'Put the beacon on the TV. Each phone scans it once.', 'Cut it yourself, or let the Auto Director.'],
   },
@@ -61,8 +63,8 @@ const SETUPS = [
     ],
     out: [
       { icon: 'desktop', name: 'Second screen', job: 'screen', note: 'The program, full screen' },
-      { icon: 'stream', name: 'YouTube, Twitch…', job: 'stream', note: 'Live while you record' },
-      { icon: 'file', name: 'Every angle', job: 'keep', note: 'Each host’s camera and mic, separately' },
+      { icon: 'stream', name: 'YouTube, Twitch…', job: 'stream', note: 'Only if you go live: straight from the desktop' },
+      { icon: 'file', name: 'Every angle', job: 'keep', note: 'Each camera and mic, separately, on the desktop' },
     ],
     steps: ['Open the studio on the desktop; add its webcams and mics with + This computer.', 'The phone scans the beacon and becomes the wide shot.', 'Open Program out on the second screen, paste a stream key, and go live.'],
   },
@@ -80,7 +82,7 @@ const SETUPS = [
     ],
     out: [
       { icon: 'stick', name: 'TV, with a stick PC', job: 'screen', note: 'Opens /tv: the show, live' },
-      { icon: 'file', name: 'Every angle', job: 'keep', note: 'Rewatch it from any of them' },
+      { icon: 'file', name: 'Every angle', job: 'keep', note: 'On the laptop, and on each device' },
     ],
     steps: ['Open the studio on the laptop, and share its sound if there’s music.', 'The phones and the second laptop scan the beacon.', 'Open /tv on the TV and accept it. Pair your phone as the remote.'],
   },
@@ -100,8 +102,8 @@ const SETUPS = [
     out: [
       { icon: 'stick', name: 'TV, with a stick PC', job: 'screen', note: 'The program, on /tv' },
       { icon: 'laptop', name: 'The other laptop', job: 'screen', note: 'The beacon, by the door' },
-      { icon: 'stream', name: 'Live', job: 'stream', note: 'If you want an audience' },
-      { icon: 'file', name: 'Every angle', job: 'keep', note: 'Full quality, synced to the frame' },
+      { icon: 'stream', name: 'Live', job: 'stream', note: 'Only if you want an audience' },
+      { icon: 'file', name: 'Every angle', job: 'keep', note: 'Full quality, on the desktop' },
     ],
     steps: ['Open the studio on the desktop; add the webcams and the mic with + This computer.', 'Put the beacon on the spare laptop. The phones and the other laptop scan it.', 'Open /tv on the TV stick and accept it. Pair the oldest phone as the remote.'],
   },
@@ -128,6 +130,7 @@ function show(id) {
   box.classList.add('fresh');
 }
 
+$('#rigCloud').innerHTML = `${icon('cloud')}<span><b>VUEMesh cloud</b><small>Introductions only</small></span>`;
 $('#rigTabs').innerHTML = SETUPS.map((s, i) => `<button type="button" role="tab" data-setup="${s.id}" aria-selected="${i === 0}" aria-controls="rigFlow">${s.tab}</button>`).join('');
 $('#rigTabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-setup]');

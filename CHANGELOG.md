@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.53.1 — the setups say where everything goes
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The setup diagrams show the data's path:** the wires in are labelled "your network" and the wires out "straight out"; the VUEMesh cloud sits off to the side of the studio on a thin dashed line, marked "introductions only"; and each setup's recordings and stream say where they end up (on the studio computer, and on each camera; live only if you choose, straight from the studio).
+- **Where everything goes**, under the diagram: pictures and sound go device to device on your own network and are never uploaded; the cloud only makes introductions (the event's code and name, who's in it, the handshake), and with Local network only that's all that leaves the room; recordings go straight to your studio computer and stay in its browser, with each camera keeping its own copy; going live goes straight from the studio, only while you stream.
+
 ## 0.53.0 — the home page shows how your own devices fit together
 **Deploy:** `./aws/deploy.sh` (site only).
 
