@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.56.2 — the tour's pictures
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **All eleven screenshots are in** (`public/media/screens/*.webp`, 16–230 KB each), from a real show: studio, beacon, kiosk, camera, microphone, audio console, camera control, monitor, remote, `/tv`, my media. The beacon's venue Wi‑Fi code is blurred (it names the network).
+- **Each frame takes its picture's shape** instead of cropping to 16:10: the wide studio windows show whole, the camera is a phone held sideways, and My media is a phone (it was a computer frame).
+
 ## 0.56.1 — the remote sees the clips
 **Deploy:** `./aws/deploy.sh` (site only).
 
