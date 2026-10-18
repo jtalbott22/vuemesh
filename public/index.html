@@ -87,6 +87,72 @@
   .positioning .kitgrid { margin-top: 28px; }
   .kitgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+  /* Setups: what you own → the studio → where it goes -------------------- */
+  .rig { padding: clamp(64px, 10vw, 120px) 0 0; }
+  .rig h2 { font-size: clamp(2rem, 5vw, 3.8rem); line-height: .98; letter-spacing: -.015em; margin: 0 0 12px; }
+  .rig > p { color: var(--text-2); font-size: 1.1rem; max-width: 46em; margin: 0; }
+  .rigtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 16px; }
+  .rigtabs button { min-height: 40px; padding: .45em 1em; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--text-2); font-weight: 600; }
+  .rigtabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, .82fr) 56px minmax(0, 1fr); align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: clamp(14px, 2.4vw, 26px); }
+  .flow h3 { margin: 0 0 10px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .flow ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .flow li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--panel-2); border-radius: 12px; padding: 9px 12px; border-left: 3px solid var(--job); }
+  .flow li svg, .hubcard svg, .remotechip svg { width: 34px; height: 34px; color: var(--job, var(--tally)); }
+  .flow li b, .remotechip b { display: block; font-weight: 700; line-height: 1.15; }
+  .flow li small, .remotechip small { display: block; color: var(--text-2); font-size: .84rem; line-height: 1.25; }
+  .flow li em, .hubcard em { font-style: normal; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--job, var(--tally)); white-space: nowrap; }
+  .hub { display: grid; gap: 10px; justify-items: stretch; }
+  .hubcard { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 22px 16px; border-radius: 16px; background: var(--bg); box-shadow: 0 0 0 3px var(--tally), 0 10px 30px #0003; }
+  .hubcard svg { width: 56px; height: 56px; }
+  .hubcard b { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; line-height: 1.1; }
+  .hubcard small { color: var(--text-2); font-size: .88rem; }
+  .remotechip { --job: #d9962b; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; border: 1px dashed var(--job); }
+  .remotechip[hidden] { display: none; }
+  /* the wires: dots flowing in to the studio, and out of it */
+  .wire { height: 3px; margin: 0 6px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 16px 3px; animation: wire 0.9s linear infinite; opacity: .8; }
+  @keyframes wire { to { background-position: 16px 0; } }
+  .flow.fresh li, .flow.fresh .hubcard { animation: rigin .35s ease-out both; }
+  .flow.fresh li:nth-child(2) { animation-delay: .04s; } .flow.fresh li:nth-child(3) { animation-delay: .08s; } .flow.fresh li:nth-child(4) { animation-delay: .12s; } .flow.fresh li:nth-child(5) { animation-delay: .16s; }
+  @keyframes rigin { from { opacity: 0; transform: translateY(6px); } }
+  .rigbelow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 40px; margin-top: 16px; align-items: start; }
+  .rigsay { margin: 0; font-size: 1.15rem; font-weight: 600; }
+  ol.rigsteps { margin: 0; padding: 0; list-style: none; counter-reset: r; display: grid; gap: 8px; }
+  ol.rigsteps li { counter-increment: r; display: grid; grid-template-columns: 1.8em 1fr; color: var(--text-2); }
+  ol.rigsteps li::before { content: counter(r); font-stretch: 125%; font-weight: 800; color: var(--tally); }
+  .jobs { margin-top: clamp(36px, 6vw, 60px); }
+  .jobs h3 { font-size: clamp(1.4rem, 3vw, 2rem); margin: 0 0 6px; }
+  .jobs > p { color: var(--text-2); margin: 0 0 16px; }
+  .jobscroll { overflow-x: auto; border-radius: 16px; }
+  .jobs .short { display: none; }
+  .jobs table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .jobs th, .jobs td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+  .jobs tr:last-child th, .jobs tr:last-child td { border-bottom: 0; }
+  .jobs thead th { font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .jobs tbody th { text-align: left; font-weight: 700; white-space: nowrap; }
+  .jobs tbody th svg { width: 26px; height: 26px; vertical-align: middle; margin-right: 10px; color: var(--soft); }
+  .jobs .yes { color: var(--tally); font-size: 1.1rem; }
+  .jobs .no { color: var(--muted); }
+  .jobs td small { display: block; color: var(--muted); font-size: .76rem; line-height: 1.2; margin-top: 2px; }
+  .tip { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; margin-top: 16px; padding: 16px 18px; border-radius: 14px; background: var(--panel-2); }
+  .tip svg { width: 40px; height: 40px; color: var(--tally); }
+  .tip p { margin: 0; color: var(--text-2); }
+  .tip b { color: var(--text); }
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .wire { width: 3px; height: 34px; margin: 6px auto; background: repeating-linear-gradient(180deg, var(--tally) 0 8px, transparent 8px 16px); background-size: 3px 16px; animation-name: wiredown; }
+    @keyframes wiredown { to { background-position: 0 16px; } }
+    .rigbelow { grid-template-columns: 1fr; }
+    .jobs table { font-size: .82rem; }
+    .jobs th, .jobs td { padding: 9px 4px; }
+    .jobs thead th { font-size: .62rem; letter-spacing: .04em; }
+    .jobs .long { display: none; }
+    .jobs .short { display: inline; }
+    .jobs tbody th { white-space: normal; }
+    .jobs tbody th svg { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .wire, .flow.fresh li, .flow.fresh .hubcard { animation: none; } }
+
   /* Beacon ------------------------------------------------------------ */
   .beacon { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(28px, 6vw, 80px); align-items: center; padding: clamp(72px, 12vw, 150px) 0 clamp(40px, 8vw, 90px); }
   .qrbox { background: #fff; border-radius: 16px; padding: 10px; line-height: 0; box-shadow: 0 0 0 6px var(--preview); width: min(340px, 72vw); }
@@ -356,7 +422,7 @@
   <header class="nav">
     <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
     <nav>
-      <a href="#how">How it works</a>
+      <a href="#setups">How it works</a>
       <a href="#need">What you need</a>
       <a href="#find">Events</a>
       <a href="/sponsors">Sponsors</a>
@@ -455,18 +521,48 @@
     </ul>
   </section>
 
+  <section class="rig" id="setups" aria-labelledby="righ">
+    <h2 id="righ">Use what's already in the drawer.</h2>
+    <p>Every screen with a browser can take a job in your show: the studio, a camera, a microphone, a screen, or the remote. Pick a setup and see how it fits together.</p>
+    <div class="rigtabs" id="rigTabs" role="tablist" aria-label="Example setups"></div>
+    <div class="flow" id="rigFlow" role="tabpanel" aria-live="polite">
+      <div><h3>Sees and hears</h3><ul id="rigIn"></ul></div>
+      <div class="wire" aria-hidden="true"></div>
+      <div class="hub"><div class="hubcard" id="rigStudio"></div><div class="remotechip" id="rigRemote" hidden></div></div>
+      <div class="wire" aria-hidden="true"></div>
+      <div><h3>Shows, sends and keeps</h3><ul id="rigOut"></ul></div>
+    </div>
+    <div class="rigbelow">
+      <p class="rigsay" id="rigSay"></p>
+      <ol class="rigsteps" id="rigSteps"></ol>
+    </div>
+
+    <div class="jobs">
+      <h3>Any device, any job.</h3>
+      <p>The same laptop can be your studio tonight and a camera tomorrow. Nothing to install on any of them; each one opens a page.</p>
+      <div class="jobscroll"><table id="jobs">
+        <thead><tr><th scope="col"><span class="sr-only">Device</span></th><th scope="col">Studio</th><th scope="col">Camera</th><th scope="col"><span class="long">Microphone</span><span class="short" aria-hidden="true">Mic</span></th><th scope="col">Screen</th><th scope="col">Remote</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="tip">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="18" y="4" width="12" height="20" rx="6"/><path d="M12 19a12 12 0 0 0 24 0M24 31v5"/><rect x="17" y="36" width="14" height="8" rx="2"/></svg>
+        <p><b>That good USB mic works in a phone, too.</b> Plug it into a phone's USB‑C port (older iPhones need Apple's Lightning to USB camera adapter), choose it as the phone's microphone, and that phone is a camera with studio sound. Webcams and mics plugged into the studio computer join with <b>+ This computer</b>, and record on their own, in full quality.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="beacon" id="how" aria-labelledby="bh">
     <div>
       <div class="qrbox"><canvas id="qr" aria-label="A live beacon code"></canvas></div>
-      <p class="qrcap"><span class="tc" id="qrtc"></span>This code is live. It redraws 15 times a second.</p>
+      <p class="qrcap"><span class="tc" id="qrtc"></span>A real beacon. It keeps changing because it's a clock.</p>
     </div>
     <div>
-      <h2 id="bh">One browser coordinates the production.</h2>
-      <p>The beacon gives each camera a way into the same session and a shared clock. A phone, laptop or other browser-capable camera can join without installing an app, becoming another source in the production.</p>
+      <h2 id="bh">One scan to join.</h2>
+      <p>Every show has a beacon: a code on a screen. A phone points its camera at it, taps the link, and it's in your show. While the camera sees the code, it also reads the time in it, so every angle lines up to the frame later, with nothing to sync by hand.</p>
       <ol class="steps">
-        <li><b>Put the beacon on a screen.</b><span>A TV, a projector, a tablet on a stand.</span></li>
-        <li><b>Cameras join the session.</b><span>A name, one tap to accept, then the browser becomes a synchronized production source.</span></li>
-        <li><b>Direct, publish, rewatch.</b><span>Cut it yourself or let Auto Director choose. When the show is over, the production is ready to watch.</span></li>
+        <li><b>Put the beacon on any screen.</b><span>A TV, a spare laptop, a tablet on a stand.</span></li>
+        <li><b>Point a phone at it.</b><span>Tap the link, type a name, and it's a camera or a microphone.</span></li>
+        <li><b>Cut the show.</b><span>Yourself, or with the Auto Director. Every angle stays on its own device, in full quality.</span></li>
       </ol>
     </div>
   </section>
@@ -622,5 +718,6 @@
 <script src="/vendor/topojson-client.min.js"></script>
 <script type="module" src="/js/landing.js"></script>
 <script type="module" src="/js/films.js"></script>
+<script type="module" src="/js/rig.js"></script>
 </body>
 </html>

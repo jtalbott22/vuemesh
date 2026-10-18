@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.53.0 — the home page shows how your own devices fit together
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **"Use what's already in the drawer"** (new, before the beacon; How it works goes here): pick a setup (Just phones, Podcast desk, Living room, Everything in the drawer) and a diagram shows what sees and hears, the studio in the middle, and what shows, sends and keeps, each device labelled with its job (camera, microphone, screen, remote, goes live, keeps), with the setup in a line and three steps to make it. The setups are plain data in `public/js/rig.js`.
+- **"Any device, any job"**: a chart of which devices can be the studio, a camera, a microphone, a screen or the remote, and a tip that says out loud what nobody would guess: a USB mic plugged into a phone (USB‑C, or Apple's adapter on older iPhones) makes it a camera with studio sound, and webcams and mics on the studio computer join with + This computer.
+- **The beacon section is plainer**: "One scan to join", what a phone does with the code, and why it keeps changing (it's a clock).
+
 ## 0.52.0 — the home page, for your own multicam shows; no revenue sharing
 **Deploy:** `./aws/deploy.sh` (functions and site: new events' terms leave revenue out).
 
