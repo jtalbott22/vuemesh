@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.55.1 — partners write to you directly; integrations first
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Every button on the Partners page emails jtalbott22@gmail.com**, each with its own subject line ("Technology partnership", "Pilot: our venue or organization"…), instead of going to Patreon messages. The Terms page's contact link goes there too, with a subject for questions, notices and removal requests.
+- **Integrations come first** on the Partners page ("Build an integration that ships"), now backed by who's building it: someone who has run countless live events and knows what breaks on the night. Camera and audio companies are named alongside streaming services, TV and device makers and AI labs.
+
 ## 0.55.0 — Partners, not just sponsors
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -4,7 +4,7 @@ export const BRAND = {
   patreon: 'https://www.patreon.com/duh_live_video',
   // Where partner inquiries go (the Partners page's buttons, each with its own subject). Leave empty
   // to send people to Patreon messages instead.
-  sponsorEmail: '',
+  sponsorEmail: 'jtalbott22@gmail.com',
 };
 
 // Beta switches. Turn these on when the legal and security groundwork is in place.
@@ -22,4 +22,4 @@ export const sponsorContactHref = (subject = 'Partnering with VUEMesh') =>
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.55.0';
+export const APP_VERSION = '0.55.1';
