@@ -1,4 +1,4 @@
-// Studio, part 17 of 23: right-click menus.
+// Studio, part 17 of 24: right-click menus.
 // Loads after edit.js: that import comes first, so the parts run in order (see ../studio.js).
 import './edit.js';
 import { toast, esc, announce } from '/js/vm.js';

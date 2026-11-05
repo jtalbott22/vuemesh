@@ -34,6 +34,12 @@
   .say.err { color: #ff8a80; }
   .status { display: flex; align-items: center; gap: 10px; background: #000; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; border: 2px solid var(--line); }
   .status.air { border-color: var(--tally); }
+  /* a sound alert from the studio: the program or a source in it has no sound */
+  .alert { background: var(--tally); color: #fff; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; font-weight: 700; }
+  .alert[hidden] { display: none; }
+  .alert small { display: block; font-weight: 500; opacity: .9; margin-top: 2px; }
+  .alert .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .alert button { background: #fff; color: #7a130d; border: 0; font-weight: 800; }
   .status .big { font-size: 1.5rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status .rec { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--tally); }
   .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -74,6 +80,7 @@
 
   <section id="ctlView" hidden aria-label="The show">
     <div class="status" id="status"><span class="big" id="onAir">Waiting for the studio…</span><span class="rec" id="recTime" hidden></span></div>
+    <div class="alert" id="alert" role="alert" hidden></div>
     <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
     <p class="fine" id="noCams" hidden>No cameras yet.</p>
     <h2 class="sub" id="soundH" hidden>Sound</h2>

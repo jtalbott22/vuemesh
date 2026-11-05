@@ -381,7 +381,7 @@ export class DisplayHub {
     const out = [];
     for (const [, l] of this.links) {
       if (!l.pc) continue;
-      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, route: null };
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null };
       try {
         const st = await l.pc.getStats(), now = performance.now();
         let bytes = 0;
@@ -392,6 +392,8 @@ export class DisplayHub {
           if (x.kind === 'video') {
             r.w = x.frameWidth || null;
             r.h = x.frameHeight || null;
+            r.fps = x.framesPerSecond != null ? Math.round(x.framesPerSecond) : null;
+            r.lim = x.qualityLimitationReason && x.qualityLimitationReason !== 'none' ? x.qualityLimitationReason : null; // (cpu, bandwidth)
             const c = x.codecId && st.get(x.codecId);
             if (c) r.codec = c.mimeType?.split('/')[1] || null;
           }

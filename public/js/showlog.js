@@ -1,0 +1,235 @@
+// The show log: what happened during a show, second by second, kept on this computer so a
+// problem can be traced afterwards (a frame rate that sagged, a microphone that stopped, a TV
+// that dropped out). The studio samples once a second (studio/showlog.js); this file is the
+// part with no page in it: the log itself, its summary, and the sound watch. Node can test it.
+//
+// A sample (one a second) has short keys, because a three-hour show is ten thousand of them:
+//   t     time (ms since 1970)        vis   'v' visible or 'h' hidden     drv  'raf' or 'tick'
+//   fps   program frames drawn that second       gap  the longest wait between two (ms)
+//   lag   the longest wait between two ticks of the background clock (ms: the computer busy)
+//   ctx   the sound engine's state     pk    the program's loudest moment that second (dBFS)
+//   rec   Record program on (1/0)     str   streaming out (1/0)        sock  connected to the server
+//   air   what's on air (a name, 'Break', 'Black', or a clip)
+//   s     each source: id, n (name), k (cam/mic/screen), loc (this computer), open (in the mix),
+//         db (its loudest, before the fader), a (its sound: live/muted/ended/off/none),
+//         vf (frames its camera delivered that second), vp (frames shown on its tile),
+//         ad (sound dropped that second, ms), lat (sound latency, ms), sr (sample rate),
+//         mic (the microphone a camera's sound comes from), and from a phone's link every few
+//         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
+//   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back)
+
+export const FLOOR_DB = -90; // quieter than this is no sound: a live microphone's own hiss is louder (a room at low gain sits near -80)
+
+export const dbOf = (peak) => (peak > 1e-5 ? Math.max(-99, Math.round(20 * Math.log10(peak))) || 0 : -99);
+
+export class ShowLog {
+  constructor({ maxRows = 8 * 3600, maxEvents = 5000, now = () => Date.now() } = {}) {
+    this.rows = [];
+    this.events = [];
+    this.maxRows = maxRows;
+    this.maxEvents = maxEvents;
+    this.now = now;
+    this.startedAt = now();
+  }
+
+  add(row) {
+    this.rows.push(row);
+    if (this.rows.length > this.maxRows) this.rows.splice(0, this.rows.length - this.maxRows);
+  }
+
+  /** Something that happened: kind is a short word (note, window, sound, source, alert, ...). */
+  event(kind, text, extra) {
+    const e = { t: this.now(), kind, text: String(text).slice(0, 300), ...(extra || {}) };
+    this.events.push(e);
+    if (this.events.length > this.maxEvents) this.events.splice(0, this.events.length - this.maxEvents);
+    return e;
+  }
+
+  summary(target = 30) {
+    return summarize(this.rows, this.events, target);
+  }
+
+  toJSON(meta = {}) {
+    return { kind: 'vuemesh-showlog', version: 1, startedAt: this.startedAt, savedAt: this.now(), ...meta, summary: this.summary(meta.fps || 30), events: this.events, rows: this.rows };
+  }
+}
+
+const clock = (t) => new Date(t).toTimeString().slice(0, 8);
+const mmss = (ms) => {
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const s = Math.round(ms / 1000);
+  return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min` : s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`;
+};
+
+/** Stretches of rows where test(row) holds: [{ from, to }] (to is the last row's time + 1 s). */
+export function spans(rows, test) {
+  const out = [];
+  let cur = null;
+  for (const r of rows) {
+    if (test(r)) {
+      if (cur && r.t - cur.to <= 1500) cur.to = r.t + 1000;
+      else out.push((cur = { from: r.t, to: r.t + 1000 }));
+    } else cur = null;
+  }
+  return out;
+}
+
+/** The show in numbers and in plain words: what to look at first. */
+export function summarize(rows, events = [], target = 30) {
+  const out = { from: rows[0]?.t ?? null, to: rows.length ? rows.at(-1).t + 1000 : null, seconds: rows.length, lines: [] };
+  if (!rows.length) {
+    out.lines.push('Nothing logged yet.');
+    return out;
+  }
+  const fpsRows = rows.filter((r) => typeof r.fps === 'number');
+  const slow = (r) => typeof r.fps === 'number' && r.fps < target * 0.9;
+  const fpsAvg = fpsRows.length ? Math.round((fpsRows.reduce((s, r) => s + r.fps, 0) / fpsRows.length) * 100) / 100 : null;
+  const worst = fpsRows.reduce((w, r) => (!w || r.fps < w.fps ? r : w), null);
+  const hidden = rows.filter((r) => r.vis === 'h').length;
+  const ticked = rows.filter((r) => r.drv === 'tick').length;
+  const expectSound = (r) => (r.s || []).some((s) => s.open) && r.air !== 'Black' && r.air !== 'Break';
+  const silent = spans(rows, (r) => expectSound(r) && typeof r.pk === 'number' && r.pk < FLOOR_DB);
+  const slowSpans = spans(rows, slow);
+  out.program = {
+    fpsAvg, fpsMin: worst?.fps ?? null, fpsMinAt: worst?.t ?? null,
+    slowSeconds: fpsRows.filter(slow).length, hiddenSeconds: hidden, backgroundSeconds: ticked,
+    silentSeconds: silent.reduce((s, x) => s + (x.to - x.from), 0) / 1000, silent,
+    slow: slowSpans,
+  };
+  out.lines.push(`Logged ${mmss(out.to - out.from)}, ${clock(out.from)} to ${clock(out.to)}.`);
+  if (fpsAvg != null) {
+    out.lines.push(`Program picture: ${fpsAvg} frames a second on average (aiming for ${target}); the slowest second was ${worst.fps} at ${clock(worst.t)}.`);
+    if (slowSpans.length) {
+      const longest = slowSpans.reduce((a, b) => (b.to - b.from > a.to - a.from ? b : a));
+      out.lines.push(`Below ${Math.round(target * 0.9)} frames a second for ${mmss(out.program.slowSeconds * 1000)} in all, ${slowSpans.length} time(s); the longest from ${clock(longest.from)} for ${mmss(longest.to - longest.from)}.`);
+    }
+  }
+  if (hidden || ticked) out.lines.push(`The studio window was hidden or covered for ${mmss(Math.max(hidden, ticked) * 1000)} (then the background clock draws the program).`);
+  if (silent.length) {
+    const longest = silent.reduce((a, b) => (b.to - b.from > a.to - a.from ? b : a));
+    out.lines.push(`The program had no sound while something was in the mix ${silent.length} time(s), ${mmss(out.program.silentSeconds * 1000)} in all; the longest from ${clock(longest.from)} for ${mmss(longest.to - longest.from)}.`);
+  }
+  // sources: when each went quiet, stopped or dropped sound
+  const src = new Map();
+  for (const r of rows) for (const s of r.s || []) {
+    let x = src.get(s.id);
+    if (!x) src.set(s.id, (x = { id: s.id, n: s.n, k: s.k, loc: !!s.loc, first: r.t, last: r.t, ended: null, droppedMs: 0, mic: s.mic || null }));
+    x.last = r.t;
+    x.n = s.n;
+    if (s.mic) x.mic = s.mic;
+    if ((s.a === 'ended' || s.a === 'none') && x.hadSound && !x.ended) x.ended = r.t;
+    if (s.a === 'live') x.hadSound = true;
+    x.droppedMs += s.ad || 0;
+  }
+  out.sources = [...src.values()].map(({ hadSound, ...x }) => x);
+  for (const x of out.sources) {
+    if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);
+    if (x.droppedMs >= 100) out.lines.push(`${x.n}: ${mmss(x.droppedMs)} of its sound was dropped on the way in (the device or the computer couldn't keep up).`);
+  }
+  // cameras sharing one microphone, or on the computer's default one
+  const byMic = new Map();
+  for (const x of out.sources) if (x.k === 'cam' && x.mic) byMic.set(x.mic, [...(byMic.get(x.mic) || []), x.n]);
+  for (const [mic, names] of byMic) if (names.length > 1) out.lines.push(`${names.join(' and ')} ${names.length === 2 ? 'both' : 'all'} take their sound from ${mic}.`);
+  // sound alerts, each with how long it lasted (until its clearing, or the end of the log)
+  const alerts = events.filter((e) => e.kind === 'alert');
+  if (alerts.length) out.lines.push(`${alerts.length} sound alert(s):`);
+  for (const a of alerts.slice(0, 12)) {
+    const clear = events.find((e) => e.kind === 'alert-clear' && e.t >= a.t && e.alert === a.alert && (e.id ?? null) === (a.id ?? null));
+    out.lines.push(`  ${clock(a.t)} ${a.text} (${clear ? `for ${mmss(clear.t - a.t)}` : 'until the end of the log'})`);
+  }
+  if (alerts.length > 12) out.lines.push(`  and ${alerts.length - 12} more.`);
+  const drops = events.filter((e) => e.kind === 'server' && /lost/.test(e.text));
+  if (drops.length) out.lines.push(`Lost the server connection ${drops.length} time(s).`);
+  return out;
+}
+
+/**
+ * Watches the program's sound and each source's, and says when to raise an alert and when it
+ * has cleared. Feed it once a second: update(t, { program: { db, expect }, sources: [...] }),
+ * where expect is whether the program should have sound (something in the mix, not black or a
+ * break) and each source is { id, n, open, db, a } (a: live/muted/ended/off/none).
+ */
+export class SoundWatch {
+  constructor({ programAfterMs = 3000, sourceAfterMs = 5000, mutedAfterMs = 2000, floorDb = FLOOR_DB } = {}) {
+    Object.assign(this, { programAfterMs, sourceAfterMs, mutedAfterMs, floorDb });
+    this.active = new Map(); // key → alert
+    this.since = new Map(); // key → when its condition started
+    this.hadSound = new Set(); // sources that have had a live sound track
+    this.before = new Map(); // id → the source as it was a second ago
+    this.gone = new Map(); // key → alert, for sources that left while their sound was in the mix
+  }
+
+  update(t, { program = {}, sources = [] } = {}) {
+    const want = new Map(); // key → alert, for every condition holding now (after its wait)
+    const hold = (key, after, alert) => {
+      if (!this.since.has(key)) this.since.set(key, t);
+      if (t - this.since.get(key) >= after) want.set(key, { key, since: this.since.get(key), ...alert });
+    };
+    const holding = new Set();
+    const check = (key, cond, after, alert) => {
+      if (!cond) return;
+      holding.add(key);
+      hold(key, after, alert);
+    };
+    for (const s of sources) {
+      if (s.a === 'live') this.hadSound.add(s.id);
+      const had = this.hadSound.has(s.id);
+      check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)` });
+      check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device` });
+      check(`silent:${s.id}`, s.open && s.a === 'live' && typeof s.db === 'number' && s.db < this.floorDb, this.sourceAfterMs, { kind: 'source-silent', id: s.id, n: s.n, text: `${s.n}: it has gone silent` });
+    }
+    // A source that leaves while its sound is in the mix (a USB interface dropping out is
+    // taken as unplugged, and the source goes): say so, and keep expecting the program's sound,
+    // so that losing the only microphone isn't silence with nothing said. It clears when the
+    // program has sound again, or the source comes back.
+    const now = new Map(sources.map((x) => [x.id, x]));
+    for (const [id, was] of this.before) if (!now.has(id) && was.open && this.hadSound.has(id)) {
+      const key = `gone:${id}`;
+      if (this.gone.has(key)) continue;
+      this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)` });
+    }
+    this.before = now;
+    const heard = typeof program.db === 'number' && program.db >= this.floorDb;
+    // (heard counts from two seconds on: the second it left, the meter still holds its last sound)
+    for (const [key, a] of [...this.gone]) if ((heard && t - a.since >= 2000) || now.has(a.id)) this.gone.delete(key);
+    for (const [key, a] of this.gone) {
+      holding.add(key);
+      want.set(key, a);
+    }
+    const expect = program.expect || this.gone.size > 0;
+    check('program', expect && typeof program.db === 'number' && program.db < this.floorDb, this.programAfterMs, { kind: 'program-silent', text: 'The program has no sound' });
+    for (const key of [...this.since.keys()]) if (!holding.has(key)) this.since.delete(key);
+    const raised = [], cleared = [];
+    for (const [key, a] of want) if (!this.active.has(key)) {
+      this.active.set(key, a);
+      raised.push(a);
+    }
+    for (const [key, a] of [...this.active]) if (!want.has(key)) {
+      this.active.delete(key);
+      cleared.push(a);
+    }
+    return { raised, cleared, active: [...this.active.values()] };
+  }
+}
+
+/**
+ * The chunks kept in this browser's storage (a minute each), put back together: one show log
+ * per studio session, newest first, each { session, startedAt, at, meta, rows, events }.
+ */
+export function joinChunks(chunks) {
+  const by = new Map();
+  for (const c of [...chunks].sort((a, b) => (a.n ?? 0) - (b.n ?? 0))) {
+    let s = by.get(c.session);
+    if (!s) by.set(c.session, (s = { session: c.session, eventId: c.eventId, startedAt: c.startedAt, at: c.at, meta: null, rows: [], events: [] }));
+    if (c.meta) s.meta = c.meta;
+    s.rows.push(...(c.rows || []));
+    s.events.push(...(c.events || []));
+    s.at = Math.max(s.at || 0, c.at || 0);
+  }
+  return [...by.values()].sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** One kept session as the file Save show log makes. */
+export function sessionFile(s) {
+  return { kind: 'vuemesh-showlog', version: 1, startedAt: s.startedAt, savedAt: s.at, ...(s.meta || {}), summary: summarize(s.rows, s.events, s.meta?.fps || 30), events: s.events, rows: s.rows };
+}

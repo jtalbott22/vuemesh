@@ -99,6 +99,7 @@ function showControls() {
 }
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let alertBuzzed = false;
 function render() {
   if (!state) return;
   $('#title').textContent = state.title || 'Remote';
@@ -112,6 +113,17 @@ function render() {
       ${src ? `<img alt="" src="${src}">` : '<span class="nopic">picture in a moment</span>'}
       ${c.onAir ? '<span class="tag">ON AIR</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
   }).join('');
+  // a sound alert from the studio, with the sources that could stand in
+  const alerts = state.alerts || [];
+  $('#alert').hidden = !alerts.length;
+  if (alerts.length) {
+    const head = alerts.find((a) => a.kind === 'program-silent') || alerts[0];
+    const more = alerts.filter((a) => a !== head);
+    $('#alert').innerHTML = `⚠ ${esc(head.text)}${more.length ? `<small>${more.map((a) => esc(a.text)).join(' · ')}</small>` : ''}`
+      + ((state.backups || []).length ? `<div class="row">${state.backups.map((b) => `<button type="button" data-sound-on="${esc(b.peer)}">Turn on ${esc(b.name)}</button>`).join('')}</div>` : '');
+    if (!alertBuzzed) navigator.vibrate?.([200, 100, 200]);
+  }
+  alertBuzzed = alerts.length > 0;
   $('#noCams').hidden = state.cams.length > 0;
   // sound-only sources: cut to one and the program shows its sound picture
   const sound = state.sound || [];
@@ -151,6 +163,10 @@ for (const id of ['#cams', '#sound']) {
     if (b) act('cut', b.dataset.peer);
   });
 }
+$('#alert').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sound-on]');
+  if (b) act('soundOn', b.dataset.soundOn);
+});
 $('#clips').addEventListener('click', (e) => {
   const b = e.target.closest('[data-clip]');
   if (b) act('clip', b.dataset.clip);

@@ -1,4 +1,4 @@
-// Studio, part 23 of 23: the Monitor, the phone remote, TV screens.
+// Studio, part 23 of 24: the Monitor, the phone remote, TV screens.
 // Loads after export.js: that import comes first, so the parts run in order (see ../studio.js).
 import './export.js';
 import { toast, esc, now, drawQR } from '/js/vm.js';
@@ -24,6 +24,7 @@ import { recByHand } from './autopilot.js';
 import { incoming, monitorLight, outgoing, sentLog, setMonitorSeenAt } from './phones.js';
 import { clipTitle, deleteRecording } from './library.js';
 import { exporting, rendering } from './export.js';
+import { backupMics, showLogBrief, soundAlerts, soundOn } from './showlog.js';
 
 // ---------------------------------------------------------------- monitor ----
 // The Monitor tab (same browser) listens here: network, device and transfer
@@ -77,6 +78,7 @@ export async function pushMonitor() {
     peers, log: log.slice(0, 80),
     stream: streamOut?.link ? { name: streamOut.name, ...(await streamOut.link().catch(() => ({}))) } : null,
     displays: (await displayHub?.stats().catch(() => [])) || [],
+    showlog: showLogBrief(),
   });
 }
 
@@ -111,6 +113,9 @@ function remoteState() {
   return {
     title: $('#title')?.textContent || 'Studio', cams, sound, clips, mics, auto: !!autoOn, black: atBlack, brk,
     media: mediaOn ? reelOf(mediaOn.id)?.name || 'A clip' : null, rec: !!(progRec && !progRec.stopping),
+    // sound alerts (the show log's sound watch), with the sources that could stand in
+    alerts: soundAlerts.map((a) => ({ kind: a.kind, text: a.text })),
+    backups: soundAlerts.length ? backupMics().slice(0, 3).map((b) => ({ peer: b.peer, name: b.name })) : [],
   };
 }
 window.vmRemoteState = () => remoteState(); // (diagnostics and tests)
@@ -134,6 +139,7 @@ function remoteAct(a, arg) {
     if (!!arg !== on) recByHand();
     return '';
   }
+  if (a === 'soundOn') return soundOn(arg);
   return 'Not something a remote can do';
 }
 export function startRemoteHost() {

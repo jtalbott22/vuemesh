@@ -537,6 +537,13 @@
 
   .soundoff { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; min-height: 34px; padding: 0 14px; border-radius: 999px; background: var(--amber); color: #2b1d00; font-weight: 800; box-shadow: 0 4px 14px #0006; }
   .soundoff[hidden] { display: none; }
+  /* sound alerts (the show log's sound watch): over the program, until the sound is back */
+  .soundalert { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--tally); color: #fff; font-weight: 700; box-shadow: 0 6px 20px #0008; }
+  .soundalert[hidden] { display: none; }
+  .soundalert .sa-text { flex: 1 1 220px; }
+  .soundalert .sa-text small { display: block; font-weight: 500; opacity: .9; }
+  .soundalert button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: #fff; color: var(--tally-ink); font-weight: 800; }
+  .soundalert button.ghost { background: transparent; color: #fff; border: 1px solid #fff8; }
   .overflow { border-top: 1px solid var(--line); }
   .overflow[hidden] { display: none; }
   .ovlist { list-style: none; margin: 0; padding: 0 10px 10px; display: grid; gap: 4px; }
@@ -711,6 +718,7 @@
 
   <section class="center" aria-label="Program">
     <div class="monitor">
+      <div class="soundalert" id="soundAlert" role="alert" hidden></div>
       <button type="button" class="soundoff" id="soundOff" hidden>🔇 Sound is paused by the browser. Click to turn it on.</button>
       <div class="pmeters" id="pMeters" hidden aria-hidden="true">
         <div class="pmscale"><span style="--p:100%">0</span><span style="--p:80%">-12</span><span style="--p:60%">-24</span><span style="--p:40%">-36</span><span style="--p:20%">-48</span></div>
@@ -884,6 +892,13 @@
       <button type="button" id="refreshPics" style="width:100%;margin-bottom:8px" title="Restart every live picture in this window. Right-click a camera for just one, or to reconnect it.">Refresh live pictures</button>
       <label class="check"><input type="checkbox" id="localOnly"> Local network only</label>
       <p class="fine">Local only refuses connections that go out through the internet. Phones must be on the same Wi-Fi as this computer.</p>
+    </section>
+    <section data-mode="live" aria-labelledby="slHead">
+      <h2 id="slHead">Show log</h2>
+      <p class="fine" id="slState" style="margin-top:0">Keeps a second-by-second record of the show on this computer: frame rate, sound, devices, TVs. Save it to send when something went wrong.</p>
+      <button type="button" id="slSave" style="width:100%;margin-bottom:8px">Save show log</button>
+      <button type="button" id="slAlerts" style="width:100%;margin-bottom:8px">Alert me when the sound stops</button>
+      <p class="fine" id="slAlertState" style="margin:0">Sound alerts show over the program and on the phone remote. Allow alerts to see them on this computer while the studio is hidden too.</p>
     </section>
     <section data-mode="live">
       <h2>Breaks and black</h2>

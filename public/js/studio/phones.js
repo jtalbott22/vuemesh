@@ -1,4 +1,4 @@
-// Studio, part 15 of 23: the live cut sent to the crew, iPhone playback, overflow, capacity, diagnostics, incoming clips.
+// Studio, part 15 of 24: the live cut sent to the crew, iPhone playback, overflow, capacity, diagnostics, incoming clips.
 // Loads after autopilot.js: that import comes first, so the parts run in order (see ../studio.js).
 import './autopilot.js';
 import { toast, esc, fmtDur, now, announce, diag, codecsOf, diagnosticsDialog } from '/js/vm.js';

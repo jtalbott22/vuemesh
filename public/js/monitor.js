@@ -2,6 +2,7 @@
 // same browser: network, device and transfer health for every phone.
 import { $, esc, themeButton, eventIdFromUrl } from '/js/vm.js';
 import * as idb from '/js/idb.js';
+import { joinChunks, sessionFile } from '/js/showlog.js';
 
 themeButton($('#themeBtn'));
 const eventId = eventIdFromUrl();
@@ -109,6 +110,7 @@ function liveCell(l) {
 function render(d) {
   lastAt = Date.now();
   linkState();
+  if (d.showlog) renderShowLog(d.showlog);
   $('#title').textContent = d.event.title;
   document.title = `${d.event.title} — monitor`;
   const cams = d.peers.filter((p) => p.role === 'cam');
@@ -224,3 +226,71 @@ function render(d) {
     $('#log').innerHTML = d.log.map((l) => `<li><time>${new Date(l.at).toLocaleTimeString()}</time>${esc(l.text)}</li>`).join('') || '<li class="empty">Quiet so far.</li>';
   }
 }
+
+// ---- the show log: the last ten minutes from the studio, and every one kept here ----
+const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+function strip(cv, recent, value, lo, hi, guide) {
+  const w = (cv.width = Math.round(cv.clientWidth * devicePixelRatio)), h = (cv.height = Math.round(56 * devicePixelRatio));
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, w, h);
+  if (!recent.length) return;
+  const t1 = recent.at(-1)[0], t0 = t1 - 600_000;
+  const x = (t) => ((t - t0) / 600_000) * w, y = (v) => h - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * h;
+  g.fillStyle = '#f0a82b33'; // seconds drawn by the background clock (studio hidden or covered)
+  for (const r of recent) if (r[3]) g.fillRect(x(r[0]), 0, Math.max(1, w / 600), h);
+  if (guide != null) {
+    g.strokeStyle = css('--line', '#2a2c32');
+    g.setLineDash([4 * devicePixelRatio, 4 * devicePixelRatio]);
+    g.beginPath(); g.moveTo(0, y(guide)); g.lineTo(w, y(guide)); g.stroke();
+    g.setLineDash([]);
+  }
+  g.strokeStyle = css('--text', '#ececef');
+  g.lineWidth = 1.5 * devicePixelRatio;
+  g.beginPath();
+  let gap = true, prev = 0;
+  for (const r of recent) {
+    const v = value(r);
+    if (v == null || r[0] - prev > 2500) gap = true;
+    prev = r[0];
+    if (v == null) continue;
+    if (gap) g.moveTo(x(r[0]), y(v)); else g.lineTo(x(r[0]), y(v));
+    gap = false;
+  }
+  g.stroke();
+}
+let lastSession = null;
+function renderShowLog(sl) {
+  strip($('#slFps'), sl.recent, (r) => r[1], 0, 35, 30);
+  strip($('#slSnd'), sl.recent, (r) => r[2], -90, 0, -90 + 6);
+  $('#slAlert').hidden = !sl.alerts.length;
+  $('#slAlert').textContent = sl.alerts.length ? `⚠ ${sl.alerts.join(' · ')}` : '';
+  $('#slLines').innerHTML = sl.lines.map((l) => `<li>${esc(l)}</li>`).join('');
+  if (sl.session !== lastSession) {
+    lastSession = sl.session;
+    renderSessions();
+  }
+}
+let sessions = [];
+async function renderSessions() {
+  sessions = joinChunks(await idb.list('showlog', eventId).catch(() => []));
+  const ul = $('#slSessions');
+  if (!sessions.length) return void (ul.innerHTML = '<li class="empty">None yet.</li>');
+  const when = (t) => new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  ul.innerHTML = sessions.map((s, i) => {
+    const mins = Math.round(s.rows.length / 60), alerts = s.events.filter((e) => e.kind === 'alert').length;
+    return `<li><span><b>${esc(when(s.startedAt))}</b><small>${mins} min logged · ${s.events.length} events${alerts ? ` · ${alerts} sound alert${alerts === 1 ? '' : 's'}` : ''}${s.session === lastSession ? ' · open now' : ''}</small></span><span class="acts"><button type="button" data-sl-save="${i}">Save show log</button></span></li>`;
+  }).join('');
+}
+$('#slSessions').addEventListener('click', async (e) => {
+  const i = e.target.closest('[data-sl-save]')?.dataset.slSave;
+  if (i == null) return;
+  await renderSessions(); // (the newest minute, if the studio has kept it since)
+  const s = sessions[Number(i)];
+  if (!s) return;
+  const blob = new Blob([JSON.stringify(sessionFile(s))], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `vuemesh-showlog-${eventId}-${new Date(s.startedAt).toISOString().slice(0, 16).replace(/[T:]/g, '-')}.json` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+});
+renderSessions();
+setInterval(renderSessions, 60_000);
