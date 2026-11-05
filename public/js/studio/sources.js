@@ -58,6 +58,35 @@ function soundFor(cam, devs) {
     null
   );
 }
+// How big this computer's cameras capture (per computer): 1080p, or 720p, which is far lighter on
+// USB (three webcams at 1080p can be more than a computer's USB takes, and sound from the same
+// ports suffers first). Changed, the cameras in the show change at once.
+const CAMSIZE_KEY = 'vm_localcamsize';
+export const camCapture = () => (localStorage.getItem(CAMSIZE_KEY) === '720' ? 720 : 1080);
+const camSize = () => {
+  const h = camCapture();
+  return { width: { ideal: Math.round((h * 16) / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } };
+};
+export async function setCamCapture(h) {
+  localStorage.setItem(CAMSIZE_KEY, String(h === 720 ? 720 : 1080));
+  for (const [, l] of live) {
+    if (!l.local || l.role === 'mic' || l.screen) continue;
+    const t = l.stream.getVideoTracks()[0];
+    await t?.applyConstraints(camSize()).catch(() => {});
+  }
+  renderCamCapture();
+  note(`This computer's cameras capture at ${camCapture()}p`);
+}
+export function renderCamCapture() {
+  const sel = $('#camSize'), hint = $('#camSizeHint');
+  if (!sel) return;
+  sel.value = String(camCapture());
+  const n = [...live.values()].filter((l) => l.local && l.role !== 'mic' && !l.screen).length;
+  if (hint) hint.textContent = n >= 3 && camCapture() === 1080 ? `${n} cameras at 1080p is a lot for one computer's USB: if pictures stutter or the sound crackles, try 720p.` : '';
+}
+$('#camSize')?.addEventListener('change', (e) => setCamCapture(Number(e.target.value)));
+renderCamCapture();
+
 // Which microphone a camera here takes its sound from, once chosen in the mixer (Sound from):
 // kept per camera on this computer, and used whenever that camera is added again.
 const CAMSOUND_KEY = 'vm_camsound';
@@ -78,7 +107,7 @@ async function addLocalSource(kind, deviceId, name, quiet, micId) {
   }
   const constraints = kind === 'mic'
     ? { audio: { deviceId: { exact: deviceId }, ...MIC_OPTS } }
-    : { video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, ...(micId ? { audio: { deviceId: { exact: micId }, ...MIC_OPTS } } : {}) };
+    : { video: { deviceId: { exact: deviceId }, ...camSize() }, ...(micId ? { audio: { deviceId: { exact: micId }, ...MIC_OPTS } } : {}) };
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -124,8 +153,25 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   note(`${label} added from this computer${micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : kind === 'cam' ? ', without sound' : ''}`);
   if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ' (recording)' : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`);
   refreshLocalMics(); // (the microphones' names, now the browser has said yes)
+  checkRate(peer);
+  renderCamCapture();
   return peer;
 }
+// A microphone at another sample rate from the studio's sound: Chrome converts it, but an
+// interface and Windows set to different rates is a common cause of crackling and dropouts
+// (the interface's own app, and Windows' sound settings for it, should both say 48000 Hz).
+const rateWarned = new Set();
+function checkRate(peer) {
+  const l = live.get(peer), t = l?.stream.getAudioTracks()[0];
+  const rate = t?.getSettings?.().sampleRate, engine = player.ctx?.sampleRate;
+  if (!rate || !engine || rate === engine) return;
+  const label = l.role === 'mic' ? l.deviceLabel : l.micLabel;
+  if (rateWarned.has(label)) return;
+  rateWarned.add(label);
+  note(`${label} is at ${rate} Hz, the studio's sound at ${engine} Hz`);
+  toast(`${label} runs at ${rate / 1000} kHz and the studio at ${engine / 1000} kHz. If it crackles, set it to ${engine / 1000} kHz in its own app and in Windows' sound settings.`, 12000);
+}
+
 /** A camera here takes its sound from another microphone (or none): from the mixer's Sound from. Kept for that camera. */
 export async function setLocalSound(peer, micId) {
   const l = live.get(peer);
@@ -250,7 +296,7 @@ async function openAgain(kind, id, label) {
   if (!d) return null;
   const s = await navigator.mediaDevices.getUserMedia(kind === 'mic'
     ? { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } }
-    : { video: { deviceId: { exact: d.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } } });
+    : { video: { deviceId: { exact: d.deviceId }, ...camSize() } });
   return (kind === 'mic' ? s.getAudioTracks() : s.getVideoTracks())[0] || null;
 }
 navigator.mediaDevices?.addEventListener?.('devicechange', () => {

@@ -821,6 +821,9 @@
         <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
       </div>
       <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
+      <label for="camSize" style="margin-top:10px">This computer's cameras capture at</label>
+      <select id="camSize" aria-describedby="camSizeHint"><option value="1080">1080p</option><option value="720">720p (lighter on USB)</option></select>
+      <p class="fine" id="camSizeHint" style="margin:2px 0 6px"></p>
       <h3 class="sub" style="margin:12px 0 4px">Sync: this computer's cameras and microphones</h3>
       <p class="fine" id="syncState" style="margin:0 0 6px"></p>
       <button type="button" id="syncBtn" style="width:100%;margin-bottom:8px" title="Clap once where every camera can see your hands: each camera's own delay is measured and kept">Sync check (clap once)</button>

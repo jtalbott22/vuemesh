@@ -114,6 +114,14 @@ const at = (s) => T0 + s * 1000;
   ok('summary: average and slowest frame rate, time hidden, silent stretches, a stopped source, dropped sound, cameras sharing a mic, alerts');
 }
 
+{
+  // a camera here that delivered 18 frames a second of 30
+  const rows = Array.from({ length: 30 }, (_, i) => ({ t: at(i), fps: 30, s: [{ id: 'c', n: 'C930e 2', k: 'cam', loc: 1, vf: 18 }, { id: 'd', n: 'Desk', k: 'cam', loc: 1, vf: 30 }] }));
+  const text = summarize(rows, [], 30).lines.join('\n');
+  assert.ok(text.includes('C930e 2 delivered 18 frames a second on average') && !text.includes('Desk delivered'), text);
+  ok("summary: a camera here delivering fewer frames than it should (USB or the computer not keeping up)");
+}
+
 // ---- the log ----
 {
   let t = T0;

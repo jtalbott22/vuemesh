@@ -4,6 +4,7 @@
 #  - a camera's Sound from: its sound from another microphone (or none), kept for that camera
 #    when it's added again;
 #  - AFV follows a camera you choose: a microphone heard only while that camera is on air;
+#  - this computer's cameras at 720p (lighter on USB), at once;
 #  - the phone remote's mixer: each channel's level as it is, and its mode and fader from the phone.
 # Run: node dev/server.mjs &  then  python3 test/e2e_soundcontrol.py
 import os, time
@@ -72,6 +73,14 @@ with sync_playwright() as p:
     on = open_(mic)
     assert off == 0 and on == 1, (off, on)
     step(f'AFV follows "{label}": the microphone is out of the mix with the other camera on air, in with that one')
+
+    # 3b. this computer's cameras at 720p (lighter on USB), at once
+    hs = lambda: host.evaluate("[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).map(v => v.srcObject.getVideoTracks()[0].getSettings().height)")
+    before = hs()
+    host.select_option('#camSize', '720')
+    host.wait_for_function("[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).every(v => v.srcObject.getVideoTracks()[0].getSettings().height === 720)", timeout=8000)
+    host.select_option('#camSize', '1080')
+    step(f"this computer's cameras to 720p, lighter on USB: {before} → {[720] * len(before)}, at once")
 
     # 4. the phone remote's mixer: a channel's mode and level from the phone
     host.click('#remoteAdd')
