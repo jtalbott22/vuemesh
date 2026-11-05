@@ -44,6 +44,7 @@ import { renderTimeline, select } from './edit.js';
 import { deleteMarker, markerMenu, moveMarker, renameMarker, renderTools, timeOfAbs } from './transport.js';
 import { deleteRecording } from './library.js';
 import { displayHub, onTvCal, pushMonitor, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
+import { bgInterval } from '/js/bgclock.js';
 
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
 // both. The other page's elements are listed on <body data-absent> (id: tag): asked for one,
@@ -653,7 +654,7 @@ async function init() {
       localOnly: () => $('#localOnly').checked,
     });
     setInterval(updateNetwork, 2000);
-    setInterval(pushMonitor, 2000);
+    bgInterval(pushMonitor, 2000);
   }
   if (EDIT_ONLY) {
     document.title = `${ev.title} \u2014 edit`;

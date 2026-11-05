@@ -8,6 +8,7 @@ import { angleOfCid } from './clips.js';
 import { fitTile, picHealth, preBuf } from './live.js';
 import { mix, mixAttach } from './mixer.js';
 import { progRec } from './switcher.js';
+import { bgInterval } from '/js/bgclock.js';
 
 // ---- usage, anonymously ----
 // This event's running totals (recordings, footage, live cut and streaming time) go to the
@@ -81,7 +82,8 @@ window.vmMedia = () =>
       control: l.cam ? { remote: l.cam.remote, lenses: (l.cam.lenses || []).map((x) => x.label), lens: l.cam.lens } : null,
     };
   });
-setInterval(() => {
+// (on the worker clock: a microphone whose sound stopped reaching the mixer is put back while the studio is hidden too)
+bgInterval(() => {
   if (!mix.strips?.size) return;
   if (player.ctx?.state === 'suspended') player.ctx.resume().catch(() => {});
   for (const [peer, st] of mix.strips) {
