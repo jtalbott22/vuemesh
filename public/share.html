@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1013">
+<title>Share a screen — VUEMesh</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  /* Another computer's screen, into the studio as a source: open this page on it, share, done.
+     Small on purpose: it sits in a corner of a presenter's screen while they teach. */
+  @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); font-display: swap; }
+  :root { color-scheme: dark; --bg: #0f1013; --panel: #1a1d23; --line: #2c313a; --ink: #f3f4f6; --dim: #a7adb8; --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1, button, .tag { font-family: 'Barlow Condensed', system-ui, sans-serif; }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; }
+  .mark { font: 700 1rem/1 'Barlow Condensed', system-ui, sans-serif; color: var(--dim); display: flex; align-items: center; gap: 6px; margin-bottom: 18px; }
+  .mark i { width: 9px; height: 9px; border-radius: 50%; background: var(--tally); display: inline-block; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; }
+  label { display: block; color: var(--dim); font-size: .9rem; margin: 12px 0 4px; }
+  input { width: 100%; font: 500 1.05rem/1.2 system-ui, sans-serif; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--line); background: #0b0c0f; color: var(--ink); }
+  input#code { font: 600 1.3rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; }
+  button { font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; border: 1px solid #00000080; border-radius: 10px; padding: 12px 16px; background: linear-gradient(#2b313b, #1c2027); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--preview); color: #04120a; width: 100%; margin-top: 16px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .row button { flex: 1; }
+  .say { color: var(--dim); margin: 8px 0 0; }
+  .err { color: #ff8a80; }
+  .fine { color: var(--dim); font-size: .88rem; margin: 10px 0 0; }
+  .pv { position: relative; background: #000; border: 3px solid var(--line); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; }
+  .pv.pvw { border-color: var(--preview); }
+  .pv.air { border-color: var(--tally); }
+  .pv video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .tag { position: absolute; left: 8px; top: 8px; padding: 3px 9px; border-radius: 5px; background: #000c; font-size: 1rem; }
+  .pv.air .tag { background: var(--tally); color: #fff; }
+  .pv.pvw .tag { background: var(--preview); color: #04120a; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #6b7280; margin-right: 6px; }
+  .dot.on { background: var(--preview); }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark"><i></i>VUEMesh</div>
+
+  <section id="joinView">
+    <h1>Share this computer's screen</h1>
+    <p class="say" id="joinWhat">Into the studio, as a source the director can cut to: slides, a demo, a video.</p>
+    <form id="joinForm" class="card" autocomplete="off">
+      <div id="codeBox">
+        <label for="code">Event code</label>
+        <input id="code" maxlength="6" placeholder="ABC123" required inputmode="text" autocapitalize="characters" spellcheck="false">
+      </div>
+      <label for="name">What to call it</label>
+      <input id="name" maxlength="40" placeholder="Presenter laptop" required>
+      <button type="submit" class="primary" id="shareBtn">Share a screen…</button>
+      <p class="say err" id="joinErr" role="alert"></p>
+      <p class="fine" id="soundTip"></p>
+      <p class="fine" id="termsLine" hidden></p>
+    </form>
+    <p class="fine" id="cantShare" hidden>This browser can't share its screen (phones and tablets mostly can't). Open this page on a computer, in Chrome, Edge, Firefox or Safari.</p>
+  </section>
+
+  <section id="liveView" hidden>
+    <h1 id="liveName"></h1>
+    <p class="say"><span class="dot" id="conn"></span><span id="linkSay">Finding the studio…</span></p>
+    <div class="pv" id="pv"><video id="preview" muted playsinline autoplay></video><span class="tag" id="tag">In the studio</span></div>
+    <p class="fine" id="soundSay"></p>
+    <div class="row">
+      <button type="button" id="againBtn">Share something else…</button>
+      <button type="button" id="stopBtn">Stop sharing</button>
+    </div>
+    <p class="fine">Keep this tab open while you share (it can be behind your slides). The studio can't see anything you don't share.</p>
+  </section>
+
+  <section id="stoppedView" hidden>
+    <h1>Sharing stopped</h1>
+    <p class="say" id="stoppedWhy">The studio no longer has this screen.</p>
+    <div class="row"><button type="button" id="resumeBtn" class="primary">Share again…</button></div>
+  </section>
+</main>
+<script type="module" src="/js/share.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-// Studio, part 23 of 25: the Monitor, the phone remote, TV screens.
+// Studio, part 23 of 26: the Monitor, the phone remote, TV screens.
 // Loads after export.js: that import comes first, so the parts run in order (see ../studio.js).
 import './export.js';
 import { toast, esc, now, drawQR } from '/js/vm.js';
@@ -25,6 +25,7 @@ import { incoming, monitorLight, outgoing, sentLog, setMonitorSeenAt } from './p
 import { clipTitle, deleteRecording } from './library.js';
 import { exporting, rendering } from './export.js';
 import { backupMics, showLogBrief, soundAlerts, soundOn } from './showlog.js';
+import { pipAir, pipSettings, setPip } from './pip.js';
 
 // ---------------------------------------------------------------- monitor ----
 // The Monitor tab (same browser) listens here: network, device and transfer
@@ -102,7 +103,7 @@ function remoteState() {
   const cams = camOrder().map((p) => {
     const l = live.get(p);
     if (!l || l.role === 'mic') return null;
-    return { peer: p, name: l.name || 'Guest', rec: !!l.rec, onAir: p === liveActive && !mediaOn && !brk && !atBlack, preview: p === pvw };
+    return { peer: p, name: l.name || 'Guest', rec: !!l.rec, onAir: p === liveActive && !mediaOn && !brk && !atBlack, preview: p === pvw, screen: !!l.screen, inset: pipAir()?.peer === p };
   }).filter(Boolean);
   // sound-only sources (microphones, this computer's sound): cut to one and the program shows
   // its sound picture, as it does from the studio
@@ -115,6 +116,7 @@ function remoteState() {
     media: mediaOn ? reelOf(mediaOn.id)?.name || 'A clip' : null, rec: !!(progRec && !progRec.stopping),
     // sound alerts (the show log's sound watch), with the sources that could stand in
     mix: remoteMix(),
+    pip: pipSettings(),
     alerts: soundAlerts.map((a) => ({ kind: a.kind, text: a.text })),
     backups: soundAlerts.length ? backupMics().slice(0, 3).map((b) => ({ peer: b.peer, name: b.name })) : [],
   };
@@ -158,6 +160,10 @@ function remoteAct(a, arg) {
   if (a === 'rec') {
     const on = !!(progRec && !progRec.stopping);
     if (!!arg !== on) recByHand();
+    return '';
+  }
+  if (a === 'pip') {
+    setPip({ on: !!arg }, `Phone remote: picture-in-picture ${arg ? 'on' : 'off'}`);
     return '';
   }
   if (a === 'soundOn') return soundOn(arg);

@@ -1,4 +1,4 @@
-// Studio, part 11 of 25: the full screen control room, crew messages and rundown, moments.
+// Studio, part 11 of 26: the full screen control room, crew messages and rundown, moments.
 // Loads after stream.js: that import comes first, so the parts run in order (see ../studio.js).
 import './stream.js';
 import { toast, esc, now, announce } from '/js/vm.js';

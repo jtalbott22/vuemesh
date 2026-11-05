@@ -1,4 +1,4 @@
-// Studio, part 13 of 25: the live program and the switcher; running while covered.
+// Studio, part 13 of 26: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';
@@ -19,6 +19,7 @@ import {
   toggleBreak, updateAutoBreak,
 } from './graphics.js';
 import { picOf } from './picsync.js';
+import { drawPip } from './pip.js';
 
 // ---- the live program -----------------------------------------------------------------
 
@@ -92,6 +93,7 @@ function drawLiveFrame() {
     const toName = SPECIAL[sw.toSpecial] || (r ? r.name : b?.name);
     if (toName) $('#progLabel').textContent = `ON AIR · ${fromName || '—'} → ${toName} · ${Math.round(sw.p * 100)}%`;
   }
+  drawPip(pg, W, H); // (a camera in the corner, over a screen: see pip.js)
   drawLowerThird(pg, W, H);
   slateSound(slateUp);
   drawBlack(pg, W, H);

@@ -1,4 +1,4 @@
-// Studio, part 24 of 25: the show log and the sound watch.
+// Studio, part 24 of 26: the show log and the sound watch.
 // Loads after screens.js: that import comes first, so the parts run in order (see ../studio.js).
 import './screens.js';
 import { toast, esc } from '/js/vm.js';

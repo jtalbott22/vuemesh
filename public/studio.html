@@ -333,6 +333,22 @@
   #recProgBtn[aria-pressed="true"] { background: var(--tally); color: #fff; }
 
   .insp section { padding: 12px; border-bottom: 1px solid var(--line); }
+  /* the inspector's cards (as the avatar's Setup): a title and what it's for; click it to open or close */
+  .cardtools { display: flex; justify-content: flex-end; padding: 6px 8px 0; }
+  .cardtools button.small { margin: 0; }
+  .insp details.card { margin: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .insp details.card > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr auto; column-gap: 10px; align-items: center; padding: 10px 12px; user-select: none; }
+  .insp details.card > summary::-webkit-details-marker { display: none; }
+  .insp details.card > summary::after { content: ""; grid-column: 2; grid-row: 1 / span 2; width: 8px; height: 8px; margin-right: 3px; border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: rotate(45deg) translateY(-3px); transition: transform .18s; }
+  .insp details.card[open] > summary::after { transform: rotate(225deg) translateY(-3px); }
+  .insp details.card[open] > summary { border-bottom: 1px solid var(--line); }
+  .insp details.card > summary:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+  .insp .sT { font-weight: 700; font-size: .92rem; }
+  .insp .sD { grid-column: 1; font-size: .76rem; color: var(--text-2); margin-top: 1px; }
+  .insp .sIn { padding: 10px 12px 12px; }
+  .insp .sIn .apbox { margin: 0; }
+  .tile.pipair { box-shadow: 0 0 0 3px var(--tally); outline: 2px dashed #fff; outline-offset: -6px; }
+  #pipBtn[aria-pressed="true"] { background: color-mix(in srgb, var(--tally) 30%, var(--surface)); }
   .insp h2 { font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); margin: 0 0 10px; font-stretch: 100%; }
   .insp label { font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
   .insp select, .insp input[type=text] { min-height: 36px; padding: .35em .55em; font-size: .9rem; }
@@ -777,6 +793,7 @@
       <button type="button" id="autoBtn" data-short="Auto" data-mode="live" aria-pressed="false" aria-keyshortcuts="A" title="Let the AI technical director cut">Auto director <kbd>A</kbd></button>
       <button type="button" id="ftbBtn" data-short="Fade" data-mode="live" aria-pressed="false" aria-keyshortcuts="X" title="Fade the whole program, picture and sound, to black (X). Press again to fade back up.">Fade to black <kbd>X</kbd></button>
       <button type="button" id="recProgBtn" data-short="Record" data-mode="live" aria-pressed="false" aria-keyshortcuts="R">Record program <kbd>R</kbd></button>
+      <button type="button" id="pipBtn" data-short="PiP" data-mode="live" aria-pressed="true" aria-keyshortcuts="P" title="A camera in the corner over a screen on air (P)">Picture-in-picture <kbd>P</kbd></button>
       <button type="button" id="markBtn" data-short="Mark" data-mode="live" aria-keyshortcuts="M" title="Mark this moment to make clips of it later">Mark moment <kbd>M</kbd></button>
       <span class="tspace"></span>
       <span class="tgroup" role="group" aria-label="Panels">
@@ -791,21 +808,10 @@
   <div class="splitter v" id="splitR" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the inspector (double-click to hide or show)"></div>
 
   <aside class="panel insp" aria-label="Inspector">
-    <section>
-      <h2>Output</h2>
-      <label class="check" data-mode="live" style="margin:0 0 8px"><input type="checkbox" id="autoRec"> Cameras record their time on air while you Record program <span class="fine">(cutting around without Record program records nothing; a camera person's own recording is theirs, with your cut as its own clip)</span></label>
-      <label data-mode="live" class="row" style="gap:8px;align-items:center;margin:0 0 8px;font-weight:600">Live pictures: up to <input type="number" id="liveLimit" min="1" max="24" step="1" style="width:4.2em"> cameras <span class="fine" style="font-weight:400">(more phones record only)</span></label>
-      <label class="check" data-mode="live" style="margin:0 0 4px"><input type="checkbox" id="sendPgm"> Send each camera the part of the program they were in <span class="fine">(when you Record program)</span></label>
-      <p class="fine" data-mode="live" id="pgmState" style="margin:0 0 8px"></p>
-      <label class="check" data-mode="live" style="margin:0 0 6px"><input type="checkbox" id="recFades"> Record the program with the fades <span class="fine">(fading up from black starts Record program; fading to black stops it)</span></label>
-      <div class="apbox" data-mode="live">
-        <label class="check" style="margin:0"><input type="checkbox" id="apOn"> <b>Autopilot</b>: the show runs itself</label>
-        <p class="fine" style="margin:2px 0 6px">When a camera arrives: the intro, fade up, record, and the auto director cuts. Each new camera goes to preview, then on air with its name. When everyone's gone: fade to black, stop recording, and each phone gets its part.</p>
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <label style="margin:0">Intro <select id="apIntro"><option value="">None</option></select></label>
-          <label style="margin:0">End after nobody's here for <select id="apEnd"><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="180">3 min</option></select></label>
-        </div>
-      </div>
+    <div class="cardtools" data-mode="live"><button type="button" class="small" id="cardsFold" title="Close every card (open the one you need; this computer remembers)">Close all</button></div>
+    <details class="card" id="cardOutput" open>
+      <summary><span class="sT">Output</span><span class="sD">Frame rate, size and shape of the program</span></summary>
+      <div class="sIn">
       <p class="warnbox" id="pgmFormat" hidden role="status"></p>
       <div class="row" style="gap:8px;flex-wrap:wrap;margin:0 0 4px">
         <label style="margin:0">Frame rate <select id="outFps" aria-describedby="outHint"></select></label>
@@ -821,10 +827,52 @@
         <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
       </div>
       <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
+      </div>
+    </details>
+    <details class="card" id="cardPip" open data-mode="live">
+      <summary><span class="sT">Picture-in-picture</span><span class="sD">A camera in the corner over a shared screen</span></summary>
+      <div class="sIn">
+      <label class="check" style="margin:0 0 6px"><input type="checkbox" id="pipOn"> A camera in the corner <kbd>P</kbd></label>
+      <label for="pipOver">Over</label>
+      <select id="pipOver"><option value="screens">A screen on air</option><option value="always">Every shot</option></select>
+      <label for="pipCam">Which camera</label>
+      <select id="pipCam"></select>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+        <label style="margin:0">Corner <select id="pipCorner"></select></label>
+        <label style="margin:0">Size <select id="pipSize"></select></label>
+      </div>
+      <p class="fine" id="pipState" style="margin:6px 0 0"></p>
+      </div>
+    </details>
+    <details class="card" id="cardRec" open data-mode="live">
+      <summary><span class="sT">Recording</span><span class="sD">What records while you Record program</span></summary>
+      <div class="sIn">
+      <label class="check" data-mode="live" style="margin:0 0 8px"><input type="checkbox" id="autoRec"> Cameras record their time on air while you Record program <span class="fine">(cutting around without Record program records nothing; a camera person's own recording is theirs, with your cut as its own clip)</span></label>
+      <label class="check" data-mode="live" style="margin:0 0 4px"><input type="checkbox" id="sendPgm"> Send each camera the part of the program they were in <span class="fine">(when you Record program)</span></label>
+      <p class="fine" data-mode="live" id="pgmState" style="margin:0 0 8px"></p>
+      <label class="check" data-mode="live" style="margin:0 0 6px"><input type="checkbox" id="recFades"> Record the program with the fades <span class="fine">(fading up from black starts Record program; fading to black stops it)</span></label>
+      </div>
+    </details>
+    <details class="card" id="cardAuto" open data-mode="live">
+      <summary><span class="sT">Autopilot</span><span class="sD">The show runs itself, start to finish</span></summary>
+      <div class="sIn">
+      <div class="apbox">
+        <label class="check" style="margin:0"><input type="checkbox" id="apOn"> <b>Autopilot</b>: the show runs itself</label>
+        <p class="fine" style="margin:2px 0 6px">When a camera arrives: the intro, fade up, record, and the auto director cuts. Each new camera goes to preview, then on air with its name. When everyone's gone: fade to black, stop recording, and each phone gets its part.</p>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <label style="margin:0">Intro <select id="apIntro"><option value="">None</option></select></label>
+          <label style="margin:0">End after nobody's here for <select id="apEnd"><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="180">3 min</option></select></label>
+        </div>
+      </div>
+      </div>
+    </details>
+    <details class="card" id="cardSync" open data-mode="live">
+      <summary><span class="sT">Sync</span><span class="sD">This computer's cameras and microphones, in time</span></summary>
+      <div class="sIn">
       <label for="camSize" style="margin-top:10px">This computer's cameras capture at</label>
       <select id="camSize" aria-describedby="camSizeHint"><option value="1080">1080p</option><option value="720">720p (lighter on USB)</option></select>
       <p class="fine" id="camSizeHint" style="margin:2px 0 6px"></p>
-      <h3 class="sub" style="margin:12px 0 4px">Sync: this computer's cameras and microphones</h3>
+      <h3 class="sub" style="margin:12px 0 4px">In time</h3>
       <p class="fine" id="syncState" style="margin:0 0 6px"></p>
       <button type="button" id="syncBtn" style="width:100%;margin-bottom:8px" title="Clap once where every camera can see your hands: each camera's own delay is measured and kept">Sync check (clap once)</button>
       <label for="lipMode">Their sound</label>
@@ -833,12 +881,12 @@
         <input type="number" id="lipMs" min="0" max="400" step="5" style="width:5em" aria-label="Sound delay in milliseconds" hidden>
       </div>
       <p class="fine" id="lipHint" style="margin:0 0 8px"></p>
-    </section>
-    <!-- (edit only: on the Edit page) -->
-    <!-- (edit only: on the Edit page) -->
-    <!-- (edit only: on the Edit page) -->
-    <section data-mode="live" aria-labelledby="gfxHead">
-      <h2 id="gfxHead">Lower third</h2>
+    
+      </div>
+    </details>
+    <details class="card" id="cardLt" open data-mode="live">
+      <summary><span class="sT" id="gfxHead">Lower third</span><span class="sD">A name or headline over the picture</span></summary>
+      <div class="sIn">
       <label for="ltText">Name or headline</label>
       <input type="text" id="ltText" maxlength="60" placeholder="e.g. Rosa Martinez">
       <label for="ltSub">Second line</label>
@@ -848,9 +896,11 @@
         <label class="check" style="margin:0"><input type="checkbox" id="ltAuto" checked> Hide after 8 s</label>
       </div>
       <div class="ltrecent" id="ltRecent" role="group" aria-label="Recent lower thirds"></div>
-    </section>
-    <section data-mode="live" aria-labelledby="streamHead">
-      <h2 id="streamHead">Stream out</h2>
+      </div>
+    </details>
+    <details class="card" id="cardStream" open data-mode="live">
+      <summary><span class="sT" id="streamHead">Stream out</span><span class="sD">Go live to a streaming service</span></summary>
+      <div class="sIn">
       <label for="stSvc">Service</label>
       <select id="stSvc"></select>
       <p class="fine" id="stHelp" style="margin:4px 0 6px"></p>
@@ -874,14 +924,18 @@
       <select id="stRate"><option value="2500">2.5 Mbit/s (a slow connection)</option><option value="4500">4.5 Mbit/s (recommended)</option><option value="6000">6 Mbit/s (best)</option></select>
       <button type="button" id="stGo" style="width:100%;margin-top:8px">Go live</button>
       <p class="fine" id="stState" aria-live="polite">Not streaming. The key stays on this computer.</p>
-    </section>
-    <section data-mode="live" aria-labelledby="momHead">
-      <h2 id="momHead">Moments</h2>
+      </div>
+    </details>
+    <details class="card" id="cardMoments" open data-mode="live">
+      <summary><span class="sT" id="momHead">Moments</span><span class="sD">Marked live, made into clips in Edit</span></summary>
+      <div class="sIn">
       <ol class="momlist" id="momList" aria-label="Moments marked live" hidden></ol>
       <p class="fine" id="momEmpty" style="margin:0">Press <kbd>M</kbd> (Mark moment) when something happens. Rename or delete them here; in Edit, make clips of them from every angle.</p>
-    </section>
-    <section data-mode="live">
-      <h2>Crew</h2>
+      </div>
+    </details>
+    <details class="card" id="cardCrew" open data-mode="live">
+      <summary><span class="sT">Crew</span><span class="sD">Messages and a rundown for the cameras</span></summary>
+      <div class="sIn">
       <label for="dmAll">Message all cameras</label>
       <div class="row" style="gap:6px"><input type="text" id="dmAll" maxlength="140" placeholder="e.g. Speeches in 2 minutes" style="flex:1"><button type="button" id="dmAllBtn">Send</button></div>
       <label for="rundownText">Rundown <span class="fine">(one item per line)</span></label>
@@ -894,37 +948,48 @@
         <button type="button" id="rundownClear" title="Empty the rundown here and on every camera">Clear</button>
       </div>
       <p class="fine" id="cueState" aria-live="polite">No rundown yet. Phones show the current item as one small line.</p>
-    </section>
-    <section data-mode="live">
-      <h2>Phone remote</h2>
+      </div>
+    </details>
+    <details class="card" id="cardRemote" open data-mode="live">
+      <summary><span class="sT">Phone remote</span><span class="sD">Run the show from a phone</span></summary>
+      <div class="sIn">
       <p class="fine" style="margin:0 0 6px">Run the show from your phone while you step away: cut cameras, auto-director, fade to black, break, record. Only a phone you add here can; the code shows only when you ask for it.</p>
       <ul class="remotes" id="remoteList" aria-live="polite"></ul>
       <p class="fine" id="remoteNone" style="margin:0 0 6px">No phone remotes yet.</p>
       <button type="button" id="remoteAdd">Add a phone</button>
-    </section>
-    <section data-mode="live">
-      <h2>TV screens</h2>
+      </div>
+    </details>
+    <details class="card" id="cardTv" open data-mode="live">
+      <summary><span class="sT">TV screens</span><span class="sD">The program on a TV, a projector or another computer</span></summary>
+      <div class="sIn">
       <p class="fine" style="margin:0 0 6px">Show the program on an Apple TV, or on any screen with a browser at <b>/tv</b>, on this network. The picture goes straight from this computer.</p>
       <ul class="remotes" id="tvList" aria-live="polite"></ul>
       <p class="fine" id="tvNone" style="margin:0 0 6px">No TVs yet. Open VUEMesh on the TV and enter <b id="tvEventCode"></b>; it shows up here to accept.</p>
-    </section>
-    <section data-mode="live">
-      <h2>Network</h2>
+      </div>
+    </details>
+    <details class="card" id="cardNet" open data-mode="live">
+      <summary><span class="sT">Network</span><span class="sD">How the phones connect, and how many show live</span></summary>
+      <div class="sIn">
+      <label data-mode="live" class="row" style="gap:8px;align-items:center;margin:0 0 8px;font-weight:600">Live pictures: up to <input type="number" id="liveLimit" min="1" max="24" step="1" style="width:4.2em"> cameras <span class="fine" style="font-weight:400">(more phones record only)</span></label>
       <p class="fine" id="netState" style="margin-top:0">No phones yet.</p>
       <button type="button" id="directBtn" style="width:100%;margin-bottom:8px" hidden>Help phones connect directly</button>
       <button type="button" id="refreshPics" style="width:100%;margin-bottom:8px" title="Restart every live picture in this window. Right-click a camera for just one, or to reconnect it.">Refresh live pictures</button>
       <label class="check"><input type="checkbox" id="localOnly"> Local network only</label>
       <p class="fine">Local only refuses connections that go out through the internet. Phones must be on the same Wi-Fi as this computer.</p>
-    </section>
-    <section data-mode="live" aria-labelledby="slHead">
-      <h2 id="slHead">Show log</h2>
+      </div>
+    </details>
+    <details class="card" id="cardLog" open data-mode="live">
+      <summary><span class="sT" id="slHead">Show log</span><span class="sD">What happened, second by second, to send when something went wrong</span></summary>
+      <div class="sIn">
       <p class="fine" id="slState" style="margin-top:0">Keeps a second-by-second record of the show on this computer: frame rate, sound, devices, TVs. Save it to send when something went wrong.</p>
       <button type="button" id="slSave" style="width:100%;margin-bottom:8px">Save show log</button>
       <button type="button" id="slAlerts" style="width:100%;margin-bottom:8px">Alert me when the sound stops</button>
       <p class="fine" id="slAlertState" style="margin:0">Sound alerts show over the program and on the phone remote. Allow alerts to see them on this computer while the studio is hidden too.</p>
-    </section>
-    <section data-mode="live">
-      <h2>Breaks and black</h2>
+      </div>
+    </details>
+    <details class="card" id="cardBreaks" open data-mode="live">
+      <summary><span class="sT">Breaks and black</span><span class="sD">The break slate, the reel, sound-only shots and fades</span></summary>
+      <div class="sIn">
       <label class="check"><input type="checkbox" id="autoSlate" checked> Show the break slate when the cameras drop</label>
       <label for="slateLook">Slate look</label>
       <select id="slateLook"></select>
@@ -943,7 +1008,8 @@
       <input type="file" id="reelFiles" accept="image/*,video/*" multiple>
       <ul class="reel" id="reel"></ul>
       <p class="fine">During a break the slate alternates with the reel. The first sponsor also appears on the watch page when you publish.</p>
-    </section>
+      </div>
+    </details>
     <!-- (edit only: on the Edit page) -->
     <section id="credits" aria-live="polite" hidden></section>
   </aside>
