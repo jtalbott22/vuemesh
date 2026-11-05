@@ -133,7 +133,7 @@ with sync_playwright() as p:
     host.click('#cuePrev'); rosa.wait_for_selector('#cue:not([hidden])', timeout=6000)
     assert 'Cake' in rosa.inner_text('#cueNow')
     host.click('#rundownEnd'); rosa.wait_for_selector('#cue', state='hidden', timeout=6000)
-    host.click('#rundownClear'); time.sleep(0.6)
+    host.click('#rundownClear'); host.click('#rundownClear'); time.sleep(0.6)  # (asked on the button: Sure? Clear)
     assert rosa.evaluate(f"localStorage.getItem('vm_rundown_{EID}')") is None and host.input_value('#rundownText') == ''
     step('Prev picked it back up; End took it off again; Clear emptied it on the studio and the phone')
 

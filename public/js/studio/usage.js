@@ -80,6 +80,7 @@ window.vmMedia = () =>
       videoTracks: l.stream?.getVideoTracks().map((t) => t.readyState) || [], audioTracks: l.stream?.getAudioTracks().map((t) => t.readyState + (t.muted ? ' muted' : '')) || [],
       hearing: !!st?.src && st.trackId === l.stream?.getAudioTracks()[0]?.id, level,
       control: l.cam ? { remote: l.cam.remote, lenses: (l.cam.lenses || []).map((x) => x.label), lens: l.cam.lens } : null,
+      recording: l.recorder ? { fps: (l.recTrack || l.stream?.getVideoTracks()[0])?.getSettings?.().frameRate ?? null, copy: !!l.recTrack } : null,
     };
   });
 // (on the worker clock: a microphone whose sound stopped reaching the mixer is put back while the studio is hidden too)

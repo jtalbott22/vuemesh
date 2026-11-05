@@ -63,6 +63,51 @@ export const $ = (s, el = document) => {
   return absentStubs.get(id);
 };
 
+/**
+ * Asking "are you sure?" without stopping the show: the browser's own confirm() and prompt()
+ * freeze the whole page while they're open (the program stops drawing: a 1.8 s hole in one
+ * recording). So the button asks instead: the first press turns it into "Sure? …" for 4 s, the
+ * second does it. Returns true on that second press.
+ */
+export function pressTwice(btn, ask = 'Sure?') {
+  if (!btn) return true;
+  if (btn.dataset.armed) {
+    clearTimeout(+btn.dataset.armed);
+    delete btn.dataset.armed;
+    if (btn.dataset.was != null) btn.textContent = btn.dataset.was;
+    btn.classList.remove('armed');
+    return true;
+  }
+  btn.dataset.was = btn.textContent;
+  btn.textContent = ask;
+  btn.classList.add('armed');
+  btn.dataset.armed = String(setTimeout(() => {
+    delete btn.dataset.armed;
+    btn.textContent = btn.dataset.was;
+    btn.classList.remove('armed');
+  }, 4000));
+  return false;
+}
+
+/** A name, asked for in a small dialog of the page's own (not prompt(), which freezes the show). */
+export function askName(title, value) {
+  return new Promise((done) => {
+    const d = document.createElement('dialog');
+    d.className = 'localdlg';
+    d.innerHTML = '<form method="dialog"><h2></h2><input maxlength="40" style="width:100%"><div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button value="">Cancel</button><button value="ok" class="primary">Save</button></div></form>';
+    d.querySelector('h2').textContent = title;
+    const input = d.querySelector('input');
+    input.value = value || '';
+    d.addEventListener('close', () => {
+      done(d.returnValue === 'ok' ? input.value : null);
+      d.remove();
+    });
+    document.body.append(d);
+    d.showModal();
+    input.select();
+  });
+}
+
 // Recording formats, best first: H.264 in MP4 plays everywhere, including iPhones.
 export const REC_MIMES = ['video/mp4;codecs=avc1.42E01F,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=h264,opus', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
 export const recMime = () => REC_MIMES.find((m) => window.MediaRecorder?.isTypeSupported(m));

@@ -5,8 +5,8 @@ import { api, toast, esc, now } from '/js/vm.js';
 import { snapToCamera } from '/js/camctl.js';
 import * as idb from '/js/idb.js';
 import {
-  $, EDIT_ONLY, KIOSK, REC_MIMES, black, clips, eventId, hub, isHost, key, live, liveActive, note,
-  player, recMime, seq, setLiveActive,
+  $, askName, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
+  player, REC_MIMES, recMime, seq, setLiveActive,
 } from './core.js';
 import { addClip, noteAngle, rebuild } from './clips.js';
 import { renderLive } from './live.js';
@@ -319,9 +319,9 @@ export function removeLocalSource(peer, why) {
   renderLive();
   renderMixer();
 }
-export function renameLocal(peer) {
+export async function renameLocal(peer) {
   const l = live.get(peer);
-  const name = l && prompt('Name for this source', l.name);
+  const name = l && (await askName('Name for this source', l.name));
   if (!name?.trim()) return;
   l.name = name.trim().slice(0, 40);
   saveLocalList();
@@ -365,14 +365,25 @@ function startLocalRec(peer) {
   if (!l?.local || l.recorder) return;
   const kind = l.role === 'mic' ? 'audio' : 'video';
   const mime = kind === 'audio' ? ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((m) => MediaRecorder.isTypeSupported(m)) : localVideoMime(l);
+  // A shared screen is recorded at most 1080p and 15 frames a second (slides and demos need no
+  // more), from its own copy of the picture: encoding a full-size screen at 30 on the processor,
+  // beside the program recording, was more than a laptop could do (the program skipped frames).
+  if (l.screen && kind === 'video' && !l.recTrack) {
+    const t = l.stream.getVideoTracks()[0]?.clone();
+    if (t) {
+      t.applyConstraints({ width: { max: 1920 }, height: { max: 1080 }, frameRate: { max: 15 } }).catch(() => {});
+      l.recTrack = t;
+    }
+  }
   const one = () => {
-    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? l.stream.getAudioTracks() : [...l.stream.getVideoTracks(), ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 160_000 });
+    const vids = l.recTrack?.readyState === 'live' ? [l.recTrack] : l.stream.getVideoTracks();
+    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? l.stream.getAudioTracks() : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? 3_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
     const chunks = [], t0 = now(), began = performance.now();
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = async () => {
       const blob = new Blob(chunks, { type: mime });
       if (!blob.size) return;
-      const s = l.stream.getVideoTracks()[0]?.getSettings?.() || {};
+      const s = (l.recTrack || l.stream.getVideoTracks()[0])?.getSettings?.() || {};
       const w = s.width || 0, h = s.height || 0;
       const meta = {
         id: `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, mime: blob.type || mime, cid: l.cid, name: l.name,
@@ -434,6 +445,11 @@ function stopLocalRec(peer, now_) {
   l.recorder = null;
   l.rec = false;
   if (r.state !== 'inactive') r.stop();
+  if (l.recTrack) {
+    const t = l.recTrack;
+    l.recTrack = null;
+    setTimeout(() => t.stop(), 500); // (after the recorder's last piece)
+  }
   renderLive();
 }
 export function setLocalManualRec(peer, on) {
