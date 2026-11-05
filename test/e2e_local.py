@@ -27,10 +27,14 @@ with sync_playwright() as p:
     host.wait_for_selector('#localList [data-add="cam"]', timeout=10000)
     cams = host.eval_on_selector_all('#localList [data-add="cam"]', 'e => e.length'); mics = host.eval_on_selector_all('#localList [data-add="mic"]', 'e => e.length')
     snd = host.eval_on_selector('#localList [data-snd] >> nth=0', 's => s.selectedOptions[0]?.textContent')
-    assert snd and snd != 'No sound', snd
+    snd_id = host.eval_on_selector('#localList [data-snd] >> nth=0', 's => s.value')
+    # a microphone by name, not the computer's "Default" (that follows whatever is plugged in last)
+    assert snd and snd != 'No sound' and snd_id not in ('', 'default'), (snd, snd_id)
     host.click('#localList [data-add="cam"] >> nth=0'); host.wait_for_selector('.tile[data-peer^="local-cam"] video', timeout=10000)
     m = next(x for x in host.evaluate('vmMedia()') if x['peer'].startswith('local-cam'))
     assert m['audioTracks'] == ['live'] and m['hearing'], m
+    cam_mic = next((n for n in host.evaluate('vmNotes()') if 'added from this computer, with sound from' in n), '')
+    assert cam_mic and not cam_mic.endswith('sound from Default'), cam_mic
     step(f'the camera came with its sound ("{snd}" picked for it in the picker): one source, picture and sound, with its own mixer strip')
     host.click('#localList [data-add="mic"] >> nth=0'); host.wait_for_selector('button.mic[data-peer^="local-mic"]', timeout=10000)
     host.click('#localDlg form button')

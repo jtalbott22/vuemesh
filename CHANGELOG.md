@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.61.6 — an audio interface on Linux
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (the same Linux laptop, a Focusrite Scarlett 2i2 4th Gen plugged in mid-show): the Scarlett's sound cut in and out and its waveform wouldn't draw. Every 10 s the studio said its sound "had stopped reaching the mixer: reconnected it", and each reconnect brought about a second of sound back.
+
+Reproduced on that laptop with the real Scarlett: **Chrome on Linux reads only one of an interface's inputs at a time.** Linux lists the Scarlett's Input 1 and Input 2 as two microphones. Open both in Chrome, and the first gets no sound at all: PipeWire holds 10 s of it for Chrome, then throws it away. The same input twice is fine, and so is the Scarlett with the built-in mic. Outside Chrome, both inputs record together. In the show, it wasn't only Input 1 and Input 2: plugging the Scarlett in made it the computer's default microphone, and the webcam took its sound from "Default".
+
+- **A camera's sound is a microphone by name, never "Default":** the device it groups with, one whose name matches, the device "Default" is right now where the browser says (a Mac, Windows), then the built-in one. "Default" follows whatever was plugged in last, so it was the webcam's sound one moment and the Scarlett the next. A camera saved with "Default" as its sound picks one by name the next time it's opened.
+- **Two inputs of one interface, said so:** in Chrome on Linux, adding the second (as a microphone, or as a camera's sound) says that only one will be heard, and how to have both: the interface on Pro Audio in the computer's sound settings, added once (Input 1 on the left, Input 2 on the right). Also in the show log.
+
 ## 0.61.5 — recording on a laptop, lighter
 **Deploy:** `./aws/deploy.sh` (site only).
 
