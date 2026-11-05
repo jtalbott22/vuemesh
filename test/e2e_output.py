@@ -37,10 +37,10 @@ with sync_playwright() as p:
         rows = host.evaluate('vmShowLog().rows')[-(secs - 1):]
         return statistics.mean(r['fps'] for r in rows if r['fps'] is not None), rows[-1]['drv']
     # lip sync: this computer's sound waits for its camera's picture (measured), by hand, or not at all
-    for _ in range(40):   # (the picture delay, and the sound waiting with it, settle in a few seconds)
+    for _ in range(50):   # (the picture delay, and the sound waiting with it, settle in a few seconds)
         row = host.evaluate('vmShowLog().rows.at(-1)')
         cam = next((x for x in row['s'] if x['k'] == 'cam'), {})
-        if row.get('pd') and cam.get('sd'): break
+        if row.get('pd') and cam.get('sd') and abs(cam['sd'] - row['pd']) < 40: break   # (settled: the sound has caught up with the picture delay)
         time.sleep(0.5)
     assert 0 < row['pd'] < 600 and abs(cam['sd'] - row['pd']) < 40, (row.get('pd'), cam)
     host.select_option('#lipMode', 'manual'); host.fill('#lipMs', '150'); host.evaluate("document.querySelector('#lipMs').dispatchEvent(new Event('change'))")

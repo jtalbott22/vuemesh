@@ -58,6 +58,21 @@
   .cams.sound .cam .tag { left: auto; right: 6px; }
   .status .big { white-space: normal; line-height: 1.15; }
   .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  /* the mixer: each live channel, its sound mode, its level and how loud it is now */
+  .mix { display: grid; gap: 8px; margin-top: 8px; }
+  .mixrow { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+  .mixrow.open { border-color: var(--tally); }
+  .mixrow .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mixrow .db { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; color: var(--dim); min-width: 4.5ch; text-align: right; }
+  .mixrow .lv { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #000; overflow: hidden; }
+  .mixrow .lv i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--preview) 0 70%, var(--amber) 70% 90%, var(--tally) 90%); transition: width .25s; }
+  .mixrow input[type=range] { grid-column: 1 / -1; width: 100%; height: 36px; }
+  .mixrow .modes { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .mixrow .modes button { min-height: 44px; padding: 6px; font-size: 1rem; }
+  .mixrow .modes button[aria-pressed="true"][data-mode="afv"] { background: var(--amber); color: #2b1d00; }
+  .mixrow .modes button[aria-pressed="true"][data-mode="on"] { background: var(--preview); color: #002910; }
+  .mixrow .modes button[aria-pressed="true"][data-mode="off"] { background: var(--tally); color: #fff; }
+  .mixrow.prog { grid-template-columns: 1fr auto; }
   .fine { color: var(--dim); font-size: .85rem; }
   .toast { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0) + 12px); background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
 </style>
@@ -87,6 +102,8 @@
     <div class="cams sound" id="sound" role="group" aria-labelledby="soundH" hidden></div>
     <h2 class="sub" id="clipsH" hidden>Clips</h2>
     <div class="cams sound" id="clips" role="group" aria-labelledby="clipsH" hidden></div>
+    <h2 class="sub" id="mixH" hidden>Mixer</h2>
+    <div class="mix" id="mix" role="group" aria-labelledby="mixH" hidden></div>
     <div class="ctl">
       <button type="button" id="autoBtn" aria-pressed="false">Auto-director</button>
       <button type="button" id="blackBtn" aria-pressed="false">Fade to black</button>

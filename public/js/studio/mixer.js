@@ -4,8 +4,10 @@ import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { limiter } from '/js/compose.js';
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
-import { $, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
-import { angleCids, angleOfCid, output } from './clips.js';
+import {
+  $, dbToGain, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq,
+} from './core.js';
+import { angleCids, angleOfCid } from './clips.js';
 import { camOrder, micPeers } from './live.js';
 import { bindConsole, consoleSync } from './ccu.js';
 import { consoleFrame } from './console-draw.js';
@@ -15,6 +17,7 @@ import { blackLevel, mediaOn, onBreak, reel } from './graphics.js';
 import { sw, swActive } from './switcher.js';
 import { bgInterval } from '/js/bgclock.js';
 import { syncedSoundDelay } from './picsync.js';
+import { localMics, setLocalSound } from './sources.js';
 
 // ---- live mixer ------------------------------------------------------------------------
 // One strip per phone, like a broadcast mixer. Each has a level and a mode:
@@ -210,15 +213,17 @@ export function mixGates() {
   for (const [peer, st] of mix.strips) {
     const l = live.get(peer);
     if (!l) continue;
-    const { mode } = mixState(l.cid || peer, l.role);
-    // AFV follows the picture, through a dissolve too: out goes down as in comes up
+    const { mode, follow } = mixState(l.cid || peer, l.role);
+    // AFV follows the picture (its own, or a camera it's set to follow), through a dissolve
+    // too: out goes down as in comes up
     const tr = swActive();
+    const target = (follow && peerOfCid(follow)) || peer;
     // (through a dissolve out of the break, the incoming camera's sound comes up with its picture)
     const brk = onBreak() && !(tr && sw.fromSpecial === 'break');
     let afv = 0;
     if (mode === 'afv' && !brk) {
-      if (tr && peer === sw.to) afv = sw.p;
-      else if (peer === liveActive && !mediaOn && !(tr && sw.fromSpecial === 'break')) afv = tr ? 1 - sw.p : 1;
+      if (tr && target === sw.to) afv = sw.p;
+      else if (target === liveActive && !mediaOn && !(tr && sw.fromSpecial === 'break')) afv = tr ? 1 - sw.p : 1;
     }
     const level = mode === 'on' ? 1 : afv;
     const open = level > 0.001;
@@ -234,6 +239,24 @@ export function mixGates() {
 }
 export const mixFollowCut = mixGates;
 
+/** A live channel's level, from the phone remote (dB, -60 to +12): as moving its fader here. */
+export function setStripGain(id, role, db) {
+  const g = dbToGain(Math.max(-60, Math.min(12, Math.round(Number(db) || 0))));
+  mixSave(id, { ...mixState(id, role), gain: g });
+  const st = id === 'media' ? mix.media : mix.strips.get(peerOfCid(id) || id);
+  st?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
+  renderMixer();
+}
+const peerOfCid = (cid) => [...live].find(([, x]) => x.cid === cid)?.[0] || null;
+/** AFV for a channel follows this camera's picture (its cid), or its own (null). Kept with the channel. */
+export function setStripFollow(id, role, follow) {
+  mixSave(id, { ...mixState(id, role), follow: follow || null });
+  mixGates();
+  renderMixer();
+  const name = follow ? live.get(peerOfCid(follow))?.name || 'a camera' : null;
+  const own = [...live.values()].find((x) => (x.cid || '') === id)?.name || id;
+  note(`${own}'s sound follows ${name ? `${name}'s picture` : 'its own picture'}`);
+}
 export function setStripMode(id, role, mode) {
   const st = { ...mixState(id, role), mode };
   mixSave(id, st);
@@ -343,12 +366,38 @@ function mixerRows() {
 }
 
 let mixSig = '';
+// A channel's routing: where a camera here takes its sound from, and (AFV) whose picture it follows.
+function routeLine(r, compact = false) {
+  const l = live.get(r.peer);
+  if (!l) return '';
+  const parts = [];
+  const lab = (text, sel) => (compact ? sel : `<label>${text} ${sel}</label>`);
+  if (l.local && l.role !== 'mic' && !l.screen) {
+    const mics = localMics.length ? localMics : l.micId ? [{ id: l.micId, label: l.micLabel || 'Its microphone' }] : [];
+    const pre = compact ? 'Sound: ' : '';
+    parts.push(lab('Sound from', `<select data-sndfrom="${esc(r.peer)}" aria-label="${esc(r.name)}: sound from" title="Where this camera's sound comes from">${mics.map((m) => `<option value="${esc(m.id)}"${m.id === l.micId ? ' selected' : ''}>${esc(pre + m.label)}</option>`).join('')}<option value=""${!l.micId ? ' selected' : ''}>${pre}none</option></select>`));
+  }
+  if (r.st.mode === 'afv') {
+    const cams = camOrder().filter((p) => p !== r.peer).map((p) => live.get(p));
+    const pre = compact ? 'With: ' : '';
+    if (cams.length) parts.push(lab('Follows', `<select data-follow="${esc(r.id)}" data-role="${esc(r.role)}" aria-label="${esc(r.name)}: AFV follows" title="AFV: heard while this is on air">${`<option value="">${pre}${l.role === 'mic' ? 'itself' : 'its own picture'}</option>`}${cams.map((x) => `<option value="${esc(x.cid)}"${x.cid === r.st.follow ? ' selected' : ''}>${esc(`${pre}${angleOfCid(x.cid)} ${x.name}`)}</option>`).join('')}</select>`));
+  }
+  return parts.length ? (compact ? `<div class="vroute">${parts.join('')}</div>` : `<span class="route">${parts.join('')}</span>`) : '';
+}
+const onRoute = (e) => {
+  const sf = e.target.closest('[data-sndfrom]');
+  if (sf) return void setLocalSound(sf.dataset.sndfrom, sf.value || null);
+  const fo = e.target.closest('[data-follow]');
+  if (fo) setStripFollow(fo.dataset.follow, fo.dataset.role, fo.value || null);
+};
+$('#mixer')?.addEventListener('change', onRoute);
+$('#bridge')?.addEventListener('change', onRoute);
 export const fmtPan = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
 /** A live channel in stereo shows both sides (its meters are after the balance). */
 export const twoSides = (r) => r.master || (r.live && !r.st.mono);
 export function renderMixer() {
   setMixRows(mixerRows());
-  const sig = mode + '|' + mixRows.map((r) => `${r.id}:${r.name}:${r.master ? 'm' : r.live ? 'l' : 't'}${twoSides(r) ? '2' : ''}`).join('|');
+  const sig = mode + '|' + localMics.map((m) => m.id).join(',') + '|' + mixRows.map((r) => `${r.id}:${r.name}:${r.master ? 'm' : r.live ? 'l' : 't'}${twoSides(r) ? '2' : ''}:${r.st?.mode || ''}:${r.st?.follow || ''}:${live.get(r.peer)?.micId || ''}`).join('|');
   if (sig === mixSig && $('#mixer').childElementCount) {
     // Same sources as before: update the strips in place, so a click never lands on a strip that's being replaced.
     for (const r of mixRows) {
@@ -382,6 +431,7 @@ export function renderMixer() {
   $('#mixer').innerHTML = mixRows.map((r) => `<div class="strip${r.master ? ' master' : ''}" data-strip="${esc(r.id)}">
       <span class="nm">${esc(r.name)}</span>
       ${r.master ? '<span></span>' : `<span class="btns">${r.live ? modeBtns(r) + monoBtn(r) : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">Duck</button>` : ''}${monoBtn(r)}<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">Mute</button>`}</span>`}
+      ${r.live && r.peer ? routeLine(r) : ''}
       ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<span class="lvl" aria-hidden="true"><i data-ch="${c}"></i></span>`).join('')}
       ${r.master ? '' : `<input type="range" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels"><output class="db">${gainToDb(r.st.gain)} dB</output>
       ${panIn(r)}<output class="db pano">${fmtPan(r.st.pan || 0)}</output>`}
@@ -398,6 +448,7 @@ export function renderMixer() {
       <output class="db">${r.master ? 'L R' : gainToDb(r.st.gain) + ' dB'}</output>
       ${r.master ? '' : `<div class="vpan">${panIn(r, 'vpanr')}${monoBtn(r, 'MONO')}</div>`}
       ${r.master ? '' : `<div class="vbtns">${r.live ? modeBtns(r) : `<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">M</button>`}</div>`}
+      ${r.live && r.peer ? routeLine(r, true) : ''}
     </div>`).join('');
   renderBusAudio();
   consoleSync();

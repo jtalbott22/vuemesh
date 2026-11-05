@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.59.0 — sound you control
+**Deploy:** `./aws/deploy.sh` (site only).
+
+Stage 3 of the plan from the class recording: the Focusrite dropped out and was gone for good, some cameras' sound wasn't their own, and with the other microphones muted nothing could bring them up from the phone remote.
+
+- **A device that stops comes back:** a microphone, camera or camera's microphone on this computer that stops (a USB interface dropping out, a driver hiccup) is opened again, into the same source, at once and then for 30 s (sooner when Windows says a device was plugged in). Its mixer channel, sound mode, recording and sync carry on. Before, the source was taken as unplugged and removed, with its settings; a camera's own microphone stopping went unnoticed. Only a device that doesn't come back goes. The sound alerts say what's happening meanwhile.
+- **Sound from** (each camera from this computer, in the mixer): any microphone here, or none, applied at once, kept for that camera on this computer and used whenever it's added again. A camera used to take whichever microphone matched it (the same USB device, a name, or the computer's default), with no way to change it once it was in.
+- **AFV that follows a chosen camera** (any channel set to AFV): heard while that camera is on air instead of its own picture. A room microphone with the wide shot, say.
+- **The phone remote's mixer:** every live channel with how loud it is now, AFV / ON / OFF and a fader, and the program's level.
+- **Device checks:** a microphone at another sample rate from the studio's sound is pointed out once (set both its own app and Windows to the studio's rate: a usual cause of crackling); **this computer's cameras capture at** 1080p or 720p (Output), applied at once (three webcams at 1080p can be more than USB takes, and sound on the same ports suffers first); the show log's summary names a camera that delivered fewer frames than it should.
+
 ## 0.58.0 — a steady program, and a recording Windows can scrub
 **Deploy:** `./aws/deploy.sh` (site only).
 

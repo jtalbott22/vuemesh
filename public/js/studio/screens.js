@@ -7,14 +7,14 @@ import { DisplayHub } from '/js/display-hub.js';
 import * as S from '/js/sequence.js';
 import { whatsWrong } from '/js/director.js';
 import {
-  $, EDIT_ONLY, black, clips, ev, eventId, hub, isHost, live, liveActive, log, note, orientation,
-  rawBlobs, seq, sock, thumbs,
+  $, black, clips, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, live, liveActive, log, note,
+  orientation, rawBlobs, seq, sock, thumbs,
 } from './core.js';
-import { audioClips } from './clips.js';
-import { camOrder, cutLive } from './live.js';
+import { angleOfCid, audioClips } from './clips.js';
+import { camOrder, cutLive, micPeers } from './live.js';
 import { scoreOfLive } from './usage.js';
 import { autoOn, directorBreak, setAuto } from './onair.js';
-import { mix } from './mixer.js';
+import { mix, mixState, MODE_LABEL, MODES, setStripGain, setStripMode } from './mixer.js';
 import { streamOut } from './stream.js';
 import {
   blackLevel, breakManual, cutMedia, mediaOn, onBreak, reel, toggleBlack, toggleBreak,
@@ -114,12 +114,33 @@ function remoteState() {
     title: $('#title')?.textContent || 'Studio', cams, sound, clips, mics, auto: !!autoOn, black: atBlack, brk,
     media: mediaOn ? reelOf(mediaOn.id)?.name || 'A clip' : null, rec: !!(progRec && !progRec.stopping),
     // sound alerts (the show log's sound watch), with the sources that could stand in
+    mix: remoteMix(),
     alerts: soundAlerts.map((a) => ({ kind: a.kind, text: a.text })),
     backups: soundAlerts.length ? backupMics().slice(0, 3).map((b) => ({ peer: b.peer, name: b.name })) : [],
   };
 }
 window.vmRemoteState = () => remoteState(); // (diagnostics and tests)
 window.vmRemoteHost = () => remoteHost;
+// The mixer for the remote: each live channel's mode, level and how loud it is now, and the program's
+const meterDb = (an) => {
+  if (!an) return -99;
+  const b = new Float32Array(an.fftSize);
+  an.getFloatTimeDomainData(b);
+  let p = 0;
+  for (const v of b) p = Math.max(p, Math.abs(v));
+  return p > 1e-5 ? Math.max(-99, Math.round(20 * Math.log10(p))) : -99;
+};
+function remoteMix() {
+  if (!mix.bus) return null;
+  const rows = [];
+  for (const peer of [...micPeers(), ...camOrder()]) {
+    const l = live.get(peer), st = mix.strips.get(peer);
+    if (!l || !st) continue;
+    const id = l.cid || peer, ms = mixState(id, l.role);
+    rows.push({ id, role: l.role, name: l.role === 'mic' ? l.name : `${angleOfCid(l.cid) || ''} ${l.name}`.trim(), mode: ms.mode, db: gainToDb(ms.gain ?? 1), open: !!st.open, level: meterDb(st.meter) });
+  }
+  return { rows, program: Math.max(meterDb(mix.meterL), meterDb(mix.meterR)) };
+}
 function remoteAct(a, arg) {
   if (a === 'cut') {
     if (!live.has(arg)) return 'That camera has gone';
@@ -140,6 +161,16 @@ function remoteAct(a, arg) {
     return '';
   }
   if (a === 'soundOn') return soundOn(arg);
+  if (a === 'mixMode' || a === 'mixGain') {
+    const known = remoteMix()?.rows.find((r) => r.id === arg?.id);
+    if (!known) return 'That channel has gone';
+    if (a === 'mixMode') {
+      if (!MODES.includes(arg.mode)) return 'Not a sound mode';
+      setStripMode(known.id, known.role, arg.mode);
+      note(`Phone remote: ${known.name}'s sound ${MODE_LABEL[arg.mode]}`);
+    } else setStripGain(known.id, known.role, arg.db);
+    return '';
+  }
   return 'Not something a remote can do';
 }
 export function startRemoteHost() {

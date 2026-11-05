@@ -126,7 +126,19 @@ export function summarize(rows, events = [], target = 30) {
     if (s.a === 'live') x.hadSound = true;
     x.droppedMs += s.ad || 0;
   }
+  // a camera here delivering fewer frames than it should (USB or the computer not keeping up)
+  const camFps = new Map();
+  for (const r of rows) for (const s of r.s || []) if (s.k === 'cam' && s.loc && typeof s.vf === 'number') {
+    const a = camFps.get(s.id) || { n: s.n, sum: 0, k: 0 };
+    a.sum += s.vf;
+    a.k++;
+    camFps.set(s.id, a);
+  }
   out.sources = [...src.values()].map(({ hadSound, ...x }) => x);
+  for (const [, a] of camFps) {
+    const avg = a.sum / a.k;
+    if (a.k >= 10 && avg < target * 0.8) out.lines.push(`${a.n} delivered ${Math.round(avg * 10) / 10} frames a second on average (of about ${target}): the camera, its USB port or the computer wasn't keeping up.`);
+  }
   for (const x of out.sources) {
     if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);
     if (x.droppedMs >= 100) out.lines.push(`${x.n}: ${mmss(x.droppedMs)} of its sound was dropped on the way in (the device or the computer couldn't keep up).`);

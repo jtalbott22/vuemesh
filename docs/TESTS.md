@@ -99,3 +99,4 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_showlog.py` | the show log every second, Monitor's panel, a microphone dropping out (alerts here and on the remote, Turn on), Save show log, earlier sessions kept |
 | `test/e2e_output.py` | Output settings, the program's rate on animation frames and on the worker clock, Record program's MP4 checked with ffprobe (exact rate, not fragmented, sound as long as picture) (needs ffmpeg) |
 | `test/e2e_sync.py` | one timeline: stand-in cameras 120 ms apart jump on a cut; the sync check (a clap) measures them; after it a cut doesn't jump; sound waits with the pictures; cameras stay on air with no animation frames |
+| `test/e2e_soundcontrol.py` | a device that stops comes back into the same source; a camera's Sound from; AFV following a chosen camera; this computer's cameras at 720p; the phone remote's mixer |

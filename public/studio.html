@@ -57,7 +57,10 @@
   .dockhead .fine { margin: 0; font-size: .72rem; }
   .dock .bridge { display: flex; flex: 1; min-height: 0; border: 0; padding: 8px; }
   .dock .bridge { align-items: stretch; gap: 6px; }
-  .dock .vstrip { grid-template-rows: auto minmax(0, 1fr) auto auto auto; width: 104px; }
+  .dock .vstrip { grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; width: 104px; }
+  .dock .vroute { display: grid; gap: 2px; }
+  .dock .vroute select { width: 100%; min-height: 20px; padding: 0 2px; font-size: .6rem; }
+  .dock.horiz .vroute { grid-column: 1 / -1; grid-auto-flow: column; }
   .dock .vstrip.master { grid-template-rows: auto minmax(0, 1fr) auto; }
   .dock .vstrip.master { width: 92px; }
   .dock .vbtns { grid-auto-flow: column; gap: 2px; }
@@ -450,6 +453,9 @@
   .strip .btns button { min-height: 26px; padding: 0 .5em; font-size: .72rem; }
   .strip .btns button[aria-pressed="true"] { background: var(--tally); color: #fff; }
   .strip.master { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .strip .route { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .72rem; color: var(--text-2); }
+  .strip .route label { display: inline-flex; gap: 4px; align-items: center; margin: 0; font-weight: 600; }
+  .strip .route select { font-size: .72rem; min-height: 24px; padding: 0 4px; max-width: 14em; }
   .sel .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .85rem; margin-bottom: 8px; }
   .sel .kv span:nth-child(odd) { color: var(--text-2); }
   .sel label { margin-top: 8px; }
@@ -815,6 +821,9 @@
         <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
       </div>
       <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
+      <label for="camSize" style="margin-top:10px">This computer's cameras capture at</label>
+      <select id="camSize" aria-describedby="camSizeHint"><option value="1080">1080p</option><option value="720">720p (lighter on USB)</option></select>
+      <p class="fine" id="camSizeHint" style="margin:2px 0 6px"></p>
       <h3 class="sub" style="margin:12px 0 4px">Sync: this computer's cameras and microphones</h3>
       <p class="fine" id="syncState" style="margin:0 0 6px"></p>
       <button type="button" id="syncBtn" style="width:100%;margin-bottom:8px" title="Clap once where every camera can see your hands: each camera's own delay is measured and kept">Sync check (clap once)</button>
