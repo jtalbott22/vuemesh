@@ -52,8 +52,10 @@ aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" --delete \
 aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" \
   --exclude "*" --include "*.html" --include "config.js" \
   --cache-control "no-cache"
-aws s3 cp "$SITE_DIR/manifest.webmanifest" "s3://$BUCKET/manifest.webmanifest" --region "$REGION" \
-  --content-type "application/manifest+json" --cache-control "public, max-age=300"
+for m in manifest remote; do
+  aws s3 cp "$SITE_DIR/$m.webmanifest" "s3://$BUCKET/$m.webmanifest" --region "$REGION" \
+    --content-type "application/manifest+json" --cache-control "public, max-age=300"
+done
 # Fonts (served from the site: no outside requests): the right type, cached for a year.
 aws s3 cp "$SITE_DIR/fonts/" "s3://$BUCKET/fonts/" --region "$REGION" --recursive \
   --exclude "*" --include "*.woff2" --content-type "font/woff2" --cache-control "public, max-age=31536000, immutable"

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.1 — the phone remote from a home screen
+**Deploy:** `./aws/deploy.sh` (site only; it now uploads `remote.webmanifest` too).
+
+Saved to a phone's home screen, the remote didn't join easily: it opened the camera page's start (the site's one manifest), a home-screen app on an iPhone keeps its own storage (so a pairing done in Safari wasn't there), the camera app's scan of the studio's code opens Safari rather than the app, and each new show needed a new pairing.
+
+- **Its own home-screen app:** `remote.webmanifest` starts it at `/remote`, standalone, named Remote.
+- **Scan from the page:** Scan the studio's code uses the phone's camera inside the remote itself, then pairs.
+- **The show's code is enough after the first time:** a studio computer remembers the phones it paired for every show it runs (it kept them per show before). A paired phone types only the new show's code and is let in by its own key. The show's code alone still lets no other phone in: a phone the studio never paired is told to add it once.
+- **Back into the last show** when opened from the home screen. If that studio isn't open, after 8 s it asks for another show's code (still listening, in case it's just opening). **Another show…** under the controls does the same.
+- Typing or pasting both codes together ("ABC123 ABCD-EFGH", or the studio's link) puts each where it belongs; eight characters in the code box connects.
+
 ## 0.61.0 — picture-in-picture, screens from other computers, a tidier inspector
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -3,7 +3,9 @@
 // and one phone, and stops after five wrong tries. The phone that brings it gets its own session
 // key, which every command has to carry; nobody else in the show can control it (a camera can't,
 // and the code is no use once it's been used or has expired). Paired phones are remembered on this
-// computer for this event, so a reload of the studio doesn't unpair them; Remove unpairs one.
+// computer, for every show it runs: a phone paired once joins the next show with just the show's
+// code (its key is its own, from this computer; the show's code alone, which every camera person
+// has, never lets a phone in). A reload doesn't unpair them; Remove unpairs one.
 //
 // Messages go through the event's signalling (only between the studio and the phone): the phone
 // sends {remote: {t: 'pair' | 'resume' | 'do' | 'vis', ...}}; the studio answers with 'paired' or
@@ -33,11 +35,14 @@ export class RemoteHost {
    */
   constructor(o) {
     Object.assign(this, o);
-    this.store = `vm_remotes_${o.eventId}`;
+    this.store = 'vm_remotes'; // (every show on this computer; each show's own list before 0.61.1)
     this.keys = new Map(); // key → { name, at }
-    try {
-      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, at: r.at });
-    } catch {}
+    for (const k of [this.store, `vm_remotes_${o.eventId}`]) {
+      try {
+        for (const r of JSON.parse(localStorage.getItem(k) || '[]')) if (!this.keys.has(r.key)) this.keys.set(r.key, { name: r.name, at: r.at });
+      } catch {}
+    }
+    this.save();
     this.bound = new Map(); // peer → { key, visible }
     this.pairing = null; // { code, until, tries }
     this.lastState = '';
@@ -128,7 +133,7 @@ export class RemoteHost {
       return;
     }
     // everything else needs a key this studio gave out
-    if (!this.keys.has(m.key)) return reply({ t: 'removed' });
+    if (!this.keys.has(m.key)) return reply({ t: 'removed', unknown: m.t === 'resume' });
     const was = this.bound.get(peer);
     if (!was || was.key !== m.key) {
       this.bound.set(peer, { key: m.key, visible: true });
@@ -136,6 +141,7 @@ export class RemoteHost {
     }
     const b = this.bound.get(peer);
     if (m.t === 'resume') {
+      if (!was) this.note?.(`${this.keys.get(m.key)?.name || 'A phone remote'} joined this show as a remote`);
       reply({ t: 'tv', tv: this.tvKey?.(m.key, this.keys.get(m.key)?.name) || null });
       this.lastState = '';
       this.push(true);
