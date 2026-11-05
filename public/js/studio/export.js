@@ -6,7 +6,7 @@ import * as S from '/js/sequence.js';
 import { renderSequence, RenderError } from '/js/render.js';
 import { BRAND, FEATURES } from '/js/brand.js';
 import { $, clips, ev, eventId, fit, key, note, player, program, rawBlobs, recMime, seq } from './core.js';
-import { angleNo, clipOf, viewOf } from './clips.js';
+import { angleNo, clipOf, output, viewOf } from './clips.js';
 import { reel } from './graphics.js';
 import { credits, soundCredits } from './edit.js';
 
@@ -70,7 +70,7 @@ export async function runRender({ s: renderSeq = seq, name = ev.title, wrapUp = 
       stream = await handle.createWritable();
     }
     const out = await renderSequence({
-      seq: renderSeq, width: W, height: H, fps: 30, fit, title: ev.title,
+      seq: renderSeq, width: W, height: H, fps: output.fps, fit, title: ev.title,
       blobFor: (id) => rawBlobs.get(id),
       audioOf: (id) => clipOf(id)?.audio,
       nameOf: (id) => {
@@ -136,7 +136,7 @@ export let exporting = null;
 $('#exportBtn').onclick = async () => {
   if (exporting) return exporting.stop();
   if (!S.end(seq)) return toast('Nothing on the timeline yet');
-  const tracks = [...program.captureStream(30).getVideoTracks(), ...player.audioStream().getAudioTracks()];
+  const tracks = [...program.captureStream(Math.round(output.fps)).getVideoTracks(), ...player.audioStream().getAudioTracks()];
   const mime = recMime();
   const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 8_000_000 });
   const chunks = [];

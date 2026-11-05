@@ -7,7 +7,7 @@ import {
   $, EDIT_ONLY, KIOSK, KIOSK_PAGE, LIVE_DELAY, black, clips, ev, eventId, hub, isHost, key, live,
   liveActive, mode, note, player, program, recMime,
 } from './core.js';
-import { addClip } from './clips.js';
+import { addClip, renderOutput } from './clips.js';
 import { camOrder, cutLive, renderLive } from './live.js';
 import { addUsage } from './usage.js';
 import { autoOn, manualUntil, recOnAirChanged, setAuto, setManualUntil, syncTally } from './onair.js';
@@ -303,6 +303,7 @@ export function toggleProgramRecording() {
   rec.onstop = () => {
     addUsage('liveCutSec', (Date.now() - (rec.startedAt || Date.now())) / 1000);
     setProgRec(null);
+    renderOutput();
     recOnAirChanged();
     setTimeout(() => tracks[0].stop(), 3000); // (its own copy, once the last live-cut part is done: the program picture goes on for everything else)
     $('#recProgBtn').setAttribute('aria-pressed', 'false');
@@ -322,6 +323,7 @@ export function toggleProgramRecording() {
   rec.start(1000);
   startPieces(tracks);
   setProgRec(rec);
+  renderOutput();
   rec.startedAt = Date.now();
   recOnAirChanged();
   $('#recProgBtn').setAttribute('aria-pressed', 'true');

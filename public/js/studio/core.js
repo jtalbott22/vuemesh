@@ -25,7 +25,7 @@ import * as idb from '/js/idb.js';
 import '/js/media.js';
 import {
   addClip, angleOfCid, appendLiveSoon, clipOf, commit, labelOf, loadCut, loadSeq, noteAngle, rebuild,
-  setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
+  renderOutput, setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
 } from './clips.js';
 import { camOrder, fitTile, renderLive } from './live.js';
 import { renderQuality } from './usage.js';
@@ -483,6 +483,7 @@ async function init() {
   else rememberEvent(ev);
 
   setOrientation(localStorage.getItem('vm_orient_' + eventId) || ev.orientation || 'landscape', false);
+  renderOutput();
   setFit(fit);
 
   for (const r of await idb.list('reel', eventId)) addReel(r, false);

@@ -16,6 +16,7 @@ import { renderMixer } from './mixer.js';
 import { flushRecordings, isBlocked } from './sources.js';
 import { media } from './room.js';
 import { reel } from './graphics.js';
+import { progRec } from './switcher.js';
 import { incoming } from './phones.js';
 import { renderCredits, renderInspector, renderMulti, renderTimeline } from './edit.js';
 import { applyLayout } from './transport.js';
@@ -23,9 +24,45 @@ import { leftTab, monTab, renderMedia, setLeftTab, setMonTab } from './library.j
 
 // ------------------------------------------------------------ output shape ---
 
+// Output settings: the program's frame rate and size, which Record program, the TVs, the
+// stream and Render MP4 are all made at. Kept per event on this computer; fixed while Record
+// program runs (a recording is one rate from start to end).
+export const FRAME_RATES = [24, 25, 29.97, 30, 50, 60];
+const outSaved = (() => {
+  try {
+    return JSON.parse(localStorage.getItem('vm_output_' + eventId) || '{}');
+  } catch {
+    return {};
+  }
+})();
+export const output = { fps: FRAME_RATES.includes(outSaved.fps) ? outSaved.fps : 30, height: outSaved.height === 1080 ? 1080 : 720 };
+export const outputLabel = () => `${output.height}p at ${output.fps} frames a second`;
+export function setOutput(change) {
+  if (progRec) return void toast('Stop Record program first: a recording keeps one frame rate and size');
+  Object.assign(output, change);
+  localStorage.setItem('vm_output_' + eventId, JSON.stringify(output));
+  setOrientation(orientation, false);
+  renderOutput();
+  note(`Output: ${outputLabel()}`);
+  announce(`Output is now ${outputLabel()}`);
+}
+export function renderOutput() {
+  const fps = $('#outFps'), size = $('#outSize');
+  if (!fps || !size) return;
+  if (!fps.options.length) fps.innerHTML = FRAME_RATES.map((f) => `<option value="${f}">${f}</option>`).join('');
+  fps.value = String(output.fps);
+  size.value = String(output.height);
+  fps.disabled = size.disabled = !!progRec;
+  const hint = $('#outHint');
+  if (hint) hint.textContent = progRec ? 'Fixed while Record program runs.' : `${output.height === 1080 ? 'Sharper, and more work for this computer.' : 'Light on this computer.'} 30 for most shows; 25 where TV is 25 (Europe); 29.97 to match broadcast video in North America.`;
+}
+$('#outFps')?.addEventListener('change', (e) => setOutput({ fps: Number(e.target.value) }));
+$('#outSize')?.addEventListener('change', (e) => setOutput({ height: Number(e.target.value) }));
+
 export function setOrientation(o, persist = true) {
   setOrientationValue(o === 'portrait' ? 'portrait' : 'landscape');
-  const [w, h] = orientation === 'portrait' ? [720, 1280] : [1280, 720];
+  const long = Math.round((output.height * 16) / 9);
+  const [w, h] = orientation === 'portrait' ? [output.height, long] : [long, output.height];
   if (program.width !== w || program.height !== h) {
     program.width = w;
     program.height = h;
