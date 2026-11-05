@@ -419,7 +419,7 @@ export class DisplayHub {
     const out = [];
     for (const [, l] of this.links) {
       if (!l.pc) continue;
-      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, remote: !!this.keys.get(l.key)?.remote, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null, cap: l.q?.cap || null, rx: l.rx && Date.now() - l.rx.at < 15000 ? { fps: l.rx.fps, freezes: l.rx.freezes, dropped: l.rx.dropped, w: l.rx.w, h: l.rx.h } : null };
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, remote: !!this.keys.get(l.key)?.remote, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null, cap: l.q?.cap || null, rx: l.rx && Date.now() - l.rx.at < 15000 ? { fps: l.rx.fps, freezes: l.rx.freezes, dropped: l.rx.dropped, lost: l.rx.lost, w: l.rx.w, h: l.rx.h } : null };
       try {
         const st = await l.pc.getStats(), now = performance.now();
         let bytes = 0;

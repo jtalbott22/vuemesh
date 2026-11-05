@@ -88,13 +88,26 @@ export class ProgramView {
       try {
         this.ctl.send(JSON.stringify(msg));
       } catch {}
+      // what it's getting, as a TV says it (tv.js): frames shown, dropped and frozen, packets lost, the size
+      let s = null;
+      try {
+        (await this.pc.getStats()).forEach((r) => {
+          if (r.type === 'inbound-rtp' && r.kind === 'video') s = r;
+        });
+      } catch {}
+      const cur = { at: now, shown: this.shown, decoded: s?.framesDecoded || 0, dropped: s?.framesDropped || 0, freezes: s?.freezeCount || 0, freezeMs: (s?.totalFreezesDuration || 0) * 1000, lost: s?.packetsLost || 0 };
       if (this.lastQ && now - this.lastQ.at >= 4500) {
-        const secs = (now - this.lastQ.at) / 1000;
+        const q = this.lastQ, secs = (now - q.at) / 1000;
+        const shownFps = (cur.shown - q.shown) / secs, decodedFps = (cur.decoded - q.decoded) / secs;
         try {
-          this.ctl.send(JSON.stringify({ t: 'quality', secs: Math.round(secs * 10) / 10, fps: Math.round(((this.shown - this.lastQ.shown) / secs) * 10) / 10, freezes: 0, dropped: 0 }));
+          this.ctl.send(JSON.stringify({
+            t: 'quality', secs: Math.round(secs * 10) / 10, fps: Math.round((shownFps > 0 ? shownFps : decodedFps) * 10) / 10,
+            dropped: Math.max(0, cur.dropped - q.dropped), freezes: Math.max(0, cur.freezes - q.freezes), freezeMs: Math.max(0, Math.round(cur.freezeMs - q.freezeMs)), lost: Math.max(0, cur.lost - q.lost),
+            w: s?.frameWidth || null, h: s?.frameHeight || null,
+          }));
         } catch {}
-        this.lastQ = { at: now, shown: this.shown };
-      } else if (!this.lastQ) this.lastQ = { at: now, shown: this.shown };
+        this.lastQ = cur;
+      } else if (!this.lastQ) this.lastQ = cur;
     } else if (this.host && Date.now() - this.lastTry > 12_000) this.hello();
   }
   drop() {

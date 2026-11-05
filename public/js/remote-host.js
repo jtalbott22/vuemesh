@@ -35,6 +35,15 @@ export class RemoteHost {
    */
   constructor(o) {
     Object.assign(this, o);
+    // (what goes to each phone, counted for the Monitor: state and the cameras' pictures)
+    const send = o.send;
+    this.sent = new Map(); // peer → bytes
+    this.send = (peer, data) => {
+      try {
+        this.sent.set(peer, (this.sent.get(peer) || 0) + JSON.stringify(data).length);
+      } catch {}
+      return send(peer, data);
+    };
     this.store = 'vm_remotes'; // (every show on this computer; each show's own list before 0.61.1)
     this.keys = new Map(); // key → { name, at }
     for (const k of [this.store, `vm_remotes_${o.eventId}`]) {
@@ -81,6 +90,19 @@ export class RemoteHost {
     return [...this.keys].map(([key, v]) => ({ key, name: v.name, connected: on.has(key) }));
   }
 
+  /** Each phone remote joined now, for the Monitor: open on its screen or not, since when, and what's sent it (kbps since last asked). */
+  links() {
+    const now = Date.now(), out = [];
+    this.lastLinks ||= new Map();
+    for (const [peer, b] of this.bound) {
+      const bytes = this.sent.get(peer) || 0, was = this.lastLinks.get(peer);
+      out.push({ name: this.keys.get(b.key)?.name || 'Phone remote', visible: !!b.visible, since: b.since || null, heard: b.heard || null, kbps: was && now > was.at ? Math.round(((bytes - was.bytes) * 8) / (now - was.at)) : null });
+      this.lastLinks.set(peer, { bytes, at: now });
+    }
+    for (const peer of [...this.lastLinks.keys()]) if (!this.bound.has(peer)) this.lastLinks.delete(peer);
+    return out;
+  }
+
   remove(key) {
     for (const [peer, b] of this.bound) {
       if (b.key === key) {
@@ -98,6 +120,7 @@ export class RemoteHost {
 
   /** A phone left the show (its connection went). */
   gone(peer) {
+    this.sent.delete(peer);
     if (this.bound.delete(peer)) this.changed?.();
   }
 
@@ -122,7 +145,7 @@ export class RemoteHost {
       const name = String(m.name || 'Phone remote').slice(0, 40);
       this.keys.set(key, { name, at: Date.now() });
       this.save();
-      this.bound.set(peer, { key, visible: true });
+      this.bound.set(peer, { key, visible: true, since: Date.now(), heard: Date.now() });
       this.pairing = null;
       this.lastState = '';
       reply({ t: 'paired', key, name, tv: this.tvKey?.(key, name) || null });
@@ -136,10 +159,11 @@ export class RemoteHost {
     if (!this.keys.has(m.key)) return reply({ t: 'removed', unknown: m.t === 'resume' });
     const was = this.bound.get(peer);
     if (!was || was.key !== m.key) {
-      this.bound.set(peer, { key: m.key, visible: true });
+      this.bound.set(peer, { key: m.key, visible: true, since: Date.now(), heard: Date.now() });
       this.changed?.();
     }
     const b = this.bound.get(peer);
+    b.heard = Date.now();
     if (m.t === 'resume') {
       if (!was) this.note?.(`${this.keys.get(m.key)?.name || 'A phone remote'} joined this show as a remote`);
       reply({ t: 'tv', tv: this.tvKey?.(m.key, this.keys.get(m.key)?.name) || null });
