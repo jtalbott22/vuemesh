@@ -4,7 +4,9 @@ import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { limiter } from '/js/compose.js';
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
-import { $, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
+import {
+  $, dbToGain, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq,
+} from './core.js';
 import { angleCids, angleOfCid } from './clips.js';
 import { camOrder, micPeers } from './live.js';
 import { bindConsole, consoleSync } from './ccu.js';
@@ -237,6 +239,14 @@ export function mixGates() {
 }
 export const mixFollowCut = mixGates;
 
+/** A live channel's level, from the phone remote (dB, -60 to +12): as moving its fader here. */
+export function setStripGain(id, role, db) {
+  const g = dbToGain(Math.max(-60, Math.min(12, Math.round(Number(db) || 0))));
+  mixSave(id, { ...mixState(id, role), gain: g });
+  const st = id === 'media' ? mix.media : mix.strips.get(peerOfCid(id) || id);
+  st?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
+  renderMixer();
+}
 const peerOfCid = (cid) => [...live].find(([, x]) => x.cid === cid)?.[0] || null;
 /** AFV for a channel follows this camera's picture (its cid), or its own (null). Kept with the channel. */
 export function setStripFollow(id, role, follow) {

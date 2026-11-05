@@ -99,6 +99,63 @@ function showControls() {
 }
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// The mixer: AFV / ON / OFF and a fader for each live channel, with how loud it is now.
+// Built once per set of channels (so a finger on a fader isn't replaced), then kept up.
+let mixSig = '', dragging = null;
+const MODE_TEXT = { afv: 'AFV', on: 'ON', off: 'OFF' };
+const pct = (db) => Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+function renderMix() {
+  const m = state.mix;
+  $('#mixH').hidden = $('#mix').hidden = !m?.rows?.length;
+  if (!m?.rows?.length) return;
+  const sig = m.rows.map((r) => `${r.id}:${r.name}`).join('|');
+  if (sig !== mixSig) {
+    mixSig = sig;
+    $('#mix').innerHTML = m.rows.map((r) => `<div class="mixrow" data-ch="${esc(r.id)}">
+        <span class="nm">${esc(r.name)}</span><span class="db"></span>
+        <span class="lv" aria-hidden="true"><i></i></span>
+        <input type="range" min="-60" max="12" step="1" aria-label="${esc(r.name)} level in decibels">
+        <span class="modes">${Object.entries(MODE_TEXT).map(([k, t]) => `<button type="button" data-mode="${k}" aria-pressed="false" aria-label="${esc(r.name)}: ${t}">${t}</button>`).join('')}</span>
+      </div>`).join('') + `<div class="mixrow prog"><span class="nm">Program</span><span class="db"></span><span class="lv" aria-hidden="true"><i></i></span></div>`;
+  }
+  for (const r of m.rows) {
+    const el = $('#mix').querySelector(`[data-ch="${CSS.escape(r.id)}"]`);
+    if (!el) continue;
+    el.classList.toggle('open', !!r.open);
+    el.querySelector('.lv i').style.width = `${pct(r.level)}%`;
+    const range = el.querySelector('input');
+    if (dragging !== r.id) {
+      range.value = String(r.db);
+      el.querySelector('.db').textContent = `${r.db} dB`;
+    }
+    el.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === r.mode)));
+  }
+  const prog = $('#mix').querySelector('.prog');
+  prog.querySelector('.lv i').style.width = `${pct(m.program)}%`;
+  prog.querySelector('.db').textContent = m.program > -99 ? `${m.program} dB` : 'silent';
+}
+let gainTimer = null;
+$('#mix').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]'), row = b?.closest('[data-ch]');
+  if (row) act('mixMode', { id: row.dataset.ch, mode: b.dataset.mode });
+});
+$('#mix').addEventListener('input', (e) => {
+  const range = e.target.closest('input[type=range]'), row = range?.closest('[data-ch]');
+  if (!row) return;
+  dragging = row.dataset.ch;
+  row.querySelector('.db').textContent = `${range.value} dB`;
+  if (gainTimer) return; // (as it moves, a few times a second; and where it stops)
+  gainTimer = setTimeout(() => {
+    gainTimer = null;
+    act('mixGain', { id: row.dataset.ch, db: Number(range.value) });
+  }, 150);
+});
+$('#mix').addEventListener('change', (e) => {
+  const range = e.target.closest('input[type=range]'), row = range?.closest('[data-ch]');
+  if (!row) return;
+  act('mixGain', { id: row.dataset.ch, db: Number(range.value) });
+  setTimeout(() => (dragging = null), 1500);
+});
 let alertBuzzed = false;
 function render() {
   if (!state) return;
@@ -135,6 +192,7 @@ function render() {
   $('#clipsH').hidden = $('#clips').hidden = !clips.length;
   $('#clips').innerHTML = clips.map((c) => `<button type="button" class="cam${c.onAir ? ' air' : ''}" data-clip="${esc(c.id)}" aria-label="Cut to the clip ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
       <span class="snd" aria-hidden="true">${c.kind === 'image' ? '🖼' : '🎞'}</span>${c.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(c.name)}</b></button>`).join('');
+  renderMix();
   $('#autoBtn').setAttribute('aria-pressed', String(!!state.auto));
   $('#blackBtn').setAttribute('aria-pressed', String(!!state.black));
   $('#blackBtn').textContent = state.black ? 'Fade up' : 'Fade to black';
@@ -155,7 +213,7 @@ setInterval(() => {
 const act = (a, arg) => {
   if (!host) return toast('The studio is not open');
   send({ t: 'do', key, a, arg });
-  navigator.vibrate?.(15);
+  if (a !== 'mixGain') navigator.vibrate?.(15); // (not all the way along a fader)
 };
 for (const id of ['#cams', '#sound']) {
   $(id).addEventListener('click', (e) => {

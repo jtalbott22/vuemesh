@@ -3,7 +3,8 @@
 #    the same channel, its sound mode kept, and the alert clears;
 #  - a camera's Sound from: its sound from another microphone (or none), kept for that camera
 #    when it's added again;
-#  - AFV follows a camera you choose: a microphone heard only while that camera is on air.
+#  - AFV follows a camera you choose: a microphone heard only while that camera is on air;
+#  - the phone remote's mixer: each channel's level as it is, and its mode and fader from the phone.
 # Run: node dev/server.mjs &  then  python3 test/e2e_soundcontrol.py
 import os, time
 from playwright.sync_api import sync_playwright
@@ -71,6 +72,23 @@ with sync_playwright() as p:
     on = open_(mic)
     assert off == 0 and on == 1, (off, on)
     step(f'AFV follows "{label}": the microphone is out of the mix with the other camera on air, in with that one')
+
+    # 4. the phone remote's mixer: a channel's mode and level from the phone
+    host.click('#remoteAdd')
+    host.wait_for_function("document.querySelector('#remoteDlg').open && document.querySelector('#remoteCode').textContent.length === 9", timeout=10000)
+    code = host.inner_text('#remoteCode').replace('-', '')
+    rem = b.new_context(viewport={'width': 390, 'height': 844}).new_page(); rem.on('pageerror', lambda e: errors.append(f'remote: {e}'))
+    rem.goto(f"{BASE}/remote?e={ev['id']}#p={code}")
+    rem.wait_for_function("!document.querySelector('#mix').hidden && document.querySelectorAll('#mix [data-ch]').length === 3", timeout=30000)
+    rem.wait_for_function("[...document.querySelectorAll('#mix .lv i')].some(i => parseFloat(i.style.width) > 0)", timeout=10000)
+    cam1 = host.evaluate(f"vmMedia().find(m => m.peer === '{cams[0]}')") and next(s for s in host.evaluate("[...document.querySelectorAll('#bridge [data-strip]')].map(e => e.dataset.strip)") if host.evaluate(f"document.querySelector('#bridge [data-strip=\"{s}\"] .vname').textContent.includes('fake_device_0')"))
+    rem.click(f'#mix [data-ch="{cam1}"] [data-mode="on"]')
+    host.wait_for_function(f"document.querySelector('#bridge [data-strip=\"{cam1}\"] [data-amode=on]').getAttribute('aria-pressed') === 'true'", timeout=8000)
+    rem.eval_on_selector(f'#mix [data-ch="{cam1}"] input[type=range]', "e => { e.value = '-12'; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }")
+    host.wait_for_function(f"document.querySelector('#bridge [data-strip=\"{cam1}\"] .db').textContent.trim() === '-12 dB'", timeout=8000)
+    rem.wait_for_function(f"document.querySelector('#mix [data-ch=\"{cam1}\"] [data-mode=on]').getAttribute('aria-pressed') === 'true'", timeout=8000)
+    rows = rem.eval_on_selector_all('#mix [data-ch] .nm', 'els => els.map(e => e.textContent)')
+    step(f"the phone remote's mixer: {rows} with their levels moving; ON and -12 dB from the phone, and the studio's mixer shows both")
 
     assert not errors, errors
     b.close()
