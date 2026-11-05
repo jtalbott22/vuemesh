@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.7 — one interface, two microphones
+**Deploy:** `./aws/deploy.sh` (site only).
+
+0.61.6 found that Chrome on Linux reads only one of an interface's inputs at a time (a Scarlett 2i2's Input 1 and Input 2, which Linux lists as two microphones). This is how to hear both.
+
+- **Two microphones from one input:** add the interface once, in stereo, then right-click its tile: **Two microphones (Input 1 left, Input 2 right)**. Each side is a microphone of its own: its own tile, strip, mode (AFV / ON / OFF), fader, and recording of just its side. **One microphone (both sides)** puts it back. On Linux, set the interface to **Pro Audio** in the computer's sound settings first (its inputs then come as one, "Scarlett 2i2 4th Gen Pro"). A Mac shows a Scarlett that way already. Tried with the real Scarlett on Pro Audio: both inputs heard every second for 20 s, where on HiFi the first went silent.
+- Adding a microphone that opens in stereo says how. So does the notice when two inputs of one interface are added.
+- A split input comes back split after a reload, with each side's name. Removing the first side takes the second with it (the same device). The sound watch listens to the whole input, so an input with nothing plugged in doesn't keep "reconnecting".
+- **Enter saves in Rename** (it pressed Cancel: the dialog's first button).
+- A recording of this computer's sources is named as it was when it started (a rename or a split before it was saved gave it the new name).
+
 ## 0.61.6 — an audio interface on Linux
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -89,7 +89,8 @@ bgInterval(() => {
   if (player.ctx?.state === 'suspended') player.ctx.resume().catch(() => {});
   for (const [peer, st] of mix.strips) {
     const l = live.get(peer);
-    if (!l || !st.src || !st.pre) continue;
+    const pre = st.preAll || st.pre; // (one side of a split input: the watch hears the whole input)
+    if (!l || !st.src || !pre) continue;
     if (st.sink?.paused) st.sink.play().catch(() => {});
     const at = l.stream?.getAudioTracks().find((t) => t.id === st.trackId);
     if (!at || at.readyState !== 'live' || at.muted || !at.enabled || l.paused) {
@@ -97,7 +98,7 @@ bgInterval(() => {
       if (!at || at.readyState !== 'live') mixAttach(peer);
       continue;
     }
-    st.pre.getFloatTimeDomainData(preBuf);
+    pre.getFloatTimeDomainData(preBuf);
     if (preBuf.some((v) => v !== 0)) st.silentSince = 0;
     else if (!st.silentSince) st.silentSince = Date.now();
     else if (Date.now() - st.silentSince > 8000) {

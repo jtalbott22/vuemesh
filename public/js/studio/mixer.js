@@ -163,15 +163,36 @@ export function mixAttach(peer) {
     st.fix.output.connect(st.mono); // a phone that only fills the left side still counts at full level
     mix.strips.set(peer, st);
   }
-  if (st.trackId !== at.id || !st.src) {
+  if (st.trackId !== at.id || !st.src || st.sideOf !== (l.side || null)) {
     try { st.src?.disconnect(); } catch {}
+    try { st.sideSplit?.disconnect(); } catch {}
     // Two sides of its own: this computer's sound or a shared screen, or an input of this
     // computer that opened in stereo. A phone's sound starts mono (Mono off makes it stereo).
-    l.stereo = !!l.local && (!!l.screen || (at.getSettings?.().channelCount || 1) > 1);
+    // One side of an input (an interface's Input 1 or 2, split into two microphones): mono.
+    l.stereo = !!l.local && !l.side && (!!l.screen || (at.getSettings?.().channelCount || 1) > 1);
     const only = new MediaStream([at]);
     st.src = ctx.createMediaStreamSource(only);
-    st.src.connect(st.fix.input);
-    st.src.connect(st.pre);
+    st.sideOf = l.side || null;
+    if (l.side) {
+      st.sideSplit = ctx.createChannelSplitter(2);
+      st.src.connect(st.sideSplit);
+      const i = l.side === 'R' ? 1 : 0;
+      st.sideSplit.connect(st.fix.input, i);
+      st.sideSplit.connect(st.pre, i);
+      // its own recording: this side alone (see startLocalRec)
+      st.sideOut ||= Object.assign(ctx.createMediaStreamDestination(), { channelCount: 1, channelCountMode: 'explicit' });
+      st.sideSplit.connect(st.sideOut, i);
+      l.recAudio = st.sideOut.stream.getAudioTracks()[0];
+      // (the sound watch listens to the whole input: one side can be silent for good, an input with nothing plugged in)
+      st.preAll ||= Object.assign(ctx.createAnalyser(), { fftSize: 512 });
+      st.src.connect(st.preAll);
+    } else {
+      st.sideSplit = null;
+      st.preAll = null;
+      l.recAudio = null;
+      st.src.connect(st.fix.input);
+      st.src.connect(st.pre);
+    }
     st.fix.reset(!!l.screen); // a stereo input of this computer may still be one mic on the left: the fix finds out
     st.trackId = at.id;
     st.stream = l.stream;
@@ -200,7 +221,7 @@ export function mixAttach(peer) {
 export function mixDetach(peer) {
   const st = mix.strips.get(peer);
   if (st) {
-    try { st.src?.disconnect(); st.gate.disconnect(); } catch {}
+    try { st.src?.disconnect(); st.sideSplit?.disconnect(); st.gate.disconnect(); } catch {}
     st.fix?.dispose();
     if (st.sink) st.sink.srcObject = null;
     mix.strips.delete(peer);
