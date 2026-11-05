@@ -78,5 +78,15 @@ with sync_playwright() as p:
     rem.click('#pgmTgl')
     rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().shown > 5", timeout=30000)
     step(f"the phone remote shows Program out above its cameras ({pv['w']}x{pv['h']}, {pv['shown']} frames so far), let in without Accept and not listed as a TV; it can be turned off and on")
+
+    # Monitor: the remote's Program out says what it's getting, as a TV does, and its control link is there too
+    mon = ctx.new_page(); mon.on('pageerror', lambda e: errors.append(f'monitor: {e}'))
+    mon.goto(f"{BASE}/monitor?e={ev['id']}")
+    mon.wait_for_function("(() => { const o = document.querySelector('#xfOut').textContent; return /Program out\\).*Phone remote · program.*shows [\\d.]+ fps/.test(o) && /Phone remote · control, open on its screen/.test(o); })()", timeout=30000)
+    rx = host.evaluate("(async () => (await vmDisplayHub().stats()).find((t) => t.remote)?.rx)()")
+    assert rx and rx['w'] and rx['h'] and rx['fps'] is not None and 'lost' in rx, rx
+    out = mon.inner_text('#xfOut')
+    step(f"Monitor lists the remote's Program out with what it shows ({rx['w']}x{rx['h']}, {rx['fps']} fps) and its control link: " + ' | '.join(l for l in out.splitlines() if 'remote' in l.lower())[:240])
+    mon.close()
     assert not errors, errors
     b.close()

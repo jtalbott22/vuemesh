@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.61.4 — the phone remote in Monitor, as a TV is
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The remote's Program out says what it's getting, as a TV does:** frames shown, dropped and frozen, packets lost, and the size it shows. It said only frames shown before (freezes and drops were always 0), so Monitor had little to go on, and the studio never lowered a remote's picture that was falling behind; now it does, as for a TV.
+- **Each phone remote's own link is in Monitor's Transfers:** open on its screen (with the cameras' pictures) or in the background, when it joined, when it was last heard from if a while ago, and how much the studio is sending it.
+- TVs and the remote also say how many packets they lost.
+
 ## 0.61.3 — a shared screen that's sharp, light, and stays on air
 **Deploy:** `./aws/deploy.sh` (site only).
 

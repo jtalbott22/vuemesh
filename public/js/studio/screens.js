@@ -79,6 +79,7 @@ export async function pushMonitor() {
     peers, log: log.slice(0, 80),
     stream: streamOut?.link ? { name: streamOut.name, ...(await streamOut.link().catch(() => ({}))) } : null,
     displays: (await displayHub?.stats().catch(() => [])) || [],
+    remotes: remoteHost?.links?.() || [],
     showlog: showLogBrief(),
   });
 }
