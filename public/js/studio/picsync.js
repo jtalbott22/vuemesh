@@ -59,7 +59,11 @@ export function picOf(peer) {
 /** A camera here is still sending pictures (for the break slate: the page's video element stops showing new frames while hidden). */
 export function camSending(peer, stallMs) {
   const b = buffers.get(peer);
-  return b ? b.silentFor() < stallMs : null;
+  if (!b) return null;
+  // A shared screen sends a picture only when something on it changes (a slide held for a
+  // minute sends none): it's there for as long as the sharing goes on.
+  if (live.get(peer)?.screen) return b.track.readyState === 'live';
+  return b.silentFor() < stallMs;
 }
 
 /** How long this computer's sound from `peer` waits to stay with the pictures (ms), or null (not lined up here). */
@@ -77,7 +81,7 @@ function keepUp() {
   for (const [peer, l] of live) {
     if (isCam(l) && !buffers.has(peer)) {
       const track = l.stream.getVideoTracks().find((t) => t.readyState === 'live');
-      buffers.set(peer, new FrameBuffer(track.clone(), { size: () => ({ w: program.width, h: program.height }) }));
+      buffers.set(peer, new FrameBuffer(track.clone(), { size: () => ({ w: program.width, h: program.height }), quality: l.screen ? 'high' : 'medium' })); // (a screen's text: smoothly)
     }
     const at = l.local && !l.screen ? liveAudio(l) : null;
     if (at && taps.get(peer)?.track?.readyState !== 'live') {
@@ -118,9 +122,11 @@ function keepUp() {
     note(`Pictures from this computer's cameras line up at ${pictureDelay} ms behind the moment (sound waits the same)`);
   } else if (r.raised) note(`A camera slowed down: every picture now ${pictureDelay} ms behind (was ${was} ms)`);
   else if (pictureDelay < was) note(`Between shows: pictures now ${pictureDelay} ms behind (was ${was} ms)`);
-  // a camera that's stopped sending: held at its last picture, and said once
+  // a camera that's stopped sending: held at its last picture, and said once (not a screen:
+  // one that's still sends nothing until something on it changes)
   for (const [peer, b] of buffers) {
     const l = live.get(peer), quietMs = b.silentFor();
+    if (l?.screen) continue;
     if (quietMs > 1000 && !stalledSince.has(peer)) {
       stalledSince.set(peer, Date.now());
       showLog.event('picture', `${l.name} stopped sending pictures: holding its last one`);
