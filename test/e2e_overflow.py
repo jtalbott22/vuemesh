@@ -10,7 +10,7 @@ CHROME = os.environ.get('CHROME')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
 ANDROID = 'Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36'
 def step(m): print('ok  ' + m, flush=True)
-TILES = "[...document.querySelectorAll('.cam')].filter(c => c.style.display !== 'none').map(c => c.querySelector('.who').textContent).sort()"
+TILES = "[...document.querySelectorAll('.cam:not(.specials)')].filter(c => c.style.display !== 'none').map(c => c.querySelector('.who').textContent).sort()"
 WAITING = "[...document.querySelectorAll('#ovList .nm')].map(x => x.textContent)"
 
 with sync_playwright() as p:
@@ -40,7 +40,7 @@ with sync_playwright() as p:
         c.on('pageerror', lambda e, n=name: errors.append(f'{n}: {e}')); c.on('dialog', lambda d: d.accept())
         c.goto(f"{BASE}/cam?e={ev['id']}"); c.fill('#name', name); c.check('#agreeGuest'); c.click('#joinForm button[type=submit]')
         ph[name] = c
-        # a record-only phone has no tile: count live tiles plus the "Recording only" list
+        # a record-only phone has no tile: count the phones' live tiles (not the Break / Black row) plus the "Recording only" list
         host.wait_for_function(f"[...document.querySelectorAll('.cam')].filter(c => c.style.display !== 'none').length + document.querySelectorAll('#ovList li').length === {i + 1}", timeout=20000); time.sleep(1.5)
     host.wait_for_function(f"{WAITING}.length === 1", timeout=10000)
     ph['Maya'].wait_for_selector('#pausedTag:not([hidden])', timeout=8000)
