@@ -333,7 +333,10 @@ export async function renameLocal(peer) {
 // A camera's recording with its sound: WebM with Opus first (the steadiest way a browser
 // records a live microphone; it plays in Edit and exports the same), then the studio's other
 // formats. A format that comes out without the sound isn't used again this session.
-const LOCAL_VIDEO_MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=h264,opus', 'video/webm', ...REC_MIMES];
+// VP8 before VP9: these are encoded on the processor beside Record program, and VP9 took
+// almost a whole core more for a 720p webcam (a 4-core laptop: 2.6 cores busy recording
+// with VP8, 3.6 with VP9), for a file Edit only reads back. At 8 Mbps VP8 looks the same.
+const LOCAL_VIDEO_MIMES = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=h264,opus', 'video/webm', ...REC_MIMES];
 const localMimeNoSound = new Set();
 function localVideoMime(l) {
   const sound = l.stream.getAudioTracks().length > 0;
