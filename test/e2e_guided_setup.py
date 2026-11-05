@@ -3,7 +3,7 @@
 # lens starts at 1×; Pause feed on air; the event code typed cleanly; two Record program
 # takes in a row both have moving pictures. (The watch link: test/e2e_watch.py.)
 # Run: node dev/server.mjs &  then  python3 test/e2e_guided_setup.py
-import os, time, json, subprocess
+import os, time, subprocess
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream=device-count=3', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

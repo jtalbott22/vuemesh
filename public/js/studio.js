@@ -372,7 +372,7 @@ if (EDIT_ONLY) {
   window.vmEditMsgs = {}; // (tests and diagnostics: what the studio has told this page)
   editCh?.addEventListener('message', async (e) => {
     const m = e.data || {};
-    vmEditMsgs[m.t] = (vmEditMsgs[m.t] || 0) + 1;
+    window.vmEditMsgs[m.t] = (window.vmEditMsgs[m.t] || 0) + 1;
     if (m.t === 'deleted' && m.id) return void deleteRecording(m.id, { confirmed: true, elsewhere: true });
     if (m.t === 'focus') return void window.focus();
     if (m.t === 'seek' && typeof m.ms === 'number') return void player.seek(m.ms);
@@ -8432,9 +8432,9 @@ function remoteAct(a, arg) {
     cutMedia(arg);
     return '';
   }
-  if (a === 'auto') return void setAuto(!!arg) || '';
-  if (a === 'black') return void toggleBlack(true) || '';
-  if (a === 'break') return void toggleBreak() || '';
+  if (a === 'auto') { setAuto(!!arg); return ''; }
+  if (a === 'black') { toggleBlack(true); return ''; }
+  if (a === 'break') { toggleBreak(); return ''; }
   if (a === 'rec') {
     const on = !!(progRec && !progRec.stopping);
     if (!!arg !== on) recByHand();

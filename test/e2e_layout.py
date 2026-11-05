@@ -2,7 +2,7 @@
 # out in its own window, resizable panels that remember, and clip transforms (handles on
 # the viewer, exact values in the inspector, and in the rendered file).
 # Run: node dev/server.mjs &  then  python3 test/e2e_layout.py   (needs ffmpeg)
-import os, json, os, subprocess, sys, time
+import os, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)

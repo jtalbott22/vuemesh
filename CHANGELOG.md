@@ -7,6 +7,7 @@
 - **GitHub Actions** (`.github/workflows/test.yml`) runs `npm test` on every push and pull request.
 - **Suites named for what they test**, not the version they arrived in: `e2e_v19` → `e2e_mic_alone`, `e2e_v201` → `e2e_fitted_mixer`, `e2e_v22` → `e2e_leave_rejoin`, `e2e_v23` → `e2e_podcast`, `e2e_v24` → `e2e_guided_setup`, `e2e_v27` → `e2e_switcher_room`.
 - **`docs/TESTS.md`** lists every suite and what it covers (`e2e_display` and `e2e_remote` were missing). The README's test section now points to it, and its title no longer carries a version (it said v0.46).
+- **Lint, for mistakes only:** ESLint for the JavaScript (`npm run lint`, `eslint.config.js`) and Ruff for the Python (`ruff check .`, `ruff.toml`), both run on every push. They check for undefined names, unused imports and the like, not style. They found three lines in the studio that ran a function and returned `''` in one confusing expression (now two plain statements), and 29 unused imports in the tests (removed).
 - **Removed what's done with:** `tools/split_pages.py` (0.41.0) and `tools/make_kiosk_page.py` (0.43.0), one-time scripts; `docs/og-source.html` and `docs/archivo.woff2`, the old share picture's source (it's `dev/og/` now). They're still in git history.
 
 ## 0.56.4 — a new share picture

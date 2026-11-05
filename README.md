@@ -28,6 +28,7 @@ npm install
 npm run dev          # http://localhost:8790: the same API and signaling code as the Lambdas, in memory
 npm test             # the unit tests (cloud core, edit operations, picture quality, imports)
 npm run test:e2e     # every browser suite, one at a time; writes test-results.txt
+npm run lint         # ESLint on the JavaScript (and `ruff check .` for the Python: pip install ruff)
 ```
 
 [docs/TESTS.md](docs/TESTS.md) lists every suite and what it covers, and how to run just some of them.

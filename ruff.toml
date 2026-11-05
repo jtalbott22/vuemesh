@@ -1,0 +1,6 @@
+# Ruff: correctness checks only (undefined names, unused imports, redefinitions, syntax). Style is left alone.
+target-version = "py312"
+extend-exclude = [".venv", "node_modules", "apple-tv", "*.ipynb"]
+
+[lint]
+select = ["F", "E9"]

@@ -1,7 +1,7 @@
 # The offline renderer under stress: an encoder that says yes then fails, a corrupted
 # clip, and an iPhone-style rotation flag. Needs ffmpeg for the fixtures and checks.
 # Run: node dev/server.mjs &  then  python3 test/e2e_render.py
-import os, base64, json, os, subprocess, sys
+import base64, os, subprocess, sys
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')

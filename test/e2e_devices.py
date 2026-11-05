@@ -75,7 +75,6 @@ with sync_playwright() as p:
     step(f'on air with a rundown: ON AIR (y {t["y"]:.0f}–{t["y"] + t["height"]:.0f}) sits above the rundown line (y {c["y"]:.0f}), not over it')
 
     # --- the studio's meters actually light up
-    from PIL import Image
     # The test microphone is a short beep once a second with silence between, so keep looking
     # (a real microphone is never that quiet).
     # (read the meter's level many times a second: a screenshot each time was too slow to catch a beep)

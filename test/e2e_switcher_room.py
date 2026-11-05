@@ -93,7 +93,7 @@ with sync_playwright() as p:
     assert blocked and len(blocked) == 1, blocked
     ph['Ben'].goto(f"{BASE}/cam?e={ev['id']}"); ph['Ben'].wait_for_selector('#blockedNote:not([hidden])', timeout=10000)
     assert ph['Ben'].is_hidden('#joinForm')
-    step(f"Remove and block: Ben can't rejoin (his phone says so, the join form is gone, the event's blocked list has his id), and he's in the studio's Removed and blocked list")
+    step("Remove and block: Ben can't rejoin (his phone says so, the join form is gone, the event's blocked list has his id), and he's in the studio's Removed and blocked list")
 
     # a blocked phone that tries anyway (its own memory cleared, same identity) is turned away by the server
     ph['Ben'].evaluate(f"localStorage.removeItem('vm_blocked_{ev['id']}')"); ph['Ben'].reload(); time.sleep(1)

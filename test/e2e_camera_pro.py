@@ -4,7 +4,6 @@
 # Run: node dev/server.mjs &  then  python3 test/e2e_camera_pro.py   (needs ffmpeg)
 import base64, json, os, subprocess, sys, time
 from playwright.sync_api import sync_playwright
-from PIL import Image
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')
 ARGS = ['--use-fake-device-for-media-stream=device-count=3', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

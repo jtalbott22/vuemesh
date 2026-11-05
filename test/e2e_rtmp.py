@@ -3,7 +3,7 @@
 # RTMP and arrives as H.264 + AAC. Also: the studio finds the relay (or says it's missing),
 # and the relay only sends to rtmp:// and rtmps:// (and never prints the key).
 # Run: node dev/server.mjs &  then  python3 test/e2e_rtmp.py   (needs ffmpeg)
-import json, os, subprocess, sys, time
+import json, os, subprocess, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')

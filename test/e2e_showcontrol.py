@@ -3,7 +3,7 @@
 # and deleted, a rundown that ends and clears on the phones, and the live-picture watchdog
 # (a stopped or frozen player is restarted; refresh and reconnect by hand).
 # Run: node dev/server.mjs &  then  python3 test/e2e_showcontrol.py
-import os, sys, time, json
+import os, time, json
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)

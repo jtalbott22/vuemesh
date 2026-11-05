@@ -2,7 +2,7 @@
 # Rejoin as microphone. The role you were is highlighted and is one tap; the other opens the
 # event's join screen with that role chosen.
 # Run: node dev/server.mjs &  then  python3 test/e2e_rejoin.py
-import os, time
+import os
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
