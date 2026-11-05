@@ -61,7 +61,7 @@ with sync_playwright() as p:
     host.fill('#liveLimit', '1'); host.dispatch_event('#liveLimit', 'change'); time.sleep(1)
     assert host.evaluate(TILES) == ['Rosa'] and host.evaluate(WAITING) == ['Maya'], (host.evaluate(TILES), host.evaluate(WAITING))
     host.click('.tile[data-peer]:has-text("Rosa")'); time.sleep(0.3)  # (Rosa stays on air)
-    host.click(f'#ovList [data-swap]'); time.sleep(0.4)
+    host.click('#ovList [data-swap]'); time.sleep(0.4)
     # Rosa is on air, so she can't step back: Swap in says so
     msg = next((t for t in host.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)') if 'on air' in t), '')
     step(f'limit 1: Maya stepped back (newest, not on air); Swap in won\'t take Rosa off while she\'s on air: "{msg}"')

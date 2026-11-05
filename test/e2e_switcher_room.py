@@ -3,7 +3,7 @@
 # never shows in Edit; Camera control shows PAUSED like the studio; the record button stays
 # centred; the host removes a camera (it can rejoin) or removes and blocks it (it can't; the
 # server turns it away; its clips leave the automatic edit), and lets it back in.
-# Run: node dev/server.mjs &  then  python3 test/e2e_v27.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_switcher_room.py
 import os, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -93,7 +93,7 @@ with sync_playwright() as p:
     assert blocked and len(blocked) == 1, blocked
     ph['Ben'].goto(f"{BASE}/cam?e={ev['id']}"); ph['Ben'].wait_for_selector('#blockedNote:not([hidden])', timeout=10000)
     assert ph['Ben'].is_hidden('#joinForm')
-    step(f"Remove and block: Ben can't rejoin (his phone says so, the join form is gone, the event's blocked list has his id), and he's in the studio's Removed and blocked list")
+    step("Remove and block: Ben can't rejoin (his phone says so, the join form is gone, the event's blocked list has his id), and he's in the studio's Removed and blocked list")
 
     # a blocked phone that tries anyway (its own memory cleared, same identity) is turned away by the server
     ph['Ben'].evaluate(f"localStorage.removeItem('vm_blocked_{ev['id']}')"); ph['Ben'].reload(); time.sleep(1)

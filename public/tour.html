@@ -38,7 +38,11 @@
   .screen.phone { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
   .shot { position: relative; margin: 0; border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 18px 40px #0002; aspect-ratio: 16 / 10; }
   .phone .shot { aspect-ratio: 9 / 19.5; max-width: 300px; justify-self: center; width: 100%; border-radius: 28px; box-shadow: 0 0 0 8px #15161a, 0 0 0 9px var(--line), 0 18px 40px #0003; }
-  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+  /* a phone held sideways: the phone's frame, the computer screen's width */
+  .held .shot { border-radius: 24px; box-shadow: 0 0 0 8px #15161a, 0 0 0 9px var(--line), 0 18px 40px #0003; }
+  /* once the picture is in, the frame takes its shape (set from the picture's own size) */
+  .shot.has { aspect-ratio: var(--ar); }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
   /* until the screenshot is there: a quiet frame with the screen's name */
   .shot .ph { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 20px;
     background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--line) 50%, transparent) 14px 15px); }
@@ -113,7 +117,7 @@
 
     <section class="stage" id="sources" aria-labelledby="sourcesH">
       <h2 id="sourcesH">Bring in sources</h2>
-      <article class="screen phone" data-shot="camera">
+      <article class="screen held" data-shot="camera">
         <figure class="shot"></figure>
         <div class="copy">
           <span class="who">On a phone, a tablet or a laptop</span>
@@ -186,7 +190,7 @@
 
     <section class="stage" id="after" aria-labelledby="afterH">
       <h2 id="afterH">Afterwards</h2>
-      <article class="screen" data-shot="media">
+      <article class="screen phone" data-shot="media">
         <figure class="shot"></figure>
         <div class="copy">
           <span class="who">On every device that recorded</span>
@@ -217,7 +221,7 @@
     img.alt = `VUEMesh: ${title}`;
     img.decoding = 'async';
     img.loading = 'lazy';
-    img.onload = () => fig.classList.add('has');
+    img.onload = () => { fig.style.setProperty('--ar', `${img.naturalWidth} / ${img.naturalHeight}`); fig.classList.add('has'); };
     img.onerror = () => img.remove();
     img.src = `/media/screens/${name}.webp`;
     fig.append(img);

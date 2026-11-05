@@ -4,7 +4,7 @@
 # what's on this device; Kiosk opens a kiosk show. And the Edit page, opened without its event
 # code, finds the last event edited here; its event list opens events in Edit.
 # Run: node dev/server.mjs &  then  python3 test/e2e_home.py
-import os, time
+import os
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

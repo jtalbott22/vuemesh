@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — repo housekeeping
+**Deploy:** nothing (no change to the site).
+
+- **`npm test` runs every unit test** (core, sequence, quality, imports); it used to run only the core. `npm run test:e2e` runs the browser suites (`test/run_all.py`).
+- **GitHub Actions** (`.github/workflows/test.yml`) runs `npm test` on every push and pull request.
+- **Suites named for what they test**, not the version they arrived in: `e2e_v19` → `e2e_mic_alone`, `e2e_v201` → `e2e_fitted_mixer`, `e2e_v22` → `e2e_leave_rejoin`, `e2e_v23` → `e2e_podcast`, `e2e_v24` → `e2e_guided_setup`, `e2e_v27` → `e2e_switcher_room`.
+- **`docs/TESTS.md`** lists every suite and what it covers (`e2e_display` and `e2e_remote` were missing). The README's test section now points to it, and its title no longer carries a version (it said v0.46).
+- **The studio's code is in 23 files** (`public/js/studio/`), not one of 8,600 lines: core state, clips, live, the mixer, sources, Camera control, Stream out, graphics, the switcher, autopilot, Edit, menus, the media library, render and export, and so on. `public/js/studio.js` lists them. Nothing about how it works changed: the parts run in the same order as the single file (each imports the one before it first), and taking out the new imports, exports and setters gives back the old file exactly, token for token. A variable that another file changes has a setter beside it (`setLiveActive(peer)`), since an imported variable can't be assigned to. The import check (`test/imports.test.mjs`) now covers folders.
+- **Lint, for mistakes only:** ESLint for the JavaScript (`npm run lint`, `eslint.config.js`) and Ruff for the Python (`ruff check .`, `ruff.toml`), both run on every push. They check for undefined names, unused imports and the like, not style. They found three lines in the studio that ran a function and returned `''` in one confusing expression (now two plain statements), and 29 unused imports in the tests (removed).
+- **Removed what's done with:** `tools/split_pages.py` (0.41.0) and `tools/make_kiosk_page.py` (0.43.0), one-time scripts; `docs/og-source.html` and `docs/archivo.woff2`, the old share picture's source (it's `dev/og/` now). They're still in git history.
+
+## 0.56.4 — a new share picture
+**Deploy:** `./aws/deploy.sh` (site only). Links already shared keep the old picture until the site refetches it: paste vuemesh.com into Facebook's Sharing Debugger or LinkedIn's Post Inspector to refresh it there.
+
+- **`og.png`, redrawn to match the site:** the home page's headline ("A production studio. In the browser."), what it does in one line, and a multiviewer wall (one camera on air, one in preview, two waiting) in the control-room look: colour bars, Barlow Condensed, tally red, amber timecode. "Everyone shoots. One film." and the QR code are gone; a QR shrunk into a link preview is too small to scan.
+- **Made from a page:** `dev/og/og.html`, rendered with `python3 dev/og/render.py`. The frames are stills from the home page's live demo. The alt text on every page says what's in it now.
+
+## 0.56.3 — the tour, linked
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **`/tour` is linked:** from the home page's "How it works" ("take the tour of every screen") and from the Partners page ("See every screen in the tour", under the facts).
+- **The beacon's picture shows its venue Wi‑Fi code** as it is (an open network: the beacon itself says "make sure you trust it").
+
+## 0.56.2 — the tour's pictures
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **All eleven screenshots are in** (`public/media/screens/*.webp`, 16–230 KB each), from a real show: studio, beacon, kiosk, camera, microphone, audio console, camera control, monitor, remote, `/tv`, my media.
+- **Each frame takes its picture's shape** instead of cropping to 16:10: the wide studio windows show whole, the camera is a phone held sideways, and My media is a phone (it was a computer frame).
+
+## 0.56.1 — the remote sees the clips
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Clips loaded in the studio show on the phone remote**, under Clips (🎞 a video, 🖼 a picture): tap one and it goes on air, as clicking it in the studio does, with ON AIR on the one playing. The studio only ever told the remote which clip was on air, never which clips there were.
+
 ## 0.56.0 — the tour
 **Deploy:** `./aws/deploy.sh` (site only).
 

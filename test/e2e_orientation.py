@@ -3,11 +3,10 @@
 # a real phone. Checks the recorded pixels, the orientation log, live tile shape,
 # slicing in the edit, the mismatch warning, and the manual rotation override.
 # Run: node dev/server.mjs &  then  python3 test/e2e_orientation.py   (needs ffmpeg)
-import os, base64, os, subprocess, sys, time
+import base64, os, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)
-from PIL import Image
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

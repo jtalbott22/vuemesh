@@ -5,7 +5,7 @@
 #  - the audio console pops out: EQ, high-pass and balance per channel (saved), visualizers,
 #    Live and Edit, and the studio's keys work from it
 # Run: node dev/server.mjs &  then  python3 test/e2e_audio_console.py
-import os, json, os, sys, time
+import os, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)

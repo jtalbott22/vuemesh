@@ -3,7 +3,7 @@
 # in the background brings up "Turn the camera back on", one tap; (3) a phone whose camera
 # never answers on join (a reopened home-screen app) gets asked again instead of hanging.
 # Run: node dev/server.mjs &  then  python3 test/e2e_phonerobust.py
-import os, re, time
+import os, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import wait_or_show

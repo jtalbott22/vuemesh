@@ -118,6 +118,11 @@ function render() {
   $('#soundH').hidden = $('#sound').hidden = !sound.length;
   $('#sound').innerHTML = sound.map((s) => `<button type="button" class="cam${s.onAir ? ' air' : ''}" data-peer="${esc(s.peer)}" aria-label="Cut to ${esc(s.name)}, sound only${s.onAir ? ' (on air)' : ''}">
       <span class="snd" aria-hidden="true">🔊</span>${s.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(s.name)}</b></button>`).join('');
+  // the clips loaded in the studio: cut to one and it plays on air
+  const clips = state.clips || [];
+  $('#clipsH').hidden = $('#clips').hidden = !clips.length;
+  $('#clips').innerHTML = clips.map((c) => `<button type="button" class="cam${c.onAir ? ' air' : ''}" data-clip="${esc(c.id)}" aria-label="Cut to the clip ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
+      <span class="snd" aria-hidden="true">${c.kind === 'image' ? '🖼' : '🎞'}</span>${c.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(c.name)}</b></button>`).join('');
   $('#autoBtn').setAttribute('aria-pressed', String(!!state.auto));
   $('#blackBtn').setAttribute('aria-pressed', String(!!state.black));
   $('#blackBtn').textContent = state.black ? 'Fade up' : 'Fade to black';
@@ -146,6 +151,10 @@ for (const id of ['#cams', '#sound']) {
     if (b) act('cut', b.dataset.peer);
   });
 }
+$('#clips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-clip]');
+  if (b) act('clip', b.dataset.clip);
+});
 $('#autoBtn').onclick = () => act('auto', !state?.auto);
 $('#blackBtn').onclick = () => act('black');
 $('#breakBtn').onclick = () => act('break');

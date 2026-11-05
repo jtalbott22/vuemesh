@@ -3,7 +3,7 @@
 # once an event's gone: when a phone with things from an older event meets a new event with
 # that code, the old things move aside (still in My events, by their date), the new event starts clean.
 # Run: node dev/server.mjs &  then  python3 test/e2e_eventsapart.py
-import os, time, json
+import os, json
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

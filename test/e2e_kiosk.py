@@ -6,7 +6,7 @@
 # joins. Phones keep their clips (a kiosk doesn't collect them). When everyone's gone, it
 # fades out, stops, and starts a fresh show with a new code, with no "Leave site?" in the way.
 # Run: node dev/server.mjs &  then  python3 test/e2e_kiosk.py
-import os, re, time, json
+import os, re, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']

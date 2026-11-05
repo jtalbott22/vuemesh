@@ -1,7 +1,7 @@
 # End-to-end: host laptop + guest phone in headless Chromium with a fake camera,
 # talking through the local dev server (same core code as the Lambdas).
 # Run: node dev/server.mjs &  then  python3 test/e2e.py
-import os, json, os, subprocess, sys, time
+import json, os, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)

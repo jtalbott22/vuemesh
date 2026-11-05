@@ -6,8 +6,8 @@
 #  - My events counts events and clips, and deletes a whole event from the phone
 #  - Auto-sync lines two recordings of the same sound up to the millisecond
 #  - Stream out sends the program to a WHIP endpoint (a stand-in here), key and all
-# Run: node dev/server.mjs &  then  python3 test/e2e_v19.py
-import os, sys, time, json
+# Run: node dev/server.mjs &  then  python3 test/e2e_mic_alone.py
+import os, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vmtest import edit_window   # (Edit is its own window)
@@ -85,7 +85,7 @@ with sync_playwright() as p:
     cam.wait_for_selector('#rejoinCard:not([hidden])', timeout=90000)
     got = cam.evaluate(f"(async () => (await ({IDB_ALL})('outbox')).filter(r => r.id.startsWith('pgm-')).length)()")
     assert cam.is_visible('#codeView') and cam.inner_text('#rejoinBtn') == 'Rejoin as camera', (got,)
-    step(f"Rosa left during Record program: " + (f"got her part of the live cut first ({got})" if got else "the studio kept her part for when she rejoins") + ", then landed on the camera's home with Rejoin")
+    step("Rosa left during Record program: " + (f"got her part of the live cut first ({got})" if got else "the studio kept her part for when she rejoins") + ", then landed on the camera's home with Rejoin")
     host.click('#recProgBtn'); time.sleep(1)
 
     # ---- My events: totals; rejoin; leave; delete the whole event

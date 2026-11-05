@@ -47,7 +47,7 @@ with sync_playwright() as p:
     time.sleep(1.5)
     a = A(); lt = host.inner_text('#ltText') if host.query_selector('#ltText') else ''
     assert a['auto'] and 'Ana' in host.inner_text('#progLabel'), (a, host.inner_text('#progLabel'))
-    step(f"Autopilot: black with nobody here; Ana arrived and the show came up by itself: recording, the auto director cutting, her name up")
+    step("Autopilot: black with nobody here; Ana arrived and the show came up by itself: recording, the auto director cutting, her name up")
 
     join('Ben')
     # (the studio says it went through preview; on a busy test machine the phone's PREVIEW tag can come and go between looks)
