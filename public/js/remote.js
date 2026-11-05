@@ -1,18 +1,36 @@
 // The phone remote: pairs with the studio using the one-time code it shows (from its QR, or typed),
 // then shows what's on air and the cameras, and sends the studio commands with this phone's own
-// session key (kept on this phone for this show, so it carries on after a reload). The studio
-// checks every command; see remote-host.js.
+// session key (kept on this phone, so it carries on after a reload). The studio checks every
+// command; see remote-host.js. Paired once with a studio computer, the phone joins its next shows
+// with just the show's code (it tries the keys it has; the studio knows its own). Saved to the
+// home screen, it opens on the last show. Its own camera can scan the studio's code too: a
+// home-screen app can't be opened by the camera app's scan.
 import { ProgramView } from '/js/pgmview.js';
-import { meshSocket } from '/js/vm.js';
+import { decodeQR, meshSocket } from '/js/vm.js';
 
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
 const hash = new URLSearchParams(location.hash.slice(1));
-let eventId = (q.get('e') || '').toUpperCase();
+const LAST = 'vm_remote_last', KEYS = 'vm_remote_keys';
+let eventId = (q.get('e') || localStorage.getItem(LAST) || '').toUpperCase();
 let code = (hash.get('p') || '').toUpperCase();
 if (hash.has('p')) history.replaceState(null, '', location.pathname + location.search); // (the code doesn't stay in the address)
 const keyStore = (id) => `vm_remote_${id}`;
+const knownKeys = () => {
+  try {
+    return JSON.parse(localStorage.getItem(KEYS) || '[]');
+  } catch {
+    return [];
+  }
+};
 let key = eventId ? localStorage.getItem(keyStore(eventId)) : null;
+let trying = []; // keys from other shows, to try on this one (the newest first)
+/** This show's key, worked: keep it for this show, as the last show, and among the keys to try. */
+function keep(k) {
+  localStorage.setItem(keyStore(eventId), k);
+  localStorage.setItem(LAST, eventId);
+  localStorage.setItem(KEYS, JSON.stringify([k, ...knownKeys().filter((x) => x !== k)].slice(0, 6)));
+}
 let sock = null, host = null, state = null, recSince = null, wanted = null, wake = null, lastState = 0;
 const thumbs = new Map();
 
@@ -31,6 +49,7 @@ const send = (data) => host && sock?.signal(host, { remote: data });
 
 function connect() {
   if (sock) return;
+  noStudio(); // (until the studio's there)
   sock = meshSocket({
     eventId,
     role: 'remote',
@@ -43,8 +62,10 @@ function connect() {
         host = h;
         if (!host) {
           $('#onAir').textContent = 'Waiting for the studio…';
+          noStudio();
           return;
         }
+        clearTimeout(noStudio.t);
         // (a studio here, or back after a reload: carry on, or finish pairing)
         if (key) send({ t: 'resume', key });
         else if (wanted) send({ t: 'pair', code: wanted, name: $('#name').value });
@@ -56,13 +77,19 @@ function connect() {
 
 function onMessage(m) {
   if (!m) return;
+  if ((m.t === 'tv' || m.t === 'state') && key && trying.length) {
+    trying = [];
+    keep(key);
+    showControls();
+    toast('Joined this show as its remote');
+  }
   if (m.t === 'paired' || m.t === 'tv') {
     if (m.tv) startProgram(m.tv);
     if (m.t === 'tv') return;
   }
   if (m.t === 'paired') {
     key = m.key;
-    localStorage.setItem(keyStore(eventId), key);
+    keep(key);
     localStorage.setItem('vm_remote_name', m.name || '');
     wanted = null;
     showControls();
@@ -71,6 +98,17 @@ function onMessage(m) {
     wanted = null;
     say(m.why || "The studio didn't accept that code", true);
     $('#pairBtn').disabled = false;
+  } else if (m.t === 'removed' && m.unknown && trying.length) {
+    // (not a key this studio gave out: the next one, or pair with its code)
+    trying.shift();
+    key = trying[0] || null;
+    if (key) send({ t: 'resume', key });
+    else {
+      showPairing();
+      $('#pairBtn').disabled = false;
+      say("This studio doesn't know this phone yet. In the studio: Phone remote > Add a phone, then scan its code or type it here. Once is enough: next time, just the show's code.", true);
+      $('#code').focus();
+    }
   } else if (m.t === 'removed') {
     pgm?.stop();
     pgm = null;
@@ -81,6 +119,7 @@ function onMessage(m) {
     say('This phone was removed as a remote in the studio. Add it again there to carry on.', true);
   } else if (m.t === 'state') {
     lastState = Date.now();
+    if (key && !$('#pairView').hidden && !trying.length && !wanted) showControls(); // (its studio opened after all)
     if (m.s.rec && !state?.rec) recSince = Date.now();
     if (!m.s.rec) recSince = null;
     state = m.s;
@@ -120,6 +159,22 @@ $('#pgmTgl').onclick = () => {
 };
 window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight }; // (tests)
 
+// Opened on a show whose studio isn't open (last week's, from the home screen): after a few
+// seconds, the show's code can be changed (still listening, in case it's only opening late).
+function noStudio() {
+  clearTimeout(noStudio.t);
+  noStudio.t = setTimeout(() => {
+    if (host || $('#ctlView').hidden) return;
+    showPairing();
+    say(`The studio for ${eventId} isn't open. Another show? Type its code.`);
+    $('#show').select();
+  }, 8000);
+}
+$('#changeShow').onclick = () => {
+  showPairing();
+  say("Type the show's code.");
+  $('#show').select();
+};
 function showPairing() {
   $('#pairView').hidden = false;
   $('#ctlView').hidden = true;
@@ -296,17 +351,46 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function pair() {
+  const was = eventId;
   eventId = ($('#show').value || eventId).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (sock && was !== eventId) {
+    // (another show: its own signalling)
+    sock.close();
+    sock = host = null;
+    key = null;
+    state = null;
+  }
   const c = ($('#code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!/^[A-Z0-9]{6}$/.test(eventId)) return say('The show is the six-letter code the studio shows', true);
-  if (c.length !== 8) return say('The code is eight letters and numbers (ABCD-EFGH)', true);
+  localStorage.setItem(LAST, eventId);
   const prior = localStorage.getItem(keyStore(eventId));
-  if (prior) {
+  if (prior && !c) {
     key = prior;
     showControls();
     connect();
     return;
   }
+  if (!c) {
+    // just the show's code: a phone paired with this studio before is let in by its key
+    trying = knownKeys();
+    if (!trying.length) return say('The first time, this phone needs the code from the studio too (Phone remote > Add a phone).', true);
+    key = trying[0];
+    $('#pairBtn').disabled = true;
+    say('Connecting to the studio…');
+    history.replaceState(null, '', `/remote?e=${eventId}`);
+    if (sock && host) send({ t: 'resume', key });
+    else connect();
+    setTimeout(() => {
+      if (trying.length) {
+        trying = [];
+        key = null;
+        say("The studio didn't answer. Is it open, with this show?", true);
+        $('#pairBtn').disabled = false;
+      }
+    }, 12000);
+    return;
+  }
+  if (c.length !== 8) return say('The code is eight letters and numbers (ABCD-EFGH)', true);
   wanted = c;
   $('#pairBtn').disabled = true;
   say('Connecting to the studio…');
@@ -321,13 +405,95 @@ function pair() {
   }, 12000);
 }
 $('#pairBtn').onclick = pair;
+
+// What was typed, pasted or scanned: the studio's whole link, "show code", or each on its own.
+function takeText(t) {
+  t = String(t || '').trim();
+  let e = null, c = null;
+  try {
+    const u = new URL(t);
+    e = u.searchParams.get('e');
+    c = new URLSearchParams(u.hash.slice(1)).get('p');
+  } catch {
+    const bits = t.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (bits.length === 14) [e, c] = [bits.slice(0, 6), bits.slice(6)];
+    else if (bits.length === 6) e = bits;
+    else if (bits.length === 8) c = bits;
+  }
+  if (!e && !c) return false;
+  if (e) $('#show').value = e.toUpperCase();
+  if (c) $('#code').value = `${c.toUpperCase().slice(0, 4)}-${c.toUpperCase().slice(4)}`;
+  return true;
+}
+for (const id of ['#show', '#code']) {
+  $(id).addEventListener('paste', (e) => {
+    const t = e.clipboardData?.getData('text');
+    if (t && t.length > 9 && takeText(t)) {
+      e.preventDefault();
+      pair();
+    }
+  });
+}
+$('#show').addEventListener('input', () => {
+  const v = $('#show').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (v.length > 6 && takeText(v)) return;
+  if (v.length === 6) $('#code').focus();
+});
+$('#code').addEventListener('input', () => {
+  if ($('#code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').length === 8) pair();
+});
+$('#show').addEventListener('keydown', (e) => e.key === 'Enter' && pair());
+$('#code').addEventListener('keydown', (e) => e.key === 'Enter' && pair());
+
+// Scan the studio's code with this phone's camera (Add a phone shows it)
+let scan = null;
+async function startScan() {
+  if (scan) return stopScan();
+  let s;
+  try {
+    s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
+  } catch {
+    return say('The camera didn\u2019t open. Allow it for this page, or type the codes.', true);
+  }
+  const v = $('#scanVideo'), c = document.createElement('canvas');
+  v.srcObject = s;
+  await v.play().catch(() => {});
+  $('#scanBox').hidden = false;
+  $('#scanBtn').textContent = 'Stop scanning';
+  say('Point the camera at the code in the studio\u2019s Add a phone.');
+  scan = { s, timer: setInterval(async () => {
+    if (!v.videoWidth) return;
+    const k = Math.min(1, 720 / v.videoWidth);
+    c.width = Math.round(v.videoWidth * k);
+    c.height = Math.round(v.videoHeight * k);
+    c.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0, c.width, c.height);
+    const t = await decodeQR(c).catch(() => null);
+    if (t && scan && takeText(t)) {
+      stopScan();
+      navigator.vibrate?.(60);
+      pair();
+    }
+  }, 300) };
+}
+function stopScan() {
+  if (!scan) return;
+  clearInterval(scan.timer);
+  scan.s.getTracks().forEach((t) => t.stop());
+  scan = null;
+  $('#scanBox').hidden = true;
+  $('#scanBtn').textContent = 'Scan the studio\u2019s code';
+}
+$('#scanBtn').onclick = startScan;
+window.vmRemoteTake = takeText; // (tests: as if scanned)
 $('#name').value = localStorage.getItem('vm_remote_name') || 'Phone remote';
 $('#show').value = eventId;
 if (code) $('#code').value = `${code.slice(0, 4)}-${code.slice(4)}`;
 
-if (key && eventId) {
+if (key && eventId && !code) {
   showControls();
   connect();
 } else if (code && eventId) {
   pair();
+} else if (eventId && knownKeys().length) {
+  pair(); // (the last show, or a new one by its link: try the keys this phone has)
 }

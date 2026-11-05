@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1013">
 <title>VUEMesh remote</title>
+<link rel="manifest" href="/remote.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Remote">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/js/theme-boot.js"></script>
 <style>
   @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); font-display: swap; }
@@ -21,6 +27,10 @@
   .mark { font-weight: 700; letter-spacing: .02em; }
   .mark i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); margin-right: 5px; }
   [hidden] { display: none !important; }
+  button.linkbtn { background: none; border: 0; min-height: 0; padding: 8px 0; width: auto; color: var(--dim); text-decoration: underline; font: 500 .95rem system-ui, sans-serif; }
+  .scanbox { position: relative; margin-top: 10px; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 1; }
+  .scanbox video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scanbox i { position: absolute; inset: 18%; border: 3px solid var(--amber); border-radius: 12px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 10px 0; }
   label { display: block; color: var(--dim); font-size: .9rem; margin: 10px 0 4px; }
   input { width: 100%; font: 600 1.2rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: .08em; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: #0b0c0f; color: var(--ink); text-transform: uppercase; }
@@ -90,10 +100,12 @@
 
   <section id="pairView" class="card" aria-labelledby="pairH">
     <h1 id="pairH" style="margin:0 0 4px;font-size:1.4rem">Run the show from this phone</h1>
-    <p class="fine" style="margin:0">In the studio, open <b>Phone remote</b> and press <b>Add a phone</b>, then scan its code, or type it here.</p>
+    <p class="fine" style="margin:0">The first time: in the studio, <b>Phone remote</b> &gt; <b>Add a phone</b>, then scan its code here, or type the two codes. After that, the show's code is enough, for every show on that studio computer.</p>
+    <button type="button" id="scanBtn" style="margin-top:12px">Scan the studio’s code</button>
+    <div class="scanbox" id="scanBox" hidden><video id="scanVideo" muted playsinline autoplay></video><i aria-hidden="true"></i></div>
     <label for="show">Show</label>
     <input id="show" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123">
-    <label for="code">Code from the studio</label>
+    <label for="code">Code from Add a phone <span style="font-weight:400">(the first time)</span></label>
     <input id="code" inputmode="text" autocomplete="one-time-code" maxlength="9" placeholder="ABCD-EFGH">
     <label for="name">Call this phone</label>
     <input id="name" maxlength="40" value="Phone remote">
@@ -125,6 +137,7 @@
       <button type="button" id="pipBtn" aria-pressed="false" title="A camera in the corner over a screen">Camera in the corner</button>
     </div>
     <p class="fine" style="margin-top:14px">Tap a camera, a sound or a clip to cut to it. This phone stays a remote until it's removed in the studio.</p>
+    <button type="button" class="linkbtn" id="changeShow">Another show…</button>
   </section>
 
   <div class="toast" id="toast" hidden role="status"></div>
