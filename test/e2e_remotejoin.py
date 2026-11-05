@@ -6,7 +6,7 @@
 # paired is told to add it once; a phone with no pairing at all is asked for the code too. The
 # show's code alone never lets a phone in.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotejoin.py
-import os, time, json
+import os, json
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
