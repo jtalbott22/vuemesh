@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.61.5 — recording on a laptop, lighter
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (an 8-thread i7 Linux laptop, its built-in webcam and a shared screen, no phones): during Record program the program repeated about 10 frames a second (the picture stuttered on the program monitor) and the recording skipped 779 of 2,496 frames ("H.264 High on the processor"). 0.61.2's picture delay held (208 ms, not 380), but the computer was still out of processor: four video encoders at once.
+
+- **The live cut only runs for someone:** it's a second recording of the whole program, cut into parts for the people on their own phones and computers. With nobody but this computer's cameras and screens, it was encoding for no one. Now it starts when Record program does if someone's there, or when the first person joins, and stops at the end of a part when everyone has gone.
+- **This computer's cameras and screens record in VP8** (it was VP9). Measured here with a noisy 720p webcam: VP9 took almost a whole core more. Edit, export and renders take either.
+- Together, on this laptop, recording with a webcam took 2.0 cores instead of 3.6.
+
 ## 0.61.4 — the phone remote in Monitor, as a TV is
 **Deploy:** `./aws/deploy.sh` (site only).
 

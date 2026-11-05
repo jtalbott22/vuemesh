@@ -21,6 +21,9 @@ import { select } from './edit.js';
 // minutes. Each finished piece goes to every camera and microphone person who was
 // connected during it (over the local link, nothing via the cloud), so they have the live
 // cut of what they shot right away. Anyone away when a piece finishes gets it on return.
+// It runs only while there's someone to give it to: with only this computer's own cameras
+// and screens it was a second encoder of the whole program for nobody, and on a laptop that
+// was enough to make Record program skip frames and the program repeat them.
 
 const PIECE_MS = Number(localStorage.getItem('vm_piece_ms')) || 5 * 60 * 1000;
 const PIECE_OVERLAP = 500;
@@ -34,6 +37,7 @@ $('#sendPgm').onchange = (e) => {
   localStorage.setItem('vm_sendpgm_' + eventId, sendPgm ? '1' : '0');
   localStorage.setItem('vm_sendpgm_default', sendPgm ? '1' : '0');
   if (sendPgm) sendProgramParts();
+  piecesWanted();
   renderPgmState();
 };
 const savePresence = () => localStorage.setItem(presKey, JSON.stringify(presence));
@@ -42,6 +46,7 @@ export function presenceOn(cid) {
   const t = now();
   (presence[cid] ||= []).push([t, t]);
   savePresence();
+  piecesWanted(); // (the first person to join a recording: the live cut starts now, for them)
 }
 export function presenceOff(cid) {
   const iv = cid && presence[cid]?.[presence[cid].length - 1];
@@ -69,9 +74,16 @@ idb.list('program', eventId).then((rs) => {
   pieceN = pieces.length;
   renderPgmState();
 });
+// someone to give the live cut to: a person's camera or microphone (not this computer's own)
+const anyoneFor = () => sendPgm && [...live.values()].some((l) => !l.local && l.cid && !l.leaving);
+const recording = () => progRec && !progRec.stopping;
 export function startPieces(tracks) {
   pieceTracks = tracks;
-  rollPiece();
+  if (anyoneFor()) rollPiece();
+}
+/** Start the live cut if the program is recording, it isn't running, and someone's there for it. */
+function piecesWanted() {
+  if (recording() && pieceTracks && !pieceRec && anyoneFor()) rollPiece();
 }
 function rollPiece() {
   const mime = recMime();
@@ -100,7 +112,8 @@ function rollPiece() {
     setTimeout(() => prev.state !== 'inactive' && prev.stop(), PIECE_OVERLAP);
   }
   clearTimeout(pieceTimer);
-  pieceTimer = setTimeout(() => progRec && rollPiece(), PIECE_MS);
+  // the next piece, or (everyone gone) this one finished and no next: it starts again with the next person
+  pieceTimer = setTimeout(() => recording() && (anyoneFor() ? rollPiece() : stopPieces()), PIECE_MS);
 }
 export function stopPieces() {
   clearTimeout(pieceTimer);
