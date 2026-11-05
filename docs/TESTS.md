@@ -96,3 +96,4 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_display.py` | TV screens at `/tv`: pairing with Accept, the program, Remove, full screen, Browse, PiP, the beacon on the studio's clock |
 | `test/e2e_remote.py` | the phone remote: pairing code, cut, auto director, break, black, Record program; wrong and reused codes turned away |
 | `test/e2e_showlog.py` | the show log every second, Monitor's panel, a microphone dropping out (alerts here and on the remote, Turn on), Save show log, earlier sessions kept |
+| `test/e2e_output.py` | Output settings, the program's rate on animation frames and on the worker clock, Record program's MP4 checked with ffprobe (exact rate, not fragmented, sound as long as picture), lip sync (needs ffmpeg) |

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.58.0 — a steady program, and a recording Windows can scrub
+**Deploy:** `./aws/deploy.sh` (site only).
+
+Stage 2 of the plan from the class recording (one Windows computer, PowerPoint in front of the studio): the program recorded at 26.11 frames a second, Windows' player couldn't scrub the file, a TV couldn't find the studio again until someone brought it forward, and the room's microphones ran ahead of the cameras.
+
+- **A steady program clock:** a frame is due every 1/fps seconds from when the program started, whatever drives it (animation frames when the studio shows, the worker clock when it's hidden or covered), and a frame the studio was too late to draw still counts. Before, it drew whenever 31 ms had passed since the last frame, which on the hidden studio's 33 ms clock skipped every frame that came early: that was the 26.11.
+- **Output settings** (beside Landscape / Portrait): 24, 25, 29.97, 30, 50 or 60 frames a second, 720p or 1080p, per event, fixed while Record program runs. The TVs, the stream, Record program and Render MP4 all follow them.
+- **Record program is a normal MP4 at exactly that rate** (Chrome and Edge on a computer): the studio encodes the program itself, one frame per output frame, the live mix as AAC, into an MP4 with its index, so Windows' player can scrub it. It's written to the browser's file storage as it goes, not memory, so a long class doesn't fill it. Elsewhere, the browser's recorder as before. If the encoder fails mid-show, what was recorded is saved.
+- **Kept on time while hidden:** the server connection's reconnect and keep-alive, the phone remote's updates, the TV links and the mixer's sound check run on a worker clock, which the browser doesn't slow down in a hidden window (it slows a page's own timers to once a minute).
+- **Lip sync for this computer's cameras and microphones** (Output): their sound waits for the pictures, by each camera's measured delay (Chrome stamps each camera frame with when it was taken), or by hand, or not at all.
+- **The show log** has the target frame rate, repeated frames, Record program's progress (frames, skipped, sound against picture) and each camera's picture delay and sound delay.
+
 ## 0.57.0 — the show log, and alerts when the sound stops
 **Deploy:** `./aws/deploy.sh` (site only). It also ships the studio's code in its new files (0.56.5 below).
 
