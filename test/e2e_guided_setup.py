@@ -2,7 +2,7 @@
 # "you're in control" card; the selfie camera kept from the director unless allowed; a new
 # lens starts at 1×; Pause feed on air; the event code typed cleanly; two Record program
 # takes in a row both have moving pictures. (The watch link: test/e2e_watch.py.)
-# Run: node dev/server.mjs &  then  python3 test/e2e_v24.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_guided_setup.py
 import os, time, json, subprocess
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')

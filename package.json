@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node dev/server.mjs",
-    "test": "node test/core.test.mjs",
+    "test": "node test/core.test.mjs && node test/sequence.test.mjs && node test/quality.test.mjs && node test/imports.test.mjs",
+    "test:e2e": "python3 test/run_all.py",
     "relay": "node public/relay/vuemesh-relay.mjs"
   },
   "devDependencies": {

@@ -6,7 +6,7 @@
 #  - My events counts events and clips, and deletes a whole event from the phone
 #  - Auto-sync lines two recordings of the same sound up to the millisecond
 #  - Stream out sends the program to a WHIP endpoint (a stand-in here), key and all
-# Run: node dev/server.mjs &  then  python3 test/e2e_v19.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_mic_alone.py
 import os, sys, time, json
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

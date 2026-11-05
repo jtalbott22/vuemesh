@@ -2,7 +2,7 @@
 # and sound, and Camera control keeps drawing, with no reload), Pause feed on the phone
 # (only off air and not recording), Camera control's lens buttons, transfers and news in
 # the Monitor (light on the Monitor button; preview of what arrived), and no pop-ups for clips.
-# Run: node dev/server.mjs &  then  python3 test/e2e_v22.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_leave_rejoin.py
 import os, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')

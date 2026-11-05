@@ -1,7 +1,7 @@
 # v0.20.1: the Live mixer fits its strips; Live has the panel buttons; the relay set-up steps
 # follow this computer (with tabs for the others and copy buttons); Program out fills the
 # screen with one click; dark mode is the same black on every page.
-# Run: node dev/server.mjs &  then  python3 test/e2e_v201.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_fitted_mixer.py
 import os, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')

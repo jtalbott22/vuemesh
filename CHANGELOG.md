@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — repo housekeeping
+**Deploy:** nothing (no change to the site).
+
+- **`npm test` runs every unit test** (core, sequence, quality, imports); it used to run only the core. `npm run test:e2e` runs the browser suites (`test/run_all.py`).
+- **GitHub Actions** (`.github/workflows/test.yml`) runs `npm test` on every push and pull request.
+- **Suites named for what they test**, not the version they arrived in: `e2e_v19` → `e2e_mic_alone`, `e2e_v201` → `e2e_fitted_mixer`, `e2e_v22` → `e2e_leave_rejoin`, `e2e_v23` → `e2e_podcast`, `e2e_v24` → `e2e_guided_setup`, `e2e_v27` → `e2e_switcher_room`.
+- **`docs/TESTS.md`** lists every suite and what it covers (`e2e_display` and `e2e_remote` were missing). The README's test section now points to it, and its title no longer carries a version (it said v0.46).
+- **Removed what's done with:** `tools/split_pages.py` (0.41.0) and `tools/make_kiosk_page.py` (0.43.0), one-time scripts; `docs/og-source.html` and `docs/archivo.woff2`, the old share picture's source (it's `dev/og/` now). They're still in git history.
+
 ## 0.56.4 — a new share picture
 **Deploy:** `./aws/deploy.sh` (site only). Links already shared keep the old picture until the site refetches it: paste vuemesh.com into Facebook's Sharing Debugger or LinkedIn's Post Inspector to refresh it there.
 

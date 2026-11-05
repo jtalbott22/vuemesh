@@ -3,7 +3,7 @@
 # never shows in Edit; Camera control shows PAUSED like the studio; the record button stays
 # centred; the host removes a camera (it can rejoin) or removes and blocks it (it can't; the
 # server turns it away; its clips leave the automatic edit), and lets it back in.
-# Run: node dev/server.mjs &  then  python3 test/e2e_v27.py
+# Run: node dev/server.mjs &  then  python3 test/e2e_switcher_room.py
 import os, time
 from playwright.sync_api import sync_playwright
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
