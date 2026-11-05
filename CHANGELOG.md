@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased — repo housekeeping
-**Deploy:** nothing (no change to the site).
+## 0.57.0 — the show log, and alerts when the sound stops
+**Deploy:** `./aws/deploy.sh` (site only). It also ships the studio's code in its new files (0.56.5 below).
+
+From a class recorded on one Windows computer (three USB cameras, a Focusrite for the microphones, PowerPoint shared from the same machine with the studio behind it): the Focusrite crackled and then dropped out, and with the other microphones muted the program went silent with nothing said. There was nothing to look back at to find out why.
+
+- **The show log:** while the studio is open it notes, every second, the program's real frame rate (and the longest wait between two frames), whether the window was showing or hidden, how busy the computer was, the sound engine's state and the program's level; for each camera and microphone its sound (live, stopped, ended), level, sample rate, the frames its camera delivered and its tile showed, sound dropped on the way in (where Chrome counts it), and which microphone a camera's sound comes from; for phones, their link (frame rate, loss, jitter, round trip); for TVs, what they're sent and what's holding it back. And the events: joins and leaves, cuts, recording, the window hidden and back, devices plugged in and unplugged, tracks ending, the server connection. It runs on the background clock, so a studio hidden behind a slideshow is logged too.
+- **Kept on this computer,** a minute at a time (30 days), so it survives a crash or a reload. **Save show log** (in the inspector, in Help, and in Monitor for any earlier session) makes one JSON file with a plain-words summary on top: the average and slowest frame rate, how long the studio was hidden, silent stretches, sources whose sound stopped or dropped, cameras sharing one microphone, every sound alert and how long it lasted.
+- **Monitor's Show log panel:** the last ten minutes of program frame rate and sound, the seconds the studio was hidden shaded, the summary, and every saved session.
+- **Sound alerts:** when the program has no sound for 3 s while something is in the mix, a source in the mix stops (its device ends or stops sending) or goes silent for 5 s, or the only microphone in the mix leaves the show (a USB interface that drops out is taken as unplugged, so it leaves), the studio says so in red over the program, with **Turn on** buttons for sources that could stand in. The phone remote shows the same alert (and buzzes), with the same buttons. With alerts allowed, the computer shows a system notification too, while the studio is hidden.
+- **Found on the way:** the studio's own sound check ran on a page timer, which Chrome slows to once a minute in a window hidden for a while; and a USB microphone that dropped out left the show without a word.
+
+## 0.56.5 — repo housekeeping
+**Deploy:** with 0.57.0 (the studio's code moved into files; it works the same).
 
 - **`npm test` runs every unit test** (core, sequence, quality, imports); it used to run only the core. `npm run test:e2e` runs the browser suites (`test/run_all.py`).
 - **GitHub Actions** (`.github/workflows/test.yml`) runs `npm test` on every push and pull request.

@@ -1,4 +1,4 @@
-// Studio, part 6 of 23: the live mixer, its strips and meter bridge, the pop-out audio console.
+// Studio, part 6 of 24: the live mixer, its strips and meter bridge, the pop-out audio console.
 // Loads after onair.js: that import comes first, so the parts run in order (see ../studio.js).
 import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';

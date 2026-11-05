@@ -1,4 +1,4 @@
-// Studio, part 13 of 23: the live program and the switcher; running while covered.
+// Studio, part 13 of 24: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';
@@ -522,6 +522,8 @@ export const stalled = () => document.hidden || performance.now() - lastRaf > 12
 // only doubles the work; at 30 the studio has time for everything else (messages from
 // phones, clips arriving, the controls).
 let lastLiveDraw = 0;
+// (above the drawing loop, which starts here; the show log reads and resets these once a second: frames drawn, and the longest wait between two)
+export const progFrames = { n: 0, last: 0, gap: 0 };
 function frameTick() {
   const t = performance.now();
   if (EDIT_ONLY) {
@@ -583,6 +585,10 @@ export function programVideoTrack() {
   return progCapture.getVideoTracks()[0].clone();
 }
 function pushProgramFrame() {
+  const t = performance.now();
+  if (progFrames.last) progFrames.gap = Math.max(progFrames.gap, t - progFrames.last);
+  progFrames.last = t;
+  progFrames.n++;
   progCapture?.getVideoTracks()[0]?.requestFrame?.();
 }
 

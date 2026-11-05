@@ -30,4 +30,5 @@
 //   21. sync.js           optical sync and lining clips up by sound
 //   22. export.js         render and export, wrap
 //   23. screens.js        the Monitor, the phone remote, TV screens
-import './studio/screens.js';
+//   24. showlog.js        the show log (what happened, second by second) and the sound watch
+import './studio/showlog.js';

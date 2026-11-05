@@ -68,6 +68,14 @@
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
   .rlist .acts .danger { background: #7a1f1a; color: #fff; border-color: #b43a32; }
   .rlist li.going { opacity: .45; }
+  .slalert { background: var(--tally, #d93025); color: #fff; font-weight: 700; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; }
+  .slalert[hidden] { display: none; }
+  .slstrips { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; }
+  .slstrips canvas { width: 100%; height: 56px; background: var(--field, #121316); border: 1px solid var(--line); border-radius: 6px; }
+  .sllab { font-size: .8rem; color: var(--text-2); }
+  .slkey .k-bg { display: inline-block; width: 14px; height: 10px; vertical-align: middle; background: #f0a82b40; border: 1px solid #f0a82b; border-radius: 2px; }
+  .sllines { margin: 6px 0 10px; padding-left: 18px; font-size: .86rem; line-height: 1.45; }
+  @media (max-width: 600px) { .slstrips { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -84,6 +92,18 @@
   <section class="panel" aria-labelledby="ph">
     <h2 id="ph">Phones</h2>
     <div id="peers"><p class="empty">No phones connected.</p></div>
+  </section>
+  <section class="panel" aria-labelledby="slh">
+    <h2 id="slh">Show log <small class="muted">(the last 10 minutes, second by second)</small></h2>
+    <p class="slalert" id="slAlert" role="alert" hidden></p>
+    <div class="slstrips">
+      <span class="sllab">Program frames a second</span><canvas id="slFps" height="56" role="img" aria-label="Program frame rate, the last 10 minutes"></canvas>
+      <span class="sllab">Program sound (dB)</span><canvas id="slSnd" height="56" role="img" aria-label="Program sound level, the last 10 minutes"></canvas>
+    </div>
+    <p class="fine slkey"><i class="k-bg" aria-hidden="true"></i> studio hidden or covered (the background clock draws the program)</p>
+    <ul class="sllines" id="slLines"><li class="empty">Waiting for the studio…</li></ul>
+    <h3 class="sub">Saved on this computer <small>(one for each time the studio was open; kept 30 days)</small></h3>
+    <ul class="rlist" id="slSessions"><li class="empty">None yet.</li></ul>
   </section>
   <div class="cols">
     <div class="stack">

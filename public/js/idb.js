@@ -2,20 +2,29 @@
 //   clips  — on the host laptop: every verified clip received over the LAN
 //   outbox — on a guest phone: finished clips waiting to reach the host (survives reloads)
 //   reel   — on the host laptop: break-reel sponsor images and videos
+//   showlog — on the host laptop: the show log, a minute at a time (see showlog.js)
 
 let dbp;
 function db() {
   dbp ||= new Promise((resolve, reject) => {
-    const req = indexedDB.open('vuemesh', 3);
+    const req = indexedDB.open('vuemesh', 4);
     req.onupgradeneeded = () => {
       const d = req.result;
-      for (const name of ['clips', 'outbox', 'reel', 'program']) {
+      for (const name of ['clips', 'outbox', 'reel', 'program', 'showlog']) {
         if (d.objectStoreNames.contains(name)) continue;
         const s = d.createObjectStore(name, { keyPath: 'key' });
         s.createIndex('eventId', 'eventId');
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // a newer page (after an update) needs the database upgraded: let go of it, and open
+      // it again next time, so this tab doesn't hold the other one up
+      req.result.onversionchange = () => {
+        req.result.close();
+        dbp = null;
+      };
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
   });
   return dbp;
@@ -67,7 +76,7 @@ export async function remove(store, eventId, id) {
   return done(d.transaction(store, 'readwrite').objectStore(store).delete(`${eventId}:${id}`));
 }
 
-const STORES = ['clips', 'outbox', 'reel', 'program'];
+const STORES = ['clips', 'outbox', 'reel', 'program', 'showlog'];
 
 /** How much one event takes on this device. */
 export async function usage(eventId) {

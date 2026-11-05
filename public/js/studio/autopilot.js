@@ -1,4 +1,4 @@
-// Studio, part 14 of 23: autopilot and the kiosk.
+// Studio, part 14 of 24: autopilot and the kiosk.
 // Loads after switcher.js: that import comes first, so the parts run in order (see ../studio.js).
 import './switcher.js';
 import { api, toast, esc, now, announce, drawQR, timecodeUrl } from '/js/vm.js';

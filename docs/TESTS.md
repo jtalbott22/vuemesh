@@ -14,7 +14,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 
 ## Unit tests (node, no installs)
 
-`npm test` runs all four, and GitHub Actions runs them on every push and pull request.
+`npm test` runs all five, and GitHub Actions runs them on every push and pull request.
 
 | File | Covers |
 | --- | --- |
@@ -22,6 +22,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/sequence.test.mjs` | edit operations (ripple, roll, slip, slide, slicing) and the AI director |
 | `test/quality.test.mjs` | live picture quality hints |
 | `test/imports.test.mjs` | every import across the front end is exported by its module |
+| `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged), the summary, chunks put back together |
 
 ## End-to-end suites (browser)
 
@@ -94,3 +95,4 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_admin_monitor.py` | monitor tab, beacon dimmers, admin panel (dev admin key: dev-admin) |
 | `test/e2e_display.py` | TV screens at `/tv`: pairing with Accept, the program, Remove, full screen, Browse, PiP, the beacon on the studio's clock |
 | `test/e2e_remote.py` | the phone remote: pairing code, cut, auto director, break, black, Record program; wrong and reused codes turned away |
+| `test/e2e_showlog.py` | the show log every second, Monitor's panel, a microphone dropping out (alerts here and on the remote, Turn on), Save show log, earlier sessions kept |

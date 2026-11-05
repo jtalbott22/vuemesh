@@ -1,4 +1,4 @@
-// Studio, part 7 of 23: this computer's cameras, mics, screen and sound; recording; moderation.
+// Studio, part 7 of 24: this computer's cameras, mics, screen and sound; recording; moderation.
 // Loads after mixer.js: that import comes first, so the parts run in order (see ../studio.js).
 import './mixer.js';
 import { api, toast, esc, now } from '/js/vm.js';
