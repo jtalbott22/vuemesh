@@ -17,6 +17,8 @@
 //         mic (the microphone a camera's sound comes from), and from a phone's link every few
 //         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
 //   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back)
+//   dup   frames the studio was too late to draw that second (the same picture again)
+//   rs    Record program: frames written, dropped (skipped), queue (the encoder's), drift (sound minus picture, ms)
 
 export const FLOOR_DB = -90; // quieter than this is no sound: a live microphone's own hiss is louder (a room at low gain sits near -80)
 

@@ -7,7 +7,7 @@ import {
   $, EDIT_ONLY, KIOSK, KIOSK_PAGE, LIVE_DELAY, black, clips, ev, eventId, hub, isHost, key, live,
   liveActive, mode, note, player, program, recMime,
 } from './core.js';
-import { addClip, renderOutput } from './clips.js';
+import { addClip, output, renderOutput } from './clips.js';
 import { camOrder, cutLive, renderLive } from './live.js';
 import { addUsage } from './usage.js';
 import { autoOn, manualUntil, recOnAirChanged, setAuto, setManualUntil, syncTally } from './onair.js';
@@ -15,12 +15,13 @@ import { mix, mixInit } from './mixer.js';
 import { flushRecordings } from './sources.js';
 import { cutMedia, lt, ltUi, mediaOn, reel, toggleBlack } from './graphics.js';
 import {
-  autoTransition, clearPreview, progRec, programVideoTrack, pvw, renderSwitcher, setProgRec, setPvw,
-  setPvwClip, swActive,
+  autoTransition, clearPreview, frameSinks, programVideoTrack, progRec, pvw, renderSwitcher,
+  setProgRec, setPvw, setPvwClip, swActive,
 } from './switcher.js';
 import { incoming, outgoing, startPieces, stopPieces } from './phones.js';
 import { download, showWrap } from './export.js';
 import { setLeaveQuietly } from './screens.js';
+import { ProgramRecorder, programRecorderSupport, tidyProgramRecordings } from '/js/progrec.js';
 
 // ---------------------------------------------------------------- autopilot ---
 // A show that runs itself. With no camera, the program sits at black. When a camera arrives
@@ -295,32 +296,32 @@ export function toggleProgramRecording() {
   mixInit();
   player.ctx.resume();
   const tracks = [programVideoTrack(), ...mix.dest.stream.getAudioTracks()];
-  const mime = recMime();
-  const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 6_000_000 });
-  const chunks = [];
-  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const startedAt = now();
-  rec.onstop = () => {
+  const saved = (blob) => {
     addUsage('liveCutSec', (Date.now() - (rec.startedAt || Date.now())) / 1000);
     setProgRec(null);
     renderOutput();
     recOnAirChanged();
     setTimeout(() => tracks[0].stop(), 3000); // (its own copy, once the last live-cut part is done: the program picture goes on for everything else)
     $('#recProgBtn').setAttribute('aria-pressed', 'false');
-    const blob = new Blob(chunks, { type: rec.mimeType });
+    if (!blob?.size) {
+      note('Program recording: nothing was recorded');
+      return;
+    }
+    const mime = blob.type || rec.mimeType;
     if (!KIOSK && !ap?.handsFree) download(blob, `${ev.title}-live`); // (hands-free: it's kept here and in Media, no download)
     // ...and keep a copy in this browser too
-    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0: startedAt, t1: now(), mime: rec.mimeType, blob }).catch(() => {});
+    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0: startedAt, t1: now(), mime, blob }).catch(() => {});
     // ...and in Edit's Media, on the cameras' clock: everything that aired, to use by hand
-    const pmeta = { id: 'PGM-' + Math.round(startedAt), kind: 'video', mime: rec.mimeType, cid: 'PGM', name: 'Program (as aired)', t0: startedAt - LIVE_DELAY, dur: Math.round(now() - startedAt), w: program.width, h: program.height, local: true, program: true, t0Source: 'studio', native: true, audio: 'stereo', orient: [{ t: 0, rot: 0, rect: null, upright: program.width >= program.height ? 'landscape' : 'portrait', ev: 0, ct: 0 }] };
+    const pmeta = { id: 'PGM-' + Math.round(startedAt), kind: 'video', mime, cid: 'PGM', name: 'Program (as aired)', t0: startedAt - LIVE_DELAY, dur: Math.round(now() - startedAt), w: program.width, h: program.height, local: true, program: true, t0Source: 'studio', native: true, audio: 'stereo', orient: [{ t: 0, rot: 0, rect: null, upright: program.width >= program.height ? 'landscape' : 'portrait', ev: 0, ct: 0 }] };
     idb.put('clips', { eventId, ...pmeta, receivedAt: Date.now(), blob }).then(() => addClip({ eventId, ...pmeta, receivedAt: Date.now() }, blob, true)).catch(() => {});
     flushRecordings('Record program ended');
     stopPieces();
-    note('Program recording saved (downloaded, and kept in this browser)');
+    note(`Program recording saved (downloaded, and kept in this browser)${rec.steady ? `: ${rec.steady}` : ''}`);
     announce('Program recording saved');
     if (!KIOSK && !ap?.handsFree) showWrap();
   };
-  rec.start(1000);
+  const rec = startProgramRecorder(tracks, saved);
   startPieces(tracks);
   setProgRec(rec);
   renderOutput();
@@ -331,6 +332,73 @@ export function toggleProgramRecording() {
   toast('Recording the program to this device');
   announce('Recording the program');
 }
+
+// The recorder behind Record program: a steady-rate MP4 where the browser can (progrec.js),
+// otherwise the browser's own recorder. It starts at once and works out which while it goes.
+// Either way it's { stop(), stopping, startedAt, mimeType }, and calls saved(file) at the end.
+function startProgramRecorder(tracks, saved) {
+  const rec = { stopping: false, mimeType: 'video/mp4', steady: null, stats: () => cfr?.stats() || null };
+  let cfr = null, mr = null, asked = false, finished = false;
+  const sink = (n) => cfr?.frame(n);
+  const finishSteady = async () => {
+    if (finished) return;
+    finished = true;
+    frameSinks.delete(sink);
+    const st = cfr.stats();
+    let file = null;
+    try {
+      file = await cfr.stop();
+    } catch (e) {
+      note(`Program recording: the file couldn't be finished (${e?.message || e})`);
+    }
+    rec.steady = `${st.frames} frames at a steady ${output.fps} a second${st.dropped ? `, ${st.dropped} skipped (the computer was too busy)` : ''}`;
+    saved(file);
+  };
+  const startBrowserRecorder = () => {
+    mr = new MediaRecorder(new MediaStream(tracks), { mimeType: recMime(), videoBitsPerSecond: 6_000_000 });
+    const chunks = [];
+    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    mr.onstop = () => saved(new Blob(chunks, { type: mr.mimeType }));
+    mr.start(1000);
+    rec.mimeType = mr.mimeType;
+    if (asked) mr.stop();
+  };
+  rec.stop = () => {
+    asked = true;
+    if (cfr) finishSteady();
+    else if (mr && mr.state !== 'inactive') mr.stop();
+    // (still starting: it stops as soon as it has)
+  };
+  (async () => {
+    const support = await programRecorderSupport(program.width, program.height, output.fps);
+    if (support && !asked) {
+      const r = new ProgramRecorder({
+        canvas: program, audioTrack: tracks[1], fps: output.fps, support, sampleRate: player.ctx.sampleRate,
+        name: `${eventId}-${Math.round(Date.now())}.mp4`,
+        onError: (e) => {
+          note(`Program recording stopped: the encoder failed (${e?.message || e}); what was recorded is saved`);
+          toast('Record program stopped (the encoder failed): what was recorded is saved', 8000);
+          rec.stopping = true;
+          recOnAirChanged();
+          finishSteady();
+        },
+      });
+      try {
+        await r.start();
+        cfr = r;
+        frameSinks.add(sink);
+        note(`Recording the program at a steady ${output.fps} frames a second, ${program.width}x${program.height} (${support.video.label}, ${support.audio.label}, MP4)`);
+        if (asked) finishSteady();
+        return;
+      } catch (e) {
+        note(`Steady-rate recording couldn't start (${e?.message || e}): using the browser's recorder`);
+      }
+    }
+    startBrowserRecorder();
+  })();
+  return rec;
+}
+if (!EDIT_ONLY) setTimeout(() => tidyProgramRecordings(), 20_000); // (yesterday's recordings, from this browser's file storage)
 // by hand: it downloads and shows the wrap-up as usual (only hands-free shows skip those)
 export const recByHand = () => {
   ap.handsFree = false;

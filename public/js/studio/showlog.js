@@ -115,6 +115,9 @@ function sample() {
     air: onAir(), s,
   };
   if (tvStats.length) row.tv = tvStats;
+  // Record program's own progress: frames written, skipped, the encoder's queue, sound vs picture (ms)
+  const rs = progRec?.stats?.();
+  if (rs) row.rs = rs;
   lastFrames = progFrames.n;
   progFrames.gap = 0;
   progFrames.dup = 0;
