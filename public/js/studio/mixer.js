@@ -1,4 +1,4 @@
-// Studio, part 6 of 24: the live mixer, its strips and meter bridge, the pop-out audio console.
+// Studio, part 6 of 25: the live mixer, its strips and meter bridge, the pop-out audio console.
 // Loads after onair.js: that import comes first, so the parts run in order (see ../studio.js).
 import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
@@ -14,6 +14,7 @@ import { renderBusAudio } from './room.js';
 import { blackLevel, mediaOn, onBreak, reel } from './graphics.js';
 import { sw, swActive } from './switcher.js';
 import { bgInterval } from '/js/bgclock.js';
+import { syncedSoundDelay } from './picsync.js';
 
 // ---- live mixer ------------------------------------------------------------------------
 // One strip per phone, like a broadcast mixer. Each has a level and a mode:
@@ -258,60 +259,28 @@ $('#listen').onchange = (e) => {
   player.ctx.resume();
 };
 
-// ---- lip sync: this computer's own sound, delayed to match its cameras' pictures ---------
-// A camera plugged into this computer gets its picture into the program a little after its
-// sound (the picture is captured, decoded, shown, then drawn into the program; the sound goes
-// straight into the mixer), so its sound, and a microphone's here, runs ahead of the picture.
-// Chrome stamps each camera frame with when it was captured, so the picture's delay is measured
-// (capture to screen, plus half a program frame for the draw) and the sound from this computer
-// waits that long, less the microphone's own delay where Chrome says it. Phones are left as
-// they are (their sound and picture come together over their link). Off, or by hand, per computer.
+// ---- lip sync: this computer's own sound waits as long as its pictures --------------------
+// Every camera here is held to one picture delay (picsync.js), so the sound from this computer
+// waits that long too (less the time its own sound takes to get here, and how far it is behind
+// the main microphone by their sound). Or by hand, or straight in, per computer. Phones are left
+// as they are (their sound and picture come together over their link).
 const LIP_KEY = 'vm_lipsync';
 export const lipSync = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(LIP_KEY) || '{}');
-    return { mode: ['auto', 'manual', 'off'].includes(v.mode) ? v.mode : 'auto', ms: Math.max(0, Math.min(400, Number(v.ms) || 0)) };
+    return { mode: ['auto', 'manual', 'off'].includes(v.mode) ? v.mode : 'auto', ms: Math.max(0, Math.min(800, Number(v.ms) || 0)) };
   } catch {
     return { mode: 'auto', ms: 0 };
   }
 })();
-export const picLag = new Map(); // peer → recent capture-to-screen delays of a camera here (ms)
-const median = (a) => {
-  const b = [...a].sort((x, y) => x - y);
-  return b.length ? b[Math.floor(b.length / 2)] : null;
-};
-function watchLag(peer, l) {
-  const v = l.video;
-  if (!v?.requestVideoFrameCallback || v._lagWatch) return;
-  v._lagWatch = true;
-  const each = (t, md) => {
-    if (live.get(peer) !== l) return;
-    if (md.captureTime) {
-      const a = picLag.get(peer) || [];
-      a.push(md.expectedDisplayTime - md.captureTime);
-      if (a.length > 60) a.shift();
-      picLag.set(peer, a);
-    }
-    v.requestVideoFrameCallback(each);
-  };
-  v.requestVideoFrameCallback(each);
-}
-/** A local source's measured picture delay (ms), or null. */
-export const lagOf = (peer) => median(picLag.get(peer) || []);
 /** How long this computer's sound from `peer` waits (ms). */
 export function soundDelayFor(peer) {
   const l = live.get(peer);
   if (!l?.local || l.screen || lipSync.mode === 'off') return 0;
   if (lipSync.mode === 'manual') return lipSync.ms;
-  const own = l.role !== 'mic' ? lagOf(peer) : null;
-  const cams = [...live].filter(([, x]) => x.local && !x.screen && x.role !== 'mic').map(([p]) => lagOf(p)).filter((x) => x != null);
-  const pic = own ?? median(cams);
-  if (pic == null) return 0;
-  const micLat = l.stream?.getAudioTracks().at(-1)?.stats?.latency || 0;
-  return Math.round(Math.max(0, Math.min(400, pic + 500 / output.fps - micLat)));
+  return syncedSoundDelay(peer) ?? 0;
 }
 function applyLipSync() {
-  for (const [peer, l] of live) if (l.local && !l.screen && l.role !== 'mic') watchLag(peer, l);
   if (!player.ctx) return;
   for (const [peer, st] of mix.strips) {
     if (!st.delay) continue;
@@ -328,12 +297,8 @@ function renderLipSync() {
   mode.value = lipSync.mode;
   ms.hidden = lipSync.mode !== 'manual';
   if (document.activeElement !== ms) ms.value = String(lipSync.ms);
-  const cams = [...live].filter(([, x]) => x.local && !x.screen && x.role !== 'mic');
-  const lags = cams.map(([p, x]) => [x.name, lagOf(p)]).filter(([, v]) => v != null);
   const used = [...mix.strips].filter(([, st]) => st.delayMs).map(([p, st]) => `${live.get(p)?.name || 'a source'} ${st.delayMs} ms`);
-  hint.textContent = !cams.length ? 'For cameras and microphones plugged into this computer; none yet.'
-    : lipSync.mode === 'off' ? 'Their sound goes straight in, ahead of the pictures.'
-    : `${lags.length ? `Pictures reach the program ${lags.map(([n, v]) => `${Math.round(v)} ms (${n})`).join(', ')} after they're taken.` : 'Measuring the cameras…'}${used.length ? ` Sound waits: ${used.join(', ')}.` : ''}`;
+  hint.textContent = lipSync.mode === 'off' ? 'Their sound goes straight in, ahead of the pictures.' : used.length ? `Sound waits: ${used.join(', ')}.` : '';
 }
 $('#lipMode')?.addEventListener('change', (e) => {
   lipSync.mode = e.target.value;
@@ -342,12 +307,12 @@ $('#lipMode')?.addEventListener('change', (e) => {
   applyLipSync();
 });
 $('#lipMs')?.addEventListener('change', (e) => {
-  lipSync.ms = Math.max(0, Math.min(400, Math.round(Number(e.target.value) || 0)));
+  lipSync.ms = Math.max(0, Math.min(800, Math.round(Number(e.target.value) || 0)));
   localStorage.setItem(LIP_KEY, JSON.stringify(lipSync));
   note(`Lip sync for this computer's sound: ${lipSync.ms} ms`);
   applyLipSync();
 });
-if (!EDIT_ONLY) bgInterval(applyLipSync, 2000);
+if (!EDIT_ONLY) bgInterval(applyLipSync, 1000);
 
 // ---- mixer UI: horizontal strips in the inspector, vertical meter bridge in full screen ----
 

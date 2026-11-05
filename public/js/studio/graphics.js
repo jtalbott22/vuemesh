@@ -1,4 +1,4 @@
-// Studio, part 12 of 24: break slate, black, clips on air, lower thirds, the slate look, the mics-only picture.
+// Studio, part 12 of 25: break slate, black, clips on air, lower thirds, the slate look, the mics-only picture.
 // Loads after room.js: that import comes first, so the parts run in order (see ../studio.js).
 import './room.js';
 import { toast, esc, now, announce } from '/js/vm.js';
@@ -22,6 +22,7 @@ import {
 } from './switcher.js';
 import { ap, apIdle, toggleProgramRecording } from './autopilot.js';
 import { openMenu } from './menus.js';
+import { camSending } from './picsync.js';
 
 // ---- break slate --------------------------------------------------------------------
 
@@ -36,8 +37,12 @@ export function activeFrameOk() {
   const l = live.get(liveActive);
   if (l?.role === 'mic') return !!l.stream?.getAudioTracks().some((t) => t.readyState === 'live');
   const v = l?.video;
+  const track = l?.stream?.getVideoTracks()[0];
+  // a camera here: is it sending? (its own frames, which go on while the studio is hidden; the
+  // page's video element stops showing new ones then, which looked like a dropped camera)
+  const sending = camSending(liveActive, STALL_MS);
+  if (sending != null) return sending && !!track && track.readyState !== 'ended';
   if (!v || v.readyState < 2 || !v.videoWidth) return false;
-  const track = l.stream.getVideoTracks()[0];
   if (!track || track.readyState === 'ended' || track.muted) return false;
   const t = v.currentTime;
   if (t !== l.lastTime) {

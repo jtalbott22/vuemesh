@@ -90,7 +90,7 @@ def main():
     print(head)
     # (the import check always runs first: if it fails, every page that loads the module is broken)
     runs = [('unit: imports', ['node', 'test/imports.test.mjs'])]
-    runs += [] if args or '--failed' in flags else [('unit: core', ['node', 'test/core.test.mjs']), ('unit: sequence', ['node', 'test/sequence.test.mjs']), ('unit: quality', ['node', 'test/quality.test.mjs']), ('unit: show log', ['node', 'test/showlog.test.mjs'])]
+    runs += [] if args or '--failed' in flags else [('unit: core', ['node', 'test/core.test.mjs']), ('unit: sequence', ['node', 'test/sequence.test.mjs']), ('unit: quality', ['node', 'test/quality.test.mjs']), ('unit: show log', ['node', 'test/showlog.test.mjs']), ('unit: frame sync', ['node', 'test/framesync.test.mjs'])]
     runs += [(n, [sys.executable, f'test/{n}.py']) for n in names]
     for label, cmd in runs:
         t0 = time.time()

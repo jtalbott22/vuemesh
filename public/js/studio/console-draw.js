@@ -1,4 +1,4 @@
-// Studio, part 9 of 24: the audio console's drawing.
+// Studio, part 9 of 25: the audio console's drawing.
 // Loads after ccu.js: that import comes first, so the parts run in order (see ../studio.js).
 import './ccu.js';
 import { eqOf, eqFlat, eqCurve } from '/js/audiofx.js';

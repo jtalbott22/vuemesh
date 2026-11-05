@@ -31,4 +31,5 @@
 //   22. export.js         render and export, wrap
 //   23. screens.js        the Monitor, the phone remote, TV screens
 //   24. showlog.js        the show log (what happened, second by second) and the sound watch
-import './studio/showlog.js';
+//   25. picsync.js        one timeline for this computer's cameras and microphones; the sync check
+import './studio/picsync.js';

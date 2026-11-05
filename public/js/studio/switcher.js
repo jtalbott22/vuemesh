@@ -1,4 +1,4 @@
-// Studio, part 13 of 24: the live program and the switcher; running while covered.
+// Studio, part 13 of 25: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';
@@ -18,6 +18,7 @@ import {
   renderClips, setBreak, setEverLive, setSlateClock, slateLook, slateSound, slateText, toggleBlack,
   toggleBreak, updateAutoBreak,
 } from './graphics.js';
+import { picOf } from './picsync.js';
 
 // ---- the live program -----------------------------------------------------------------
 
@@ -53,7 +54,8 @@ function drawLiveFrame() {
   } else if (liveActive && activeFrameOk()) {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
-    drawFramed(pg, live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
+    // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
+    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
     $('#progLabel').textContent = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
@@ -83,7 +85,7 @@ function drawLiveFrame() {
         drawFramed(pg, el, W, H, 'fit');
       }
     } else if (b && isMic(sw.to)) drawMicVisual(pg, W, H);
-    else if (b?.video?.readyState >= 2) drawFramed(pg, b.video, W, H, fit, null, b.view?.rect || null);
+    else if (b?.video?.readyState >= 2 || picOf(sw.to)) drawFramed(pg, picOf(sw.to) || b.video, W, H, fit, null, b.view?.rect || null);
     pg.globalAlpha = 1;
     const SPECIAL = { black: 'BLACK', break: 'BREAK' };
     const fromName = SPECIAL[sw.fromSpecial] || (sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name);

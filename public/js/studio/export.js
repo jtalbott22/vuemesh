@@ -1,4 +1,4 @@
-// Studio, part 22 of 24: render and export, wrap.
+// Studio, part 22 of 25: render and export, wrap.
 // Loads after sync.js: that import comes first, so the parts run in order (see ../studio.js).
 import './sync.js';
 import { api, toast, fmtDur } from '/js/vm.js';

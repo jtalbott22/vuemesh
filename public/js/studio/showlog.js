@@ -1,4 +1,4 @@
-// Studio, part 24 of 24: the show log and the sound watch.
+// Studio, part 24 of 25: the show log and the sound watch.
 // Loads after screens.js: that import comes first, so the parts run in order (see ../studio.js).
 import './screens.js';
 import { toast, esc } from '/js/vm.js';
@@ -9,12 +9,13 @@ import {
   $, black, EDIT_ONLY, ev, eventId, help, hub, isHost, live, liveActive, log, orientation, player,
   program, sock,
 } from './core.js';
-import { lagOf, mix, setStripMode } from './mixer.js';
+import { mix, setStripMode } from './mixer.js';
 import { streamOut } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { progFrames, progRec, reelOf, stalled } from './switcher.js';
 import { displayHub, remoteHost } from './screens.js';
 import { output } from './clips.js';
+import { buffers, latencyOf, pictureDelay } from './picsync.js';
 
 // What happened during the show, second by second, kept on this computer (see /js/showlog.js
 // for what a sample holds). It runs on the background clock (a worker), which browsers don't
@@ -94,9 +95,9 @@ function sources() {
     const q = l.video?.getVideoPlaybackQuality?.();
     if (q) s.vp = delta(l.video, 'shown', q.totalVideoFrames);
     if (l.micLabel && s.k === 'cam') s.mic = l.micLabel;
-    // lip sync: a camera here, its picture's delay to the screen; any source, how long its sound waits (ms)
-    const vl = l.local ? lagOf(peer) : null;
-    if (vl != null) s.vl = Math.round(vl);
+    // one timeline: a camera here, its own delay and its delivery's spread; any source, how long its sound waits (ms)
+    const fb = buffers.get(peer);
+    if (fb) Object.assign(s, { pl: Math.round(latencyOf(l)), sp: Math.round(fb.spread), held: fb.silentFor() > 1000 ? 1 : 0 });
     if (st?.delayMs) s.sd = st.delayMs;
     const ls = linkStats.get(peer);
     if (ls && !l.local) Object.assign(s, { fps: ls.fps ?? null, loss: ls.lossPct ?? null, jit: ls.jitterMs ?? null, rtt: ls.rttMs ?? null });
@@ -119,6 +120,7 @@ function sample() {
     air: onAir(), s,
   };
   if (tvStats.length) row.tv = tvStats;
+  if (pictureDelay != null) row.pd = pictureDelay; // (every camera here held to this: see picsync.js)
   // Record program's own progress: frames written, skipped, the encoder's queue, sound vs picture (ms)
   const rs = progRec?.stats?.();
   if (rs) row.rs = rs;
