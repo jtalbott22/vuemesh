@@ -10,7 +10,7 @@ import {
   $, black, clips, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, live, liveActive, log, note,
   orientation, rawBlobs, seq, sock, thumbs,
 } from './core.js';
-import { angleOfCid, audioClips } from './clips.js';
+import { angleOfCid, audioClips, output } from './clips.js';
 import { camOrder, cutLive, micPeers } from './live.js';
 import { scoreOfLive } from './usage.js';
 import { autoOn, directorBreak, setAuto } from './onair.js';
@@ -182,6 +182,9 @@ export function startRemoteHost() {
     thumbs: () => camOrder().map((p) => ({ peer: p, video: live.get(p)?.role !== 'mic' ? live.get(p)?.video : null })),
     changed: renderRemotes,
     note,
+    // Program out on the remote: its own screen link, let in without Accept (it's paired already)
+    tvKey: (rk, name) => displayHub?.trustRemote(rk, name) || null,
+    untrust: (rk) => displayHub?.untrustRemote(rk),
   });
   renderRemotes();
 }
@@ -253,6 +256,7 @@ export function startDisplayHub() {
     media: () => clips.filter((c) => rawBlobs.has(c.id)).sort((a, b) => (b.t0 || 0) - (a.t0 || 0)).map((c) => ({ id: c.id, name: c.program ? c.name : clipTitle(c), kind: c.kind, mime: rawBlobs.get(c.id).type || c.mime, dur: c.dur, t0: c.t0, size: rawBlobs.get(c.id).size })),
     blob: (id) => rawBlobs.get(id),
     thumb: (id) => thumbs.get(id) || null,
+    fps: () => output.fps,
   });
   window.vmDisplayHub = () => displayHub; // (diagnostics and tests)
   const code = $('#tvEventCode');

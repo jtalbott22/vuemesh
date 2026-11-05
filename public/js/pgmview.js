@@ -1,0 +1,113 @@
+// Program out on the phone remote: the program's picture as a TV gets it (display-hub.js), on
+// its own link, so the remote shows what's on air right where it cuts. The studio let this
+// screen in when the phone was paired as a remote (no Accept), and sends it the picture only, at
+// half size. It joins again by itself, as a TV does (tv.js), and says what it's showing.
+import { meshSocket, ICE } from '/js/vm.js';
+
+export class ProgramView {
+  /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text) */
+  constructor(o) {
+    Object.assign(this, o);
+    this.host = null;
+    this.pc = null;
+    this.ctl = null;
+    this.lastTry = 0;
+    this.shown = 0;
+    this.lastQ = null;
+    this.say = (t) => this.onState?.(t);
+    this.sock = meshSocket({
+      eventId: o.eventId, role: 'display', name: `${o.name || 'Phone remote'} (Program out)`, cid: 'pgm-' + Math.random().toString(36).slice(2, 10),
+      onPeers: (peers) => {
+        const h = peers.find((p) => p.role === 'host')?.peer || null;
+        if (h === this.host) return;
+        this.drop();
+        this.host = h;
+        if (h) this.hello();
+        else this.say('Waiting for the studio');
+      },
+      onSignal: (from, data) => {
+        if (from !== this.host || !data) return;
+        if (data.display) return this.onDisplay(data.display);
+        if (!this.pc) return;
+        if (data.kind === 'answer') this.pc.setRemoteDescription(data.sdp).catch(() => {});
+        else if (data.kind === 'ice' && data.c) this.pc.addIceCandidate(data.c).catch(() => {});
+        else if (data.kind === 'restart') this.offer();
+      },
+    });
+    const v = this.video;
+    if (v.requestVideoFrameCallback) {
+      const each = () => {
+        this.shown++;
+        v.requestVideoFrameCallback(each);
+      };
+      v.requestVideoFrameCallback(each);
+    }
+    this.timer = setInterval(() => this.tick(), 3000);
+  }
+  signal(data) {
+    if (this.host) this.sock.signal(this.host, data);
+  }
+  hello() {
+    this.lastTry = Date.now();
+    this.say('Joining…');
+    this.signal({ display: { v: 1, t: 'hello', name: `${this.name || 'Phone remote'} (Program out)`, model: 'remote', appVersion: 'web', caps: ['program'], screen: { w: screen.width * devicePixelRatio, h: screen.height * devicePixelRatio }, key: this.key } });
+  }
+  onDisplay(m) {
+    if (m.t === 'paired') return this.offer();
+    if (m.t === 'reject' || m.t === 'waiting') {
+      this.drop();
+      this.say(m.t === 'waiting' ? 'The studio needs this phone paired again' : m.message || 'The studio turned it away');
+    }
+  }
+  async offer() {
+    this.lastTry = Date.now();
+    this.drop();
+    const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    this.ctl = pc.createDataChannel('ctl', { ordered: true });
+    this.ctl.onopen = () => this.say('');
+    const stream = new MediaStream();
+    pc.ontrack = (e) => {
+      stream.addTrack(e.track);
+      this.video.srcObject = stream;
+      this.video.play().catch(() => {});
+    };
+    pc.onicecandidate = (e) => e.candidate && this.signal({ kind: 'ice', c: e.candidate.toJSON() });
+    pc.onconnectionstatechange = () => pc.connectionState === 'failed' && this.say("Can't reach the studio's picture on this network");
+    await pc.setLocalDescription(await pc.createOffer());
+    this.signal({ kind: 'offer', sdp: pc.localDescription.toJSON() });
+  }
+  get linked() {
+    return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';
+  }
+  async tick() {
+    // stay joined (the studio closes a screen it hasn't heard from in 20 s), and say what it's showing
+    if (this.linked) {
+      const now = performance.now();
+      const msg = { t: 'ping', seq: 0, at: Date.now() };
+      try {
+        this.ctl.send(JSON.stringify(msg));
+      } catch {}
+      if (this.lastQ && now - this.lastQ.at >= 4500) {
+        const secs = (now - this.lastQ.at) / 1000;
+        try {
+          this.ctl.send(JSON.stringify({ t: 'quality', secs: Math.round(secs * 10) / 10, fps: Math.round(((this.shown - this.lastQ.shown) / secs) * 10) / 10, freezes: 0, dropped: 0 }));
+        } catch {}
+        this.lastQ = { at: now, shown: this.shown };
+      } else if (!this.lastQ) this.lastQ = { at: now, shown: this.shown };
+    } else if (this.host && Date.now() - this.lastTry > 12_000) this.hello();
+  }
+  drop() {
+    this.lastQ = null;
+    try { this.ctl?.close(); } catch {}
+    try { this.pc?.close(); } catch {}
+    this.pc = null;
+    this.ctl = null;
+  }
+  stop() {
+    clearInterval(this.timer);
+    this.drop();
+    this.sock.close();
+    this.video.srcObject = null;
+  }
+}

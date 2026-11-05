@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.60.0 — the TV and the remote
+**Deploy:** `./aws/deploy.sh` (site only).
+
+Stage 4 of the plan from the class recording: the MacBook used as the TV couldn't rejoin after its lid was closed until the studio was brought forward, its picture dropped frames with nothing to show why, and the remote had no picture of what was on air.
+
+- **A TV joins again by itself:** every 3 s, a TV with a studio there but no picture link (and nothing tried for 12 s) says hello again, and the studio, knowing its key, has it straight back to the picture. A gap in its clock means its computer slept (a closed lid): it starts its link again at once. And it checks as soon as its page shows again or the network comes back. Before, a TV whose own connection came back with the same studio never said hello again. (The studio's side, kept on time while hidden, was 0.58.)
+- **It keeps its screen awake** while showing the program or the beacon (a closed lid still sleeps the computer: rejoining is the part above).
+- **A TV says what it's getting:** every 5 s, the frames it showed (counted as they reach its screen), dropped and froze, and the size. In the show log, its summary, and Monitor's Transfers.
+- **A TV falling behind gets a lower bitrate:** fewer than 80% of the frames sent it, a freeze, or more than 3% dropped, and its picture's bitrate comes down 30% (at most every 10 s, not below 0.6 Mbps); steady 30 s, back up a quarter at a time. A softer picture that keeps moving instead of a sharp one that stops. Its frame rate follows Output settings.
+- **Program out on the phone remote:** what's on air, above the cameras, on the remote's own link (the studio lets it in when the phone is paired: no Accept), half size and no sound (it can't echo into the room), not listed among the TVs. A button turns it off, to save battery and data.
+
 ## 0.59.0 — sound you control
 **Deploy:** `./aws/deploy.sh` (site only).
 

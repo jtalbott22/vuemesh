@@ -14,7 +14,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 
 ## Unit tests (node, no installs)
 
-`npm test` runs all six, and GitHub Actions runs them on every push and pull request.
+`npm test` runs all seven, and GitHub Actions runs them on every push and pull request.
 
 | File | Covers |
 | --- | --- |
@@ -23,6 +23,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/quality.test.mjs` | live picture quality hints |
 | `test/imports.test.mjs` | every import across the front end is exported by its module |
 | `test/framesync.test.mjs` | one timeline: a camera's quickest delivery, the picture delay (up at once, down between shows), each camera's frame of a moment, a stalled camera held, the clap in sound and picture |
+| `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
 | `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged), the summary, chunks put back together |
 
 ## End-to-end suites (browser)
@@ -100,3 +101,4 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_output.py` | Output settings, the program's rate on animation frames and on the worker clock, Record program's MP4 checked with ffprobe (exact rate, not fragmented, sound as long as picture) (needs ffmpeg) |
 | `test/e2e_sync.py` | one timeline: stand-in cameras 120 ms apart jump on a cut; the sync check (a clap) measures them; after it a cut doesn't jump; sound waits with the pictures; cameras stay on air with no animation frames |
 | `test/e2e_soundcontrol.py` | a device that stops comes back into the same source; a camera's Sound from; AFV following a chosen camera; this computer's cameras at 720p; the phone remote's mixer |
+| `test/e2e_tvremote.py` | a TV whose link dies or whose computer sleeps joins again by itself; it says what it's getting; falling behind lowers its bitrate; Program out on the phone remote |

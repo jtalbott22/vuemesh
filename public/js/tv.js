@@ -26,6 +26,7 @@ $('#screenName').value = localStorage.getItem('vm_tv_name') || 'TV screen';
 
 let eventId = '', ev = null, sock = null, host = null, pc = null, ctl = null, media = null, linked = false;
 let pingTimer = null, iceTimer = null, lastPong = 0, seq = 0;
+let lastTry = 0; // (the last hello or offer: the watchdog leaves a fresh attempt alone)
 const keyOf = (e) => localStorage.getItem('vm_tv_key_' + e) || '';
 
 // ---- code entry: one cell per character ------------------------------------------
@@ -155,6 +156,7 @@ function say(display) {
   if (host) sock?.signal(host, { display: { v: VERSION, ...display } });
 }
 function hello() {
+  lastTry = Date.now();
   say({ t: 'hello', name: localStorage.getItem('vm_tv_name') || 'TV screen', model: 'Browser', appVersion: 'web', caps: ['program', 'browse', 'beacon', 'pip'], screen: { w: screen.width * devicePixelRatio, h: screen.height * devicePixelRatio, hdr: matchMedia('(dynamic-range: high)').matches }, key: keyOf(eventId) || undefined });
 }
 
@@ -177,8 +179,94 @@ function onDisplay(m) {
   }
 }
 
+// ---- staying joined: after the lid closes, or the network drops ---------------------------
+// Every 3 s: a studio there but no picture link, and nothing tried for 12 s, says hello again
+// (the studio knows this screen's key, so that's straight back to the picture). A gap in the
+// clock means this computer slept: the link is gone whatever it says, so start it again at
+// once; and when the page shows again, or the network comes back, check straight away.
+let beat = Date.now();
+function keepJoined(why) {
+  const slept = Date.now() - beat > 10_000;
+  beat = Date.now();
+  if (!eventId || !host) return;
+  if (slept && (linked || pc)) {
+    state('reconnecting', { detail: 'woke' });
+    return restart('This screen was asleep: joining again.');
+  }
+  const open = linked && ctl?.readyState === 'open' && pc?.connectionState === 'connected';
+  if (!open && Date.now() - lastTry > 12_000) {
+    if (why) $('#waitErr').textContent = why;
+    hello();
+  }
+}
+setInterval(() => keepJoined(), 3000);
+// (tests: the link dying, this computer waking from sleep, and a report of falling behind)
+window.vmTvBreak = () => {
+  try { pc?.close(); } catch {}
+};
+window.vmTvSleep = () => (beat -= 20_000);
+window.vmTvReport = (q) => ctl?.send(JSON.stringify({ t: 'quality', secs: 5, ...q }));
+window.vmTvLinked = () => !!(linked && ctl?.readyState === 'open' && pc?.connectionState === 'connected');
+document.addEventListener('visibilitychange', () => !document.hidden && keepJoined());
+addEventListener('online', () => keepJoined('The network is back: joining again.'));
+addEventListener('pageshow', () => keepJoined());
+
+// Keep the screen awake while it shows the program or the beacon (it may not turn itself off
+// then). A closed lid still sleeps the computer: joining again is the part above.
+let wake = null;
+async function stayAwake(on) {
+  if (on && !wake && !document.hidden && navigator.wakeLock) {
+    try {
+      wake = await navigator.wakeLock.request('screen');
+      wake.addEventListener('release', () => (wake = null));
+    } catch {}
+  } else if (!on && wake) {
+    wake.release().catch(() => {});
+    wake = null;
+  }
+}
+document.addEventListener('visibilitychange', () => !document.hidden && stayAwake(mode === 'program' || mode === 'beacon'));
+
+// ---- what this screen is getting, to the studio every 5 s ---------------------------------
+// Frames shown (counted as they reach the screen), dropped and frozen, and the size: the studio
+// lowers this screen's picture if it's falling behind, and it's in the studio's show log.
+let shown = 0, lastQ = null;
+(function countShown() {
+  const v = $('#out');
+  if (v?.requestVideoFrameCallback) {
+    const each = () => {
+      shown++;
+      v.requestVideoFrameCallback(each);
+    };
+    v.requestVideoFrameCallback(each);
+  }
+})();
+setInterval(async () => {
+  if (!linked || ctl?.readyState !== 'open' || !pc || mode !== 'program' && !pip) return;
+  let s = null;
+  try {
+    (await pc.getStats()).forEach((r) => {
+      if (r.type === 'inbound-rtp' && r.kind === 'video') s = r;
+    });
+  } catch {}
+  if (!s) return;
+  const now = performance.now();
+  const cur = { at: now, shown, decoded: s.framesDecoded || 0, dropped: s.framesDropped || 0, freezes: s.freezeCount || 0, freezeMs: (s.totalFreezesDuration || 0) * 1000, lost: s.packetsLost || 0 };
+  if (lastQ) {
+    const secs = (now - lastQ.at) / 1000;
+    const shownFps = (cur.shown - lastQ.shown) / secs, decodedFps = (cur.decoded - lastQ.decoded) / secs;
+    ctl.send(JSON.stringify({
+      t: 'quality', secs: Math.round(secs * 10) / 10, fps: Math.round((shownFps > 0 ? shownFps : decodedFps) * 10) / 10,
+      dropped: cur.dropped - lastQ.dropped, freezes: cur.freezes - lastQ.freezes, freezeMs: Math.round(cur.freezeMs - lastQ.freezeMs), lost: cur.lost - lastQ.lost,
+      w: s.frameWidth || null, h: s.frameHeight || null,
+    }));
+  }
+  lastQ = cur;
+}, 5000);
+
 // ---- the connection: receive only ----------------------------------------------
 async function offer() {
+  lastTry = Date.now();
   drop();
   pc = new RTCPeerConnection({ iceServers: ICE });
   pc.addTransceiver('video', { direction: 'recvonly' });
@@ -248,6 +336,7 @@ function state(status, extra = {}) {
 
 let mode = 'idle', pip = false, lag = null;
 function setMode(m, p, params = {}) {
+  stayAwake(m === 'program' || m === 'beacon');
   const was = mode;
   mode = SHOWS.includes(m) ? m : 'idle';
   pip = !!p;
@@ -455,6 +544,7 @@ function restart(why) {
 }
 
 function drop() {
+  lastQ = null; // (a new link counts its frames from nothing)
   clearInterval(pingTimer);
   clearTimeout(iceTimer);
   try { ctl?.close(); } catch {}

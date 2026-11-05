@@ -343,7 +343,7 @@ async function slowStats() {
       if (st) linkStats.set(peer, st);
     }
     for (const p of linkStats.keys()) if (!live.has(p)) linkStats.delete(p);
-    tvStats = ((await displayHub?.stats().catch(() => [])) || []).map((x) => ({ n: x.name, st: x.status, fps: x.fps ?? null, kbps: x.kbps ?? null, lim: x.lim || null, w: x.w || null, h: x.h || null }));
+    tvStats = ((await displayHub?.stats().catch(() => [])) || []).map((x) => ({ n: x.name, st: x.status, fps: x.fps ?? null, kbps: x.kbps ?? null, lim: x.lim || null, w: x.w || null, h: x.h || null, cap: x.cap || null, ...(x.remote ? { remote: 1 } : {}), ...(x.rx ? { rfps: x.rx.fps, frz: x.rx.freezes, drop: x.rx.dropped } : {}) }));
   } finally {
     statsBusy = false;
   }
