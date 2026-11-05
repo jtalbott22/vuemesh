@@ -15,6 +15,8 @@ const DIR = 'program-recordings';
 const tapModules = new WeakMap(); // AudioContext → its tap module, loading
 
 /** What this browser can write a program recording with, or null (then use MediaRecorder). */
+const MAX_QUEUE = 6; // frames waiting for the encoder (a fifth of a second at 30)
+
 export async function programRecorderSupport(W, H, fps) {
   if (!window.MediaStreamTrackProcessor || !window.Mp4Muxer || !navigator.storage?.getDirectory) return null;
   if (!('createWritable' in (window.FileSystemFileHandle?.prototype || {}))) return null;
@@ -81,9 +83,22 @@ export class ProgramRecorder {
     };
     this.venc = new VideoEncoder({ output: (c, m) => this.muxer.addVideoChunk(c, m), error: fail });
     const bitrate = this.H >= 1080 ? 10_000_000 : 6_000_000;
-    const vcfg = { ...this.support.video.cfg, width: this.W, height: this.H, framerate: this.fps, bitrate };
-    if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`can't encode ${this.W}x${this.H} at ${this.fps}`);
+    // Live, the encoder has to keep up with the show, not make the best file it can: the graphics
+    // card's encoder if there is one (it costs the computer almost nothing), and real-time mode
+    // (a software encoder takes its quicker settings). An offline render keeps the defaults.
+    const base = { ...this.support.video.cfg, width: this.W, height: this.H, framerate: this.fps, bitrate };
+    let vcfg = null;
+    for (const extra of [{ hardwareAcceleration: 'prefer-hardware', latencyMode: 'realtime' }, { latencyMode: 'realtime' }, {}]) {
+      const c = { ...base, ...extra };
+      if ((await VideoEncoder.isConfigSupported(c).catch(() => ({})))?.supported) {
+        vcfg = c;
+        break;
+      }
+    }
+    if (!vcfg) throw new Error(`can't encode ${this.W}x${this.H} at ${this.fps}`);
     this.venc.configure(vcfg);
+    this.encoderKind = vcfg.hardwareAcceleration === 'prefer-hardware' ? 'hardware' : 'software';
+    this.realtime = vcfg.latencyMode === 'realtime';
     this.aenc = new AudioEncoder({ output: (c, m) => this.muxer.addAudioChunk(c, m), error: fail });
     const acfg = { ...this.support.audio.cfg, sampleRate: this.rate, numberOfChannels: 2 };
     if (!(await AudioEncoder.isConfigSupported(acfg)).supported) throw new Error(`can't encode sound at ${this.rate} Hz`);
@@ -224,8 +239,10 @@ export class ProgramRecorder {
     try {
       for (let i = 0; i < count; i++) {
         const f = i === 0 ? first : new VideoFrame(first, { timestamp: Math.round(this.n * dur), duration: Math.round(dur) });
-        // the encoder far behind (a struggling computer): skip this frame rather than queue forever
-        if (this.venc.encodeQueueSize > 90) this.dropped++;
+        // the encoder behind (a struggling computer): skip this frame rather than let a queue
+        // build. A short queue skips a frame here and there (a little less smooth); a long
+        // one held seconds of frames and then skipped them all at once (a freeze).
+        if (this.venc.encodeQueueSize > MAX_QUEUE) this.dropped++;
         else this.venc.encode(f, { keyFrame: this.n % this.keyEvery === 0 });
         if (i > 0) f.close();
         this.n++;

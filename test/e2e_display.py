@@ -106,7 +106,7 @@ with sync_playwright() as p:
     tv2.click('#modes [data-want="program"]')
     tv2.wait_for_function(PLAYING + " && vmTv().mode === 'program' && !document.body.classList.contains('pip')", timeout=15000)
 
-    host.locator('[data-tv-del]').first.click()
+    host.locator('[data-tv-del]').first.click(); host.locator('[data-tv-del]').first.click()  # (asked on the button: Sure? Remove)
     tv.wait_for_function("document.querySelector('#out').hidden && document.querySelector('#waitSay').textContent.length > 0", timeout=15000)
     host.wait_for_function("document.querySelectorAll('[data-tv-del]').length === 1", timeout=10000)
     assert tv2.evaluate(PLAYING)

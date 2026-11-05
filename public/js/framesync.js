@@ -35,25 +35,39 @@ export class WindowMin {
   }
 }
 
+export const MAX_P = 300; // ms: past this, a late frame is held rather than every picture waiting longer
+export const RAISE_AFTER = 3; // updates in a row (about a second apart) wanting more before P goes up
+
 /**
  * The program's picture delay from each camera's latency and how much its delivery varies:
- * P covers the slowest camera with a frame of slack. It goes up at once when a camera needs
- * more (so nothing runs late), and comes down only when asked (between shows), so a show's
- * timing never moves under it.
+ * P covers the slowest camera with a frame of slack. It goes up when a camera has needed more
+ * for a few seconds in a row (a camera that really is slower), not for one busy moment, and
+ * never past MAX_P; it comes down only when asked (between shows), so a show's timing never
+ * moves under it. (A computer too busy to take its cameras' frames on time makes every camera
+ * look late at once: raising P for that only added delay and memory, and the next busy moment
+ * raised it again: 108 ms became 380 ms in one recording.)
  */
 export class PictureDelay {
-  constructor({ fps = 30, margin = MARGIN, floor = 0 } = {}) {
-    Object.assign(this, { fps, margin, floor });
+  constructor({ fps = 30, margin = MARGIN, floor = 0, max = MAX_P, raiseAfter = RAISE_AFTER } = {}) {
+    Object.assign(this, { fps, margin, floor, max, raiseAfter });
     this.P = null;
+    this.wanting = 0;
   }
   /** need: for each camera, latency + its delivery spread (ms). Returns { P, raised } */
   update(need) {
-    const want = Math.round(Math.max(this.floor, ...need, 0) + (this.margin * 1000) / this.fps);
-    if (this.P == null || want > this.P) {
-      const raised = this.P != null;
+    const want = Math.min(this.max, Math.round(Math.max(this.floor, ...need, 0) + (this.margin * 1000) / this.fps));
+    if (this.P == null) {
       this.P = want;
-      return { P: this.P, raised };
+      this.wanting = 0;
+      return { P: this.P, raised: false };
     }
+    if (want > this.P) {
+      if (++this.wanting >= this.raiseAfter) {
+        this.wanting = 0;
+        this.P = want;
+        return { P: this.P, raised: true };
+      }
+    } else this.wanting = 0;
     return { P: this.P, raised: false };
   }
   /** Between shows: settle back to what the cameras need now. */

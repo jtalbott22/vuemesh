@@ -4,7 +4,7 @@ import './stream.js';
 import { toast, esc, now, announce } from '/js/vm.js';
 import { MediaLibrary } from '/js/media.js';
 import {
-  $, LIVE_DELAY, clips, eventId, hub, isHost, live, liveActive, mode, note, orientation,
+  $, clips, eventId, hub, isHost, live, LIVE_DELAY, liveActive, mode, note, orientation, pressTwice,
 } from './core.js';
 import { angleOfCid } from './clips.js';
 import { camOrder, cutLive, fitTile } from './live.js';
@@ -212,7 +212,7 @@ function endRundown() {
 }
 function clearRundown() {
   if (!isHost) return;
-  if ((crew.rundown.length || $('#rundownText').value.trim()) && !confirm('Clear the rundown? It comes off every camera and the list here is emptied.')) return;
+  if ((crew.rundown.length || $('#rundownText').value.trim()) && !pressTwice($('#rundownClear'), 'Sure? Clear')) return;
   Object.assign(crew, { rundown: [], cue: -1, ended: false, cleared: true });
   $('#rundownText').value = '';
   saveCrew();

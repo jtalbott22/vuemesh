@@ -139,7 +139,7 @@ export function summarize(rows, events = [], target = 30) {
   out.sources = [...src.values()].map(({ hadSound, ...x }) => x);
   for (const [, a] of camFps) {
     const avg = a.sum / a.k;
-    if (a.k >= 10 && avg < target * 0.8) out.lines.push(`${a.n} delivered ${Math.round(avg * 10) / 10} frames a second on average (of about ${target}): the camera, its USB port or the computer wasn't keeping up.`);
+    if (a.k >= 10 && avg < target * 0.8) out.lines.push(`${a.n} delivered ${Math.round(avg * 10) / 10} frames a second on average (of about ${target}): ${avg >= target * 0.4 && avg <= target * 0.6 ? 'about half, as most webcams do in dim light (they slow down to let in more light): more light on the subject brings it back' : "the camera, its USB port or the computer wasn't keeping up"}.`);
   }
   for (const x of out.sources) {
     if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);

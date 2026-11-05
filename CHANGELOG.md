@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.2 — a busy computer
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (a Linux laptop, its built-in webcam and a shared screen): during Record program, 1,142 of 3,431 frames were skipped, the pictures' delay crept from 108 to 380 ms, and the program froze for 1.8 s once.
+
+- **The program's encoder keeps up first:** it asks for the graphics card's encoder and real-time mode (a software encoder's quicker settings), and falls back to how it was. Falling behind, it skips a frame here and there (a queue of 6) instead of letting 3 s of frames pile up and then dropping them in a run. The recording's note says which encoder it got, and the show log says when frames are skipped, with what else this computer is recording.
+- **A shared screen records at most 1080p and 15 frames a second** (from its own copy of the picture; the live picture is untouched), at 3 Mbps. Encoding a full-size screen at 30 on the processor, beside the program, was the heaviest load.
+- **The picture delay doesn't creep:** it goes up only when a camera has needed more for 3 s in a row, and never past 300 ms. A computer too busy to take its frames on time makes every camera look late at once; raising the delay each time only added delay and memory.
+- **No freezes from "are you sure?":** removing a phone remote or a TV and clearing the rundown ask on the button (press again: Sure? Remove), and renaming a source opens a small dialog of the page's own. The browser's own confirm and prompt stop the whole page, program included, while they're open: that was the 1.8 s.
+- The show log says when a camera runs at about half its rate: most webcams do that in dim light.
+
 ## 0.61.1 — the phone remote from a home screen
 **Deploy:** `./aws/deploy.sh` (site only; it now uploads `remote.webmanifest` too).
 

@@ -41,6 +41,16 @@ with sync_playwright() as p:
     host.click('.tile[data-peer^="local-cam"]'); time.sleep(1)
     assert 'Screen' in host.inner_text('#progLabel')
     step(f'shared the screen: a source called Screen with its sound (its own mixer strip), and it went on air: "{host.inner_text("#progLabel")}"')
+    # recorded on air (Record program): from its own copy, at most 15 frames a second
+    host.click('#recProgBtn')
+    host.wait_for_function("vmMedia().some((x) => x.peer.startsWith('local-cam') && x.recording)", timeout=15000)
+    rec = next(x for x in host.evaluate('vmMedia()') if x['peer'].startswith('local-cam'))['recording']
+    assert rec['copy'] and rec['fps'] is not None and rec['fps'] <= 15.5, rec
+    host.wait_for_function("vmNotes().some((n) => n.includes('Recording the program'))", timeout=15000)
+    notes = [n for n in host.evaluate('vmNotes()') if 'Recording the program' in n]
+    assert any('real-time' in n for n in notes) or any('recorder' in n for n in notes), notes
+
+    step(f"on air with Record program: the screen records from its own copy at {rec['fps']:.0f} frames a second (not its full rate), and the program's encoder: \"{notes[-1]}\"")
     host.click('#addLocal'); host.wait_for_selector('#localList [data-share="sound"]', timeout=10000)
     host.click('#localList [data-share="sound"]'); host.wait_for_selector('button.mic[data-peer^="local-mic"]', timeout=10000)
     mic = host.inner_text('button.mic[data-peer^="local-mic"]')

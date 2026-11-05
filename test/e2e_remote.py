@@ -118,7 +118,7 @@ with sync_playwright() as p:
     host.wait_for_function("document.querySelector('#progLabel').textContent.includes('MIC')", timeout=10000)
     step(f'a sound-only source ({sname}) shows on the remote under Sound; a tap puts it on air ("{rem.inner_text("#onAir")}"; the studio: "{host.inner_text("#progLabel")}")')
 
-    host.evaluate("document.querySelector('#remoteList [data-remote-del]').click()")
+    host.evaluate("document.querySelector('#remoteList [data-remote-del]').click(); document.querySelector('#remoteList [data-remote-del]').click()")  # (asked on the button: Sure? Remove)
     rem.wait_for_function("!document.querySelector('#pairView').hidden && document.querySelector('#pairSay').textContent.includes('removed')", timeout=15000)
     assert host.is_visible('#remoteNone')
     step('Remove in the studio: the phone is a remote no more, at once')

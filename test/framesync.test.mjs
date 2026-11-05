@@ -2,7 +2,7 @@
 // the program's picture delay (up at once, down only between shows), picking each camera's
 // frame for a moment (a stalled camera held), and the sync check's clap in sound and picture.
 import assert from 'node:assert/strict';
-import { WindowMin, PictureDelay, momentOf, pick, soundOnset, pictureOnset, latencyFromCheck, DEFAULT_LATENCY } from '../public/js/framesync.js';
+import { WindowMin, PictureDelay, MAX_P, RAISE_AFTER, momentOf, pick, soundOnset, pictureOnset, latencyFromCheck, DEFAULT_LATENCY } from '../public/js/framesync.js';
 
 const ok = (m) => console.log('ok  ' + m);
 
@@ -20,9 +20,15 @@ const ok = (m) => console.log('ok  ' + m);
   const d = new PictureDelay({ fps: 30 });
   assert.deepEqual(d.update([70, 110, 90]), { P: 143, raised: false }, 'the slowest camera plus a frame');
   assert.deepEqual(d.update([70, 100, 90]), { P: 143, raised: false }, "it doesn't come down during a show");
-  assert.deepEqual(d.update([70, 150, 90]), { P: 183, raised: true }, 'it goes up at once when a camera needs it');
+  assert.deepEqual(d.update([70, 150, 90]), { P: 143, raised: false }, 'one busy second: no change');
+  assert.deepEqual(d.update([70, 100, 90]), { P: 143, raised: false }, '(and it passed)');
+  assert.deepEqual(d.update([70, 150, 90]), { P: 143, raised: false }, 'a camera really slower: once…');
+  assert.deepEqual(d.update([70, 150, 90]), { P: 143, raised: false }, '…twice…');
+  assert.deepEqual(d.update([70, 150, 90]), { P: 183, raised: true }, '…three seconds in a row: up');
+  for (let i = 0; i < 3; i++) d.update([70, 900, 90]);
+  assert.equal(d.P, MAX_P, `never past ${MAX_P} ms, however busy the computer`);
   assert.equal(d.reset([70, 100]).P, 133, 'and settles between shows');
-  ok('the picture delay: the slowest camera and a frame; up at once, down only between shows');
+  ok(`the picture delay: the slowest camera and a frame; up only after ${RAISE_AFTER} s of need, never past ${MAX_P} ms, down only between shows`);
 }
 {
   // three cameras with different delays: the same moment on air from each

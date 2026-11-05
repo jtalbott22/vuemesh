@@ -8,7 +8,7 @@ import * as S from '/js/sequence.js';
 import { whatsWrong } from '/js/director.js';
 import {
   $, black, clips, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, live, liveActive, log, note,
-  orientation, rawBlobs, seq, sock, thumbs,
+  orientation, pressTwice, rawBlobs, seq, sock, thumbs,
 } from './core.js';
 import { angleOfCid, audioClips, output } from './clips.js';
 import { camOrder, cutLive, micPeers } from './live.js';
@@ -233,8 +233,8 @@ $('#remoteDlg')?.addEventListener('close', () => {
   if (remoteHost?.pairing) remoteHost.stopPairing(); // (closing the dialog takes the code away)
 });
 $('#remoteList')?.addEventListener('click', (e) => {
-  const key = e.target.closest('[data-remote-del]')?.dataset.remoteDel;
-  if (key && confirm('Remove this phone? It stops being a remote straight away.')) remoteHost?.remove(key);
+  const b = e.target.closest('[data-remote-del]'), key = b?.dataset.remoteDel;
+  if (key && pressTwice(b, 'Sure? Remove')) remoteHost?.remove(key);
 });
 
 // --------------------------------------------------------------- TV screens --
@@ -291,7 +291,7 @@ $('#tvList')?.addEventListener('click', (e) => {
   if (t.dataset.tvAccept) displayHub?.accept(t.dataset.tvAccept);
   else if (t.dataset.tvDecline) displayHub?.decline(t.dataset.tvDecline);
   else if (t.dataset.tvCal) openTvCal(t.dataset.tvCal);
-  else if (t.dataset.tvDel && confirm('Remove this TV? It stops showing the program straight away.')) displayHub?.remove(t.dataset.tvDel);
+  else if (t.dataset.tvDel && pressTwice(t, 'Sure? Remove')) displayHub?.remove(t.dataset.tvDel);
 });
 $('#tvList')?.addEventListener('change', (e) => {
   const { tvMode, tvPip } = e.target.dataset;
