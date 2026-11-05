@@ -12,6 +12,7 @@
 import { renderSupport, mp4Timescale } from '/js/render.js';
 
 const DIR = 'program-recordings';
+const tapModules = new WeakMap(); // AudioContext → its tap module, loading
 
 /** What this browser can write a program recording with, or null (then use MediaRecorder). */
 export async function programRecorderSupport(W, H, fps) {
@@ -42,10 +43,13 @@ export class ProgramRecorder {
    * @param {object} o.support  from programRecorderSupport()
    * @param {string} o.name  the file's name
    * @param {number} [o.sampleRate]  the sound's rate (the sound engine's), if the track doesn't say
+   * @param {AudioContext} [o.ctx]  with o.audioNode: take the sound on the sound thread (nothing dropped)
+   * @param {AudioNode} [o.audioNode]  the program's sound, in o.ctx
    * @param {(e:Error)=>void} [o.onError]  the encoder failed: stop() still saves what was recorded
    */
   constructor(o) {
-    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, onError: o.onError || (() => {}) });
+    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, onError: o.onError || (() => {}) });
+    this.fixes = { dropped: 0, added: 0, gapMs: 0 }; // (the sound kept with the picture: ms taken out, put in, and silence for gaps)
     this.W = o.canvas.width;
     this.H = o.canvas.height;
     this.n = 0; // video frames written
@@ -86,7 +90,99 @@ export class ProgramRecorder {
     this.aenc.configure(acfg);
     this.keyEvery = Math.max(1, Math.round(this.fps * 2));
     this.t0 = performance.now(); // the recording's zero, for the sound
+    if (this.ctx && this.audioNode && this.ctx.audioWorklet) {
+      try {
+        await this.startTap();
+        return;
+      } catch (e) {
+        console.warn('sound-thread tap unavailable, reading the track', e?.message || e);
+      }
+    }
     this.pump();
+  }
+
+  /**
+   * The sound on the sound thread (rectap-worklet.js): every sample, queued, never dropped;
+   * timed by counting them. The sound engine's clock and the computer's drift apart a little
+   * (a few hundred ms over two hours); held within 15 ms of the picture by taking out or
+   * putting in a millisecond at a time, crossfaded, and a real gap (the engine stopped) is
+   * silence of its length.
+   */
+  async startTap() {
+    const ctx = this.ctx;
+    if (!tapModules.has(ctx)) tapModules.set(ctx, ctx.audioWorklet.addModule('/js/rectap-worklet.js'));
+    await tapModules.get(ctx);
+    this.tap = new AudioWorkletNode(ctx, 'vm-rec-tap', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+    this.silent = ctx.createGain();
+    this.silent.gain.value = 0;
+    this.audioNode.connect(this.tap);
+    this.tap.connect(this.silent).connect(ctx.destination);
+    this.t0 = performance.now();
+    this.f0 = Math.round(ctx.currentTime * this.rate); // the engine's sample at the recording's zero
+    this.out = null; // samples written so far
+    this.fixMs = 0; // ms the corrections have put in (-) or taken out (+)
+    this.ts0 = ctx.getOutputTimestamp();
+    this.tap.port.onmessage = (e) => this.block(e.data);
+  }
+
+  block({ frame, L, R }) {
+    if (this.failed || this.stopping) return;
+    const rate = this.rate;
+    let start = frame - this.f0;
+    if (start + L.length <= 0) return;
+    if (start < 0) {
+      L = L.subarray(-start);
+      R = R.subarray(-start);
+      start = 0;
+    }
+    if (this.out == null) this.out = start;
+    // How far the sound is from the picture: the engine's clock against the page's, from the
+    // engine's own reading of both (not when blocks reach the page: a busy page takes them late).
+    const drift = this.clockDrift() - this.fixMs;
+    const step = Math.round(rate / 1000); // 1 ms
+    if (drift < -250) {
+      // the engine stopped (its clock stood still while the page's went on): silence for the gap,
+      // so everything after keeps its place against the picture
+      const gap = Math.round((-drift / 1000) * rate);
+      this.write(new Float32Array(gap), new Float32Array(gap));
+      this.fixMs -= (gap / rate) * 1000;
+      this.fixes.gapMs += Math.round((gap / rate) * 1000);
+    } else if (drift > 15 && L.length > 4 * step) {
+      [L, R] = [cut(L, step), cut(R, step)];
+      this.fixMs += 1;
+      this.fixes.dropped++;
+    } else if (drift < -15) {
+      [L, R] = [stretch(L, step), stretch(R, step)];
+      this.fixMs -= 1;
+      this.fixes.added++;
+    }
+    this.write(L, R);
+  }
+
+  /** The engine's clock ahead (+) of the page's since the start, ms (0 until the engine says). */
+  clockDrift() {
+    const ts = this.ctx.getOutputTimestamp();
+    if (!ts.performanceTime || !this.ts0?.performanceTime) {
+      if (ts.performanceTime) this.ts0 = ts;
+      return 0;
+    }
+    return (ts.contextTime - this.ts0.contextTime) * 1000 - (ts.performanceTime - this.ts0.performanceTime);
+  }
+
+  write(L, R) {
+    const n = L.length;
+    if (!n) return;
+    const data = new Float32Array(n * 2);
+    data.set(L, 0);
+    data.set(R, n);
+    const ad = new AudioData({ format: 'f32-planar', sampleRate: this.rate, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((this.out / this.rate) * 1e6), data });
+    try {
+      this.aenc.encode(ad);
+    } finally {
+      ad.close();
+    }
+    this.out += n;
+    this.audioUs = Math.round((this.out / this.rate) * 1e6);
   }
 
   /** The sound: the live mix as it comes, timed from the recording's start. */
@@ -142,13 +238,20 @@ export class ProgramRecorder {
   /** How it's going (the show log): frames, skipped, encoder queue, and sound ahead (+) or behind the picture, ms. */
   stats() {
     const videoUs = (this.n * 1e6) / this.fps;
-    return { frames: this.n, dropped: this.dropped, queue: this.venc?.encodeQueueSize || 0, drift: Math.round((this.audioUs - videoUs) / 1000) };
+    return { frames: this.n, dropped: this.dropped, queue: this.venc?.encodeQueueSize || 0, drift: Math.round((this.audioUs - videoUs) / 1000), ...(this.tap ? { fixes: { ...this.fixes } } : {}) };
   }
 
   /** Finish the file (also after a failure: what was recorded is kept) and hand it back. */
   async stop() {
     this.stopping = true;
     await this.reader?.cancel().catch(() => {});
+    if (this.tap) {
+      this.tap.port.postMessage('stop');
+      try {
+        this.audioNode.disconnect(this.tap);
+        this.tap.disconnect();
+      } catch {}
+    }
     for (const enc of [this.venc, this.aenc]) {
       if (enc?.state === 'configured') await enc.flush().catch(() => {});
       try { enc?.close(); } catch {}
@@ -172,4 +275,27 @@ function toStereo(ad, ts) {
   data.set(L, 0);
   data.set(R, frames);
   return new AudioData({ format: 'f32-planar', sampleRate: ad.sampleRate, numberOfFrames: frames, numberOfChannels: 2, timestamp: ts, data });
+}
+
+/** A block with `k` samples taken out of its middle, crossfaded over k (a millisecond: unheard). */
+function cut(a, k) {
+  const at = Math.floor((a.length - 2 * k) / 2), out = new Float32Array(a.length - k);
+  out.set(a.subarray(0, at), 0);
+  for (let i = 0; i < k; i++) {
+    const w = i / k;
+    out[at + i] = a[at + i] * (1 - w) + a[at + k + i] * w;
+  }
+  out.set(a.subarray(at + 2 * k), at + k);
+  return out;
+}
+/** A block with `k` samples put into its middle (its own, again), crossfaded. */
+function stretch(a, k) {
+  const at = Math.floor((a.length - k) / 2), out = new Float32Array(a.length + k);
+  out.set(a.subarray(0, at + k), 0);
+  for (let i = 0; i < k; i++) {
+    const w = i / k;
+    out[at + k + i] = a[at + i] * (1 - w) + a[at + k + i] * w;
+  }
+  out.set(a.subarray(at + k), at + 2 * k);
+  return out;
 }

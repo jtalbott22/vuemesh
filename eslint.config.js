@@ -19,6 +19,11 @@ export default [
     languageOptions: { globals: { ...globals.worker } },
   },
   {
+    // the sound thread: an audio worklet's own names
+    files: ['public/js/*-worklet.js'],
+    languageOptions: { globals: { AudioWorkletProcessor: 'readonly', registerProcessor: 'readonly', currentFrame: 'readonly', currentTime: 'readonly', sampleRate: 'readonly' } },
+  },
+  {
     // the cloud, the dev server, the relay and the tests: Node
     files: ['**/*.mjs', 'eslint.config.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },

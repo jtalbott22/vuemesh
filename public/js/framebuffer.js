@@ -29,6 +29,7 @@ export class FrameBuffer {
     this.lastArr = 0;
     this.prevLuma = null;
     this.stopped = false;
+    this.watching = false; // (the sync check sets it: see take)
     this.thumb = new OffscreenCanvas(THUMB_W, THUMB_H).getContext('2d', { willReadFrequently: true });
     this.run();
   }
@@ -87,9 +88,10 @@ export class FrameBuffer {
     this.lagMin.push(arr, arr - ts);
     this.over.push(arr - ts - this.lagMin.value);
     if (this.over.length > 150) this.over.shift();
-    // how different from the frame before (the sync check looks for the sharpest one)
+    // how different from the frame before (the sync check looks for the sharpest one): only
+    // while it's watching, as reading a picture back from the graphics card costs the page
     let change = 0;
-    try {
+    if (this.watching) try {
       this.thumb.drawImage(bmp, 0, 0, THUMB_W, THUMB_H);
       const d = this.thumb.getImageData(0, 0, THUMB_W, THUMB_H).data;
       const luma = new Float32Array(THUMB_W * THUMB_H);
@@ -101,7 +103,8 @@ export class FrameBuffer {
       }
       this.prevLuma = luma;
     } catch {}
-    this.series.push({ ts, arr, change });
+    if (this.watching) this.series.push({ ts, arr, change });
+    else this.prevLuma = null;
     while (this.series.length && this.series[0].arr < arr - 15000) this.series.shift();
     this.frames.push({ ts, arr, bmp });
     while (this.frames.length > 2 && this.frames[1].arr < arr - this.keepMs) this.frames.shift().bmp.close();

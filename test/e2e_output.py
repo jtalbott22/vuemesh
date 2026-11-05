@@ -1,9 +1,9 @@
 # Output settings and Record program's file: the program keeps its frame rate whether animation
 # frames drive it or (the studio hidden or covered) the worker clock does; and Record program
 # writes a normal MP4 (not fragmented: Windows' player can scrub it) at exactly the chosen rate,
-# its sound as long as its picture. Checked with ffprobe, at 25 and at 29.97 with 1080p, with
+# its sound as long as its picture, even across a moment the sound engine stopped (the gap filled). Checked with ffprobe, at 25 and at 29.97 with 1080p, with
 # animation frames stopped as they are in a hidden window. And lip sync: this computer's sound
-# waits for its camera's measured picture delay, or as long as set by hand, or not at all. (Needs ffmpeg.)
+# waits as long as its cameras' pictures are held (the picture delay), or as long as set by hand, or not at all. (Needs ffmpeg.)
 # Run: node dev/server.mjs &  then  python3 test/e2e_output.py
 import os, json, subprocess, time, statistics
 from playwright.sync_api import sync_playwright
@@ -37,17 +37,18 @@ with sync_playwright() as p:
         rows = host.evaluate('vmShowLog().rows')[-(secs - 1):]
         return statistics.mean(r['fps'] for r in rows if r['fps'] is not None), rows[-1]['drv']
     # lip sync: this computer's sound waits for its camera's picture (measured), by hand, or not at all
-    for _ in range(40):   # (measured from the camera's frames, applied every 2 s)
-        cam = next((x for x in host.evaluate('vmShowLog().rows.at(-1).s') if x['k'] == 'cam'), {})
-        if cam.get('vl') is not None and cam.get('sd'): break
+    for _ in range(40):   # (the picture delay, and the sound waiting with it, settle in a few seconds)
+        row = host.evaluate('vmShowLog().rows.at(-1)')
+        cam = next((x for x in row['s'] if x['k'] == 'cam'), {})
+        if row.get('pd') and cam.get('sd'): break
         time.sleep(0.5)
-    assert 0 < cam['vl'] < 400 and abs(cam['sd'] - (cam['vl'] + 500 / 30)) < 25, cam
+    assert 0 < row['pd'] < 600 and abs(cam['sd'] - row['pd']) < 40, (row.get('pd'), cam)
     host.select_option('#lipMode', 'manual'); host.fill('#lipMs', '150'); host.evaluate("document.querySelector('#lipMs').dispatchEvent(new Event('change'))")
     host.wait_for_function("vmShowLog().rows.at(-1).s.every(x => x.sd === 150)", timeout=8000)
     host.select_option('#lipMode', 'off')
     host.wait_for_function("vmShowLog().rows.at(-1).s.every(x => !x.sd)", timeout=8000)
     host.select_option('#lipMode', 'auto')
-    step(f"lip sync: the camera's picture reaches the program {cam['vl']} ms after it's taken, so its sound waits {cam['sd']} ms; by hand 150 ms; straight in, none")
+    step(f"lip sync: the camera's pictures are held {row['pd']} ms behind the moment, so its sound waits {cam['sd']} ms; by hand 150 ms; straight in, none")
 
     host.select_option('#outFps', '25')
     r25, d25 = rate()
@@ -55,20 +56,29 @@ with sync_playwright() as p:
     step(f'Output 25: the program runs at {r25:.2f} frames a second on animation frames')
 
     press = lambda: host.evaluate("document.querySelector('#recProgBtn').click()")
-    def record(secs):
+    def record(secs, pause_sound=False):
         press()   # (Playwright's own clicks wait for animation frames, which are stopped in the second half)
         time.sleep(0.5)
         assert host.is_disabled('#outFps') and host.is_disabled('#outSize'), 'fixed while recording'
-        time.sleep(secs)
+        if pause_sound:   # (the sound engine stops for a moment, as a device change can make it)
+            time.sleep(secs / 2 - 1)
+            host.evaluate('vmEngine().suspend()'); time.sleep(1.5); host.evaluate('vmEngine().resume()')
+            time.sleep(secs / 2 - 0.5)
+            rec_stats.append(host.evaluate('vmShowLog().rows.filter(r => r.rs).at(-1).rs'))
+        else:
+            time.sleep(secs)
         with host.expect_download(timeout=60000) as dl:
             press()
         host.wait_for_function("!document.querySelector('#outFps').disabled", timeout=10000)
         return probe(dl.value.path())
-    f = record(8)
+    rec_stats = []
+    f = record(8, pause_sound=True)
     v, a = f['video'], f['audio']
+    fx = rec_stats[0].get('fixes') or {}
+    assert fx.get('gapMs', 0) > 700, rec_stats   # (the gap filled with silence, so the sound after it keeps its place)
     assert not f['fragmented'] and v['codec_name'] == 'h264' and v['r_frame_rate'] == v['avg_frame_rate'] == '25/1', (f['fragmented'], v['r_frame_rate'], v['avg_frame_rate'])
     assert abs(float(v['duration']) - float(a['duration'])) < 0.15 and int(v['nb_read_frames']) >= 25 * 7, (v['duration'], a['duration'], v['nb_read_frames'])
-    step(f"Record program at 25: a normal MP4 (not fragmented), H.264 at exactly {v['avg_frame_rate']}, {v['nb_read_frames']} frames, {v['width']}x{v['height']}; sound ({a['codec_name']}) {a['duration']} s, picture {v['duration']} s; settings fixed while it ran")
+    step(f"Record program at 25: a normal MP4 (not fragmented), H.264 at exactly {v['avg_frame_rate']}, {v['nb_read_frames']} frames, {v['width']}x{v['height']}; the sound engine stopped 1.5 s in the middle and the gap was filled ({fx['gapMs']} ms), so sound ({a['codec_name']}) {a['duration']} s, picture {v['duration']} s; settings fixed while it ran")
 
     host.select_option('#outFps', '29.97'); host.select_option('#outSize', '1080')
     host.evaluate("window.requestAnimationFrame = () => 0")   # (what a hidden or covered window gets: no animation frames)

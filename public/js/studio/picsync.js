@@ -6,7 +6,7 @@ import { bgInterval } from '/js/bgclock.js';
 import { DEFAULT_LATENCY, PictureDelay, latencyFromCheck, pictureOnset, pick, soundOnset } from '/js/framesync.js';
 import { FrameBuffer, SoundTap, TAP_RATE } from '/js/framebuffer.js';
 import { offsetBetween } from '/js/audiosync.js';
-import { $, EDIT_ONLY, live, note, program } from './core.js';
+import { $, EDIT_ONLY, live, note, player, program } from './core.js';
 import { output } from './clips.js';
 import { progRec } from './switcher.js';
 import { streamOut } from './stream.js';
@@ -175,6 +175,10 @@ export function syncCheck() {
   };
   checking = (async () => {
     const start = performance.now();
+    for (const b of buffers.values()) {
+      b.series = [];
+      b.watching = true;
+    }
     for (let s = 3; s > 0; s--) {
       say(`Sync check: clap once, sharply, where every camera can see your hands. Listening… ${s}`);
       await new Promise((r) => setTimeout(r, 1000));
@@ -219,7 +223,10 @@ export function syncCheck() {
     setTimeout(() => box && (box.hidden = true), 8000);
     renderSync();
     return results;
-  })().finally(() => (checking = null));
+  })().finally(() => {
+    checking = null;
+    for (const b of buffers.values()) b.watching = false;
+  });
   return checking;
 }
 function renderSync() {
@@ -233,6 +240,7 @@ function renderSync() {
 $('#syncBtn')?.addEventListener('click', () => syncCheck());
 window.vmSync = () => ({ P: pictureDelay, check: lastCheck, cams: [...buffers].map(([p, b]) => ({ peer: p, name: live.get(p)?.name, lag: b.lag, spread: b.spread, latency: latencyOf(live.get(p)), frames: b.frames.length, count: b.count, quiet: Math.round(b.silentFor()) })), sound: [...soundOffset].map(([p, ms]) => ({ peer: p, ms: Math.round(ms), delay: syncedSoundDelay(p) })) }); // (tests and diagnostics)
 window.vmSyncCheck = syncCheck;
+window.vmEngine = () => player.ctx; // (tests: the sound engine, to pause it as a device change can)
 window.vmSyncClear = () => localStorage.removeItem(LAT_KEY);
 
 if (!EDIT_ONLY) {

@@ -27,7 +27,7 @@ import { syncedSoundDelay } from './picsync.js';
 // computer's sound, a shared screen, a stereo input and the Clips keep both sides. Balance
 // pans a mono channel and balances a stereo one.
 
-export const mix = { strips: new Map(), bus: null, dest: null, listen: null, meterL: null, meterR: null };
+export const mix = { strips: new Map(), bus: null, dest: null, out: null, listen: null, meterL: null, meterR: null };
 const mixSaved = () => JSON.parse(localStorage.getItem('vm_livemix_' + eventId) || '{}');
 export const MODES = ['afv', 'on', 'off'];
 export const MODE_LABEL = { afv: 'AFV', on: 'ON', off: 'OFF' };
@@ -80,6 +80,7 @@ export function mixInit() {
   mix.bus.connect(mix.ftb);
   mix.ftb.connect(lim);
   lim.connect(mix.dest);
+  mix.out = lim; // (the program's sound, for Record program's tap on the sound thread)
   lim.connect(mix.listen).connect(ctx.destination);
   [mix.meterL, mix.meterR] = stereoMeters(ctx, lim);
   mix.spec = ctx.createAnalyser(); // for the audio console's spectrum

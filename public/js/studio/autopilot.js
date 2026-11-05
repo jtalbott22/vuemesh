@@ -373,7 +373,7 @@ function startProgramRecorder(tracks, saved) {
     const support = await programRecorderSupport(program.width, program.height, output.fps);
     if (support && !asked) {
       const r = new ProgramRecorder({
-        canvas: program, audioTrack: tracks[1], fps: output.fps, support, sampleRate: player.ctx.sampleRate,
+        canvas: program, audioTrack: tracks[1], fps: output.fps, support, sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
         name: `${eventId}-${Math.round(Date.now())}.mp4`,
         onError: (e) => {
           note(`Program recording stopped: the encoder failed (${e?.message || e}); what was recorded is saved`);
