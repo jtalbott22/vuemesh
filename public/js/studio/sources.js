@@ -58,11 +58,23 @@ function soundFor(cam, devs) {
     null
   );
 }
+// Which microphone a camera here takes its sound from, once chosen in the mixer (Sound from):
+// kept per camera on this computer, and used whenever that camera is added again.
+const CAMSOUND_KEY = 'vm_camsound';
+const camSoundSaved = () => {
+  try {
+    return JSON.parse(localStorage.getItem(CAMSOUND_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
 async function addLocalSource(kind, deviceId, name, quiet, micId) {
   if (kind === 'cam' && micId === undefined) {
     const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
     const cam = devs.find((d) => d.deviceId === deviceId);
-    micId = cam ? soundFor(cam, devs)?.deviceId || null : null;
+    const chosen = camSoundSaved()[deviceId];
+    const kept = chosen && (chosen.micId === null ? { deviceId: null } : devs.find((d) => d.kind === 'audioinput' && (d.deviceId === chosen.micId || (chosen.label && cleanLabel(d.label) === chosen.label))));
+    micId = kept ? kept.deviceId : cam ? soundFor(cam, devs)?.deviceId || null : null;
   }
   const constraints = kind === 'mic'
     ? { audio: { deviceId: { exact: deviceId }, ...MIC_OPTS } }
@@ -111,8 +123,54 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   else localRecFollow();
   note(`${label} added from this computer${micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : kind === 'cam' ? ', without sound' : ''}`);
   if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ' (recording)' : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`);
+  refreshLocalMics(); // (the microphones' names, now the browser has said yes)
   return peer;
 }
+/** A camera here takes its sound from another microphone (or none): from the mixer's Sound from. Kept for that camera. */
+export async function setLocalSound(peer, micId) {
+  const l = live.get(peer);
+  if (!l?.local || l.role === 'mic' || l.screen) return;
+  let track = null;
+  if (micId) {
+    try {
+      track = (await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: micId }, ...MIC_OPTS } })).getAudioTracks()[0];
+    } catch (e) {
+      return void toast(`That microphone wouldn't open (${e.message})`);
+    }
+  }
+  if (live.get(peer) !== l) return void track?.stop();
+  const was = l.micLabel;
+  for (const t of l.stream.getAudioTracks()) {
+    l.stream.removeTrack(t);
+    t.stop();
+  }
+  if (track) {
+    l.stream.addTrack(track);
+    watchLocal(peer, track, 'sound');
+  }
+  l.micId = track ? micId : null;
+  l.micLabel = track ? cleanLabel(track.label) : null;
+  const all = camSoundSaved();
+  all[l.deviceId] = { micId: l.micId, label: l.micLabel };
+  localStorage.setItem(CAMSOUND_KEY, JSON.stringify(all));
+  if (l.recorder) {
+    stopLocalRec(peer, true); // (its recording so far, with the old sound; the next has the new)
+    localRecFollow();
+  }
+  mixAttach(peer);
+  saveLocalList();
+  renderMixer();
+  note(`${l.name}: sound from ${l.micLabel || 'nothing'}${was ? ` (was ${was})` : ''}`);
+}
+/** The microphones on this computer, for Sound from (labels, once the browser has said yes). */
+export let localMics = [];
+export async function refreshLocalMics() {
+  const devs = await navigator.mediaDevices?.enumerateDevices?.().catch(() => []) || [];
+  localMics = devs.filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'communications' && d.deviceId !== 'default' && d.label).map((d) => ({ id: d.deviceId, label: cleanLabel(d.label) }));
+  renderMixer();
+}
+navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshLocalMics());
+
 // ---- a device that stops is opened again ----------------------------------------------------
 // Try it again at once and then for half a minute (sooner when the computer says a device was
 // plugged in), the source kept in the show meanwhile (the sound watch says the sound has stopped);
