@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.61.3 — a shared screen that's sharp, light, and stays on air
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (an 8-core iMac, 2560x1440 at 2x, sharing its screen): the screen on air kept going to the break slate, the studio lagged while it was shared, the screen looked pixelated in Program, and Record program's first seconds were frozen.
+
+- **A still screen isn't a dropped camera:** a screen shared on this computer sends a picture only when something on it changes, so a slide held for 1.5 s looked like a camera that had stopped, and the break slate went up (the log had 66 s of "stopped sending" from a screen that was fine). While it's still being shared, it's on air; it's no longer logged as stopped either. Off air by mistake, it also wasn't recorded for Edit (its clip was 0 MB).
+- **Captured at most 1080p:** the browser captured the screen at its full size (5120x2880 on that iMac), and every frame was copied and shrunk 4x on the page, which was slow and made text jagged, and recorded on air at that size. Now the browser shrinks it as it captures (smoothly), marked as detail so text stays sharp, and what's left is shrunk smoothly too.
+- **Record program starts its encoder first:** starting the graphics card's encoder took 4.5 s, and every frame meanwhile was skipped (141). One throwaway frame goes through it before the recording's clock starts (at most 8 s), and the program's clip in Edit starts at the recording's real first frame.
+
 ## 0.61.1 — the phone remote from a home screen
 **Deploy:** `./aws/deploy.sh` (site only; it now uploads `remote.webmanifest` too).
 

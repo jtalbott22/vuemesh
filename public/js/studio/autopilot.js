@@ -311,9 +311,10 @@ export function toggleProgramRecording() {
     const mime = blob.type || rec.mimeType;
     if (!KIOSK && !ap?.handsFree) download(blob, `${ev.title}-live`); // (hands-free: it's kept here and in Media, no download)
     // ...and keep a copy in this browser too
-    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0: startedAt, t1: now(), mime, blob }).catch(() => {});
+    const t0 = rec.t0 ?? startedAt; // (its first frame: the steady recorder starts once its encoder is ready)
+    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0, t1: now(), mime, blob }).catch(() => {});
     // ...and in Edit's Media, on the cameras' clock: everything that aired, to use by hand
-    const pmeta = { id: 'PGM-' + Math.round(startedAt), kind: 'video', mime, cid: 'PGM', name: 'Program (as aired)', t0: startedAt - LIVE_DELAY, dur: Math.round(now() - startedAt), w: program.width, h: program.height, local: true, program: true, t0Source: 'studio', native: true, audio: 'stereo', orient: [{ t: 0, rot: 0, rect: null, upright: program.width >= program.height ? 'landscape' : 'portrait', ev: 0, ct: 0 }] };
+    const pmeta = { id: 'PGM-' + Math.round(startedAt), kind: 'video', mime, cid: 'PGM', name: 'Program (as aired)', t0: t0 - LIVE_DELAY, dur: Math.round(now() - t0), w: program.width, h: program.height, local: true, program: true, t0Source: 'studio', native: true, audio: 'stereo', orient: [{ t: 0, rot: 0, rect: null, upright: program.width >= program.height ? 'landscape' : 'portrait', ev: 0, ct: 0 }] };
     idb.put('clips', { eventId, ...pmeta, receivedAt: Date.now(), blob }).then(() => addClip({ eventId, ...pmeta, receivedAt: Date.now() }, blob, true)).catch(() => {});
     flushRecordings('Record program ended');
     stopPieces();
@@ -387,6 +388,7 @@ function startProgramRecorder(tracks, saved) {
         await r.start();
         cfr = r;
         frameSinks.add(sink);
+        rec.t0 = now(); // (the file's zero: its first frame is the next one drawn)
         note(`Recording the program at a steady ${output.fps} frames a second, ${program.width}x${program.height} (${support.video.label}, ${support.audio.label}, MP4)`);
         if (asked) finishSteady();
         return;

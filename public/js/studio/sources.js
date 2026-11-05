@@ -533,10 +533,15 @@ export function flushRecordings(why) {
 // shares it; "This computer's sound" keeps just the sound, as a microphone. Which sound the
 // browser can share: Windows and ChromeOS, the whole computer's (pick Entire screen, tick
 // Share system audio); Mac, a Chrome tab's (pick the tab, tick Share tab audio).
+// At most 1080p: left to itself the browser captures a screen at its full size (a Retina iMac's
+// is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow, and the
+// text came out jagged) and recorded on air at full size (the computer's whole effort). The
+// browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
+const SCREEN_MAX = { width: 1920, height: 1080 };
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: SCREEN_MAX.width }, height: { max: SCREEN_MAX.height }, frameRate: { ideal: 30 } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -552,6 +557,9 @@ async function addScreenSource(soundOnly) {
     return registerLocal('mic', new MediaStream([a]), { deviceId: 'sound-' + n, screen: true, label: 'Computer sound' });
   }
   const v = stream.getVideoTracks()[0];
+  try {
+    v.contentHint = 'detail';
+  } catch {}
   const surface = v.getSettings?.().displaySurface;
   const label = surface === 'monitor' ? 'Screen' : surface === 'browser' ? 'Browser tab' : cleanLabel(v.label) || 'Window';
   return registerLocal('cam', stream, { deviceId: 'screen-' + n, screen: true, label: `${label}${stream.getAudioTracks().length ? '' : ''}` });
