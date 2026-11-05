@@ -1,8 +1,8 @@
 # The show log and the sound watch, with a camera and a microphone on the studio computer:
 # every second is logged (program frame rate, sound, each source's sound and frames, the mic a
 # camera's sound comes from), and Monitor draws the last ten minutes. When the microphone lets
-# go of its sound (as a USB interface does when it drops out: the studio takes it as unplugged
-# and it leaves the show) with the camera's own sound off by hand, the studio says so over the program and on the phone remote, and offers the camera's sound
+# go of its sound for good (a USB interface that drops out and doesn't come back: the studio
+# keeps trying to open it again) with the camera's own sound off by hand, the studio says so over the program and on the phone remote, and offers the camera's sound
 # instead; turning it on clears the program alert. Save show log makes one file with all of
 # it, and the log of an earlier studio session is still there in Monitor after a reload.
 # Run: node dev/server.mjs &  then  python3 test/e2e_showlog.py
@@ -53,11 +53,14 @@ with sync_playwright() as p:
     # microphone lets go of its sound, with nothing else in the mix
     for _ in range(3):   # (Shift+1: AFV, ON, OFF; set by hand, it stays off after the mic goes)
         host.keyboard.press('Shift+Digit1'); time.sleep(0.2)
-    assert host.evaluate("vmNotes()")[0].endswith('sound: OFF'), host.evaluate("vmNotes()")[:2]
+    notes = host.evaluate("vmNotes()")[:6]
+    assert next(n for n in notes if 'sound: ' in n).endswith('sound: OFF'), notes
+    # (and it's really gone: opening it again fails, so the studio keeps trying while the alerts say so)
+    host.evaluate("() => { navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Requested device not found', 'NotFoundError'); }; }")
     host.evaluate(f"vmEndSound('{mic['id']}')")
     host.wait_for_selector('#soundAlert:not([hidden])', timeout=5000)
     first = host.inner_text('#soundAlert')
-    assert 'left the show while its sound was in the program' in first, first
+    assert 'its sound stopped' in first, first
     host.wait_for_function("document.querySelector('#soundAlert').textContent.includes('The program has no sound')", timeout=8000)
     rs = host.evaluate('vmRemoteState()')
     assert any(a['kind'] == 'program-silent' for a in rs['alerts']) and any(x['peer'] == cam['id'] for x in rs['backups']), rs
@@ -77,7 +80,7 @@ with sync_playwright() as p:
     f = json.load(open(dl.value.path()))
     lines = '\n'.join(f['summary']['lines'])
     assert f['kind'] == 'vuemesh-showlog' and f['eventId'] == ev['id'] and len(f['rows']) >= 8 and f['device']['browser'], list(f)
-    assert 'left the show while its sound was in the program' in lines and 'The program has no sound (for' in lines, lines
+    assert 'its sound stopped' in lines and 'The program has no sound (for' in lines, lines
     step(f"Save show log: {dl.value.suggested_filename}, {len(f['rows'])} seconds and {len(f['events'])} events, its summary saying what happened:\n      " + '\n      '.join(f['summary']['lines']))
 
     # the studio reopens: the earlier session is still kept, and Monitor saves it

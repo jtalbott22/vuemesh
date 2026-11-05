@@ -98,7 +98,10 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   const micTrack = kind === 'cam' ? stream.getAudioTracks()[0] : null;
   live.set(peer, { stream, role: kind, name: name || label, cid, local: true, screen: !!screen, deviceId, deviceLabel: label, micId: micTrack ? micId : null, micLabel: micTrack ? cleanLabel(micTrack.label) : null, route: 'local', fixed: true, joinedAt: Date.now() });
   if (kind !== 'mic') noteAngle(cid);
-  track.addEventListener('ended', () => removeLocalSource(peer, 'unplugged'));
+  // a device that stops (a USB interface dropping out, a camera's driver hiccuping) is opened
+  // again into the same source, so its mixer channel, sound mode and recording carry on
+  watchLocal(peer, track, 'main');
+  if (micTrack) watchLocal(peer, micTrack, 'sound');
   mixAttach(peer);
   if (kind === 'cam') localCamState(peer);
   renderLive();
@@ -110,9 +113,99 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ' (recording)' : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`);
   return peer;
 }
+// ---- a device that stops is opened again ----------------------------------------------------
+// Try it again at once and then for half a minute (sooner when the computer says a device was
+// plugged in), the source kept in the show meanwhile (the sound watch says the sound has stopped);
+// opened, the new track takes the old one's place. Only if it doesn't come back does the source go.
+const REOPEN_MS = 30_000;
+const REOPEN_AT = [300, 1000, 2000, 3500, 5500, 8000, 12000, 17000, 23000, 30000];
+const reopenWake = new Set(); // (a device was plugged in: try now)
+function watchLocal(peer, track, part) {
+  track.addEventListener('ended', () => {
+    const l = live.get(peer);
+    if (!l || l.removing || !l.stream.getTracks().includes(track)) return;
+    reopenLocal(peer, part, track);
+  });
+}
+async function reopenLocal(peer, part, old) {
+  const l = live.get(peer);
+  l.reopening ||= {};
+  if (l.reopening[part]) return;
+  const since = Date.now();
+  l.reopening[part] = since;
+  const what = part === 'sound' ? `${l.name}'s sound (${l.micLabel || 'its microphone'})` : l.name;
+  note(`${what}: the device stopped; opening it again`);
+  if (l.role === 'mic') stopLocalRec(peer, true);
+  renderLive();
+  const kind = part === 'sound' ? 'mic' : l.role;
+  const id = part === 'sound' ? l.micId : l.deviceId;
+  const label = part === 'sound' ? l.micLabel : l.deviceLabel;
+  for (const at of REOPEN_AT) {
+    const wait = since + at - Date.now();
+    if (wait > 0) {
+      let wake;
+      await new Promise((r) => {
+        const t = setTimeout(r, wait);
+        wake = () => (clearTimeout(t), r());
+        reopenWake.add(wake);
+      });
+      reopenWake.delete(wake);
+    }
+    if (live.get(peer) !== l || l.removing) return;
+    const track = await openAgain(kind, id, label).catch(() => null);
+    if (!track) continue;
+    if (live.get(peer) !== l) return void track.stop();
+    l.stream.removeTrack(old);
+    l.stream.addTrack(track);
+    if (part === 'sound') l.micLabel = cleanLabel(track.label);
+    watchLocal(peer, track, part);
+    delete l.reopening[part];
+    if (l.video && part === 'main') {
+      l.video.srcObject = l.stream;
+      l.video.play().catch(() => {});
+    }
+    mixAttach(peer);
+    if (l.role === 'mic') !KIOSK && startLocalRec(peer);
+    else localRecFollow();
+    renderLive();
+    renderMixer();
+    const secs = Math.max(1, Math.round((Date.now() - since) / 1000));
+    note(`${what} is back: its device opened again after ${secs} s`);
+    toast(`${what} is back`, 5000);
+    return;
+  }
+  delete l.reopening[part];
+  note(`${what}: its device didn't come back in ${REOPEN_MS / 1000} s`);
+  if (part === 'main') removeLocalSource(peer, 'unplugged');
+  else {
+    l.micId = null;
+    toast(`${l.name} has no sound now: its microphone didn't come back`, 8000);
+    mixAttach(peer);
+    renderMixer();
+  }
+}
+/** The same device as a fresh track: by its id, or (plugged back in somewhere else) by its name. */
+async function openAgain(kind, id, label) {
+  const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+  const want = kind === 'mic' ? 'audioinput' : 'videoinput';
+  const d = devs.find((x) => x.kind === want && x.deviceId === id) || devs.find((x) => x.kind === want && label && cleanLabel(x.label) === label);
+  if (!d) return null;
+  const s = await navigator.mediaDevices.getUserMedia(kind === 'mic'
+    ? { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } }
+    : { video: { deviceId: { exact: d.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } } });
+  return (kind === 'mic' ? s.getAudioTracks() : s.getVideoTracks())[0] || null;
+}
+navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+  const wake = [...reopenWake];
+  reopenWake.clear();
+  wake.forEach((f) => f());
+});
+window.vmReopening = () => [...live].filter(([, l]) => l.reopening && Object.keys(l.reopening).length).map(([p, l]) => ({ peer: p, parts: Object.keys(l.reopening) })); // (tests and diagnostics)
+
 export function removeLocalSource(peer, why) {
   const l = live.get(peer);
   if (!l?.local) return;
+  l.removing = true; // (its tracks ending now is no reason to open it again)
   stopLocalRec(peer, true);
   l.stream.getTracks().forEach((t) => t.stop());
   if (hub?.onLiveEnd) hub.onLiveEnd(peer, why || 'removed');
