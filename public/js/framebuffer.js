@@ -16,10 +16,12 @@ export class FrameBuffer {
    * @param {MediaStreamTrack} track  a live camera (or screen) track
    * @param {object} [o]
    * @param {() => {w:number, h:number}} [o.size]  the program's size (frames are kept at most this big)
+   * @param {'low'|'medium'|'high'} [o.quality]  how smoothly a frame bigger than that is shrunk
    */
   constructor(track, o = {}) {
     this.track = track;
     this.size = o.size || (() => ({ w: 1920, h: 1080 }));
+    this.quality = o.quality || 'medium';
     this.frames = []; // { ts, arr, bmp } oldest first
     this.series = []; // { ts, arr, change } for the last 15 s (the sync check)
     this.lagMin = new WindowMin(5000);
@@ -68,7 +70,7 @@ export class FrameBuffer {
         const { w, h } = this.size();
         const fw = f.displayWidth, fh = f.displayHeight;
         const k = Math.min(1, Math.max(w, h) / Math.max(fw, fh));
-        bmp = await createImageBitmap(f, k < 1 ? { resizeWidth: Math.round(fw * k), resizeHeight: Math.round(fh * k), resizeQuality: 'medium' } : {});
+        bmp = await createImageBitmap(f, k < 1 ? { resizeWidth: Math.round(fw * k), resizeHeight: Math.round(fh * k), resizeQuality: this.quality } : {});
       } catch {
         bmp = null;
       } finally {

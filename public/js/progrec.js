@@ -79,11 +79,25 @@ export class ProgramRecorder {
       this.failed = e;
       this.onError(e);
     };
-    this.venc = new VideoEncoder({ output: (c, m) => this.muxer.addVideoChunk(c, m), error: fail });
+    this.warmOut = 0; // outputs still to come from the warm-up frame (not written)
+    this.venc = new VideoEncoder({
+      output: (c, m) => {
+        if (this.warmOut > 0) {
+          this.warmOut--;
+          this.decoderConfig = m?.decoderConfig || this.decoderConfig; // (the first output carries how to decode the rest)
+          return;
+        }
+        if (this.decoderConfig && !m?.decoderConfig) m = { ...m, decoderConfig: this.decoderConfig };
+        this.decoderConfig = null;
+        this.muxer.addVideoChunk(c, m);
+      },
+      error: fail,
+    });
     const bitrate = this.H >= 1080 ? 10_000_000 : 6_000_000;
     const vcfg = { ...this.support.video.cfg, width: this.W, height: this.H, framerate: this.fps, bitrate };
     if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`can't encode ${this.W}x${this.H} at ${this.fps}`);
     this.venc.configure(vcfg);
+    await this.warmUp();
     this.aenc = new AudioEncoder({ output: (c, m) => this.muxer.addAudioChunk(c, m), error: fail });
     const acfg = { ...this.support.audio.cfg, sampleRate: this.rate, numberOfChannels: 2 };
     if (!(await AudioEncoder.isConfigSupported(acfg)).supported) throw new Error(`can't encode sound at ${this.rate} Hz`);
@@ -99,6 +113,25 @@ export class ProgramRecorder {
       }
     }
     this.pump();
+  }
+
+  /**
+   * One frame through the encoder before the recording's clock starts, not written. Starting a
+   * graphics card's encoder can take seconds (a Mac took 4.5 s, and the camera stalled with it):
+   * started with the recording, every frame meanwhile was skipped (141, a frozen first few
+   * seconds). Now that wait comes before the first frame, at most 8 s.
+   */
+  async warmUp(ms = 8000) {
+    const f = new VideoFrame(this.canvas, { timestamp: 0 });
+    try {
+      this.warmOut = 1;
+      this.venc.encode(f, { keyFrame: true });
+    } finally {
+      f.close();
+    }
+    let timer;
+    await Promise.race([this.venc.flush().catch(() => {}), new Promise((r) => (timer = setTimeout(r, ms)))]);
+    clearTimeout(timer);
   }
 
   /**
