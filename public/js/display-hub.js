@@ -24,6 +24,7 @@
 import { ICE, now } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
 import { bgInterval } from '/js/bgclock.js';
+import { tvLink, adapt } from '/js/tvquality.js';
 
 const newKey = () => {
   const b = new Uint8Array(24);
@@ -31,7 +32,9 @@ const newKey = () => {
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 const PROGRAM_KBPS = 6000; // 1080p30 program on the local network
+const REMOTE_KBPS = 1200; // the phone remote's Program out: half size, enough to see the cut
 export const DISPLAY_MODES = ['program', 'browse', 'beacon', 'idle'];
+const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
 const FILE_CHUNK = 64 * 1024, FILE_HIGH = 4 * 1024 * 1024;
 
 export class DisplayHub {
@@ -46,13 +49,14 @@ export class DisplayHub {
    * @param o.media? () → [{id, name, kind, mime, dur, t0, size}] the recordings a TV can browse
    * @param o.blob? (id) → Blob of one recording
    * @param o.thumb? (id) → a data URL of its picture, or null
+   * @param o.fps? () → the program's frame rate (Output settings)
    */
   constructor(o) {
     Object.assign(this, o);
     this.store = `vm_displays_${o.eventId}`;
     this.keys = new Map(); // key → { name, model, mode, at }
     try {
-      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: DISPLAY_MODES.includes(r.mode) ? r.mode : 'program', pip: !!r.pip, lag: Number.isFinite(r.lag) ? r.lag : null, at: r.at });
+      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: DISPLAY_MODES.includes(r.mode) ? r.mode : 'program', pip: !!r.pip, lag: Number.isFinite(r.lag) ? r.lag : null, at: r.at, ...(r.remote ? { remote: r.remote } : {}) });
     } catch {}
     this.waiting = new Map(); // peer → { name, model, at }
     this.links = new Map(); // peer → { key, pc, ctl, state, tracks, pendingIce, remoteSet, lastSeen }
@@ -87,6 +91,19 @@ export class DisplayHub {
     this.keys.set(key, { name: w.name || 'TV', model: w.model || '', mode: 'program', pip: false, lag: null, at: Date.now() });
     this.save();
     return key;
+  }
+
+  /** A phone remote's own screen (Program out on the remote): let in without Accept, as the remote already was. Same key for the same remote. */
+  trustRemote(remoteKey, name) {
+    for (const [key, k] of this.keys) if (k.remote === remoteKey) return key;
+    const key = newKey();
+    this.keys.set(key, { name: `${name || 'Phone remote'} (Program out)`, model: 'remote', mode: 'program', pip: false, lag: null, at: Date.now(), remote: remoteKey });
+    this.save();
+    return key;
+  }
+  /** A remote removed: its screen goes too. */
+  untrustRemote(remoteKey) {
+    for (const [key, k] of [...this.keys]) if (k.remote === remoteKey) this.remove(key);
   }
 
   /** Forget a TV: it stops showing the program at once and has to be let in again. */
@@ -187,7 +204,7 @@ export class DisplayHub {
     };
     pc.onconnectionstatechange = () => {
       if (this.links.get(peer)?.pc !== pc) return;
-      if (pc.connectionState === 'connected') this.tune(pc);
+      if (pc.connectionState === 'connected') this.tune(pc, l);
       if (pc.connectionState === 'failed') l.state = { status: 'error', detail: 'ice_failed_same_network' };
       this.changed?.();
     };
@@ -214,14 +231,19 @@ export class DisplayHub {
     this.changed?.();
   }
 
-  async tune(pc) {
+  /** The picture's limits for one TV: its bitrate (lowered when it falls behind), the program's frame rate, and half size for a phone remote. */
+  async tune(pc, l) {
+    const remote = !!this.keys.get(l?.key)?.remote;
+    const fps = Math.round(this.fps?.() || 30);
+    l && (l.q ||= tvLink(remote ? REMOTE_KBPS : PROGRAM_KBPS));
     for (const s of pc.getSenders()) {
       if (s.track?.kind !== 'video') continue;
       try {
         const p = s.getParameters();
         p.encodings = p.encodings?.length ? p.encodings : [{}];
-        p.encodings[0].maxBitrate = PROGRAM_KBPS * 1000;
-        p.encodings[0].maxFramerate = 30;
+        p.encodings[0].maxBitrate = (l?.q?.cap || PROGRAM_KBPS) * 1000;
+        p.encodings[0].maxFramerate = fps;
+        if (remote) p.encodings[0].scaleResolutionDownBy = 2;
         await s.setParameters(p);
       } catch {}
     }
@@ -235,7 +257,7 @@ export class DisplayHub {
   async applyTracks(l) {
     if (!l?.pc) return;
     const k = this.keys.get(l.key) || {}, mode = k.mode || 'program';
-    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' };
+    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' && !k.remote }; // (a phone remote: the picture only, so it can't echo into the room)
     for (const tr of l.pc.getTransceivers()) {
       const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
       if (!kind) continue;
@@ -252,6 +274,21 @@ export class DisplayHub {
     }
     // the TV asked for a mode, or PIP, from its own remote
     if (m.t === 'want') return this.setMode(l.key, DISPLAY_MODES.includes(m.mode) ? m.mode : this.modeOf(l), m.pip);
+    // what the TV is getting, every few seconds: lower its bitrate if it's falling behind (tvquality.js)
+    if (m.t === 'quality') {
+      const q = { fps: num(m.fps), secs: num(m.secs) || 5, freezes: num(m.freezes) || 0, freezeMs: num(m.freezeMs) || 0, dropped: num(m.dropped) || 0, lost: num(m.lost) || 0, w: num(m.w), h: num(m.h), at: Date.now() };
+      l.rx = q;
+      l.q ||= tvLink(this.keys.get(l.key)?.remote ? REMOTE_KBPS : PROGRAM_KBPS);
+      // (judged against what's being sent it, not the program's rate: a slow camera isn't the TV's fault)
+      const r = adapt(l.q, q, l.sentFps || this.fps?.() || 30);
+      const name = this.keys.get(l.key)?.name || 'A TV';
+      if (q.freezes) this.note?.(`${name} froze ${q.freezes} time${q.freezes === 1 ? '' : 's'} (${Math.round(q.freezeMs)} ms) in the last ${q.secs} s`);
+      if (r.changed) {
+        this.note?.(r.changed === 'down' ? `${name} is falling behind (${q.fps ?? '?'} frames a second): its picture down to ${(r.cap / 1000).toFixed(1)} Mbps` : `${name} is steady: its picture back up to ${(r.cap / 1000).toFixed(1)} Mbps`);
+        if (l.pc) this.tune(l.pc, l);
+      }
+      return;
+    }
     if (m.t === 'list') return this.sendList(peer);
     if (m.t === 'get') return this.sendFile(peer, l, String(m.id || ''));
     if (m.t === 'cancel') l.sending = null;
@@ -382,7 +419,7 @@ export class DisplayHub {
     const out = [];
     for (const [, l] of this.links) {
       if (!l.pc) continue;
-      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null };
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, remote: !!this.keys.get(l.key)?.remote, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null, cap: l.q?.cap || null, rx: l.rx && Date.now() - l.rx.at < 15000 ? { fps: l.rx.fps, freezes: l.rx.freezes, dropped: l.rx.dropped, w: l.rx.w, h: l.rx.h } : null };
       try {
         const st = await l.pc.getStats(), now = performance.now();
         let bytes = 0;
@@ -394,6 +431,7 @@ export class DisplayHub {
             r.w = x.frameWidth || null;
             r.h = x.frameHeight || null;
             r.fps = x.framesPerSecond != null ? Math.round(x.framesPerSecond) : null;
+            if (r.fps) l.sentFps = r.fps;
             r.lim = x.qualityLimitationReason && x.qualityLimitationReason !== 'none' ? x.qualityLimitationReason : null; // (cpu, bandwidth)
             const c = x.codecId && st.get(x.codecId);
             if (c) r.codec = c.mimeType?.split('/')[1] || null;
@@ -412,6 +450,7 @@ export class DisplayHub {
   list() {
     const out = [];
     for (const [key, k] of this.keys) {
+      if (k.remote) continue; // (a phone remote's Program out isn't a TV screen)
       const link = [...this.links.values()].find((l) => l.key === key);
       out.push({ key, name: k.name, model: k.model, mode: k.mode || 'program', pip: !!k.pip, lag: k.lag ?? null, connected: link?.pc?.connectionState === 'connected', status: link ? link.state?.status || 'joining' : 'away', detail: link?.state?.detail || '' });
     }

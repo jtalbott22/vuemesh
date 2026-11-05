@@ -18,7 +18,9 @@
 //         arrival, ms), sp (how much later than that its frames come, ms), held (stopped sending: its last
 //         picture held), sd (how long its sound waits, ms), and from a phone's link every few
 //         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
-//   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back)
+//   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back), cap
+//         (its bitrate cap, kbps), and what it says it gets: rfps (frames shown a second), frz
+//         (freezes), drop (frames dropped), remote (a phone remote's Program out)
 //   pd    the program's picture delay: every camera here shows the moment this long ago (ms)
 //   dup   frames the studio was too late to draw that second (the same picture again)
 //   rs    Record program: frames written, dropped (skipped), queue (the encoder's), drift (sound minus picture, ms)
@@ -155,6 +157,21 @@ export function summarize(rows, events = [], target = 30) {
     out.lines.push(`  ${clock(a.t)} ${a.text} (${clear ? `for ${mmss(clear.t - a.t)}` : 'until the end of the log'})`);
   }
   if (alerts.length > 12) out.lines.push(`  and ${alerts.length - 12} more.`);
+  // TVs: what each said it got
+  const tvs = new Map();
+  for (const r of rows) for (const t of r.tv || []) {
+    if (t.rfps == null) continue;
+    const a = tvs.get(t.n) || { n: t.n, sum: 0, k: 0, frz: 0, low: Infinity };
+    a.sum += t.rfps;
+    a.k++;
+    a.frz += t.frz || 0;
+    if (t.cap) a.low = Math.min(a.low, t.cap);
+    tvs.set(t.n, a);
+  }
+  for (const [, a] of tvs) {
+    const avg = Math.round((a.sum / a.k) * 10) / 10;
+    if (avg < target * 0.9 || a.frz) out.lines.push(`${a.n} showed ${avg} frames a second on average${a.frz ? `, froze ${a.frz} time(s)` : ''}${Number.isFinite(a.low) ? `; its picture went as low as ${(a.low / 1000).toFixed(1)} Mbps` : ''}.`);
+  }
   // one timeline: the picture delay every camera here was held to, and cameras that stalled or slowed
   const pds = rows.map((r) => r.pd).filter((x) => typeof x === 'number');
   if (pds.length) out.lines.push(`Pictures from this computer's cameras were held to ${Math.min(...pds) === Math.max(...pds) ? `${pds[0]} ms` : `${Math.min(...pds)} to ${Math.max(...pds)} ms`} behind the moment${events.some((e) => e.kind === 'sync-check') ? ' (sync checked)' : ' (no sync check: each camera at a usual figure)'}.`);

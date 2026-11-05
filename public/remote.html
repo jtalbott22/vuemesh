@@ -34,6 +34,13 @@
   .say.err { color: #ff8a80; }
   .status { display: flex; align-items: center; gap: 10px; background: #000; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; border: 2px solid var(--line); }
   .status.air { border-color: var(--tally); }
+  /* Program out: what's on air, from the studio, above the cameras */
+  .pgm { position: relative; background: #000; border: 2px solid var(--tally); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; margin: 0 0 8px; }
+  .pgm[hidden] { display: none; }
+  .pgm video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .pgm .pgmsay { position: absolute; inset: auto 8px 8px 8px; color: var(--dim); font-size: .85rem; text-align: center; }
+  .pgmtgl { min-height: 36px; padding: 6px; font-size: .9rem; margin: 0 0 8px; }
+  .pgmtgl[hidden] { display: none; }
   /* a sound alert from the studio: the program or a source in it has no sound */
   .alert { background: var(--tally); color: #fff; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; font-weight: 700; }
   .alert[hidden] { display: none; }
@@ -96,6 +103,11 @@
   <section id="ctlView" hidden aria-label="The show">
     <div class="status" id="status"><span class="big" id="onAir">Waiting for the studio…</span><span class="rec" id="recTime" hidden></span></div>
     <div class="alert" id="alert" role="alert" hidden></div>
+    <div class="pgm" id="pgmBox" hidden>
+      <video id="pgm" muted playsinline autoplay aria-label="Program out: what's on air"></video>
+      <span class="pgmsay" id="pgmSay"></span>
+    </div>
+    <button type="button" class="pgmtgl" id="pgmTgl" aria-pressed="true" hidden>Program out</button>
     <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
     <p class="fine" id="noCams" hidden>No cameras yet.</p>
     <h2 class="sub" id="soundH" hidden>Sound</h2>

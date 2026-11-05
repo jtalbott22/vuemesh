@@ -2,6 +2,7 @@
 // then shows what's on air and the cameras, and sends the studio commands with this phone's own
 // session key (kept on this phone for this show, so it carries on after a reload). The studio
 // checks every command; see remote-host.js.
+import { ProgramView } from '/js/pgmview.js';
 import { meshSocket } from '/js/vm.js';
 
 const $ = (s) => document.querySelector(s);
@@ -55,6 +56,10 @@ function connect() {
 
 function onMessage(m) {
   if (!m) return;
+  if (m.t === 'paired' || m.t === 'tv') {
+    if (m.tv) startProgram(m.tv);
+    if (m.t === 'tv') return;
+  }
   if (m.t === 'paired') {
     key = m.key;
     localStorage.setItem(keyStore(eventId), key);
@@ -67,6 +72,9 @@ function onMessage(m) {
     say(m.why || "The studio didn't accept that code", true);
     $('#pairBtn').disabled = false;
   } else if (m.t === 'removed') {
+    pgm?.stop();
+    pgm = null;
+    $('#pgmBox').hidden = $('#pgmTgl').hidden = true;
     key = null;
     localStorage.removeItem(keyStore(eventId));
     showPairing();
@@ -86,6 +94,31 @@ function onMessage(m) {
     toast(m.why || "The studio couldn't do that");
   }
 }
+
+// Program out: what's on air, right above the cameras (its own link from the studio; off to save battery)
+let pgm = null, pgmKey = null;
+const pgmOn = () => localStorage.getItem('vm_remote_pgm') !== '0';
+function startProgram(tvKey) {
+  pgmKey = tvKey;
+  $('#pgmTgl').hidden = false;
+  $('#pgmTgl').setAttribute('aria-pressed', String(pgmOn()));
+  $('#pgmBox').hidden = !pgmOn();
+  if (!pgmOn() || pgm?.key === tvKey) return;
+  pgm?.stop();
+  pgm = new ProgramView({ eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t) });
+}
+$('#pgmTgl').onclick = () => {
+  const on = !pgmOn();
+  localStorage.setItem('vm_remote_pgm', on ? '1' : '0');
+  if (!on) {
+    pgm?.stop();
+    pgm = null;
+  }
+  $('#pgmTgl').setAttribute('aria-pressed', String(on));
+  $('#pgmBox').hidden = !on;
+  if (on && pgmKey) startProgram(pgmKey);
+};
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight }; // (tests)
 
 function showPairing() {
   $('#pairView').hidden = false;

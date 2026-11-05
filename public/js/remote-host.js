@@ -28,6 +28,8 @@ export class RemoteHost {
    * @param o.thumbs () → [{ peer, video }] for the cameras' pictures
    * @param o.changed () → the paired list or the pairing changed (redraw the studio's panel)
    * @param o.note (text) → a line in the studio's event log
+   * @param o.tvKey? (remoteKey, name) → a screen key for the remote's Program out (a TV link it can open)
+   * @param o.untrust? (remoteKey) → that remote was removed: its screen goes too
    */
   constructor(o) {
     Object.assign(this, o);
@@ -83,6 +85,7 @@ export class RemoteHost {
     }
     const name = this.keys.get(key)?.name;
     this.keys.delete(key);
+    this.untrust?.(key);
     this.save();
     this.note?.(`${name || 'A phone'} is no longer a remote`);
     this.changed?.();
@@ -117,7 +120,7 @@ export class RemoteHost {
       this.bound.set(peer, { key, visible: true });
       this.pairing = null;
       this.lastState = '';
-      reply({ t: 'paired', key, name });
+      reply({ t: 'paired', key, name, tv: this.tvKey?.(key, name) || null });
       this.note?.(`${name} is now a remote for this show`);
       this.changed?.();
       this.push(true);
@@ -133,6 +136,7 @@ export class RemoteHost {
     }
     const b = this.bound.get(peer);
     if (m.t === 'resume') {
+      reply({ t: 'tv', tv: this.tvKey?.(m.key, this.keys.get(m.key)?.name) || null });
       this.lastState = '';
       this.push(true);
       this.pushThumbs(true);
