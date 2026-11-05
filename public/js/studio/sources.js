@@ -44,18 +44,26 @@ function saveLocalList() {
 // device (a USB webcam's own mic, which the browser groups with it), else one whose name
 // matches, else the computer's own microphone (a built-in camera like the FaceTime camera has
 // no mic of its own). The picker shows which, and it can be changed or turned off.
+// Always a microphone by name, never the computer's "Default": that follows whatever was plugged
+// in last, so a USB interface plugged in mid-show became the webcam's sound behind its back (and
+// on Linux, two inputs of one interface open at once leaves one silent: see sharedInterface).
 const MIC_OPTS = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } };
 function soundFor(cam, devs) {
   const mics = devs.filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'communications');
   const real = mics.filter((d) => d.deviceId !== 'default');
   const words = (s) => cleanLabel(s).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !['camera', 'microphone', 'audio', 'video', 'webcam', 'usb', 'default'].includes(w));
   const camWords = words(cam.label);
+  // the device "Default" is right now, where the browser says (a Mac and Windows: "Default - MacBook Pro Microphone"; Linux doesn't)
+  const def = mics.find((m) => m.deviceId === 'default');
+  const defLabel = def && cleanLabel(def.label);
+  const isDefault = def && real.find((m) => (defLabel && defLabel !== 'Default' && cleanLabel(m.label) === defLabel) || (def.groupId && m.groupId === def.groupId));
   return (
     real.find((m) => cam.groupId && m.groupId === cam.groupId) ||
     real.find((m) => camWords.length && words(m.label).some((w) => camWords.includes(w))) ||
-    mics.find((m) => m.deviceId === 'default') ||
+    isDefault ||
     real.find((m) => /built-?in|internal|macbook/i.test(m.label)) ||
     real[0] ||
+    def ||
     null
   );
 }
@@ -155,6 +163,7 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ' (recording)' : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`);
   refreshLocalMics(); // (the microphones' names, now the browser has said yes)
   checkRate(peer);
+  sharedInterface(peer);
   renderCamCapture();
   return peer;
 }
@@ -171,6 +180,30 @@ function checkRate(peer) {
   rateWarned.add(label);
   note(`${label} is at ${rate} Hz, the studio's sound at ${engine} Hz`);
   toast(`${label} runs at ${rate / 1000} kHz and the studio at ${engine / 1000} kHz. If it crackles, set it to ${engine / 1000} kHz in its own app and in Windows' sound settings.`, 12000);
+}
+// Two inputs of one audio interface open at once (a Scarlett's Input 1 and Input 2, which Linux
+// lists as two microphones): Chrome on Linux reads only one of them, and the other gets no sound
+// at all (measured with a Scarlett 2i2 4th Gen: the one opened first went silent, its sound piled
+// up for 10 s and was thrown away). The same input twice is fine (Chrome shares it), and so are
+// two separate devices. Said once for each pair, here and in the show log.
+const sharedWarned = new Set();
+export function sharedInterface(peer) {
+  if (myOs !== 'linux') return;
+  const inputs = (l) => (l?.local ? l.stream.getAudioTracks().filter((t) => t.readyState === 'live').map((t) => ({ t, s: t.getSettings?.() || {} })) : []);
+  for (const { t, s } of inputs(live.get(peer))) {
+    if (!s.groupId || !s.deviceId || s.deviceId === 'default') continue;
+    for (const [p2, l2] of live) {
+      if (p2 === peer) continue;
+      const o = inputs(l2).find((x) => x.s.groupId === s.groupId && x.s.deviceId && x.s.deviceId !== 'default' && x.s.deviceId !== s.deviceId);
+      if (!o) continue;
+      const key = [s.deviceId, o.s.deviceId].sort().join('|');
+      if (sharedWarned.has(key)) continue;
+      sharedWarned.add(key);
+      const a = cleanLabel(o.t.label), b = cleanLabel(t.label);
+      note(`${a} and ${b} are two inputs of one interface: Chrome on Linux hears only one of them at a time`);
+      toast(`${a} and ${b} are two inputs of one interface. Chrome on Linux hears only one of them at a time: the other goes silent. Keep one, or set the interface to Pro Audio in the computer's sound settings and add it once (both inputs come in together, Input 1 on the left).`, 15000);
+    }
+  }
 }
 
 /** A camera here takes its sound from another microphone (or none): from the mixer's Sound from. Kept for that camera. */
@@ -208,6 +241,7 @@ export async function setLocalSound(peer, micId) {
   saveLocalList();
   renderMixer();
   note(`${l.name}: sound from ${l.micLabel || 'nothing'}${was ? ` (was ${was})` : ''}`);
+  sharedInterface(peer);
 }
 /** The microphones on this computer, for Sound from (labels, once the browser has said yes). */
 export let localMics = [];
@@ -663,7 +697,8 @@ setTimeout(async () => {
     }
     let micId;
     if (s.kind === 'cam' && s.sound === false) micId = null;
-    else if (s.kind === 'cam' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
+    // (a camera saved with "Default" as its sound, from before: it picks a microphone by name again)
+    else if (s.kind === 'cam' && s.micId !== 'default' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
     await addLocalSource(s.kind, same.deviceId, s.name, true, micId).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
   }
   if (saved.some((s) => (s.kind === 'mic' ? mic : cam) !== 'granted')) toast('This computer\u2019s cameras and microphones are off until you allow them: + This computer', 7000);
