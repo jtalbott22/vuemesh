@@ -9,6 +9,7 @@
 // sends {remote: {t: 'pair' | 'resume' | 'do' | 'vis', ...}}; the studio answers with 'paired' or
 // 'denied', and sends 'state' (what's on air, the cameras) and, while the remote is open and on
 // screen, a small picture of each camera every few seconds ('thumb').
+import { bgInterval, bgTimeout } from '/js/bgclock.js';
 
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // (no 0/O, 1/I/L: read off a screen)
 const rand = (n, chars = CODE_CHARS) => {
@@ -41,8 +42,9 @@ export class RemoteHost {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 192;
     this.canvas.height = 108;
-    setInterval(() => this.push(), 1000);
-    setInterval(() => this.pushThumbs(), THUMB_MS);
+    // (on the worker clock: the remote keeps up while the studio is hidden behind a slideshow)
+    bgInterval(() => this.push(), 1000);
+    bgInterval(() => this.pushThumbs(), THUMB_MS);
   }
 
   save() {
@@ -141,7 +143,7 @@ export class RemoteHost {
       const why = this.act(String(m.a || ''), m.arg);
       reply({ t: 'done', a: m.a, ok: !why, why: why || '' });
       this.lastState = '';
-      setTimeout(() => this.push(), 150);
+      bgTimeout(() => this.push(), 150);
     }
   }
 

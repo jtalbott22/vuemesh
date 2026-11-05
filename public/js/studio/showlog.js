@@ -1,16 +1,21 @@
-// Studio, part 24 of 24: the show log and the sound watch.
+// Studio, part 24 of 25: the show log and the sound watch.
 // Loads after screens.js: that import comes first, so the parts run in order (see ../studio.js).
 import './screens.js';
 import { toast, esc } from '/js/vm.js';
 import { APP_VERSION } from '/js/brand.js';
 import * as idb from '/js/idb.js';
 import { ShowLog, SoundWatch, dbOf, joinChunks } from '/js/showlog.js';
-import { $, EDIT_ONLY, black, ev, eventId, help, hub, isHost, live, liveActive, log, orientation, player, sock } from './core.js';
+import {
+  $, black, EDIT_ONLY, ev, eventId, help, hub, isHost, live, liveActive, log, orientation, player,
+  program, sock,
+} from './core.js';
 import { mix, setStripMode } from './mixer.js';
 import { streamOut } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { progFrames, progRec, reelOf, stalled } from './switcher.js';
 import { displayHub, remoteHost } from './screens.js';
+import { output } from './clips.js';
+import { buffers, latencyOf, pictureDelay } from './picsync.js';
 
 // What happened during the show, second by second, kept on this computer (see /js/showlog.js
 // for what a sample holds). It runs on the background clock (a worker), which browsers don't
@@ -90,6 +95,10 @@ function sources() {
     const q = l.video?.getVideoPlaybackQuality?.();
     if (q) s.vp = delta(l.video, 'shown', q.totalVideoFrames);
     if (l.micLabel && s.k === 'cam') s.mic = l.micLabel;
+    // one timeline: a camera here, its own delay and its delivery's spread; any source, how long its sound waits (ms)
+    const fb = buffers.get(peer);
+    if (fb) Object.assign(s, { pl: Math.round(latencyOf(l)), sp: Math.round(fb.spread), held: fb.silentFor() > 1000 ? 1 : 0 });
+    if (st?.delayMs) s.sd = st.delayMs;
     const ls = linkStats.get(peer);
     if (ls && !l.local) Object.assign(s, { fps: ls.fps ?? null, loss: ls.lossPct ?? null, jit: ls.jitterMs ?? null, rtt: ls.rttMs ?? null });
     out.push(s);
@@ -105,13 +114,19 @@ function sample() {
   const s = sources();
   const row = {
     t: Date.now(), vis: document.visibilityState === 'visible' ? 'v' : 'h', drv: stalled() ? 'tick' : 'raf',
-    fps: secs ? Math.round(((progFrames.n - lastFrames) / secs) * 10) / 10 : null, gap: Math.round(progFrames.gap), lag: Math.round(tickGap),
+    fps: secs ? Math.round(((progFrames.n - lastFrames) / secs) * 10) / 10 : null,
+    ...(progFrames.dup ? { dup: progFrames.dup } : {}), gap: Math.round(progFrames.gap), lag: Math.round(tickGap),
     ctx: player.ctx?.state || 'none', pk: dbOf(progPeak), rec: progRec ? 1 : 0, str: streamOut ? 1 : 0, sock: sock?.connected ? 1 : 0,
     air: onAir(), s,
   };
   if (tvStats.length) row.tv = tvStats;
+  if (pictureDelay != null) row.pd = pictureDelay; // (every camera here held to this: see picsync.js)
+  // Record program's own progress: frames written, skipped, the encoder's queue, sound vs picture (ms)
+  const rs = progRec?.stats?.();
+  if (rs) row.rs = rs;
   lastFrames = progFrames.n;
   progFrames.gap = 0;
+  progFrames.dup = 0;
   progPeak = 0;
   tickGap = 0;
   tvStats = [];
@@ -263,7 +278,7 @@ $('#slAlerts')?.addEventListener('click', async () => {
 
 // ---- keeping it: a minute at a time in this browser, and as one file ----
 const meta = () => ({
-  eventId, title: ev?.title || '', app: APP_VERSION, session, fps: 30, orientation,
+  eventId, title: ev?.title || '', app: APP_VERSION, session, fps: output.fps, size: `${program.width}x${program.height}`, orientation,
   device: { browser: navigator.userAgent, platform: navigator.userAgentData?.platform || navigator.platform, cores: navigator.hardwareConcurrency || null, memoryGb: navigator.deviceMemory || null, screen: `${screen.width}x${screen.height}@${devicePixelRatio}` },
   sound: { sampleRate: player.ctx?.sampleRate || null, baseLatency: player.ctx?.baseLatency ?? null, outputLatency: player.ctx?.outputLatency ?? null },
   devices: devicesBefore || [],
@@ -304,7 +319,7 @@ $('#slSave')?.addEventListener('click', () => saveShowLog());
 export function showLogBrief() {
   return {
     session, recent: showLog.rows.slice(-600).map((r) => [r.t, r.fps, r.pk, r.drv === 'tick' ? 1 : 0]),
-    lines: showLog.summary().lines, alerts: soundAlerts.map((a) => a.text), events: showLog.events.slice(-12).reverse().map((e) => ({ t: e.t, kind: e.kind, text: e.text })),
+    lines: showLog.summary(output.fps).lines, fps: output.fps, alerts: soundAlerts.map((a) => a.text), events: showLog.events.slice(-12).reverse().map((e) => ({ t: e.t, kind: e.kind, text: e.text })),
   };
 }
 window.vmShowLog = () => ({ rows: showLog.rows, events: showLog.events, summary: showLog.summary(), alerts: soundAlerts }); // (tests and diagnostics)

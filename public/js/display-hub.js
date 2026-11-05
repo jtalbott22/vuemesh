@@ -23,6 +23,7 @@
 
 import { ICE, now } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
+import { bgInterval } from '/js/bgclock.js';
 
 const newKey = () => {
   const b = new Uint8Array(24);
@@ -55,7 +56,7 @@ export class DisplayHub {
     } catch {}
     this.waiting = new Map(); // peer → { name, model, at }
     this.links = new Map(); // peer → { key, pc, ctl, state, tracks, pendingIce, remoteSet, lastSeen }
-    this.timer = setInterval(() => this.sweep(), 5000);
+    this.timer = bgInterval(() => this.sweep(), 5000); // (the worker clock: kept while the studio is hidden)
   }
 
   save() {

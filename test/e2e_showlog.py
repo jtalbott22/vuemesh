@@ -2,11 +2,11 @@
 # every second is logged (program frame rate, sound, each source's sound and frames, the mic a
 # camera's sound comes from), and Monitor draws the last ten minutes. When the microphone lets
 # go of its sound (as a USB interface does when it drops out: the studio takes it as unplugged
-# and it leaves the show) with nothing else in the mix, the studio says so over the program and on the phone remote, and offers the camera's sound
+# and it leaves the show) with the camera's own sound off by hand, the studio says so over the program and on the phone remote, and offers the camera's sound
 # instead; turning it on clears the program alert. Save show log makes one file with all of
 # it, and the log of an earlier studio session is still there in Monitor after a reload.
 # Run: node dev/server.mjs &  then  python3 test/e2e_showlog.py
-import os, json
+import os, json, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 ARGS = ['--use-fake-device-for-media-stream=device-count=2', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
@@ -49,7 +49,11 @@ with sync_playwright() as p:
     assert drawn > 50, drawn
     step(f"Monitor draws the last ten minutes ({drawn} pixels of frame rate), the summary, and lists this session as kept on this computer")
 
-    # the microphone lets go of its sound, with nothing else in the mix
+    # the camera's own sound turned OFF by hand (as the other mics were in the class), then the
+    # microphone lets go of its sound, with nothing else in the mix
+    for _ in range(3):   # (Shift+1: AFV, ON, OFF; set by hand, it stays off after the mic goes)
+        host.keyboard.press('Shift+Digit1'); time.sleep(0.2)
+    assert host.evaluate("vmNotes()")[0].endswith('sound: OFF'), host.evaluate("vmNotes()")[:2]
     host.evaluate(f"vmEndSound('{mic['id']}')")
     host.wait_for_selector('#soundAlert:not([hidden])', timeout=5000)
     first = host.inner_text('#soundAlert')

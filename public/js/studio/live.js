@@ -1,4 +1,4 @@
-// Studio, part 3 of 24: live mode: the camera tiles, break and black as sources, keeping pictures moving.
+// Studio, part 3 of 25: live mode: the camera tiles, break and black as sources, keeping pictures moving.
 // Loads after clips.js: that import comes first, so the parts run in order (see ../studio.js).
 import './clips.js';
 import { toast, now, announce } from '/js/vm.js';

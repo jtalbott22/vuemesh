@@ -1,4 +1,4 @@
-// Studio, part 1 of 24: shared state, the page helpers, constants.
+// Studio, part 1 of 25: shared state, the page helpers, constants.
 // The parts load in order (see ../studio.js); this one loads every library first, as the single file did.
 import {
   $ as $q, api, hostKey, rememberEvent, meshSocket, toast, esc, eventIdFromUrl, myEvents, themeButton,
@@ -25,7 +25,7 @@ import * as idb from '/js/idb.js';
 import '/js/media.js';
 import {
   addClip, angleOfCid, appendLiveSoon, clipOf, commit, labelOf, loadCut, loadSeq, noteAngle, rebuild,
-  setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
+  renderOutput, setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
 } from './clips.js';
 import { camOrder, fitTile, renderLive } from './live.js';
 import { renderQuality } from './usage.js';
@@ -44,6 +44,7 @@ import { renderTimeline, select } from './edit.js';
 import { deleteMarker, markerMenu, moveMarker, renameMarker, renderTools, timeOfAbs } from './transport.js';
 import { deleteRecording } from './library.js';
 import { displayHub, onTvCal, pushMonitor, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
+import { bgInterval } from '/js/bgclock.js';
 
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
 // both. The other page's elements are listed on <body data-absent> (id: tag): asked for one,
@@ -483,6 +484,7 @@ async function init() {
   else rememberEvent(ev);
 
   setOrientation(localStorage.getItem('vm_orient_' + eventId) || ev.orientation || 'landscape', false);
+  renderOutput();
   setFit(fit);
 
   for (const r of await idb.list('reel', eventId)) addReel(r, false);
@@ -652,7 +654,7 @@ async function init() {
       localOnly: () => $('#localOnly').checked,
     });
     setInterval(updateNetwork, 2000);
-    setInterval(pushMonitor, 2000);
+    bgInterval(pushMonitor, 2000);
   }
   if (EDIT_ONLY) {
     document.title = `${ev.title} \u2014 edit`;

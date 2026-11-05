@@ -1,11 +1,11 @@
-// Studio, part 6 of 24: the live mixer, its strips and meter bridge, the pop-out audio console.
+// Studio, part 6 of 25: the live mixer, its strips and meter bridge, the pop-out audio console.
 // Loads after onair.js: that import comes first, so the parts run in order (see ../studio.js).
 import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { limiter } from '/js/compose.js';
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
-import { $, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
-import { angleCids, angleOfCid } from './clips.js';
+import { $, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
+import { angleCids, angleOfCid, output } from './clips.js';
 import { camOrder, micPeers } from './live.js';
 import { bindConsole, consoleSync } from './ccu.js';
 import { consoleFrame } from './console-draw.js';
@@ -13,6 +13,8 @@ import { fitDock, mixRows, setMixRows } from './stream.js';
 import { renderBusAudio } from './room.js';
 import { blackLevel, mediaOn, onBreak, reel } from './graphics.js';
 import { sw, swActive } from './switcher.js';
+import { bgInterval } from '/js/bgclock.js';
+import { syncedSoundDelay } from './picsync.js';
 
 // ---- live mixer ------------------------------------------------------------------------
 // One strip per phone, like a broadcast mixer. Each has a level and a mode:
@@ -25,7 +27,7 @@ import { sw, swActive } from './switcher.js';
 // computer's sound, a shared screen, a stereo input and the Clips keep both sides. Balance
 // pans a mono channel and balances a stereo one.
 
-export const mix = { strips: new Map(), bus: null, dest: null, listen: null, meterL: null, meterR: null };
+export const mix = { strips: new Map(), bus: null, dest: null, out: null, listen: null, meterL: null, meterR: null };
 const mixSaved = () => JSON.parse(localStorage.getItem('vm_livemix_' + eventId) || '{}');
 export const MODES = ['afv', 'on', 'off'];
 export const MODE_LABEL = { afv: 'AFV', on: 'ON', off: 'OFF' };
@@ -78,6 +80,7 @@ export function mixInit() {
   mix.bus.connect(mix.ftb);
   mix.ftb.connect(lim);
   lim.connect(mix.dest);
+  mix.out = lim; // (the program's sound, for Record program's tap on the sound thread)
   lim.connect(mix.listen).connect(ctx.destination);
   [mix.meterL, mix.meterR] = stereoMeters(ctx, lim);
   mix.spec = ctx.createAnalyser(); // for the audio console's spectrum
@@ -95,16 +98,18 @@ function liveChain(ctx, mono = true) {
   input.channelCountMode = 'explicit';
   input.channelInterpretation = 'speakers';
   const eq = eqChain(ctx), fader = ctx.createGain(), meter = ctx.createAnalyser(), bal = balance(ctx), gate = ctx.createGain();
+  const delay = ctx.createDelay(1); // (lip sync: this computer's own sound waits for its cameras' pictures)
   meter.fftSize = 1024;
   gate.gain.value = 0;
-  input.connect(eq.input);
+  input.connect(delay);
+  delay.connect(eq.input);
   eq.output.connect(fader);
   fader.connect(meter);
   fader.connect(bal.input);
   bal.output.connect(gate);
   gate.connect(mix.bus);
   const nodes = {
-    mono: input, eq, fader, meter, bal, gate, meters: stereoMeters(ctx, bal.output),
+    mono: input, delay, eq, fader, meter, bal, gate, meters: stereoMeters(ctx, bal.output),
     /** Both sides as one (folded to the middle, then placed by the balance), or each side its own. */
     setMono(on) {
       input.channelCount = on ? 1 : 2;
@@ -254,6 +259,61 @@ $('#listen').onchange = (e) => {
   mix.listen.gain.setTargetAtTime(e.target.checked ? 1 : 0, player.ctx.currentTime, 0.02);
   player.ctx.resume();
 };
+
+// ---- lip sync: this computer's own sound waits as long as its pictures --------------------
+// Every camera here is held to one picture delay (picsync.js), so the sound from this computer
+// waits that long too (less the time its own sound takes to get here, and how far it is behind
+// the main microphone by their sound). Or by hand, or straight in, per computer. Phones are left
+// as they are (their sound and picture come together over their link).
+const LIP_KEY = 'vm_lipsync';
+export const lipSync = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(LIP_KEY) || '{}');
+    return { mode: ['auto', 'manual', 'off'].includes(v.mode) ? v.mode : 'auto', ms: Math.max(0, Math.min(800, Number(v.ms) || 0)) };
+  } catch {
+    return { mode: 'auto', ms: 0 };
+  }
+})();
+/** How long this computer's sound from `peer` waits (ms). */
+export function soundDelayFor(peer) {
+  const l = live.get(peer);
+  if (!l?.local || l.screen || lipSync.mode === 'off') return 0;
+  if (lipSync.mode === 'manual') return lipSync.ms;
+  return syncedSoundDelay(peer) ?? 0;
+}
+function applyLipSync() {
+  if (!player.ctx) return;
+  for (const [peer, st] of mix.strips) {
+    if (!st.delay) continue;
+    const ms = soundDelayFor(peer);
+    if (Math.abs((st.delayMs || 0) - ms) < 15 && !(ms === 0 && st.delayMs)) continue; // (small changes aren't worth a wobble)
+    st.delayMs = ms;
+    st.delay.delayTime.setTargetAtTime(ms / 1000, player.ctx.currentTime, 0.3);
+  }
+  renderLipSync();
+}
+function renderLipSync() {
+  const mode = $('#lipMode'), ms = $('#lipMs'), hint = $('#lipHint');
+  if (!mode) return;
+  mode.value = lipSync.mode;
+  ms.hidden = lipSync.mode !== 'manual';
+  if (document.activeElement !== ms) ms.value = String(lipSync.ms);
+  const used = [...mix.strips].filter(([, st]) => st.delayMs).map(([p, st]) => `${live.get(p)?.name || 'a source'} ${st.delayMs} ms`);
+  hint.textContent = lipSync.mode === 'off' ? 'Their sound goes straight in, ahead of the pictures.' : used.length ? `Sound waits: ${used.join(', ')}.` : '';
+}
+$('#lipMode')?.addEventListener('change', (e) => {
+  lipSync.mode = e.target.value;
+  localStorage.setItem(LIP_KEY, JSON.stringify(lipSync));
+  note(`Lip sync for this computer's sound: ${lipSync.mode === 'manual' ? `${lipSync.ms} ms` : lipSync.mode}`);
+  applyLipSync();
+});
+$('#lipMs')?.addEventListener('change', (e) => {
+  lipSync.ms = Math.max(0, Math.min(800, Math.round(Number(e.target.value) || 0)));
+  localStorage.setItem(LIP_KEY, JSON.stringify(lipSync));
+  note(`Lip sync for this computer's sound: ${lipSync.ms} ms`);
+  applyLipSync();
+});
+if (!EDIT_ONLY) bgInterval(applyLipSync, 1000);
 
 // ---- mixer UI: horizontal strips in the inspector, vertical meter bridge in full screen ----
 

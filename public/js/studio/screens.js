@@ -1,4 +1,4 @@
-// Studio, part 23 of 24: the Monitor, the phone remote, TV screens.
+// Studio, part 23 of 25: the Monitor, the phone remote, TV screens.
 // Loads after export.js: that import comes first, so the parts run in order (see ../studio.js).
 import './export.js';
 import { toast, esc, now, drawQR } from '/js/vm.js';

@@ -1,4 +1,4 @@
-// Studio, part 13 of 24: the live program and the switcher; running while covered.
+// Studio, part 13 of 25: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';
@@ -8,7 +8,7 @@ import {
   $, EDIT_ONLY, black, ev, fit, fitMonitors, isHost, live, liveActive, mode, player, progOutPeers,
   program,
 } from './core.js';
-import { angleOfCid } from './clips.js';
+import { angleOfCid, output } from './clips.js';
 import { cutLive, drawSourcePreviews, isMic, micKey, micTileOpts, renderLive } from './live.js';
 import { directorTick, syncTally } from './onair.js';
 import { mix, mixGates, mixInit } from './mixer.js';
@@ -18,6 +18,7 @@ import {
   renderClips, setBreak, setEverLive, setSlateClock, slateLook, slateSound, slateText, toggleBlack,
   toggleBreak, updateAutoBreak,
 } from './graphics.js';
+import { picOf } from './picsync.js';
 
 // ---- the live program -----------------------------------------------------------------
 
@@ -53,7 +54,8 @@ function drawLiveFrame() {
   } else if (liveActive && activeFrameOk()) {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
-    drawFramed(pg, live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
+    // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
+    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
     $('#progLabel').textContent = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
@@ -83,7 +85,7 @@ function drawLiveFrame() {
         drawFramed(pg, el, W, H, 'fit');
       }
     } else if (b && isMic(sw.to)) drawMicVisual(pg, W, H);
-    else if (b?.video?.readyState >= 2) drawFramed(pg, b.video, W, H, fit, null, b.view?.rect || null);
+    else if (b?.video?.readyState >= 2 || picOf(sw.to)) drawFramed(pg, picOf(sw.to) || b.video, W, H, fit, null, b.view?.rect || null);
     pg.globalAlpha = 1;
     const SPECIAL = { black: 'BLACK', break: 'BREAK' };
     const fromName = SPECIAL[sw.fromSpecial] || (sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name);
@@ -518,30 +520,42 @@ setSwitcher(localStorage.getItem('vm_switcher') === '1');
 // (which browsers don't slow down) covers everything else, including the auto director.
 let lastRaf = 0, lastPump = 0, lastDirector = 0;
 export const stalled = () => document.hidden || performance.now() - lastRaf > 120;
-// The program is captured at 30 frames a second, so drawing it faster (60 on most screens)
-// only doubles the work; at 30 the studio has time for everything else (messages from
-// phones, clips arriving, the controls).
-let lastLiveDraw = 0;
-// (above the drawing loop, which starts here; the show log reads and resets these once a second: frames drawn, and the longest wait between two)
-export const progFrames = { n: 0, last: 0, gap: 0 };
+// The program's own clock. A frame is due every 1000/fps ms (Output settings) counted from when
+// it started, not from the last frame, so the rate holds on average whatever drives the loop:
+// animation frames while the studio is showing, the worker clock while it's hidden. Behind by a
+// frame or more, the missed frames still count (a recording gets one each, the same picture),
+// so the output keeps its rate and its time; drawing faster than the output (60 on most
+// screens) would only double the work.
+let nextDue = 0;
+function dueFrames(t) {
+  const p = 1000 / output.fps;
+  if (!nextDue || t - nextDue > 1000) nextDue = t; // (the first frame, or a second behind: start again from now)
+  if (t < nextDue - Math.min(4, p / 4)) return 0; // (a few ms early is on time: animation frames fall on the screen's beat)
+  const n = 1 + Math.floor((t - nextDue) / p);
+  nextDue += n * p;
+  return n;
+}
+// (above the drawing loop, which starts here) The show log reads and resets these once a second:
+// output frames, repeats (frames the studio was too late to draw), and the longest wait between two draws.
+export const progFrames = { n: 0, dup: 0, last: 0, gap: 0 };
+// Whatever takes every output frame in order (Record program): called with how many are due.
+export const frameSinks = new Set();
 function frameTick() {
   const t = performance.now();
   if (EDIT_ONLY) {
     // the Edit page draws no live program (the studio does): only the edit's playback, which
     // it hands to Program out (Edit) as it goes
     if (mode === 'edit' && stalled()) player.step();
-    if (t - lastLiveDraw >= 31) {
-      lastLiveDraw = t;
-      pushProgramFrame();
-    }
+    const n = dueFrames(t);
+    if (n) pushProgramFrame(n);
     return;
   }
   switcherTick(t);
-  if (t - lastLiveDraw >= 31) {
-    lastLiveDraw = t;
+  const n = dueFrames(t);
+  if (n) {
     drawLiveFrame();
     drawPreviewBox();
-    pushProgramFrame();
+    pushProgramFrame(n);
   }
   if (mode === 'edit' && stalled()) player.step();
 }
@@ -557,6 +571,7 @@ window.vmPump = () => {
 };
 try {
   const ticker = new Worker('/js/ticker.js');
+  ticker.postMessage({ ms: 5 }); // (fine-grained, so a hidden studio's frames are due on time, not up to a tick late)
   ticker.onmessage = () => {
     const t = performance.now();
     if (stalled() && t - lastPump > 60 && (!EDIT_ONLY || progOutPeers.size)) frameTick(); // (the Edit window only while Program out shows it)
@@ -580,16 +595,24 @@ export function programVideoTrack() {
   const t0 = progCapture?.getVideoTracks()[0];
   if (!t0 || t0.readyState !== 'live') {
     progCapture = program.captureStream(0);
-    if (!progCapture.getVideoTracks()[0]?.requestFrame) progCapture = program.captureStream(30); // (no push here: sampled)
+    if (!progCapture.getVideoTracks()[0]?.requestFrame) progCapture = program.captureStream(Math.round(output.fps)); // (no push here: sampled)
   }
   return progCapture.getVideoTracks()[0].clone();
 }
-function pushProgramFrame() {
+function pushProgramFrame(n = 1) {
   const t = performance.now();
   if (progFrames.last) progFrames.gap = Math.max(progFrames.gap, t - progFrames.last);
   progFrames.last = t;
-  progFrames.n++;
+  progFrames.n += n;
+  progFrames.dup += n - 1;
   progCapture?.getVideoTracks()[0]?.requestFrame?.();
+  for (const sink of frameSinks) {
+    try {
+      sink(n);
+    } catch (e) {
+      console.warn('a program frame was not taken', e?.message || e);
+    }
+  }
 }
 
 export let progRec = null;

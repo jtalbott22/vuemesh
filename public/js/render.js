@@ -74,6 +74,9 @@ async function probeAudio(c) {
   return !failed && chunks > 0 ? { ...c, cfg } : null;
 }
 
+/** The MP4 timescale for a frame rate: whole rates as they are, 29.97 as 30000 (each frame 1001). */
+export const mp4Timescale = (fps) => (Number.isInteger(fps) ? fps : Math.round(fps * 1001));
+
 /** Which codecs this browser can really write, best first. */
 export async function renderSupport(W, H, fps) {
   if (!window.VideoEncoder || !window.AudioEncoder || !window.Mp4Muxer || !window.VideoFrame) return null;
@@ -137,7 +140,7 @@ export async function renderSequence(o) {
   const target = o.stream ? new FileSystemWritableFileStreamTarget(o.stream) : new ArrayBufferTarget();
   const muxer = new Muxer({
     target,
-    video: { codec: support.video.mux, width: W, height: H, frameRate: fps },
+    video: { codec: support.video.mux, width: W, height: H, frameRate: mp4Timescale(fps) },
     ...(support.audio ? { audio: { codec: support.audio.mux, numberOfChannels: 2, sampleRate: RATE } } : {}),
     fastStart: o.stream ? false : 'in-memory',
     firstTimestampBehavior: 'offset',

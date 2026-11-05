@@ -1,4 +1,5 @@
 // Shared client helpers for every VUEMesh page.
+import { bgClear, bgInterval, bgTimeout } from '/js/bgclock.js';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -289,7 +290,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     },
     close() {
       closed = true;
-      clearInterval(pingTimer);
+      bgClear(pingTimer);
       ws?.close();
     },
   };
@@ -302,8 +303,8 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
       self.connected = true;
       self.send({ action: 'hello' });
       if (status !== null) self.send({ action: 'status', rec: status });
-      clearInterval(pingTimer);
-      pingTimer = setInterval(() => self.send({ action: 'ping' }), 4 * 60 * 1000); // API Gateway idles out at 10 min
+      bgClear(pingTimer);
+      pingTimer = bgInterval(() => self.send({ action: 'ping' }), 4 * 60 * 1000); // API Gateway idles out at 10 min
     };
     ws.onmessage = (e) => {
       let msg;
@@ -317,8 +318,9 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     };
     ws.onclose = () => {
       self.connected = false;
-      clearInterval(pingTimer);
-      if (!closed) setTimeout(open, (delay = Math.min(delay * 2, 15000)));
+      bgClear(pingTimer);
+      // (on the worker clock: a hidden studio reconnects at once, not a minute later, so a TV finds it)
+      if (!closed) bgTimeout(open, (delay = Math.min(delay * 2, 15000)));
     };
   };
   open();
