@@ -4,8 +4,8 @@ import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { limiter } from '/js/compose.js';
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
-import { $, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
-import { angleCids, angleOfCid } from './clips.js';
+import { $, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq } from './core.js';
+import { angleCids, angleOfCid, output } from './clips.js';
 import { camOrder, micPeers } from './live.js';
 import { bindConsole, consoleSync } from './ccu.js';
 import { consoleFrame } from './console-draw.js';
@@ -13,6 +13,7 @@ import { fitDock, mixRows, setMixRows } from './stream.js';
 import { renderBusAudio } from './room.js';
 import { blackLevel, mediaOn, onBreak, reel } from './graphics.js';
 import { sw, swActive } from './switcher.js';
+import { bgInterval } from '/js/bgclock.js';
 
 // ---- live mixer ------------------------------------------------------------------------
 // One strip per phone, like a broadcast mixer. Each has a level and a mode:
@@ -95,16 +96,18 @@ function liveChain(ctx, mono = true) {
   input.channelCountMode = 'explicit';
   input.channelInterpretation = 'speakers';
   const eq = eqChain(ctx), fader = ctx.createGain(), meter = ctx.createAnalyser(), bal = balance(ctx), gate = ctx.createGain();
+  const delay = ctx.createDelay(1); // (lip sync: this computer's own sound waits for its cameras' pictures)
   meter.fftSize = 1024;
   gate.gain.value = 0;
-  input.connect(eq.input);
+  input.connect(delay);
+  delay.connect(eq.input);
   eq.output.connect(fader);
   fader.connect(meter);
   fader.connect(bal.input);
   bal.output.connect(gate);
   gate.connect(mix.bus);
   const nodes = {
-    mono: input, eq, fader, meter, bal, gate, meters: stereoMeters(ctx, bal.output),
+    mono: input, delay, eq, fader, meter, bal, gate, meters: stereoMeters(ctx, bal.output),
     /** Both sides as one (folded to the middle, then placed by the balance), or each side its own. */
     setMono(on) {
       input.channelCount = on ? 1 : 2;
@@ -254,6 +257,97 @@ $('#listen').onchange = (e) => {
   mix.listen.gain.setTargetAtTime(e.target.checked ? 1 : 0, player.ctx.currentTime, 0.02);
   player.ctx.resume();
 };
+
+// ---- lip sync: this computer's own sound, delayed to match its cameras' pictures ---------
+// A camera plugged into this computer gets its picture into the program a little after its
+// sound (the picture is captured, decoded, shown, then drawn into the program; the sound goes
+// straight into the mixer), so its sound, and a microphone's here, runs ahead of the picture.
+// Chrome stamps each camera frame with when it was captured, so the picture's delay is measured
+// (capture to screen, plus half a program frame for the draw) and the sound from this computer
+// waits that long, less the microphone's own delay where Chrome says it. Phones are left as
+// they are (their sound and picture come together over their link). Off, or by hand, per computer.
+const LIP_KEY = 'vm_lipsync';
+export const lipSync = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(LIP_KEY) || '{}');
+    return { mode: ['auto', 'manual', 'off'].includes(v.mode) ? v.mode : 'auto', ms: Math.max(0, Math.min(400, Number(v.ms) || 0)) };
+  } catch {
+    return { mode: 'auto', ms: 0 };
+  }
+})();
+export const picLag = new Map(); // peer → recent capture-to-screen delays of a camera here (ms)
+const median = (a) => {
+  const b = [...a].sort((x, y) => x - y);
+  return b.length ? b[Math.floor(b.length / 2)] : null;
+};
+function watchLag(peer, l) {
+  const v = l.video;
+  if (!v?.requestVideoFrameCallback || v._lagWatch) return;
+  v._lagWatch = true;
+  const each = (t, md) => {
+    if (live.get(peer) !== l) return;
+    if (md.captureTime) {
+      const a = picLag.get(peer) || [];
+      a.push(md.expectedDisplayTime - md.captureTime);
+      if (a.length > 60) a.shift();
+      picLag.set(peer, a);
+    }
+    v.requestVideoFrameCallback(each);
+  };
+  v.requestVideoFrameCallback(each);
+}
+/** A local source's measured picture delay (ms), or null. */
+export const lagOf = (peer) => median(picLag.get(peer) || []);
+/** How long this computer's sound from `peer` waits (ms). */
+export function soundDelayFor(peer) {
+  const l = live.get(peer);
+  if (!l?.local || l.screen || lipSync.mode === 'off') return 0;
+  if (lipSync.mode === 'manual') return lipSync.ms;
+  const own = l.role !== 'mic' ? lagOf(peer) : null;
+  const cams = [...live].filter(([, x]) => x.local && !x.screen && x.role !== 'mic').map(([p]) => lagOf(p)).filter((x) => x != null);
+  const pic = own ?? median(cams);
+  if (pic == null) return 0;
+  const micLat = l.stream?.getAudioTracks().at(-1)?.stats?.latency || 0;
+  return Math.round(Math.max(0, Math.min(400, pic + 500 / output.fps - micLat)));
+}
+function applyLipSync() {
+  for (const [peer, l] of live) if (l.local && !l.screen && l.role !== 'mic') watchLag(peer, l);
+  if (!player.ctx) return;
+  for (const [peer, st] of mix.strips) {
+    if (!st.delay) continue;
+    const ms = soundDelayFor(peer);
+    if (Math.abs((st.delayMs || 0) - ms) < 15 && !(ms === 0 && st.delayMs)) continue; // (small changes aren't worth a wobble)
+    st.delayMs = ms;
+    st.delay.delayTime.setTargetAtTime(ms / 1000, player.ctx.currentTime, 0.3);
+  }
+  renderLipSync();
+}
+function renderLipSync() {
+  const mode = $('#lipMode'), ms = $('#lipMs'), hint = $('#lipHint');
+  if (!mode) return;
+  mode.value = lipSync.mode;
+  ms.hidden = lipSync.mode !== 'manual';
+  if (document.activeElement !== ms) ms.value = String(lipSync.ms);
+  const cams = [...live].filter(([, x]) => x.local && !x.screen && x.role !== 'mic');
+  const lags = cams.map(([p, x]) => [x.name, lagOf(p)]).filter(([, v]) => v != null);
+  const used = [...mix.strips].filter(([, st]) => st.delayMs).map(([p, st]) => `${live.get(p)?.name || 'a source'} ${st.delayMs} ms`);
+  hint.textContent = !cams.length ? 'For cameras and microphones plugged into this computer; none yet.'
+    : lipSync.mode === 'off' ? 'Their sound goes straight in, ahead of the pictures.'
+    : `${lags.length ? `Pictures reach the program ${lags.map(([n, v]) => `${Math.round(v)} ms (${n})`).join(', ')} after they're taken.` : 'Measuring the cameras…'}${used.length ? ` Sound waits: ${used.join(', ')}.` : ''}`;
+}
+$('#lipMode')?.addEventListener('change', (e) => {
+  lipSync.mode = e.target.value;
+  localStorage.setItem(LIP_KEY, JSON.stringify(lipSync));
+  note(`Lip sync for this computer's sound: ${lipSync.mode === 'manual' ? `${lipSync.ms} ms` : lipSync.mode}`);
+  applyLipSync();
+});
+$('#lipMs')?.addEventListener('change', (e) => {
+  lipSync.ms = Math.max(0, Math.min(400, Math.round(Number(e.target.value) || 0)));
+  localStorage.setItem(LIP_KEY, JSON.stringify(lipSync));
+  note(`Lip sync for this computer's sound: ${lipSync.ms} ms`);
+  applyLipSync();
+});
+if (!EDIT_ONLY) bgInterval(applyLipSync, 2000);
 
 // ---- mixer UI: horizontal strips in the inspector, vertical meter bridge in full screen ----
 

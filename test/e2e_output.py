@@ -2,7 +2,8 @@
 # frames drive it or (the studio hidden or covered) the worker clock does; and Record program
 # writes a normal MP4 (not fragmented: Windows' player can scrub it) at exactly the chosen rate,
 # its sound as long as its picture. Checked with ffprobe, at 25 and at 29.97 with 1080p, with
-# animation frames stopped as they are in a hidden window. (Needs ffmpeg.)
+# animation frames stopped as they are in a hidden window. And lip sync: this computer's sound
+# waits for its camera's measured picture delay, or as long as set by hand, or not at all. (Needs ffmpeg.)
 # Run: node dev/server.mjs &  then  python3 test/e2e_output.py
 import os, json, subprocess, time, statistics
 from playwright.sync_api import sync_playwright
@@ -35,6 +36,19 @@ with sync_playwright() as p:
         time.sleep(secs)
         rows = host.evaluate('vmShowLog().rows')[-(secs - 1):]
         return statistics.mean(r['fps'] for r in rows if r['fps'] is not None), rows[-1]['drv']
+    # lip sync: this computer's sound waits for its camera's picture (measured), by hand, or not at all
+    for _ in range(40):   # (measured from the camera's frames, applied every 2 s)
+        cam = next((x for x in host.evaluate('vmShowLog().rows.at(-1).s') if x['k'] == 'cam'), {})
+        if cam.get('vl') is not None and cam.get('sd'): break
+        time.sleep(0.5)
+    assert 0 < cam['vl'] < 400 and abs(cam['sd'] - (cam['vl'] + 500 / 30)) < 25, cam
+    host.select_option('#lipMode', 'manual'); host.fill('#lipMs', '150'); host.evaluate("document.querySelector('#lipMs').dispatchEvent(new Event('change'))")
+    host.wait_for_function("vmShowLog().rows.at(-1).s.every(x => x.sd === 150)", timeout=8000)
+    host.select_option('#lipMode', 'off')
+    host.wait_for_function("vmShowLog().rows.at(-1).s.every(x => !x.sd)", timeout=8000)
+    host.select_option('#lipMode', 'auto')
+    step(f"lip sync: the camera's picture reaches the program {cam['vl']} ms after it's taken, so its sound waits {cam['sd']} ms; by hand 150 ms; straight in, none")
+
     host.select_option('#outFps', '25')
     r25, d25 = rate()
     assert abs(r25 - 25) < 0.6 and d25 == 'raf', (r25, d25)

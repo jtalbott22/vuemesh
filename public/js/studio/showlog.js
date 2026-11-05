@@ -9,7 +9,7 @@ import {
   $, black, EDIT_ONLY, ev, eventId, help, hub, isHost, live, liveActive, log, orientation, player,
   program, sock,
 } from './core.js';
-import { mix, setStripMode } from './mixer.js';
+import { lagOf, mix, setStripMode } from './mixer.js';
 import { streamOut } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { progFrames, progRec, reelOf, stalled } from './switcher.js';
@@ -94,6 +94,10 @@ function sources() {
     const q = l.video?.getVideoPlaybackQuality?.();
     if (q) s.vp = delta(l.video, 'shown', q.totalVideoFrames);
     if (l.micLabel && s.k === 'cam') s.mic = l.micLabel;
+    // lip sync: a camera here, its picture's delay to the screen; any source, how long its sound waits (ms)
+    const vl = l.local ? lagOf(peer) : null;
+    if (vl != null) s.vl = Math.round(vl);
+    if (st?.delayMs) s.sd = st.delayMs;
     const ls = linkStats.get(peer);
     if (ls && !l.local) Object.assign(s, { fps: ls.fps ?? null, loss: ls.lossPct ?? null, jit: ls.jitterMs ?? null, rtt: ls.rttMs ?? null });
     out.push(s);

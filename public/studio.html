@@ -815,6 +815,12 @@
         <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
       </div>
       <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
+      <label for="lipMode" style="margin-top:10px">Sound from this computer's cameras and microphones</label>
+      <div class="row" style="gap:8px;align-items:center;margin:0 0 4px">
+        <select id="lipMode" aria-describedby="lipHint"><option value="auto">Wait for the pictures (measured)</option><option value="manual">Wait by hand</option><option value="off">Straight in</option></select>
+        <input type="number" id="lipMs" min="0" max="400" step="5" style="width:5em" aria-label="Sound delay in milliseconds" hidden>
+      </div>
+      <p class="fine" id="lipHint" style="margin:0 0 8px"></p>
     </section>
     <!-- (edit only: on the Edit page) -->
     <!-- (edit only: on the Edit page) -->

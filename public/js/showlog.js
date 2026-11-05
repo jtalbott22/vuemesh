@@ -14,7 +14,8 @@
 //         db (its loudest, before the fader), a (its sound: live/muted/ended/off/none),
 //         vf (frames its camera delivered that second), vp (frames shown on its tile),
 //         ad (sound dropped that second, ms), lat (sound latency, ms), sr (sample rate),
-//         mic (the microphone a camera's sound comes from), and from a phone's link every few
+//         mic (the microphone a camera's sound comes from), vl (a camera here: its picture's delay
+//         from capture to the screen, ms), sd (how long its sound waits, lip sync, ms), and from a phone's link every few
 //         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
 //   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back)
 //   dup   frames the studio was too late to draw that second (the same picture again)
