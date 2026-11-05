@@ -1,4 +1,4 @@
-// Studio, part 18 of 25: program meters, Program out, layout, transport, tools, markers on the ruler.
+// Studio, part 18 of 26: program meters, Program out, layout, transport, tools, markers on the ruler.
 // Loads after menus.js: that import comes first, so the parts run in order (see ../studio.js).
 import './menus.js';
 import { toast, esc, fmtDur, announce } from '/js/vm.js';
@@ -30,6 +30,7 @@ import {
   srcToggle,
 } from './library.js';
 import { exporting } from './export.js';
+import { togglePip } from './pip.js';
 
 // ---- program sound meters beside the picture -------------------------------------------
 // Left and right, in both rooms: Live reads the program mix, Edit reads the edit's output.
@@ -215,6 +216,27 @@ $('#togRight')?.addEventListener('click', () => {
   saveLayout();
 });
 window.addEventListener('resize', applyLayout);
+// The inspector's cards: which are open is kept on this computer (all open the first time).
+// Close all folds them; open the ones you use and they stay that way.
+const CARDS_KEY = 'vm_cards';
+const cards = () => [...document.querySelectorAll('.insp details.card')];
+try {
+  const open = JSON.parse(localStorage.getItem(CARDS_KEY) || 'null');
+  if (Array.isArray(open)) for (const d of cards()) d.open = open.includes(d.id);
+} catch {}
+const saveCards = () => {
+  try {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(cards().filter((d) => d.open).map((d) => d.id)));
+  } catch {}
+};
+for (const d of cards()) d.addEventListener('toggle', saveCards);
+$('#cardsFold')?.addEventListener('click', () => {
+  const close = cards().some((d) => d.open && !d.hidden);
+  for (const d of cards()) d.open = !close;
+  $('#cardsFold').textContent = close ? 'Open all' : 'Close all';
+  saveCards();
+});
+if ($('#cardsFold') && !cards().some((d) => d.open)) $('#cardsFold').textContent = 'Open all';
 
 // ------------------------------------------------------------- transport ----
 
@@ -298,6 +320,7 @@ document.addEventListener('keydown', (e) => {
     else if (k === 'a') isHost && setAuto(!autoOn);
     else if (k === 'm') markMoment();
     else if (k === 't') $('#ltShow').click();
+    else if (k === 'p' && !e.shiftKey) togglePip();
     else if (k === 'x') toggleBlack(!e.shiftKey);
     else if (k === '[' || k === ']') stepCue(k === ']' ? 1 : -1);
     return;

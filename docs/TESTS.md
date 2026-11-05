@@ -102,3 +102,4 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_sync.py` | one timeline: stand-in cameras 120 ms apart jump on a cut; the sync check (a clap) measures them; after it a cut doesn't jump; sound waits with the pictures; cameras stay on air with no animation frames |
 | `test/e2e_soundcontrol.py` | a device that stops comes back into the same source; a camera's Sound from; AFV following a chosen camera; this computer's cameras at 720p; the phone remote's mixer |
 | `test/e2e_tvremote.py` | a TV whose link dies or whose computer sleeps joins again by itself; it says what it's getting; falling behind lowers its bitrate; Program out on the phone remote |
+| `test/e2e_pip.py` | another computer shares its screen from /share; a camera stays live in the corner over a screen (tally, sound, the remote), P turns it off and on; the inspector's cards fold and are remembered |

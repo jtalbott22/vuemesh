@@ -1,4 +1,4 @@
-// Studio, part 6 of 25: the live mixer, its strips and meter bridge, the pop-out audio console.
+// Studio, part 6 of 26: the live mixer, its strips and meter bridge, the pop-out audio console.
 // Loads after onair.js: that import comes first, so the parts run in order (see ../studio.js).
 import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
@@ -18,6 +18,7 @@ import { sw, swActive } from './switcher.js';
 import { bgInterval } from '/js/bgclock.js';
 import { syncedSoundDelay } from './picsync.js';
 import { localMics, setLocalSound } from './sources.js';
+import { pipAir } from './pip.js';
 
 // ---- live mixer ------------------------------------------------------------------------
 // One strip per phone, like a broadcast mixer. Each has a level and a mode:
@@ -224,6 +225,9 @@ export function mixGates() {
     if (mode === 'afv' && !brk) {
       if (tr && target === sw.to) afv = sw.p;
       else if (target === liveActive && !mediaOn && !(tr && sw.fromSpecial === 'break')) afv = tr ? 1 - sw.p : 1;
+      // (the camera in the corner, over a screen, is on air too: heard as it shows)
+      const inset = pipAir();
+      if (inset && target === inset.peer) afv = Math.max(afv, inset.a);
     }
     const level = mode === 'on' ? 1 : afv;
     const open = level > 0.001;

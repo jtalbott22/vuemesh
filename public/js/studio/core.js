@@ -1,4 +1,4 @@
-// Studio, part 1 of 25: shared state, the page helpers, constants.
+// Studio, part 1 of 26: shared state, the page helpers, constants.
 // The parts load in order (see ../studio.js); this one loads every library first, as the single file did.
 import {
   $ as $q, api, hostKey, rememberEvent, meshSocket, toast, esc, eventIdFromUrl, myEvents, themeButton,
@@ -609,6 +609,12 @@ async function init() {
         if (!l) return;
         const was = l.tele?.synced;
         l.tele = t;
+        // another computer's screen (from /share): a screen, like one shared here
+        if (t.screen && !l.screen) {
+          l.screen = true;
+          note(`${l.name} is another computer's screen${l.stream?.getAudioTracks().length ? ', with its sound' : ''}`);
+          renderLive();
+        }
         if (was !== t.synced) {
           renderLive(); // the NO SYNC tag
           if (t.synced === false && was) note(`${l.name} lost its beacon sync`);

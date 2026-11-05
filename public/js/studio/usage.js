@@ -1,4 +1,4 @@
-// Studio, part 4 of 25: anonymous usage counts.
+// Studio, part 4 of 26: anonymous usage counts.
 // Loads after live.js: that import comes first, so the parts run in order (see ../studio.js).
 import './live.js';
 import { api, toast, diag } from '/js/vm.js';

@@ -1,4 +1,4 @@
-// Studio, part 7 of 25: this computer's cameras, mics, screen and sound; recording; moderation.
+// Studio, part 7 of 26: this computer's cameras, mics, screen and sound; recording; moderation.
 // Loads after mixer.js: that import comes first, so the parts run in order (see ../studio.js).
 import './mixer.js';
 import { api, toast, esc, now } from '/js/vm.js';
@@ -18,6 +18,7 @@ import { mediaOn, onBreak } from './graphics.js';
 import { progRec, pvw, setPreview, sw, swActive } from './switcher.js';
 import { renderTimeline } from './edit.js';
 import { renderMedia } from './library.js';
+import { pipAir } from './pip.js';
 
 // ------------------------------------------------- sources on this computer ---
 // The studio computer's own cameras (the built-in FaceTime camera, USB cameras, capture
@@ -445,7 +446,7 @@ export function setLocalManualRec(peer, on) {
 // cameras on this computer record while they're on air (if that's on), plus 5 s after
 /** Is this computer's camera on air (a dissolve's incoming one too)? Not at black, in a break, or under a clip. */
 export function localAired(peer) {
-  return (peer === liveActive || (swActive() && peer === sw.to)) && !onBreak() && !mediaOn && !(black.target === 1 && black.cleared);
+  return (peer === liveActive || (swActive() && peer === sw.to) || pipAir()?.peer === peer) && !onBreak() && !mediaOn && !(black.target === 1 && black.cleared);
 }
 // Whether this computer's camera should be recording: whenever it's on air (anything aired
 // makes Edit), or by hand. Not at a kiosk: a kiosk never edits, so it records no clips of its
@@ -569,11 +570,22 @@ async function openLocalPicker() {
   $('#localList').innerHTML = !named
     ? '<p>To list them, the browser needs your OK to use this computer\u2019s cameras and microphones.</p><button type="button" class="primary" id="localAllow">Allow cameras and microphones</button>'
     : `<h3>Cameras</h3><ul>${cams.map((d) => row(d, 'cam')).join('') || '<li class="fine">None found</li>'}</ul><h3>Microphones</h3><ul>${mics.map((d) => row(d, 'mic')).join('') || '<li class="fine">None found</li>'}</ul>`;
-  $('#localList').insertAdjacentHTML('beforeend', `<h3>Screen and sound</h3><ul><li><span>A screen or window<small class="fine">with its sound, if the browser shares it</small></span><button type="button" data-share="screen">Share…</button></li><li><span>This computer\u2019s sound<small class="fine">${myOs === 'mac' ? 'on a Mac: a Chrome tab\u2019s sound (tick Share tab audio)' : 'pick Entire screen and tick Share system audio'}</small></span><button type="button" data-share="sound">Share…</button></li></ul>`);
+  $('#localList').insertAdjacentHTML('beforeend', `<h3>Screen and sound</h3><ul><li><span>A screen or window<small class="fine">with its sound, if the browser shares it</small></span><button type="button" data-share="screen">Share…</button></li><li><span>This computer\u2019s sound<small class="fine">${myOs === 'mac' ? 'on a Mac: a Chrome tab\u2019s sound (tick Share tab audio)' : 'pick Entire screen and tick Share system audio'}</small></span><button type="button" data-share="sound">Share…</button></li><li><span>Another computer\u2019s screen<small class="fine">open <b id="shareUrl">${esc(shareUrl())}</b> on it, name it, share</small></span><button type="button" data-copy-share>Copy link</button></li></ul>`);
   if (!dlg.open) dlg.showModal();
 }
 $('#addLocal').onclick = openLocalPicker;
+/** The page another computer opens to share its screen into this show (see share.js). */
+export const shareUrl = () => `${location.origin}/share?e=${eventId}`;
 $('#localList').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-copy-share]')) {
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      toast('Link copied: open it on the other computer');
+    } catch {
+      toast(`Open ${shareUrl()} on the other computer`, 8000);
+    }
+    return;
+  }
   const sh = e.target.closest('[data-share]');
   if (sh) {
     sh.disabled = true;

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.61.0 — picture-in-picture, screens from other computers, a tidier inspector
+**Deploy:** `./aws/deploy.sh` (site only).
+
+Stage 5 of the plan from the class recording: the instructor's slides on air lost the instructor, a second computer's screen could only come in by sharing it on the studio computer itself, and the inspector was one long column.
+
+- **Picture-in-picture, live:** with a screen on air (shared here, or from another computer), the camera that was on air just before it stays in a corner, live and in time with the screen (its frames come through the same picture delay as every camera). Its sound stays up (AFV hears it as on air), its tally is on (the tile and the phone), and this computer's camera keeps recording. It fades in and out, goes with its picture through a dissolve, and leaves when that camera is the shot itself. Choose the camera, the corner, its size, and whether it goes over screens only or every shot (the Picture-in-picture card). **P**, or the bar's Picture-in-picture button, turns it off and on; so does the phone remote.
+- **Another computer's screen** (`/share?e=CODE`, the link is under + This computer > Screen and sound): open it on the presenter's laptop, name it, share a screen, window or tab, with its sound if the browser shares it. It joins like a phone, sends only the live picture, keeps its resolution over its frame rate (slides stay sharp), keeps that computer awake, and says when it's up next or on air. Share something else, or stop, from the page.
+- **The inspector is cards**, as in the avatar's Setup: each a title and a line saying what it's for, opened or closed with a click, remembered on this computer (Close all / Open all at the top). Output's long section is now Output, Picture-in-picture, Recording, Autopilot and Sync; Live pictures moved to Network.
+
 ## 0.60.0 — the TV and the remote
 **Deploy:** `./aws/deploy.sh` (site only).
 

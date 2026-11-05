@@ -201,7 +201,7 @@ function render() {
     const src = thumbs.get(c.peer);
     return `<button type="button" class="cam${c.onAir ? ' air' : c.preview ? ' pvw' : ''}" data-peer="${esc(c.peer)}" aria-label="Cut to ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
       ${src ? `<img alt="" src="${src}">` : '<span class="nopic">picture in a moment</span>'}
-      ${c.onAir ? '<span class="tag">ON AIR</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
+      ${c.onAir ? '<span class="tag">ON AIR</span>' : c.inset ? '<span class="tag">IN CORNER</span>' : ''}${c.screen ? '<span class="scr" aria-hidden="true">🖥</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
   }).join('');
   // a sound alert from the studio, with the sources that could stand in
   const alerts = state.alerts || [];
@@ -233,6 +233,9 @@ function render() {
   $('#breakBtn').textContent = state.brk ? 'End break' : 'Break';
   $('#recBtn').setAttribute('aria-pressed', String(!!state.rec));
   $('#recBtn').textContent = state.rec ? 'Stop recording' : 'Record program';
+  $('#pipBtn').hidden = !state.pip;
+  $('#pipBtn').setAttribute('aria-pressed', String(!!state.pip?.on));
+  $('#pipBtn').textContent = state.pip?.on ? `Corner camera${state.pip.now ? `: ${state.pip.now}` : ' on'}` : 'Camera in the corner';
 }
 setInterval(() => {
   const t = $('#recTime');
@@ -263,6 +266,7 @@ $('#clips').addEventListener('click', (e) => {
   if (b) act('clip', b.dataset.clip);
 });
 $('#autoBtn').onclick = () => act('auto', !state?.auto);
+$('#pipBtn').onclick = () => act('pip', !state?.pip?.on);
 $('#blackBtn').onclick = () => act('black');
 $('#breakBtn').onclick = () => act('break');
 $('#recBtn').onclick = () => {

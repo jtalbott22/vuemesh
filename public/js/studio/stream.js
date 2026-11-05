@@ -1,4 +1,4 @@
-// Studio, part 10 of 25: Stream out (WHIP and RTMP).
+// Studio, part 10 of 26: Stream out (WHIP and RTMP).
 // Loads after console-draw.js: that import comes first, so the parts run in order (see ../studio.js).
 import './console-draw.js';
 import { toast, esc, announce } from '/js/vm.js';

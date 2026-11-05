@@ -265,8 +265,9 @@ export class CamLink {
       if (!p.encodings?.length) p.encodings = [{}];
       const pri = this.tier === 'program' ? 'high' : this.tier === 'preview' ? 'medium' : 'low';
       Object.assign(p.encodings[0], { maxBitrate: cap * 1000, scaleResolutionDownBy: scale, maxFramerate: 30, priority: pri, networkPriority: pri });
-      // (on air: keep the picture's size, let the frame rate give a little first; otherwise balance)
-      p.degradationPreference = this.tier === 'program' ? 'maintain-resolution' : 'balanced';
+      // (on air: keep the picture's size, let the frame rate give a little first; otherwise balance;
+      // a shared screen always keeps its size: slides and text go unreadable long before they stutter)
+      p.degradationPreference = this.tier === 'program' || this.screen ? 'maintain-resolution' : 'balanced';
       await sender.setParameters(p);
       this.applied = { kbps: cap, scale };
     } catch {}

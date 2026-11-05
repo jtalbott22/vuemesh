@@ -1,4 +1,4 @@
-// Studio, part 20 of 25: the media manager, Source monitor, media inspector.
+// Studio, part 20 of 26: the media manager, Source monitor, media inspector.
 // Loads after editops.js: that import comes first, so the parts run in order (see ../studio.js).
 import './editops.js';
 import { toast, esc, fmtDur, announce } from '/js/vm.js';

@@ -1,4 +1,4 @@
-// Studio, part 12 of 25: break slate, black, clips on air, lower thirds, the slate look, the mics-only picture.
+// Studio, part 12 of 26: break slate, black, clips on air, lower thirds, the slate look, the mics-only picture.
 // Loads after room.js: that import comes first, so the parts run in order (see ../studio.js).
 import './room.js';
 import { toast, esc, now, announce } from '/js/vm.js';

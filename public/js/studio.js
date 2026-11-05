@@ -32,4 +32,5 @@
 //   23. screens.js        the Monitor, the phone remote, TV screens
 //   24. showlog.js        the show log (what happened, second by second) and the sound watch
 //   25. picsync.js        one timeline for this computer's cameras and microphones; the sync check
-import './studio/picsync.js';
+//   26. pip.js            picture-in-picture, live: a camera in a corner over a screen
+import './studio/pip.js';
