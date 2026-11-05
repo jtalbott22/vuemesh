@@ -10,7 +10,7 @@ import {
 } from './clips.js';
 import { camOrder, cutLive } from './live.js';
 import { freshPlayer, reconnectPhone } from './usage.js';
-import { askRemove, removeLocalSource, renameLocal, setLocalManualRec } from './sources.js';
+import { askRemove, canSplit, joinLocalMic, removeLocalSource, renameLocal, setLocalManualRec, splitLocalMic } from './sources.js';
 import { openCcu } from './ccu.js';
 import { media } from './room.js';
 import { setPreview } from './switcher.js';
@@ -260,6 +260,9 @@ $('#multi').addEventListener('contextmenu', (e) => {
   openMenu(e.clientX, e.clientY, [
     { label: 'Put on air', action: () => cutLive(tile.dataset.peer) },
     { label: 'Rename…', action: () => renameLocal(tile.dataset.peer) },
+    // an interface's two inputs, opened once: each side its own microphone, or both as one again
+    ...(canSplit(l) ? [{ label: 'Two microphones (Input 1 left, Input 2 right)', action: () => splitLocalMic(tile.dataset.peer) }] : []),
+    ...(l.side ? [{ label: 'One microphone (both sides)', action: () => joinLocalMic(tile.dataset.peer) }] : []),
     { label: 'Remove from the show', action: () => removeLocalSource(tile.dataset.peer, 'removed') },
   ], `${l.name} · this computer`);
 });

@@ -11,7 +11,7 @@ import {
 import { addClip, noteAngle, rebuild } from './clips.js';
 import { renderLive } from './live.js';
 import { syncTally } from './onair.js';
-import { mixAttach, renderMixer } from './mixer.js';
+import { mixAttach, mixDetach, renderMixer } from './mixer.js';
 import { ccuSync } from './ccu.js';
 import { myOs } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
@@ -37,7 +37,7 @@ const hashStr = (s) => {
 };
 const cleanLabel = (s) => String(s || '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').replace(/^Default - /, '').trim();
 function saveLocalList() {
-  const list = [...live].filter(([, l]) => l.local && !l.screen).map(([, l]) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined }));
+  const list = [...live].filter(([, l]) => l.local && !l.screen && !l.splitOf).map(([p, l]) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.wholeName || l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined, ...(l.side ? { split: { L: l.name, R: live.get(halfOf(p))?.name || null } } : {}) }));
   localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
 }
 // A camera on this computer brings its sound, as a phone does: the microphone in the same
@@ -160,7 +160,7 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   if (kind === 'mic') !KIOSK && startLocalRec(peer);
   else localRecFollow();
   note(`${label} added from this computer${micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : kind === 'cam' ? ', without sound' : ''}`);
-  if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ' (recording)' : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`);
+  if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ` (recording)${canSplit(live.get(peer)) ? '. An interface with two inputs? Right-click it: Two microphones' : ''}` : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`, kind === 'mic' && canSplit(live.get(peer)) ? 7000 : undefined);
   refreshLocalMics(); // (the microphones' names, now the browser has said yes)
   checkRate(peer);
   sharedInterface(peer);
@@ -201,7 +201,7 @@ export function sharedInterface(peer) {
       sharedWarned.add(key);
       const a = cleanLabel(o.t.label), b = cleanLabel(t.label);
       note(`${a} and ${b} are two inputs of one interface: Chrome on Linux hears only one of them at a time`);
-      toast(`${a} and ${b} are two inputs of one interface. Chrome on Linux hears only one of them at a time: the other goes silent. Keep one, or set the interface to Pro Audio in the computer's sound settings and add it once (both inputs come in together, Input 1 on the left).`, 15000);
+      toast(`${a} and ${b} are two inputs of one interface. Chrome on Linux hears only one of them at a time: the other goes silent. Keep one, or set the interface to Pro Audio in the computer's sound settings, add it once, and right-click it: Two microphones.`, 15000);
     }
   }
 }
@@ -275,6 +275,7 @@ async function reopenLocal(peer, part, old) {
   const what = part === 'sound' ? `${l.name}'s sound (${l.micLabel || 'its microphone'})` : l.name;
   note(`${what}: the device stopped; opening it again`);
   if (l.role === 'mic') stopLocalRec(peer, true);
+  if (live.has(halfOf(peer))) stopLocalRec(halfOf(peer), true); // (a split input: its other side is the same device)
   renderLive();
   const kind = part === 'sound' ? 'mic' : l.role;
   const id = part === 'sound' ? l.micId : l.deviceId;
@@ -306,6 +307,10 @@ async function reopenLocal(peer, part, old) {
     mixAttach(peer);
     if (l.role === 'mic') !KIOSK && startLocalRec(peer);
     else localRecFollow();
+    if (live.has(halfOf(peer))) {
+      mixAttach(halfOf(peer));
+      if (!KIOSK) startLocalRec(halfOf(peer));
+    }
     renderLive();
     renderMixer();
     const secs = Math.max(1, Math.round((Date.now() - since) / 1000));
@@ -345,11 +350,78 @@ export function removeLocalSource(peer, why) {
   const l = live.get(peer);
   if (!l?.local) return;
   l.removing = true; // (its tracks ending now is no reason to open it again)
+  if (l.splitOf) {
+    // one side of a split input: the other side still uses the device
+    dropHalf(peer, why);
+    saveLocalList();
+    return;
+  }
+  if (live.has(halfOf(peer))) dropHalf(halfOf(peer), why);
   stopLocalRec(peer, true);
   l.stream.getTracks().forEach((t) => t.stop());
   if (hub?.onLiveEnd) hub.onLiveEnd(peer, why || 'removed');
   else live.delete(peer);
   saveLocalList();
+  renderLive();
+  renderMixer();
+}
+// ---- one interface, two microphones -----------------------------------------------------
+// An interface with two inputs opened once, in stereo (a Scarlett on Pro Audio in Linux's sound
+// settings; on a Mac it's always one two-input device): Input 1 is its left side, Input 2 its
+// right. Split, each side is a microphone of its own (its own strip, mode, fader and recording)
+// from the one stream. Chrome on Linux can't open an interface's two inputs separately: the
+// first goes silent (see sharedInterface).
+function halfOf(peer) {
+  return `${peer}-R`;
+}
+/** A microphone here that opened with two sides, not split yet. */
+export function canSplit(l) {
+  return !!l?.local && l.role === 'mic' && !l.side && !l.splitOf && (l.stream.getAudioTracks()[0]?.getSettings?.().channelCount ?? 2) > 1;
+}
+export function splitLocalMic(peer, names = {}) {
+  const l = live.get(peer), r = halfOf(peer);
+  if (!canSplit(l) || live.has(r)) return null;
+  stopLocalRec(peer, true); // (its recording so far has both sides; from now each records its own)
+  const base = l.name;
+  l.wholeName = base;
+  l.side = 'L';
+  l.name = names.L || `${base} · Input 1`;
+  live.set(r, { stream: l.stream, role: 'mic', name: names.R || `${base} · Input 2`, cid: l.cid + 'R', local: true, deviceId: l.deviceId, deviceLabel: l.deviceLabel, side: 'R', splitOf: peer, route: 'local', fixed: true, joinedAt: Date.now() });
+  for (const p of [peer, r]) {
+    mixAttach(p);
+    if (!KIOSK) startLocalRec(p);
+  }
+  renderLive();
+  renderMixer();
+  saveLocalList();
+  note(`${base}: two microphones, ${l.name} (its left side) and ${live.get(r).name} (its right)`);
+  return r;
+}
+/** Both sides as one microphone again. */
+export function joinLocalMic(peer) {
+  const p = live.get(peer)?.splitOf || peer, l = live.get(p);
+  if (!l?.side) return;
+  if (live.has(halfOf(p))) dropHalf(halfOf(p), 'joined');
+  stopLocalRec(p, true);
+  l.side = null;
+  l.name = l.wholeName || l.deviceLabel;
+  l.wholeName = null;
+  mixAttach(p);
+  if (!KIOSK) startLocalRec(p);
+  renderLive();
+  renderMixer();
+  saveLocalList();
+  note(`${l.name}: one microphone again (both sides)`);
+}
+/** The second side of a split input leaves the show (its stream stays: it's the first side's). */
+function dropHalf(peer, why) {
+  if (!live.get(peer)?.splitOf) return;
+  stopLocalRec(peer, true);
+  if (hub?.onLiveEnd) hub.onLiveEnd(peer, why || 'removed');
+  else {
+    mixDetach(peer);
+    live.delete(peer);
+  }
   renderLive();
   renderMixer();
 }
@@ -414,8 +486,9 @@ function startLocalRec(peer) {
   }
   const one = () => {
     const vids = l.recTrack?.readyState === 'live' ? [l.recTrack] : l.stream.getVideoTracks();
-    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? l.stream.getAudioTracks() : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? 3_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
+    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? (l.side && l.recAudio ? [l.recAudio] : l.stream.getAudioTracks()) : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? 3_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
     const chunks = [], t0 = now(), began = performance.now();
+    const name = l.name; // (named as it was when it started: a split or a rename can come before it's saved)
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = async () => {
       const blob = new Blob(chunks, { type: mime });
@@ -423,7 +496,7 @@ function startLocalRec(peer) {
       const s = (l.recTrack || l.stream.getVideoTracks()[0])?.getSettings?.() || {};
       const w = s.width || 0, h = s.height || 0;
       const meta = {
-        id: `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, mime: blob.type || mime, cid: l.cid, name: l.name,
+        id: `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, mime: blob.type || mime, cid: l.cid, name,
         t0, t0Source: 'studio', dur: Math.round(performance.now() - began), w, h, local: true,
         ...(kind === 'video' ? { native: true, audio: (l.stream.getAudioTracks()[0]?.getSettings?.().channelCount || 1) > 1 ? 'stereo' : 'mono', orient: [{ t: 0, rot: 0, rect: null, upright: w >= h ? 'landscape' : 'portrait', ev: 0, ct: 0 }] } : {}),
       };
@@ -699,7 +772,8 @@ setTimeout(async () => {
     if (s.kind === 'cam' && s.sound === false) micId = null;
     // (a camera saved with "Default" as its sound, from before: it picks a microphone by name again)
     else if (s.kind === 'cam' && s.micId !== 'default' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
-    await addLocalSource(s.kind, same.deviceId, s.name, true, micId).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
+    const peer = await addLocalSource(s.kind, same.deviceId, s.name, true, micId).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
+    if (peer && s.split) splitLocalMic(peer, s.split);
   }
   if (saved.some((s) => (s.kind === 'mic' ? mic : cam) !== 'granted')) toast('This computer\u2019s cameras and microphones are off until you allow them: + This computer', 7000);
 }, 1500);

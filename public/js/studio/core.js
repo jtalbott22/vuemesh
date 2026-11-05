@@ -98,6 +98,12 @@ export function askName(title, value) {
     d.querySelector('h2').textContent = title;
     const input = d.querySelector('input');
     input.value = value || '';
+    // Enter saves (left to the form, it pressed the first button: Cancel)
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      d.close('ok');
+    });
     d.addEventListener('close', () => {
       done(d.returnValue === 'ok' ? input.value : null);
       d.remove();
