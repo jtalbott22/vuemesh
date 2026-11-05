@@ -33,7 +33,9 @@ with sync_playwright() as p:
     row = sl['rows'][-1]
     cam = next(s for s in row['s'] if s['k'] == 'cam'); mic = next(s for s in row['s'] if s['k'] == 'mic')
     assert 15 <= row['fps'] <= 40 and row['vis'] == 'v' and row['sock'] == 1 and row['ctx'] == 'running', row
-    assert mic['a'] == 'live' and mic['open'] == 1 and mic['db'] > -90 and mic.get('sr'), mic
+    # Chromium's fake mic beeps with silence between, so one snapshot can land in a gap: the loudest of the last few.
+    loudest = max(s['db'] for r in sl['rows'][-4:] for s in r['s'] if s['id'] == mic['id'])
+    assert mic['a'] == 'live' and mic['open'] == 1 and loudest > -90 and mic.get('sr'), (loudest, mic)
     assert cam['a'] == 'live' and cam['open'] == 0 and cam.get('mic') and (cam.get('vf') or cam.get('vp')), cam
     kinds = {e['kind'] for e in sl['events']}
     assert {'source', 'air'} <= kinds, kinds
