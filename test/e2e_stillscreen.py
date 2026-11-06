@@ -35,8 +35,8 @@ with sync_playwright() as p:
     host.click('#addLocal'); host.wait_for_selector('#localList [data-share="screen"]', timeout=10000)
     host.click('#localList [data-share="screen"]'); host.wait_for_selector('.tile[data-peer^="local-cam"] video', timeout=10000)
     asked = host.evaluate('window.__screenAsked.video')
-    assert asked['width']['max'] == 1920 and asked['height']['max'] == 1080, asked
-    step(f"the screen is captured at most 1920x1080 (asked for {asked['width']} x {asked['height']}), not the screen's full size")
+    assert asked['width']['max'] == 1280 and asked['height']['max'] == 720 and asked['frameRate']['max'] == 30, asked
+    step(f"the screen is captured at the output's size and frame rate, 720p at 30 (asked for {asked['width']} x {asked['height']} at {asked['frameRate']}), not the screen's full size")
     host.wait_for_function("vmSync().cams.some((c) => c.name === 'Screen' && c.count >= 1)", timeout=10000)
     host.click('.tile[data-peer^="local-cam"]')
     host.wait_for_function("document.querySelector('#progLabel').textContent.includes('Screen')", timeout=5000)

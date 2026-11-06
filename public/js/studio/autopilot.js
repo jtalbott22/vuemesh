@@ -295,14 +295,20 @@ export function toggleProgramRecording() {
   }
   mixInit();
   player.ctx.resume();
-  const tracks = [programVideoTrack(), ...mix.dest.stream.getAudioTracks()];
+  // The program's picture as a track only for what takes it that way (the browser's own recorder,
+  // if the steady one can't run here, and the live cut's parts once someone's there for them):
+  // Record program draws from the canvas, and a copy nobody used cost a full-size copy a frame.
+  const audio = mix.dest.stream.getAudioTracks();
+  let vtrack = null;
+  const tracks = () => [vtrack?.readyState === 'live' ? vtrack : (vtrack = programVideoTrack()), ...audio];
+  tracks.audio = audio;
   const startedAt = now();
   const saved = (blob) => {
     addUsage('liveCutSec', (Date.now() - (rec.startedAt || Date.now())) / 1000);
     setProgRec(null);
     renderOutput();
     recOnAirChanged();
-    setTimeout(() => tracks[0].stop(), 3000); // (its own copy, once the last live-cut part is done: the program picture goes on for everything else)
+    setTimeout(() => vtrack?.stop(), 3000); // (its own copy, once the last live-cut part is done: the program picture goes on for everything else)
     $('#recProgBtn').setAttribute('aria-pressed', 'false');
     if (!blob?.size) {
       note('Program recording: nothing was recorded');
@@ -356,7 +362,7 @@ function startProgramRecorder(tracks, saved) {
     saved(file);
   };
   const startBrowserRecorder = () => {
-    mr = new MediaRecorder(new MediaStream(tracks), { mimeType: recMime(), videoBitsPerSecond: 6_000_000 });
+    mr = new MediaRecorder(new MediaStream(tracks()), { mimeType: recMime(), videoBitsPerSecond: 6_000_000 });
     const chunks = [];
     mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     mr.onstop = () => saved(new Blob(chunks, { type: mr.mimeType }));
@@ -374,7 +380,7 @@ function startProgramRecorder(tracks, saved) {
     const support = await programRecorderSupport(program.width, program.height, output.fps);
     if (support && !asked) {
       const r = new ProgramRecorder({
-        canvas: program, audioTrack: tracks[1], fps: output.fps, support, sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
+        canvas: program, audioTrack: tracks.audio[0], fps: output.fps, support, sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
         name: `${eventId}-${Math.round(Date.now())}.mp4`,
         onError: (e) => {
           note(`Program recording stopped: the encoder failed (${e?.message || e}); what was recorded is saved`);

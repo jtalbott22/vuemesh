@@ -185,8 +185,9 @@ $('#stGo').onclick = async () => {
   mixInit();
   $('#stGo').disabled = true;
   streamState(s.kind === 'rtmp' ? `Connecting to ${s.name} through the relay…` : `Connecting to ${s.name}…`);
+  let stream = null;
   try {
-    const stream = new MediaStream([programVideoTrack(), ...mix.dest.stream.getAudioTracks()]);
+    stream = new MediaStream([programVideoTrack(), ...mix.dest.stream.getAudioTracks()]);
     const onState = (st, why) => {
       if (st === 'failed' && streamOut) stopStream(why ? `${why} Press Go live to start again.` : `The connection to ${s.name} dropped. Press Go live to start again.`);
     };
@@ -215,6 +216,7 @@ $('#stGo').onclick = async () => {
     }, 2000);
   } catch (e) {
     streamOut = null;
+    stream?.getVideoTracks().forEach((t) => t.stop()); // (its copy of the program picture: in use by nothing now, it kept the program's capture running)
     streamState(e.message);
     toast(e.message, 7000);
     note(`Stream to ${s.name} didn't start: ${e.message}`);
@@ -335,44 +337,100 @@ for (const box of [$('#mixer'), $('#bridge')]) {
 
 export let mixRows = [];
 export function setMixRows(v) { return (mixRows = v); }
-const peakOf = (an) => {
+// (one buffer per meter, kept: a new one every frame for every meter was garbage 60 times a second)
+export const peakOf = (an) => {
   if (!an) return 0;
-  const buf = new Float32Array(an.fftSize);
+  const buf = an.__buf?.length === an.fftSize ? an.__buf : (an.__buf = new Float32Array(an.fftSize));
   an.getFloatTimeDomainData(buf);
   let p = 0;
-  for (const v of buf) p = Math.max(p, Math.abs(v));
+  for (let i = 0; i < buf.length; i++) {
+    const v = Math.abs(buf[i]);
+    if (v > p) p = v;
+  }
   return p;
 };
 const toPct = (p) => Math.max(0, Math.min(100, (((p > 0 ? 20 * Math.log10(p) : -60) + 60) / 60) * 100));
-// Meters: -60 dB to 0 dB, with a peak hold that falls after 1.5 s and a clip light.
+/** Set a style property only when it changes: an unchanged write still costs the page a restyle and a repaint. */
+export function setStyleIfChanged(el, prop, value) {
+  const k = '__' + prop;
+  if (el[k] === value) return;
+  el[k] = value;
+  if (prop.startsWith('--')) el.style.setProperty(prop, value);
+  else el.style[prop] = value;
+}
+// Meters: -60 dB to 0 dB, with a peak hold that falls after 1.5 s and a clip light. The sound is
+// read every frame (a peak between two reads isn't missed: each meter shows the loudest since it
+// was last drawn), the meters are drawn at most 30 times a second, and only what changed is
+// written: 60 writes a second to every meter, each finding its strips by searching the whole page,
+// kept the studio's page restyling and repainting all of them on every frame.
 const holds = new Map();
+const loud = new Map(); // key → the loudest since the meter was last drawn
+let stripEls = new Map(), stripRows = null, stripsAt = 0, metersAt = 0;
+function stripsOf(id) {
+  let s = stripEls.get(id);
+  if (!s) {
+    s = [...document.querySelectorAll(`[data-strip="${CSS.escape(id)}"]`)].map((el) => ({ el, by: new Map() }));
+    stripEls.set(id, s);
+  }
+  return s;
+}
+const partOf = (strip, sel) => {
+  if (!strip.by.has(sel)) strip.by.set(sel, strip.el.querySelector(sel));
+  return strip.by.get(sel);
+};
 (function meters() {
+  requestAnimationFrame(meters);
   const t = performance.now();
+  // (the mixer drew its strips again, or a strip left the page: find them again; and twice a second anyway)
+  if (stripRows !== mixRows || t - stripsAt > 500 || [...stripEls.values()].some((s) => s.some((x) => !x.el.isConnected))) {
+    stripEls = new Map();
+    stripRows = mixRows;
+    stripsAt = t;
+  }
+  const draw = t - metersAt >= 30;
+  if (draw) metersAt = t;
   for (const r of mixRows) {
     const levels = twoSides(r) ? (r.meters?.() || []).map(peakOf) : [peakOf(r.meter?.())];
-    levels.forEach((p, ch) => {
-      const pct = toPct(p);
+    levels.forEach((p0, ch) => {
       const k = r.id + ':' + ch;
+      const p = Math.max(p0, loud.get(k) || 0);
+      if (!draw) return void loud.set(k, p);
+      loud.delete(k);
+      const pct = toPct(p);
       const h = holds.get(k) || { v: 0, at: 0, clipAt: 0 };
       if (pct >= h.v || t - h.at > 1500) Object.assign(h, { v: pct, at: t });
       if (p >= 0.99) h.clipAt = t;
       holds.set(k, h);
-      document.querySelectorAll(`[data-strip="${CSS.escape(r.id)}"]`).forEach((el) => {
-        const fill = el.querySelector(`.fill[data-ch="${ch}"]`);
-        if (fill) fill.style.setProperty('--lvl', pct + '%');
+      const lvl = Math.round(pct * 2) / 2 + '%', pk = Math.round(h.v * 2) / 2 + '%', clip = t - h.clipAt < 2000;
+      for (const s of stripsOf(r.id)) {
+        const fill = partOf(s, `.fill[data-ch="${ch}"]`);
+        if (fill) setStyleIfChanged(fill, '--lvl', lvl);
         else {
-          const bar = el.querySelector(`.lvl i[data-ch="${ch}"]`);
-          if (bar) bar.style.width = pct + '%';
+          const bar = partOf(s, `.lvl i[data-ch="${ch}"]`);
+          if (bar) setStyleIfChanged(bar, 'width', lvl);
         }
-        el.querySelector(`.peak[data-ch="${ch}"]`)?.style.setProperty('--pk', h.v + '%');
-        el.querySelector(`.clip[data-ch="${ch}"]`)?.classList.toggle('on', t - h.clipAt < 2000);
-      });
+        const peak = partOf(s, `.peak[data-ch="${ch}"]`);
+        if (peak) setStyleIfChanged(peak, '--pk', pk);
+        const c = partOf(s, `.clip[data-ch="${ch}"]`);
+        if (c && c.classList.contains('on') !== clip) c.classList.toggle('on', clip);
+      }
     });
-    if (r.live) document.querySelectorAll(`.vstrip[data-strip="${CSS.escape(r.id)}"]`).forEach((el) => el.classList.toggle('open', !!r.open?.()));
+    if (draw && r.live) {
+      const open = !!r.open?.();
+      for (const s of stripsOf(r.id)) if (s.el.classList.contains('vstrip') && s.el.classList.contains('open') !== open) s.el.classList.toggle('open', open);
+    }
   }
   for (const peer of micPeers()) {
-    const bar = live.get(peer)?.tile?.querySelector('.meter i');
-    if (bar) bar.style.width = toPct(peakOf(mix.strips.get(peer)?.meter)) + '%';
+    const k = 'tile:' + peer, p = Math.max(peakOf(mix.strips.get(peer)?.meter), loud.get(k) || 0);
+    if (!draw) {
+      loud.set(k, p);
+      continue;
+    }
+    loud.delete(k);
+    const l = live.get(peer);
+    if (l && !l.meterBar?.isConnected) l.meterBar = l.tile?.querySelector('.meter i') || null;
+    if (l?.meterBar) setStyleIfChanged(l.meterBar, 'width', Math.round(toPct(p)) + '%');
   }
-  requestAnimationFrame(meters);
+  // (what wasn't read this time: a strip gone mono, a microphone that left; its last loudest isn't kept for when it comes back)
+  if (draw) loud.clear();
 })();

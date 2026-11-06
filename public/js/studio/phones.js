@@ -87,7 +87,7 @@ function piecesWanted() {
 }
 function rollPiece() {
   const mime = recMime();
-  const rec = new MediaRecorder(new MediaStream(pieceTracks), { mimeType: mime, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
+  const rec = new MediaRecorder(new MediaStream(pieceTracks()), { mimeType: mime, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
   const chunks = [];
   const piece = { id: `${eventId}-${Math.round(now())}`, part: ++pieceN, t0: now(), mime: rec.mimeType };
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);

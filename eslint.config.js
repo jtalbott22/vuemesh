@@ -15,7 +15,7 @@ export default [
     },
   },
   {
-    files: ['public/js/qrworker.js'],
+    files: ['public/js/qrworker.js', 'public/js/audiosync-worker.js'],
     languageOptions: { globals: { ...globals.worker } },
   },
   {
