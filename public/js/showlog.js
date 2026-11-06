@@ -16,14 +16,19 @@
 //         ad (sound dropped that second, ms), lat (sound latency, ms), sr (sample rate),
 //         mic (the microphone a camera's sound comes from), pl (a camera here: its own delay, sensor to
 //         arrival, ms), sp (how much later than that its frames come, ms), held (stopped sending: its last
-//         picture held), sd (how long its sound waits, ms), and from a phone's link every few
+//         picture held), sd (how long its sound waits, ms), ch (this computer's: sides it opened with),
+//         dbL / dbR (a stereo input here: each side's loudest), st2 (the mixer hears both sides), side
+//         (one side of a split input: L or R), and from a phone's link every few
 //         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
 //   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back), cap
 //         (its bitrate cap, kbps), and what it says it gets: rfps (frames shown a second), frz
 //         (freezes), drop (frames dropped), remote (a phone remote's Program out)
 //   pd    the program's picture delay: every camera here shows the moment this long ago (ms)
 //   dup   frames the studio was too late to draw that second (the same picture again)
-//   rs    Record program: frames written, dropped (skipped), queue (the encoder's), drift (sound minus picture, ms)
+//   rs    Record program: frames written, dropped (skipped), held (frames the studio was late for, written as
+//         the picture before held longer), queue (the encoder's), drift (sound minus picture, ms),
+//         clamped (frames asked for past the recording's time, not written), fixes (the sound: ms taken
+//         out, put in, silence for gaps, overMs: past the recording's time, left out)
 
 export const FLOOR_DB = -90; // quieter than this is no sound: a live microphone's own hiss is louder (a room at low gain sits near -80)
 

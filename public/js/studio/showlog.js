@@ -49,8 +49,17 @@ function measure() {
   lastTick = t;
   if (player.ctx?.state !== 'running') return;
   progPeak = Math.max(progPeak, peakOf(mix.meterL), peakOf(mix.meterR));
-  for (const [peer, st] of mix.strips) if (st.pre && st.src) srcPeak.set(peer, Math.max(srcPeak.get(peer) || 0, peakOf(st.pre)));
+  for (const [peer, st] of mix.strips) {
+    if (!st.pre || !st.src) continue;
+    srcPeak.set(peer, Math.max(srcPeak.get(peer) || 0, peakOf(st.pre)));
+    // an input of this computer in stereo (an interface's Input 1 left, Input 2 right): each side on its own
+    if (live.get(peer)?.stereo && st.fix?.aL) {
+      const [l, r] = sidePeak.get(peer) || [0, 0];
+      sidePeak.set(peer, [Math.max(l, peakOf(st.fix.aL)), Math.max(r, peakOf(st.fix.aR))]);
+    }
+  }
 }
+const sidePeak = new Map(); // peer → [left, right], loudest since the last sample
 
 // ---- one sample a second ----
 const prevStats = new WeakMap(); // track or video → its counters a second ago
@@ -80,6 +89,14 @@ function sources() {
     if (at) {
       const set = at.getSettings?.() || {};
       if (set.sampleRate) s.sr = set.sampleRate;
+      // how many sides it opened with (an interface's two inputs come as two), each side's level,
+      // and whether the mixer hears it as stereo yet; a split input says which side it is
+      if (l.local) {
+        s.ch = set.channelCount || 1;
+        const sp = sidePeak.get(peer);
+        if (sp) Object.assign(s, { dbL: dbOf(sp[0]), dbR: dbOf(sp[1]), st2: st?.fix?.stereo ? 1 : 0 });
+        if (l.side) s.side = l.side;
+      }
       // (Chrome counts sound the device delivered and what it had to drop on the way in)
       const as = at.stats;
       if (as && 'totalFramesDuration' in as) {
@@ -104,6 +121,7 @@ function sources() {
     out.push(s);
   }
   srcPeak.clear();
+  sidePeak.clear();
   return out;
 }
 let lastSample = 0, lastFrames = 0;
@@ -172,7 +190,7 @@ function joinedText(x) {
   const l = live.get(x.id);
   const where = x.loc ? ' (this computer)' : '';
   if (x.k === 'cam') return `${x.n}${where} joined as a camera${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}, sound from ${l?.micLabel || (x.a === 'none' ? 'nothing' : 'its own microphone')}${x.sr ? ` at ${x.sr} Hz` : ''}`;
-  return `${x.n}${where} joined as ${x.k === 'mic' ? 'a microphone' : 'a shared screen'}${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}${x.sr ? ` at ${x.sr} Hz` : ''}`;
+  return `${x.n}${where} joined as ${x.k === 'mic' ? 'a microphone' : 'a shared screen'}${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}${x.sr ? ` at ${x.sr} Hz` : ''}${x.k === 'mic' && x.ch ? (x.side ? `, its ${x.side === 'L' ? 'left' : 'right'} side` : x.ch > 1 ? `, in stereo (${x.ch} sides: an interface's Input 1 left, Input 2 right)` : ', mono') : ''}`;
 }
 let devicesBefore = null;
 async function devices() {

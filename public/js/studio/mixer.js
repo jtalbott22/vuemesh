@@ -193,7 +193,9 @@ export function mixAttach(peer) {
       st.src.connect(st.fix.input);
       st.src.connect(st.pre);
     }
-    st.fix.reset(!!l.screen); // a stereo input of this computer may still be one mic on the left: the fix finds out
+    // a stereo input of this computer may still be one mic on the left: the fix finds out, unless
+    // it was added as stereo or mono (both sides as they are: see setMicAs)
+    st.fix.reset(!!l.screen || (!l.side && (l.as === 'stereo' || l.as === 'mono')));
     st.trackId = at.id;
     st.stream = l.stream;
     st.silentSince = 0;
@@ -454,7 +456,7 @@ export function renderMixer() {
   const panIn = (r, cls = '') => `<input type="range" data-pan${cls ? ` class="${cls}"` : ''} min="-100" max="100" step="1" value="${Math.round((r.st.pan || 0) * 100)}" title="Balance (double-click: centre)" aria-label="${esc(r.name)} balance">`;
   // inspector: horizontal strips
   $('#mixer').innerHTML = mixRows.map((r) => `<div class="strip${r.master ? ' master' : ''}" data-strip="${esc(r.id)}">
-      <span class="nm">${esc(r.name)}</span>
+      <span class="nm"${r.live ? ' title="Double-click to rename"' : ''}>${esc(r.name)}</span>
       ${r.master ? '<span></span>' : `<span class="btns">${r.live ? modeBtns(r) + monoBtn(r) : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">Duck</button>` : ''}${monoBtn(r)}<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">Mute</button>`}</span>`}
       ${r.live && r.peer ? routeLine(r) : ''}
       ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<span class="lvl" aria-hidden="true"><i data-ch="${c}"></i></span>`).join('')}
@@ -464,16 +466,16 @@ export function renderMixer() {
   // full screen: vertical meter bridge
   const scale = [0, -6, -12, -18, -24, -36, -48].map((db) => `<span style="--p:${((db + 60) / 60) * 100}%">${db}</span>`).join('');
   $('#bridge').innerHTML = mixRows.map((r) => `<div class="vstrip${r.master ? ' master' : ''}${r.live && r.open?.() ? ' open' : ''}" data-strip="${esc(r.id)}">
-      <div class="vname" title="${esc(r.name)}">${esc(r.name)}</div>
+      <div class="vname" title="${esc(r.name)}${r.live ? ' (double-click to rename)' : ''}">${esc(r.name)}</div>
       <div class="vmeters">
         <div class="vscale" aria-hidden="true">${scale}</div>
-        ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<div class="vmeter" aria-hidden="true"><i class="fill" data-ch="${c}"></i><i class="peak" data-ch="${c}"></i><span class="clip" data-ch="${c}"></span></div>`).join('')}
+        <div class="vmbar${twoSides(r) ? ' two' : ''}">${(twoSides(r) ? [0, 1] : [0]).map((c) => `<div class="vmeter" aria-hidden="true"><i class="fill" data-ch="${c}"></i><i class="peak" data-ch="${c}"></i><span class="clip" data-ch="${c}"></span></div>`).join('')}</div>
         ${r.master ? '' : `<input type="range" class="vfader" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels">`}
       </div>
       <output class="db">${r.master ? 'L R' : gainToDb(r.st.gain) + ' dB'}</output>
       ${r.master ? '' : `<div class="vpan">${panIn(r, 'vpanr')}${monoBtn(r, 'MONO')}</div>`}
       ${r.master ? '' : `<div class="vbtns">${r.live ? modeBtns(r) : `<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">M</button>`}</div>`}
-      ${r.live && r.peer ? routeLine(r, true) : ''}
+      ${r.master ? '' : (r.live && r.peer && routeLine(r, true)) || '<div class="vroute"></div>'}
     </div>`).join('');
   renderBusAudio();
   consoleSync();

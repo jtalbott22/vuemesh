@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.61.8 — microphones added as stereo or mono; a Windows show: a screen in the sync check, and Record program while hidden
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Add a microphone as stereo, two mono tracks, or mono:** in + This computer, each microphone has **As**:
+  - **Stereo (one track)**: both sides from the start, for a stereo mic, a pair on Input 1 and 2, or a mixer's stereo out. Its Mono switch folds it to the middle later.
+  - **Two mono tracks (Input 1, Input 2)**: each input its own track, to pan or mute. It's the split from 0.61.7, chosen up front; right-click still joins it back.
+  - **Mono (one track)**: both sides folded to the middle. A single mic on Input 1 comes in 6 dB lower, so raise its fader.
+
+  The choice is remembered for that device and kept after a reload (a Mono switch changed since stays as it was). A device that opens with one side is mono whatever was chosen, and says so. Stereo and Mono take both sides as they are: before, a stereo input started with its left side copied to the right until the right had sound of its own.
+
+From a show log (a 14-thread Windows PC, three USB webcams, a shared screen, a Focusrite Scarlett 2i2 4th Gen plugged in mid-show, the studio hidden for a minute of Record program):
+
+- **A shared screen sits out the sync check.** Nothing in the room happens on a screen, but the check looked for the clap there too. It found the studio's own "Clap now" banner on the shared screen, called the screen 347 ms late, and every camera and the Scarlett's sound then waited 300 ms for it (they had been at 116). A screen is always one frame now, and an old measurement for one is ignored. The cameras didn't see that clap, so their figures are unchanged.
+- **The picture delay holds still during the sync check.** Comparing every frame with the one before makes the cameras look late, so the delay went from 116 to 214 ms before the check had finished. It's set from what the check measured, once the check is done.
+- **Record program is never longer than the show.** With the studio hidden, the sound engine's clock reading kept saying it had stopped. Each time, the recording filled the gap with silence: 31 s of it in 80 s. Twice, the picture also gained about 710 frames (24 s) in one second. The file came out at 125 s. Now neither the picture nor the sound goes past the recording's own time: a gap is filled only up to it, and sound past it is left out. The show log counts both (`clamped` and `overMs`). Where the 710 frames came from isn't known yet: the next log will say whether this guard caught them.
+- **A camera that won't start at its size opens smaller, rather than not at all:** two Logitech C930e webcams on the same USB controller as the Scarlett failed with "Timeout starting video source" (Windows, after 10 s) at 1080p and 720p, with nothing else using them, but opened at 360p. A camera now tries 1080p, then 720p, then 360p, and says which size it got and why: its USB port is out of room, and another port, ideally one on the computer itself, may give it more. That takes about 20 s, and the same happens when a camera is brought back after a reload or a dropout.
+- **The studio at every width.** Below 1100 px the layout broke. Each panel was still pinned to its column number from the three-column layout, so the browser made up columns: the inspector took 40% of a 1024-px screen, its cards were squashed to empty outlines with their chevrons pressed against the bottom edge, and the sources were cut off.
+  - **Laptops (up to 1439 px):** sources, program and inspector side by side. Each side keeps the width you dragged it to, up to its share of the window (the program keeps at least half). The top bar is one row: tighter, without the key hints, the show's code and the Beta pill.
+  - **Tablets (up to 900 px):** sources beside the program, the inspector underneath with its cards side by side.
+  - **Phones (up to 640 px):** one column, program first, and the page scrolls.
+  - **The cards' chevrons** sit centred on the title and its line, down when closed and up when open.
+- **Every source in view, without scrolling, where it can be.** With 3 cameras and 5 microphones on a 1024 x 768 screen, the sources were one column of big tiles, 1,216 px tall in a 306-px panel. The panel now picks the number of columns that fits them all, as large as possible:
+  - The break, black and the cameras come first. The microphones follow on rows of their own, after the cameras, as their numbers are.
+  - The microphones are tiles (their waveform) when that costs the pictures nothing, and strips (number, name, level) when it makes the pictures bigger.
+  - A small tile keeps its number, its name and what's urgent, and drops where it comes from (THIS PC, LAN) first.
+  - A microphone shows the part of its name that tells it apart: "Input 1 · Scarlett 2i2 4th Gen", not "Microphone (…)". Two the same are numbered, and a strip's name takes two lines rather than being cut.
+  - Measured: at 1920 x 1080 and 1440 x 900 all ten fit. At 1280 x 800 and 1024 x 768, with the mixer showing six strips, about 170 px still scroll.
+- **The mixer's strips, readable and one size:**
+  - Every strip lying flat is three rows: its name with Mono and AFV / ON / OFF; its meter, across the strip's whole width (it was squeezed in beside the fader); then its fader, level, balance and routing.
+  - A camera's Sound menu is in that last row, and a strip with nothing to route leaves the space, so every strip is the same height (a camera's had been taller than a microphone's).
+  - The mixer's buttons and menus are dark, as the mixer is: Audio console was a light grey pill and a camera's Sound menu a white box, both under light text, because they took the page's light-theme colours.
+- **The row under the program stays one row on a 1024-px laptop:** after the short labels, it closes up (less space between, the clock without its AM / PM, slimmer panel buttons) before it wraps. The two panel buttons had wrapped onto a row of their own.
+- **The mixer takes at most a third of a window under 1000 px tall** (it took 40% with six strips); past that its strips scroll. On a short screen, the empty Clips box is just its title and + Add (its explanation is on the button).
+- **+ This computer shows each device before it's added:** each camera's live picture, and each microphone's sound as it comes, each side on its own (L above, R below), so a stereo input shows which input has what.
+  - A device in the show shows its own picture or sound, outlined in green.
+  - One that isn't is opened small (320 x 180) just for the list, and let go before it's added and when the list closes.
+  - On Linux, a second input of an interface that's already open isn't opened for its preview: Chrome there would silence one of them.
+- **Adding a device, while it opens:** Add becomes a small spinner and "Opening" in the same space (its column is one width whatever it says), and the preview says Opening… where the picture was. A long Sound menu shrinks instead of running under the button.
+- **Name any source, anywhere, with a picker:** from a tile's right-click menu (phones and microphones too, not only this computer's), a mixer strip's name (double-click), or the pen beside a device in + This computer. That last one also names a device before it's added.
+  - The picker has **Who** (Host, Guest, Teacher, Pastor…) and **Shot** (Wide, Close-up, Left…) or, for a microphone, **Microphone** (Lav, Handheld, Podium…). Each sets its part of the name, e.g. "Teacher · Wide".
+  - Or type any name. The names used before are a click away, and **Use its own name** goes back to the device's.
+  - This computer's sources keep their names with them, also after a reload, and by the device itself: one removed and added again (or that dropped out) comes back with the name it was given. The list shows it by that name, with its own beside it.
+  - A phone's name is kept for that phone on this computer, and it has it whenever it joins.
+- **+ This computer, redesigned:** a sheet with a header, a scrolling list and Done at the foot. Each camera, microphone and share is a row with an icon, its name, its options (Sound, or As) and Add; what's already in the show says so in green. Two of the same webcam are told apart as the show names them (Logitech Webcam C930e, … 2), without Windows' "2-" prefixes. On a phone it fills the screen, with Add under the name.
+- **Monitor, reorganized, at every width.** Its phones table had 16 columns and scrolled sideways even at 1920 px; the saved show logs were squeezed into a 64-px column (a date a word a line); the show log's summary was one long list.
+  - A row of links at the top (it stays): Sources, Show log, Transfers, Recordings, Event log, Saved show logs, with counts (amber where something needs attention).
+  - **Sources** are cards, cameras then microphones: each one's link, its live picture, and only the figures it has (this computer's have no round trip or battery). One that needs attention is outlined amber, with what's wrong; one on air, red.
+  - **Show log:** its two graphs side by side; each line of the summary with its moments folded under it (open to see them, and they stay open as it updates).
+  - **Transfers:** coming in and going out side by side. **Recordings** received and parts sent, in one place.
+  - On a wide screen the event log and the saved show logs stay beside the rest as it scrolls; narrower, they're under it, side by side; on a phone, everything in one column.
+- **A shared screen that stops sharing leaves at once,** and says how to share again. It was tried again for 30 s, as a camera that dropped out is, but only the browser's picker can share a screen again.
+- **The home page's buttons in light mode on Auto:** a device in light mode with the theme left on Auto showed the Camera, My media, Kiosk and Join a show buttons dark grey on the light page. Their colours were set for Light chosen by hand, not for Auto.
+- **The show log says how this computer's microphones opened:** how many sides (`ch`) and each side's level for a stereo input (`dbL` and `dbR`: an interface's Input 1 and Input 2). Its join line also says "in stereo" or "mono". The last log couldn't tell what the Scarlett gave Windows.
+
+From a load test on the same PC (three 1080p webcams, four microphones, a shared screen with its sound and the computer's sound, then Record program): each of those alone was fine, but all together the program drew a new picture only about every 110 ms (12–17 of every 30 frames were the one before again), and Record program kept about 1 frame in 7. The page itself was mostly idle: the browser's graphics couldn't keep up with four 1080p pictures at 30.
+
+- **A shared screen is 15 frames a second,** as its own recording already was. That's enough for slides and demos, and it takes 15 frames a second of 1080p off the graphics. The browser's own work for the share halved (13% of a core to 7%).
+- **Record program writes a late frame once, held longer,** rather than as copies. A studio that fell behind owed 2–4 frames of the same picture each time and sent them to the encoder all at once. That filled its queue, and the next new picture was skipped. The show log counts these frames (`held`). A key frame still comes every 2 s when the count steps past the exact frame. A 23 s test recording with 142 such frames played for 23.47 s with nothing broken.
+- **The 1080p warning counts a shared screen:** "3 cameras and a shared screen at 1080p is a lot for one computer: … try 720p." Three webcams at 720p with everything else was smooth in the test, and Record program skipped no frames. At 1080p it still can't keep up when all three webcams send a full 30 frames a second. The warning also clears when a source is removed.
+
 ## 0.61.7 — one interface, two microphones
 **Deploy:** `./aws/deploy.sh` (site only).
 

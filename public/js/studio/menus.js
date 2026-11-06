@@ -10,7 +10,7 @@ import {
 } from './clips.js';
 import { camOrder, cutLive } from './live.js';
 import { freshPlayer, reconnectPhone } from './usage.js';
-import { askRemove, canSplit, joinLocalMic, removeLocalSource, renameLocal, setLocalManualRec, splitLocalMic } from './sources.js';
+import { askRemove, canSplit, joinLocalMic, removeLocalSource, renameLocal, renameSource, setLocalManualRec, splitLocalMic } from './sources.js';
 import { openCcu } from './ccu.js';
 import { media } from './room.js';
 import { setPreview } from './switcher.js';
@@ -253,6 +253,7 @@ $('#multi').addEventListener('contextmenu', (e) => {
     e.preventDefault();
     return openMenu(e.clientX, e.clientY, [
       { label: 'Put on air', action: () => cutLive(tile.dataset.peer) },
+      { label: 'Rename…', action: () => renameSource(tile.dataset.peer) },
       { sep: true },
       { label: 'Remove from the event…', action: () => askRemove(tile.dataset.peer) },
     ], `${l?.name || 'Microphone'}`);
@@ -286,6 +287,7 @@ $('#multi').addEventListener('contextmenu', (e) => {
           { label: 'Remove from the show', action: () => removeLocalSource(peer, 'removed') },
         ]
       : [
+          { label: 'Rename…', action: () => renameSource(peer) },
           { label: 'Refresh picture', action: () => freshPlayer(peer, 'refreshed by hand') },
           { label: 'Reconnect phone', action: () => reconnectPhone(peer, 'reconnected by hand') },
           { sep: true },

@@ -5,13 +5,13 @@ import { api, toast, esc, now } from '/js/vm.js';
 import { snapToCamera } from '/js/camctl.js';
 import * as idb from '/js/idb.js';
 import {
-  $, askName, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
-  player, REC_MIMES, recMime, seq, setLiveActive,
+  $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
+  player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
 import { addClip, noteAngle, rebuild } from './clips.js';
 import { renderLive } from './live.js';
 import { syncTally } from './onair.js';
-import { mixAttach, mixDetach, renderMixer } from './mixer.js';
+import { applyStripFx, mix, mixAttach, mixDetach, mixSave, mixState, renderMixer } from './mixer.js';
 import { ccuSync } from './ccu.js';
 import { myOs } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
@@ -37,7 +37,7 @@ const hashStr = (s) => {
 };
 const cleanLabel = (s) => String(s || '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').replace(/^Default - /, '').trim();
 function saveLocalList() {
-  const list = [...live].filter(([, l]) => l.local && !l.screen && !l.splitOf).map(([p, l]) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.wholeName || l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined, ...(l.side ? { split: { L: l.name, R: live.get(halfOf(p))?.name || null } } : {}) }));
+  const list = [...live].filter(([, l]) => l.local && !l.screen && !l.splitOf).map(([p, l]) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.wholeName || l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined, ...(l.as && !l.side ? { as: l.as } : {}), ...(l.side ? { split: { L: l.name, R: live.get(halfOf(p))?.name || null } } : {}) }));
   localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
 }
 // A camera on this computer brings its sound, as a phone does: the microphone in the same
@@ -72,10 +72,33 @@ function soundFor(cam, devs) {
 // ports suffers first). Changed, the cameras in the show change at once.
 const CAMSIZE_KEY = 'vm_localcamsize';
 export const camCapture = () => (localStorage.getItem(CAMSIZE_KEY) === '720' ? 720 : 1080);
-const camSize = () => {
-  const h = camCapture();
-  return { width: { ideal: Math.round((h * 16) / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } };
-};
+const sizeFor = (h) => ({ width: { ideal: Math.round((h * 16) / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } });
+const camSize = () => sizeFor(camCapture());
+// A camera that won't start at the size asked is opened smaller (720p, then 360p) rather than not
+// at all, and says so. On Windows a USB port without room for the picture says "Timeout starting
+// video source", after 10 s: two Logitech C930e on the same USB controller as a Focusrite Scarlett
+// opened at 360p and timed out at 720p and 1080p, with nothing else open.
+const wontStart = (e) => e?.name === 'AbortError' || e?.name === 'NotReadableError' || /timeout|could not start/i.test(e?.message || '');
+async function openVideo(deviceId, label, quiet) {
+  const steps = [...new Set([camCapture(), 720, 360])].filter((h) => h <= camCapture());
+  let last;
+  for (const h of steps) {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, ...sizeFor(h) } });
+      if (h !== steps[0]) {
+        const why = `its USB port had no room for ${steps[0]}p (an audio interface or other cameras on the same port take some; another USB port, ideally one on the computer itself, may give it more)`;
+        note(`${label} opened at ${h}p: ${why}`);
+        s.smaller = `at ${h}p: ${why}`; // (said when it's in the show: see registerLocal)
+      }
+      return s;
+    } catch (e) {
+      last = e;
+      if (!wontStart(e)) throw e;
+      if (h === steps[0] && h > 360 && !quiet) toast(`${label} didn't start at ${h}p: trying smaller…`, 10000);
+    }
+  }
+  throw last;
+}
 export async function setCamCapture(h) {
   localStorage.setItem(CAMSIZE_KEY, String(h === 720 ? 720 : 1080));
   for (const [, l] of live) {
@@ -90,8 +113,12 @@ export function renderCamCapture() {
   const sel = $('#camSize'), hint = $('#camSizeHint');
   if (!sel) return;
   sel.value = String(camCapture());
-  const n = [...live.values()].filter((l) => l.local && l.role !== 'mic' && !l.screen).length;
-  if (hint) hint.textContent = n >= 3 && camCapture() === 1080 ? `${n} cameras at 1080p is a lot for one computer's USB: if pictures stutter or the sound crackles, try 720p.` : '';
+  const pics = [...live.values()].filter((l) => l.local && l.role !== 'mic');
+  const n = pics.filter((l) => !l.screen).length, scr = pics.length - n;
+  // (a shared screen counts: three webcams and a screen, all at 1080p, were more than one laptop's
+  // graphics could draw, and the program stuttered where three webcams alone didn't)
+  const what = `${n} camera${n === 1 ? '' : 's'}${scr ? ` and ${scr === 1 ? 'a shared screen' : `${scr} shared screens`}` : ''}`;
+  if (hint) hint.textContent = n && n + scr >= 3 && camCapture() === 1080 ? `${what} at 1080p is a lot for one computer${scr ? '' : "'s USB"}: if pictures stutter or the sound crackles, try 720p.` : '';
 }
 $('#camSize')?.addEventListener('change', (e) => setCamCapture(Number(e.target.value)));
 renderCamCapture();
@@ -106,7 +133,7 @@ const camSoundSaved = () => {
     return {};
   }
 };
-async function addLocalSource(kind, deviceId, name, quiet, micId) {
+async function addLocalSource(kind, deviceId, name, quiet, micId, as) {
   if (kind === 'cam' && micId === undefined) {
     const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
     const cam = devs.find((d) => d.deviceId === deviceId);
@@ -114,23 +141,26 @@ async function addLocalSource(kind, deviceId, name, quiet, micId) {
     const kept = chosen && (chosen.micId === null ? { deviceId: null } : devs.find((d) => d.kind === 'audioinput' && (d.deviceId === chosen.micId || (chosen.label && cleanLabel(d.label) === chosen.label))));
     micId = kept ? kept.deviceId : cam ? soundFor(cam, devs)?.deviceId || null : null;
   }
-  const constraints = kind === 'mic'
-    ? { audio: { deviceId: { exact: deviceId }, ...MIC_OPTS } }
-    : { video: { deviceId: { exact: deviceId }, ...camSize() }, ...(micId ? { audio: { deviceId: { exact: micId }, ...MIC_OPTS } } : {}) };
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-  } catch (e) {
-    if (kind !== 'cam' || !micId) throw e;
-    // the camera without its sound, rather than not at all (the mic may be busy or gone)
-    stream = await navigator.mediaDevices.getUserMedia({ video: constraints.video });
-    toast(`Added without sound: its microphone isn't available (${e.message})`, 6000);
-    micId = null;
+  if (kind === 'mic') {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, ...MIC_OPTS } });
+    return registerLocal(kind, stream, { deviceId, name, quiet, micId, as });
   }
-  return registerLocal(kind, stream, { deviceId, name, quiet, micId });
+  // the picture (smaller if it has to be), then its sound
+  const label = cleanLabel((await navigator.mediaDevices.enumerateDevices().catch(() => [])).find((d) => d.deviceId === deviceId)?.label) || 'The camera';
+  const stream = await openVideo(deviceId, label, quiet);
+  if (micId) {
+    try {
+      stream.addTrack((await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: micId }, ...MIC_OPTS } })).getAudioTracks()[0]);
+    } catch (e) {
+      // the camera without its sound, rather than not at all (the mic may be busy or gone)
+      toast(`Added without sound: its microphone isn't available (${e.message})`, 6000);
+      micId = null;
+    }
+  }
+  return registerLocal(kind, stream, { deviceId, name, quiet, micId, as });
 }
 /** A source on this computer, from a stream already open (a camera, a microphone, a shared screen or the computer's sound). */
-function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, label: given } = {}) {
+function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, label: given, as } = {}) {
   const track = kind === 'mic' ? stream.getAudioTracks()[0] : stream.getVideoTracks()[0];
   const label = given || cleanLabel(track.label) || (kind === 'mic' ? 'Microphone' : 'Camera');
   const peer = `local-${kind}-${hashStr(deviceId)}`;
@@ -141,6 +171,8 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   // its identity comes from the device itself, not its name: three of the same webcam are three
   // cameras (named Logitech BRIO, Logitech BRIO 2, Logitech BRIO 3)
   const cid = 'L' + hashStr(`${kind}:${deviceId}`).slice(0, 10);
+  // (a name given to this device before comes back with it: added again by hand, or after it dropped out)
+  if (!name) name = localNames()[`${kind}:${deviceId}`] || null;
   if (!name) {
     const same = [...live.values()].filter((x) => x.local && x.deviceLabel === label).length;
     if (same) name = `${label} ${same + 1}`;
@@ -153,6 +185,7 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   watchLocal(peer, track, 'main');
   if (micTrack) watchLocal(peer, micTrack, 'sound');
   mixAttach(peer);
+  if (kind === 'mic' && as) setMicAs(peer, as, quiet); // (before its recording starts: two tracks record one each)
   if (kind === 'cam') localCamState(peer);
   renderLive();
   renderMixer();
@@ -160,7 +193,8 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
   if (kind === 'mic') !KIOSK && startLocalRec(peer);
   else localRecFollow();
   note(`${label} added from this computer${micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : kind === 'cam' ? ', without sound' : ''}`);
-  if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ` (recording)${canSplit(live.get(peer)) ? '. An interface with two inputs? Right-click it: Two microphones' : ''}` : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`, kind === 'mic' && canSplit(live.get(peer)) ? 7000 : undefined);
+  if (!quiet && stream.smaller) toast(`${live.get(peer).name} is in the show, ${stream.smaller}`, 14000);
+  else if (!quiet) toast(`${live.get(peer).name} is in the show${kind === 'mic' ? ` (recording)${!as && canSplit(live.get(peer)) ? '. An interface with two inputs? Right-click it: Two microphones' : ''}` : micTrack ? `, with sound from ${cleanLabel(micTrack.label)}` : ''}`, kind === 'mic' && !as && canSplit(live.get(peer)) ? 7000 : undefined);
   refreshLocalMics(); // (the microphones' names, now the browser has said yes)
   checkRate(peer);
   sharedInterface(peer);
@@ -263,6 +297,15 @@ function watchLocal(peer, track, part) {
   track.addEventListener('ended', () => {
     const l = live.get(peer);
     if (!l || l.removing || !l.stream.getTracks().includes(track)) return;
+    // A shared screen (or this computer's sound) that ends was stopped (the browser's Stop sharing,
+    // or the window shared was closed): only the browser's picker can share it again, so it goes
+    // now, and says how. (It was tried again for 30 s, as a camera is, and never could be.)
+    if (l.screen) {
+      note(`${l.name}: sharing ended`);
+      toast(`${l.name} stopped sharing. To share again: + This computer, then Share…`, 8000);
+      removeLocalSource(peer, 'sharing ended');
+      return;
+    }
     reopenLocal(peer, part, track);
   });
 }
@@ -334,9 +377,9 @@ async function openAgain(kind, id, label) {
   const want = kind === 'mic' ? 'audioinput' : 'videoinput';
   const d = devs.find((x) => x.kind === want && x.deviceId === id) || devs.find((x) => x.kind === want && label && cleanLabel(x.label) === label);
   if (!d) return null;
-  const s = await navigator.mediaDevices.getUserMedia(kind === 'mic'
-    ? { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } }
-    : { video: { deviceId: { exact: d.deviceId }, ...camSize() } });
+  const s = kind === 'mic'
+    ? await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } })
+    : await openVideo(d.deviceId, label || cleanLabel(d.label), true);
   return (kind === 'mic' ? s.getAudioTracks() : s.getVideoTracks())[0] || null;
 }
 navigator.mediaDevices?.addEventListener?.('devicechange', () => {
@@ -364,6 +407,7 @@ export function removeLocalSource(peer, why) {
   saveLocalList();
   renderLive();
   renderMixer();
+  renderCamCapture();
 }
 // ---- one interface, two microphones -----------------------------------------------------
 // An interface with two inputs opened once, in stereo (a Scarlett on Pro Audio in Linux's sound
@@ -385,6 +429,7 @@ export function splitLocalMic(peer, names = {}) {
   const base = l.name;
   l.wholeName = base;
   l.side = 'L';
+  l.as = 'split';
   l.name = names.L || `${base} · Input 1`;
   live.set(r, { stream: l.stream, role: 'mic', name: names.R || `${base} · Input 2`, cid: l.cid + 'R', local: true, deviceId: l.deviceId, deviceLabel: l.deviceLabel, side: 'R', splitOf: peer, route: 'local', fixed: true, joinedAt: Date.now() });
   for (const p of [peer, r]) {
@@ -404,6 +449,7 @@ export function joinLocalMic(peer) {
   if (live.has(halfOf(p))) dropHalf(halfOf(p), 'joined');
   stopLocalRec(p, true);
   l.side = null;
+  l.as = 'stereo'; // (both sides, as they are)
   l.name = l.wholeName || l.deviceLabel;
   l.wholeName = null;
   mixAttach(p);
@@ -412,6 +458,50 @@ export function joinLocalMic(peer) {
   renderMixer();
   saveLocalList();
   note(`${l.name}: one microphone again (both sides)`);
+}
+// ---- added as: stereo, two mono tracks, or mono ----
+// Chosen when it's added (+ This computer, beside each microphone), and remembered for that
+// device. Stereo: one track with both sides, from the start (a stereo mic, a pair on Input 1 and
+// 2, a mixer's stereo out); its Mono switch folds it later. Two mono tracks: Input 1 and Input 2,
+// each its own track to pan or mute. Mono: one track, both sides folded to the middle. A device
+// that opens with one side is mono whatever was chosen.
+export const MIC_AS = { stereo: 'Stereo (one track)', split: 'Two mono tracks (Input 1, Input 2)', mono: 'Mono (one track)' };
+const MICAS_KEY = 'vm_micas';
+const micAsSaved = () => {
+  try {
+    return JSON.parse(localStorage.getItem(MICAS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+/** How a microphone of this computer is in the show: 'stereo', 'split' or 'mono'. */
+export function setMicAs(peer, as, quiet = false) {
+  const p = live.get(peer)?.splitOf || peer, l = live.get(p);
+  if (!l?.local || l.role !== 'mic' || l.screen || !MIC_AS[as]) return;
+  const all = micAsSaved();
+  all[l.deviceId] = all[`label:${l.deviceLabel}`] = as;
+  localStorage.setItem(MICAS_KEY, JSON.stringify(all));
+  const ch = l.stream.getAudioTracks()[0]?.getSettings?.().channelCount || 1;
+  if (ch < 2 && as !== 'mono') {
+    if (!quiet) toast(`${l.name} opened with one side only, so it's one mono track${myOs === 'linux' ? ' (an interface on Linux: Pro Audio in the computer’s sound settings gives both inputs)' : ''}`, 8000);
+    as = 'mono';
+  }
+  if (as === 'split') {
+    if (!l.side) splitLocalMic(p);
+    return;
+  }
+  if (l.side) joinLocalMic(p);
+  l.as = as;
+  // (brought back after a reload: a Mono switch changed since stays as it was)
+  const cur = mixState(l.cid, 'mic');
+  const st = quiet && cur.touched ? cur : { ...cur, mono: as === 'mono' };
+  if (st !== cur) mixSave(l.cid, st);
+  const nodes = mix.strips.get(p);
+  applyStripFx(nodes, st);
+  nodes?.fix?.setStereo(true); // (both sides as they are: the right isn't filled from the left)
+  saveLocalList();
+  renderMixer();
+  note(`${l.name}: ${as === 'stereo' ? 'one stereo track' : 'one mono track (both sides)'}`);
 }
 /** The second side of a split input leaves the show (its stream stays: it's the first side's). */
 function dropHalf(peer, why) {
@@ -425,15 +515,51 @@ function dropHalf(peer, why) {
   renderLive();
   renderMixer();
 }
-export async function renameLocal(peer) {
+// Each device's name here, by the device (not only in the list of what's in the show): a camera
+// that dropped out and was added again kept its device name and lost the one it was given.
+const LOCALNAMES_KEY = 'vm_local_names';
+const localNames = () => {
+  try {
+    return JSON.parse(localStorage.getItem(LOCALNAMES_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+function setLocalName(kind, deviceId, name) {
+  if (!deviceId) return;
+  const all = localNames();
+  if (name) all[`${kind}:${deviceId}`] = name;
+  else delete all[`${kind}:${deviceId}`];
+  localStorage.setItem(LOCALNAMES_KEY, JSON.stringify(all));
+}
+/** Any source's name, from the name picker: this computer's keep it with the source, a phone's is kept for that phone. */
+export async function renameSource(peer) {
   const l = live.get(peer);
-  const name = l && (await askName('Name for this source', l.name));
-  if (!name?.trim()) return;
-  l.name = name.trim().slice(0, 40);
-  saveLocalList();
+  if (!l) return;
+  const original = l.local ? (l.side ? `${l.wholeName || l.deviceLabel} · Input ${l.side === 'L' ? 1 : 2}` : l.deviceLabel) : l.phoneName || '';
+  const name = await askTitle({ heading: `Name ${l.name}`, value: l.name, original, kind: l.role === 'mic' ? 'mic' : 'cam' });
+  if (name === null || live.get(peer) !== l) return;
+  const was = l.name;
+  l.name = name || original || l.name;
+  if (l.local) {
+    if (!l.side && !l.screen) setLocalName(l.role, l.deviceId, name || null);
+    saveLocalList();
+  } else setTitle(l.cid, name || null);
   renderLive();
   renderMixer();
   ccuSync();
+  if (l.name !== was) note(`${was} is now ${l.name}`);
+}
+export const renameLocal = renameSource;
+// a strip's name in the mixer, double-clicked: the same picker (the strip is the source's identity, or its peer)
+for (const box of [$('#mixer'), $('#bridge')]) {
+  box?.addEventListener('dblclick', (e) => {
+    const nm = e.target.closest('.nm, .vname'), id = nm?.closest('[data-strip]')?.dataset.strip;
+    const peer = id && [...live].find(([p, l]) => (l.cid || p) === id)?.[0];
+    if (!peer || !isHost) return;
+    e.preventDefault();
+    renameSource(peer);
+  });
 }
 // ---- recording: on the studio's clock, rolling every 5 minutes
 // A camera's recording with its sound: WebM with Opus first (the steadiest way a browser
@@ -663,11 +789,14 @@ export function flushRecordings(why) {
 // is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow, and the
 // text came out jagged) and recorded on air at full size (the computer's whole effort). The
 // browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
-const SCREEN_MAX = { width: 1920, height: 1080 };
+// And 15 frames a second, as its own recording already is: slides and demos need no more, and
+// a screen at 30 beside three 1080p webcams was more than one laptop's graphics could take
+// (the program drew a new picture only every 100 ms and Record program kept 1 frame in 7).
+const SCREEN_MAX = { width: 1920, height: 1080, fps: 15 };
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: SCREEN_MAX.width }, height: { max: SCREEN_MAX.height }, frameRate: { ideal: 30 } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: SCREEN_MAX.width }, height: { max: SCREEN_MAX.height }, frameRate: { ideal: SCREEN_MAX.fps, max: SCREEN_MAX.fps } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -690,6 +819,160 @@ async function addScreenSource(soundOnly) {
   const label = surface === 'monitor' ? 'Screen' : surface === 'browser' ? 'Browser tab' : cleanLabel(v.label) || 'Window';
   return registerLocal('cam', stream, { deviceId: 'screen-' + n, screen: true, label: `${label}${stream.getAudioTracks().length ? '' : ''}` });
 }
+// the add list's icons (24-px line drawings, in the text's colour)
+const svg = (d) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const LICON = {
+  cam: svg('<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/>'),
+  mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>'),
+  screen: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+  sound: svg('<path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
+  pen: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+  link: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+};
+// ---- previews in the add list: each camera's picture, each microphone's sound ----
+// So you can see what you're adding: a camera in the show shows its own picture; one that isn't is
+// opened small (320 x 180, 15 a second) just for the list, and let go before it's added (and when
+// the list closes). A microphone's sound is drawn as it comes, each side on its own (an
+// interface's Input 1 above, Input 2 below), so a stereo input shows which side has what. On Linux,
+// a second input of an interface that's already open isn't opened for its preview: Chrome there
+// reads only one of them at a time (the other goes silent; see sharedInterface).
+const pendingNames = new Map(); // device → the name it'll be added with
+const previews = new Map(); // 'cam:id' / 'mic:id' → { stream, own, inShow, an: [L, R], ch, hist, skip, opening }
+let pvCtx = null, pvRaf = 0, pvGen = 0;
+async function stopPreview(key, wait) {
+  const p = previews.get(key);
+  if (!p) return;
+  previews.delete(key);
+  if (p.own) p.stream?.getTracks().forEach((t) => t.stop());
+  try {
+    p.src?.disconnect();
+  } catch {}
+  if (wait && p.own && p.stream) await new Promise((r) => setTimeout(r, 350)); // (Windows lets go of a camera a moment after)
+}
+function stopPreviews() {
+  pvGen++;
+  for (const k of [...previews.keys()]) stopPreview(k);
+  cancelAnimationFrame(pvRaf);
+  pvRaf = 0;
+  pvCtx?.close().catch(() => {});
+  pvCtx = null;
+  $('#localList')?.querySelectorAll('.lthumb video').forEach((v) => (v.srcObject = null)); // (the cameras in the show go on; the list stops showing them)
+}
+$('#localDlg')?.addEventListener('close', stopPreviews);
+function meterOf(p, track) {
+  pvCtx ||= new AudioContext();
+  pvCtx.resume().catch(() => {});
+  p.ch = track.getSettings?.().channelCount || 1;
+  p.src = pvCtx.createMediaStreamSource(new MediaStream([track]));
+  const split = pvCtx.createChannelSplitter(2);
+  p.src.connect(split);
+  p.an = [0, 1].map((i) => {
+    const a = pvCtx.createAnalyser();
+    a.fftSize = 1024;
+    split.connect(a, i);
+    return a;
+  });
+  p.hist = [[], []];
+}
+async function attachPreviews(cams, mics, inShowPeer) {
+  const gen = pvGen;
+  const want = [...cams.map((d) => ['cam', d]), ...mics.map((d) => ['mic', d])];
+  const openGroups = new Set([...live.values()].filter((l) => l.local).flatMap((l) => l.stream.getAudioTracks().map((t) => t.getSettings?.().groupId)).filter(Boolean));
+  // the ones already showing first (no wait), then each new one in turn (opening them all at once is a lot for USB)
+  for (const [kind, d] of want) showPreview(`${kind}:${d.deviceId}`);
+  for (const [kind, d] of want) {
+    if (gen !== pvGen) return;
+    const key = `${kind}:${d.deviceId}`, peer = inShowPeer.get(d.deviceId), l = peer && live.get(peer);
+    let p = previews.get(key);
+    // in the show: its own picture or sound (a preview of its own, if it had one, lets go)
+    if (l && !p?.inShow) {
+      if (p) await stopPreview(key);
+      const track = kind === 'cam' ? l.stream.getVideoTracks()[0] : l.stream.getAudioTracks()[0];
+      p = { stream: track ? new MediaStream([track]) : null, own: false, inShow: true };
+      if (kind === 'mic' && track) meterOf(p, track);
+      previews.set(key, p);
+    } else if (!l && p?.inShow) {
+      previews.delete(key); // (it left the show: a preview of its own)
+      p = null;
+    }
+    if (!p) {
+      if (kind === 'mic' && myOs === 'linux' && d.groupId && openGroups.has(d.groupId)) {
+        previews.set(key, { skip: 'Its sound shows once it’s added' });
+      } else {
+        p = { own: true, opening: true };
+        previews.set(key, p);
+        showPreview(key);
+        try {
+          const s = await navigator.mediaDevices.getUserMedia(kind === 'cam'
+            ? { video: { deviceId: { exact: d.deviceId }, width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { max: 15 } } }
+            : { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } });
+          if (gen !== pvGen || previews.get(key) !== p) {
+            s.getTracks().forEach((t) => t.stop());
+            continue;
+          }
+          p.stream = s;
+          if (kind === 'mic') {
+            meterOf(p, s.getAudioTracks()[0]);
+            if (d.groupId) openGroups.add(d.groupId);
+          }
+        } catch (e) {
+          p.skip = /timeout|could not start|NotReadable/i.test(`${e.name} ${e.message}`) ? 'In use, or its USB port is full' : 'No preview';
+        }
+        p.opening = false;
+      }
+    }
+    showPreview(key);
+    if (!pvRaf && [...previews.values()].some((x) => x.an)) pvRaf = requestAnimationFrame(drawPreviews);
+  }
+}
+function showPreview(key) {
+  const p = previews.get(key), el = $('#localList')?.querySelector(`[data-pv="${CSS.escape(key)}"]`);
+  if (!el) return;
+  const v = el.querySelector('video');
+  if (v && p?.stream && v.srcObject !== p.stream) {
+    v.srcObject = p.stream;
+    v.play().catch(() => {});
+  }
+  el.classList.toggle('live', !!p?.stream);
+  el.querySelector('.lpvs').textContent = !p ? '' : p.skip || (p.opening ? 'Opening…' : key.startsWith('mic:') && p.ch ? (p.ch > 1 ? 'Stereo' : 'Mono') : '');
+}
+const pvBuf = new Float32Array(1024);
+function drawPreviews() {
+  pvRaf = 0;
+  if (!$('#localDlg')?.open) return;
+  for (const [key, p] of previews) {
+    if (!p.an) continue;
+    const el = $('#localList').querySelector(`[data-pv="${CSS.escape(key)}"] canvas`);
+    if (!el) continue;
+    const sides = p.ch > 1 ? 2 : 1;
+    for (let i = 0; i < sides; i++) {
+      p.an[i].getFloatTimeDomainData(pvBuf);
+      let m = 0;
+      for (const x of pvBuf) m = Math.max(m, Math.abs(x));
+      const h = p.hist[i];
+      h.push(Math.min(1, Math.max(0, (20 * Math.log10(m || 1e-6) + 60) / 60))); // (-60 dB to 0, as the meters)
+      if (h.length > 64) h.shift();
+    }
+    const g = el.getContext('2d'), W = el.width, H = el.height, bw = W / 64;
+    g.fillStyle = '#04060c';
+    g.fillRect(0, 0, W, H);
+    for (let i = 0; i < sides; i++) {
+      const mid = sides === 2 ? (i === 0 ? H * 0.28 : H * 0.72) : H / 2, amp = sides === 2 ? H * 0.2 : H * 0.4;
+      const h = p.hist[i];
+      h.forEach((v, j) => {
+        const bh = Math.max(1, v * amp);
+        g.fillStyle = v > 0.9 ? '#ff5a52' : v > 0.75 ? '#ffb21e' : '#2fd56b';
+        g.fillRect(W - (h.length - j) * bw, mid - bh, bw - 1, bh * 2);
+      });
+      if (sides === 2) {
+        g.fillStyle = '#ffffffb3';
+        g.font = '700 18px system-ui, sans-serif';
+        g.fillText(i === 0 ? 'L' : 'R', 8, mid + 6);
+      }
+    }
+  }
+  pvRaf = requestAnimationFrame(drawPreviews);
+}
 async function openLocalPicker() {
   const dlg = $('#localDlg');
   let devs = await navigator.mediaDevices.enumerateDevices();
@@ -698,14 +981,49 @@ async function openLocalPicker() {
   const cams = devs.filter((d) => d.kind === 'videoinput' && d.deviceId), mics = devs.filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications');
   const sound = (d) => {
     const pick = soundFor(d, devs), pickId = pick?.deviceId === 'default' ? mics.find((m) => m.groupId === pick.groupId)?.deviceId || 'default' : pick?.deviceId;
-    return `<label class="snd">Sound <select data-snd="${esc(d.deviceId)}" aria-label="Sound for ${esc(cleanLabel(d.label))}">${mics.map((m) => `<option value="${esc(m.deviceId)}" ${m.deviceId === pickId ? 'selected' : ''}>${esc(cleanLabel(m.label))}</option>`).join('')}${pickId === 'default' ? '<option value="default" selected>This computer\u2019s microphone</option>' : ''}<option value="" ${pick ? '' : 'selected'}>No sound</option></select></label>`;
+    return `<label class="lopt"><span>Sound</span><select data-snd="${esc(d.deviceId)}" aria-label="Sound for ${esc(nameOf(d))}">${mics.map((m) => `<option value="${esc(m.deviceId)}" ${m.deviceId === pickId ? 'selected' : ''}>${esc(nameOf(m))}</option>`).join('')}${pickId === 'default' ? '<option value="default" selected>This computer’s microphone</option>' : ''}<option value="" ${pick ? '' : 'selected'}>No sound</option></select></label>`;
   };
-  const row = (d, kind) => `<li><span>${esc(cleanLabel(d.label) || (kind === 'mic' ? 'Microphone' : 'Camera'))}${kind === 'cam' && !inShow.has(d.deviceId) ? sound(d) : ''}</span>${inShow.has(d.deviceId) ? '<span class="fine">in the show</span>' : `<button type="button" data-add="${kind}" data-dev="${esc(d.deviceId)}">Add</button>`}</li>`;
-  $('#localList').innerHTML = !named
-    ? '<p>To list them, the browser needs your OK to use this computer\u2019s cameras and microphones.</p><button type="button" class="primary" id="localAllow">Allow cameras and microphones</button>'
-    : `<h3>Cameras</h3><ul>${cams.map((d) => row(d, 'cam')).join('') || '<li class="fine">None found</li>'}</ul><h3>Microphones</h3><ul>${mics.map((d) => row(d, 'mic')).join('') || '<li class="fine">None found</li>'}</ul>`;
-  $('#localList').insertAdjacentHTML('beforeend', `<h3>Screen and sound</h3><ul><li><span>A screen or window<small class="fine">with its sound, if the browser shares it</small></span><button type="button" data-share="screen">Share…</button></li><li><span>This computer\u2019s sound<small class="fine">${myOs === 'mac' ? 'on a Mac: a Chrome tab\u2019s sound (tick Share tab audio)' : 'pick Entire screen and tick Share system audio'}</small></span><button type="button" data-share="sound">Share…</button></li><li><span>Another computer\u2019s screen<small class="fine">open <b id="shareUrl">${esc(shareUrl())}</b> on it, name it, share</small></span><button type="button" data-copy-share>Copy link</button></li></ul>`);
-  if (!dlg.open) dlg.showModal();
+  const asSel = (d) => {
+    const v = micAsSaved()[d.deviceId] || micAsSaved()[`label:${cleanLabel(d.label)}`] || 'stereo';
+    return `<label class="lopt"><span>As</span><select data-as="${esc(d.deviceId)}" aria-label="Add ${esc(nameOf(d))} as">${Object.entries(MIC_AS).map(([k, t]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  };
+  // two of the same webcam are told apart as the show names them (Logitech Webcam C930e, … 2)
+  const seen = new Map(), names = new Map();
+  for (const d of [...cams, ...mics]) {
+    const base = cleanLabel(d.label).replace(/\(\d+- /, '(') || (d.kind === 'audioinput' ? 'Microphone' : 'Camera');
+    const k = `${d.kind}:${base}`, n = (seen.get(k) || 0) + 1;
+    seen.set(k, n);
+    names.set(d.deviceId + d.kind, n > 1 ? `${base} ${n}` : base);
+  }
+  function nameOf(d) {
+    return names.get(d.deviceId + d.kind) || cleanLabel(d.label);
+  }
+  const row = (icon, title, sub, opts, action, cls = '', thumb = '') => `<li class="ldev ${cls}${thumb ? ' hasthumb' : ''}">${thumb || `<span class="lico" aria-hidden="true">${LICON[icon]}</span>`}<span class="lmain"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}${opts ? `<span class="lopts">${opts}</span>` : ''}</span><span class="lact">${action}</span></li>`;
+  const inShowPeer = new Map([...live].filter(([, l]) => l.local && !l.splitOf).map(([p, l]) => [l.deviceId, p]));
+  const dev = (d, kind) => {
+    const inn = inShow.has(d.deviceId), peer = inShowPeer.get(d.deviceId), l = peer && live.get(peer);
+    const thumb = `<span class="lthumb ${kind}" data-pv="${kind}:${esc(d.deviceId)}" aria-hidden="true">${kind === 'cam' ? '<video muted playsinline autoplay></video>' : '<canvas width="256" height="144"></canvas>'}<i class="lpvi">${LICON[kind]}</i><em class="lpvs"></em></span>`;
+    const given = !l && (pendingNames.get(d.deviceId) || localNames()[`${kind}:${d.deviceId}`]); // (the name it'll come in with)
+    const shown = l ? (l.side ? `${l.wholeName || l.deviceLabel} (two microphones)` : l.name) : given || nameOf(d);
+    const nameBtn = l?.side ? '' : `<button type="button" class="lname" data-name-dev="${esc(d.deviceId)}" data-kind="${kind}" data-own="${esc(nameOf(d))}"${l ? ` data-peer="${esc(peer)}"` : ''} title="Name it" aria-label="Name ${esc(shown)}">${LICON.pen}</button>`;
+    const title = `<span class="lt">${esc(shown)}</span>${nameBtn}${given ? `<small class="lown">${esc(nameOf(d))}</small>` : ''}`;
+    return row(kind, title, '', inn ? '' : kind === 'cam' ? sound(d) : asSel(d), inn ? '<span class="lbadge">In the show</span>' : `<button type="button" class="ladd" data-add="${kind}" data-dev="${esc(d.deviceId)}">Add</button>`, inn ? 'in' : '', thumb);
+  };
+  const sec = (title, items, empty, count = true) => `<section class="lsec"><h3>${title}${count && items.length ? ` <span class="n">${items.length}</span>` : ''}</h3><ul class="ldevs">${items.join('') || `<li class="lnone">${empty}</li>`}</ul></section>`;
+  const shares = [
+    row('screen', 'A screen or window', 'With its sound, if the browser shares it', '', '<button type="button" class="ladd" data-share="screen">Share…</button>'),
+    row('sound', 'This computer’s sound', myOs === 'mac' ? 'On a Mac: a Chrome tab’s sound (tick Share tab audio)' : 'Pick Entire screen and tick Share system audio', '', '<button type="button" class="ladd" data-share="sound">Share…</button>'),
+    row('link', 'Another computer’s screen', `Open <b id="shareUrl">${esc(shareUrl())}</b> on it, name it, share`, '', '<button type="button" class="ladd" data-copy-share>Copy link</button>'),
+  ];
+  $('#localList').innerHTML = (!named
+    ? `<div class="lallow"><span class="lico" aria-hidden="true">${LICON.cam}</span><p>To list this computer’s cameras and microphones, the browser needs your OK.</p><button type="button" class="primary" id="localAllow">Allow cameras and microphones</button></div>`
+    : sec('Cameras', cams.map((d) => dev(d, 'cam')), 'None found') + sec('Microphones', mics.map((d) => dev(d, 'mic')), 'None found')) + sec('Screen and sound', shares, '', false);
+  if (!dlg.open) {
+    pvGen++;
+    dlg.showModal();
+    $('#localList').focus({ preventScroll: true }); // (the list, not the close button, has the focus when it opens)
+  }
+  if (named) attachPreviews(cams, mics, inShowPeer);
 }
 $('#addLocal').onclick = openLocalPicker;
 /** The page another computer opens to share its screen into this show (see share.js). */
@@ -740,12 +1058,41 @@ $('#localList').addEventListener('click', async (e) => {
     }
     return openLocalPicker();
   }
+  const nb = e.target.closest('[data-name-dev]');
+  if (nb) {
+    const peer = nb.dataset.peer;
+    if (peer) return void renameSource(peer).then(() => openLocalPicker());
+    const dev = nb.dataset.nameDev;
+    const name = await askTitle({ heading: `Name ${nb.dataset.own}`, value: pendingNames.get(dev) || localNames()[`${nb.dataset.kind}:${dev}`] || nb.dataset.own, original: nb.dataset.own, kind: nb.dataset.kind });
+    if (name === null) return;
+    if (name) pendingNames.set(dev, name);
+    else {
+      pendingNames.delete(dev);
+      setLocalName(nb.dataset.kind, dev, null); // (its own name: the one it was given before goes too)
+    }
+    return void openLocalPicker();
+  }
   const b = e.target.closest('[data-add]');
   if (!b || b.disabled) return;
   $('#localList').querySelectorAll(`[data-dev="${CSS.escape(b.dataset.dev)}"]`).forEach((x) => (x.disabled = true)); // (one add at a time)
+  b.textContent = 'Opening';
+  b.title = 'Opening it at full size (a camera that has to go smaller takes about 20 s)';
+  const row = b.closest('.ldev');
+  row?.classList.add('busy');
+  // (its preview has let go of it for the show: say so where the picture was)
+  const th = row?.querySelector('.lthumb');
+  if (th) {
+    th.classList.remove('live');
+    th.querySelector('.lpvs').textContent = 'Opening…';
+  }
   const snd = b.dataset.add === 'cam' ? $('#localList').querySelector(`[data-snd="${CSS.escape(b.dataset.dev)}"]`)?.value ?? undefined : undefined;
+  const as = b.dataset.add === 'mic' ? $('#localList').querySelector(`[data-as="${CSS.escape(b.dataset.dev)}"]`)?.value : undefined;
+  // (its preview lets go of the device first: Windows opens a camera that's still open only at the size it's open at)
+  await stopPreview(`${b.dataset.add}:${b.dataset.dev}`, true);
   try {
-    await addLocalSource(b.dataset.add, b.dataset.dev, undefined, false, snd === undefined ? undefined : snd || null);
+    await addLocalSource(b.dataset.add, b.dataset.dev, pendingNames.get(b.dataset.dev) || undefined, false, snd === undefined ? undefined : snd || null, as);
+    if (pendingNames.has(b.dataset.dev)) setLocalName(b.dataset.add, b.dataset.dev, pendingNames.get(b.dataset.dev));
+    pendingNames.delete(b.dataset.dev);
   } catch (err) {
     toast(err.name === 'NotReadableError' ? 'That device is busy (another app may be using it)' : err.message, 6000);
   }
@@ -772,7 +1119,7 @@ setTimeout(async () => {
     if (s.kind === 'cam' && s.sound === false) micId = null;
     // (a camera saved with "Default" as its sound, from before: it picks a microphone by name again)
     else if (s.kind === 'cam' && s.micId !== 'default' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
-    const peer = await addLocalSource(s.kind, same.deviceId, s.name, true, micId).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
+    const peer = await addLocalSource(s.kind, same.deviceId, s.name, true, micId, s.split ? undefined : s.as).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
     if (peer && s.split) splitLocalMic(peer, s.split);
   }
   if (saved.some((s) => (s.kind === 'mic' ? mic : cam) !== 'granted')) toast('This computer\u2019s cameras and microphones are off until you allow them: + This computer', 7000);
