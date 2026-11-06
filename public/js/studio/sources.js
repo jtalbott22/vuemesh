@@ -8,7 +8,7 @@ import {
   $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
   player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
-import { addClip, noteAngle, rebuild } from './clips.js';
+import { addClip, noteAngle, output, rebuild } from './clips.js';
 import { renderLive } from './live.js';
 import { syncTally } from './onair.js';
 import { applyStripFx, mix, mixAttach, mixDetach, mixSave, mixState, renderMixer } from './mixer.js';
@@ -67,11 +67,16 @@ function soundFor(cam, devs) {
     null
   );
 }
-// How big this computer's cameras capture (per computer): 1080p, or 720p, which is far lighter on
-// USB (three webcams at 1080p can be more than a computer's USB takes, and sound from the same
-// ports suffers first). Changed, the cameras in the show change at once.
+// How big this computer's cameras capture (per computer): as big as the show's output, unless
+// chosen. The live picture is drawn at the output's size, so a 1080p webcam in a 720p show was
+// shrunk on every frame for nothing on air: three of them and a shared screen were more than a
+// laptop's graphics could draw (the program stuttered and Record program skipped frames), where
+// at 720p the same show was smooth. 1080p chosen keeps each camera's own recording at 1080p for
+// Edit; 720p is also far lighter on USB (sound from the same ports suffers first). Changed, the
+// cameras in the show change at once.
 const CAMSIZE_KEY = 'vm_localcamsize';
-export const camCapture = () => (localStorage.getItem(CAMSIZE_KEY) === '720' ? 720 : 1080);
+const camChoice = () => ({ 720: 720, 1080: 1080 })[localStorage.getItem(CAMSIZE_KEY)] || 'auto';
+export const camCapture = () => (camChoice() === 'auto' ? (output.height === 1080 ? 1080 : 720) : camChoice());
 const sizeFor = (h) => ({ width: { ideal: Math.round((h * 16) / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } });
 const camSize = () => sizeFor(camCapture());
 // A camera that won't start at the size asked is opened smaller (720p, then 360p) rather than not
@@ -85,6 +90,10 @@ async function openVideo(deviceId, label, quiet) {
   for (const h of steps) {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, ...sizeFor(h) } });
+      // (opened smaller than asked though the camera can do it: still held at another size somewhere
+      // a moment ago, as by its preview in the add list; asked once more)
+      const t = s.getVideoTracks()[0], got = t?.getSettings?.().height || h;
+      if (got < h && (t.getCapabilities?.().height?.max || 0) >= h) await t.applyConstraints(sizeFor(h)).catch(() => {});
       if (h !== steps[0]) {
         const why = `its USB port had no room for ${steps[0]}p (an audio interface or other cameras on the same port take some; another USB port, ideally one on the computer itself, may give it more)`;
         note(`${label} opened at ${h}p: ${why}`);
@@ -100,19 +109,34 @@ async function openVideo(deviceId, label, quiet) {
   throw last;
 }
 export async function setCamCapture(h) {
-  localStorage.setItem(CAMSIZE_KEY, String(h === 720 ? 720 : 1080));
+  if (h === 720 || h === 1080) localStorage.setItem(CAMSIZE_KEY, String(h));
+  else localStorage.removeItem(CAMSIZE_KEY); // (as big as the output)
+  await applyCamCapture();
+}
+let appliedCam = null;
+async function applyCamCapture() {
+  const h = camCapture();
   for (const [, l] of live) {
-    if (!l.local || l.role === 'mic' || l.screen) continue;
-    const t = l.stream.getVideoTracks()[0];
-    await t?.applyConstraints(camSize()).catch(() => {});
+    if (!l.local || l.role === 'mic') continue;
+    // (a shared screen is the output's size too: see screenMax)
+    if (l.screen) await l.stream.getVideoTracks()[0]?.applyConstraints(screenSize()).catch(() => {});
+    else if (h !== appliedCam) await l.stream.getVideoTracks()[0]?.applyConstraints(camSize()).catch(() => {});
+  }
+  if (h !== appliedCam) {
+    if (appliedCam != null) note(`This computer's cameras capture at ${h}p${camChoice() === 'auto' ? ' (the output’s size)' : ''}`);
+    appliedCam = h;
   }
   renderCamCapture();
-  note(`This computer's cameras capture at ${camCapture()}p`);
 }
+// (the output's size or frame rate changed: cameras and screens that follow it change with it, after clips.js has set it)
+$('#outSize')?.addEventListener('change', () => setTimeout(applyCamCapture));
+$('#outFps')?.addEventListener('change', () => setTimeout(applyCamCapture));
 export function renderCamCapture() {
   const sel = $('#camSize'), hint = $('#camSizeHint');
   if (!sel) return;
-  sel.value = String(camCapture());
+  const auto = sel.querySelector('option[value="auto"]');
+  if (auto) auto.textContent = `As the output (${output.height === 1080 ? 1080 : 720}p)`;
+  sel.value = String(camChoice());
   const pics = [...live.values()].filter((l) => l.local && l.role !== 'mic');
   const n = pics.filter((l) => !l.screen).length, scr = pics.length - n;
   // (a shared screen counts: three webcams and a screen, all at 1080p, were more than one laptop's
@@ -120,8 +144,12 @@ export function renderCamCapture() {
   const what = `${n} camera${n === 1 ? '' : 's'}${scr ? ` and ${scr === 1 ? 'a shared screen' : `${scr} shared screens`}` : ''}`;
   if (hint) hint.textContent = n && n + scr >= 3 && camCapture() === 1080 ? `${what} at 1080p is a lot for one computer${scr ? '' : "'s USB"}: if pictures stutter or the sound crackles, try 720p.` : '';
 }
-$('#camSize')?.addEventListener('change', (e) => setCamCapture(Number(e.target.value)));
-renderCamCapture();
+$('#camSize')?.addEventListener('change', (e) => setCamCapture(e.target.value === 'auto' ? 'auto' : Number(e.target.value)));
+setTimeout(() => {
+  // (once clips.js has run too: it and this file import each other, and the output is set there)
+  appliedCam = camCapture();
+  renderCamCapture();
+});
 
 // Which microphone a camera here takes its sound from, once chosen in the mixer (Sound from):
 // kept per camera on this computer, and used whenever that camera is added again.
@@ -785,18 +813,20 @@ export function flushRecordings(why) {
 // shares it; "This computer's sound" keeps just the sound, as a microphone. Which sound the
 // browser can share: Windows and ChromeOS, the whole computer's (pick Entire screen, tick
 // Share system audio); Mac, a Chrome tab's (pick the tab, tick Share tab audio).
-// At most 1080p: left to itself the browser captures a screen at its full size (a Retina iMac's
-// is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow, and the
-// text came out jagged) and recorded on air at full size (the computer's whole effort). The
-// browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
-// And 15 frames a second, as its own recording already is: slides and demos need no more, and
-// a screen at 30 beside three 1080p webcams was more than one laptop's graphics could take
-// (the program drew a new picture only every 100 ms and Record program kept 1 frame in 7).
-const SCREEN_MAX = { width: 1920, height: 1080, fps: 15 };
+// At most the output's size: left to itself the browser captures a screen at its full size (a
+// Retina iMac's is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow,
+// and the text came out jagged) and recorded on air at full size (the computer's whole effort).
+// The browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
+// A 1080p screen in a 720p show was shrunk again on every frame, for nothing on air. And at the
+// output's frame rate: beside three 720p webcams and Record program, a 720p screen at 30 was as
+// smooth as at 15 (and as 1080p at 15), with the motion on it (a video, the pointer) smooth too.
+const screenMax = () => (output.height === 1080 ? { width: 1920, height: 1080 } : { width: 1280, height: 720 });
+const screenFps = () => Math.min(30, Math.round(output.fps));
+const screenSize = () => ({ width: { max: screenMax().width }, height: { max: screenMax().height }, frameRate: { ideal: screenFps(), max: screenFps() } });
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: SCREEN_MAX.width }, height: { max: SCREEN_MAX.height }, frameRate: { ideal: SCREEN_MAX.fps, max: SCREEN_MAX.fps } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -843,6 +873,9 @@ async function stopPreview(key, wait) {
   const p = previews.get(key);
   if (!p) return;
   previews.delete(key);
+  // (still opening: wait for it, then let go. Added meanwhile, a camera was opened while its
+  // 320 x 180 preview was, and Windows gave both that size: it came into the show at 320 x 180, 15 a second)
+  if (p.own && p.opening && p.pending) p.stream = await p.pending.catch(() => null);
   if (p.own) p.stream?.getTracks().forEach((t) => t.stop());
   try {
     p.src?.disconnect();
@@ -903,9 +936,10 @@ async function attachPreviews(cams, mics, inShowPeer) {
         previews.set(key, p);
         showPreview(key);
         try {
-          const s = await navigator.mediaDevices.getUserMedia(kind === 'cam'
+          p.pending = navigator.mediaDevices.getUserMedia(kind === 'cam'
             ? { video: { deviceId: { exact: d.deviceId }, width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { max: 15 } } }
             : { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } });
+          const s = await p.pending;
           if (gen !== pvGen || previews.get(key) !== p) {
             s.getTracks().forEach((t) => t.stop());
             continue;
