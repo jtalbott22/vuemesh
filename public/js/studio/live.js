@@ -138,6 +138,16 @@ export function renderLive() {
   });
   // Microphones are live sources too: click one (or press its number) to put it on air, with
   // its sound on the program picture and the tally on the phone, like a camera.
+  // Each one's name on its tile: what tells it apart first. Windows names every input "Microphone
+  // (…)", so it's the part in brackets (without Windows' "2- "); one side of an input puts its
+  // side first (Input 1 · Scarlett 2i2 4th Gen); two the same are numbered, as cameras are.
+  const shortName = (name) => name.replace(/^Microphone \((?:\d+- )?(.+?)\)/, '$1').replace(/^(.*) · (Input \d)$/, '$2 · $1');
+  const shorts = new Map(), seenShort = new Map();
+  for (const peer of micPeers()) {
+    const s = shortName(live.get(peer).name), k = (seenShort.get(s) || 0) + 1;
+    seenShort.set(s, k);
+    shorts.set(peer, k > 1 ? `${s} ${k}` : s);
+  }
   micPeers().forEach((peer, i) => {
     const l = live.get(peer);
     if (!l.tile) {
@@ -150,17 +160,92 @@ export function renderLive() {
       l.tile.onclick = () => takeSource(peer);
       box.prepend(l.tile);
     }
-    l.tile.style.order = -10 + i;
+    l.tile.style.order = 1000 + i; // (after the cameras, as their numbers are)
+    l.tile.classList.toggle('first', i === 0);
     l.tile.style.display = ''; // (Edit hides every source; bring microphones back too)
     const n = micKey(peer);
     l.tile.querySelector('.glyph').textContent = n || 'M';
-    l.tile.querySelector('b').textContent = `${l.name} · mic${l.rec ? ' · recording' : ''}`;
+    const short = shorts.get(peer);
+    l.tile.querySelector('b').textContent = `${short}${short === l.name ? ' · mic' : ''}`;
+    l.tile.title = `${l.name}${l.rec ? ' (recording)' : ''}`;
     l.tile.classList.toggle('on', mixState(l.cid || peer, 'mic').mode !== 'off');
     l.tile.classList.toggle('live', peer === liveActive && !onBreak());
     l.tile.classList.toggle('pvw', peer === pvw);
     l.tile.setAttribute('aria-label', `Microphone ${n}, ${l.name}${peer === liveActive ? ', on air' : ''}. Put it on air.`);
   });
   renderSpecials();
+  fitSources();
+}
+
+// ---- every source in view, without scrolling ------------------------------------------------
+// The sources panel shows every source at once if it can: pictures (the break, black, each
+// camera) as large as the panel's height allows, in as many columns as that takes, and the
+// microphones under them, as tiles if there's room, else as strips (number, name, level). With
+// three cameras and five microphones on a 1024 x 768 screen, the panel was 306 px tall and its
+// sources 1,216 px: one column of big tiles, scrolled. A grid of 12 lets pictures and microphones
+// each have their own number across. A phone scrolls the page instead (one column).
+const GRID = 12, SPANS = [1, 2, 3, 4, 6], GAP = 8, MIC_STRIP = 40, MIN_PIC = 76;
+export function fitSources() {
+  const box = $('#multi'), panel = box?.closest('.sources');
+  if (!box || !panel || KIOSK || mode !== 'live' || innerWidth <= 640 || box.querySelector('.empty') || !panel.clientHeight) {
+    box?.classList.remove('fitted', 'micstrips');
+    return;
+  }
+  const shown = (el) => el.style.display !== 'none';
+  const cards = [...box.querySelectorAll(':scope > .cam:not(.specials)')].filter(shown);
+  const mics = [...box.querySelectorAll(':scope > button.mic')].filter(shown);
+  const pics = cards.length + (box.querySelector('.specials') ? 2 : 0);
+  const cs = getComputedStyle(box);
+  const W = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  // the height the panel has for them: all of it, less everything else in it
+  let other = 0;
+  for (const el of panel.children) if (el !== box && el.offsetParent) other += el.offsetHeight;
+  const H = panel.clientHeight - other - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  // a camera's card can hold more than its picture (a phone's sound mode under it)
+  const extra = Math.max(0, ...cards.map((c) => c.offsetHeight - (c.querySelector('.tile')?.offsetHeight || c.offsetHeight)));
+  const portrait = document.body.classList.contains('portrait');
+  const picH = (w) => (portrait ? Math.min(220, (w * 16) / 9) : (w * 9) / 16);
+  const rowsH = (n, per, h) => (n ? Math.ceil(n / per) * (h + GAP) - GAP : 0);
+  const between = (a, b) => (a && b ? GAP : 0);
+  let best = null;
+  for (const strips of [false, true]) {
+    for (const per of SPANS) {
+      const w = (W + GAP) / per - GAP;
+      if (w < MIN_PIC && per > 1) continue;
+      const h = picH(w) + extra;
+      let total;
+      let micPer = 0;
+      if (strips) {
+        micPer = SPANS.filter((k) => (W + GAP) / k - GAP >= 120).at(-1) || 1; // (a strip: its number and enough of its name to tell it apart)
+        total = rowsH(pics, per, h) + between(pics, mics.length) + rowsH(mics.length, micPer, MIC_STRIP);
+      } else total = rowsH(pics, per, h) + between(pics, mics.length) + rowsH(mics.length, per, h); // (the microphones start a row of their own)
+      const fits = total <= H;
+      // the biggest pictures that fit (the microphones as tiles if the pictures can be as big that
+      // way, strips if that makes them bigger); if nothing fits, the least scrolling
+      const score = fits ? w : -total;
+      if (!best || (fits && !best.fits) || (fits === best.fits && score > best.score + 0.5)) best = { per, micPer, strips, fits, score };
+    }
+  }
+  box.classList.add('fitted');
+  box.classList.toggle('micstrips', best.strips);
+  box.style.setProperty('--pspan', String(GRID / best.per));
+  box.style.setProperty('--mspan', String(GRID / (best.strips ? best.micPer : best.per)));
+}
+{
+  const panel = $('#multi')?.closest('.sources');
+  if (panel && !KIOSK) {
+    let queued = false;
+    const again = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        fitSources();
+        live.forEach(fitTile);
+      });
+    };
+    new ResizeObserver(again).observe(panel);
+  }
 }
 
 // ---- the break and black as sources: tiles beside the cameras -----------------------------

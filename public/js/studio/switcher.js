@@ -101,8 +101,15 @@ function drawLiveFrame() {
   drawSourcePreviews();
   const clock = new Date(now()).toLocaleTimeString();
   $('#ptc').textContent = clock;
-  $('#clock').textContent = clock;
+  if (clock !== lastClock) {
+    // (its AM / PM apart, so a tight row can leave it off: the time itself is what's read)
+    lastClock = clock;
+    const m = clock.match(/^([\d:.]+)(.*)$/);
+    if (m) $('#clock').replaceChildren(m[1], Object.assign(document.createElement('span'), { className: 'ap', textContent: m[2] }));
+    else $('#clock').textContent = clock;
+  }
 }
+let lastClock = '';
 
 // ---------------------------------------------------------------- switcher ---
 // Preview and program, like a vision mixer. With "Tap: Preview", tapping a source (or its
@@ -494,12 +501,14 @@ function setSwitcher(on) {
 $('#swTgl').onclick = () => setSwitcher($('#switcher').hidden);
 // The row under the program stays on one line: when it doesn't fit, the key hints go (the keys
 // still work, and the buttons' titles say them), then the clock gets smaller, then the labels get
-// short (Auto, Fade, Record, Mark). Only if even that doesn't fit does it wrap: never cut off.
+// short (Auto, Fade, Record, Mark), then it closes up (less space between, the clock without its
+// AM / PM, slimmer panel buttons: a 1024-px laptop wrapped them onto a row of their own). Only if
+// even that doesn't fit does it wrap: never cut off.
 {
   const row = document.querySelector('.transport');
   const fit = () => {
     if (!row?.offsetParent) return;
-    const steps = ['tight', 'tighter', 'tightest', 'wrap'];
+    const steps = ['tight', 'tighter', 'tightest', 'compact', 'wrap'];
     row.classList.remove(...steps);
     for (const s of steps) {
       if (row.scrollWidth <= row.clientWidth + 1) break;

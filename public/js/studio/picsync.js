@@ -33,8 +33,13 @@ const latSaved = () => {
   }
 };
 const deviceKey = (l) => l.deviceId || l.deviceLabel || l.name;
-/** A camera's own delay, sensor to arrival (ms): measured by the sync check, or a usual figure. */
-export const latencyOf = (l) => latSaved()[deviceKey(l)] ?? (l.screen ? 1000 / output.fps : DEFAULT_LATENCY);
+/**
+ * A camera's own delay, sensor to arrival (ms): measured by the sync check, or a usual figure.
+ * A shared screen is always a frame: nothing in a room happens on it, so the check has nothing to
+ * see there (it once "saw" the studio's own Clap now on a screen showing the studio, 347 ms, and
+ * every camera and microphone waited 300 ms for it).
+ */
+export const latencyOf = (l) => (l.screen ? 1000 / output.fps : latSaved()[deviceKey(l)] ?? DEFAULT_LATENCY);
 
 export const buffers = new Map(); // peer → FrameBuffer
 const taps = new Map(); // peer → SoundTap
@@ -109,6 +114,10 @@ function keepUp() {
   const was = pictureDelay;
   if (was == null) since = performance.now();
   const settling = performance.now() - since < SETTLE_MS;
+  // (during the sync check, every frame is compared with the one before: that work makes the
+  // cameras look late, and P went 116 → 214 ms before the check had said anything; it's set from
+  // what the check measured when it's done)
+  if (clapWatch && was != null) return;
   const r = quiet && was != null && Math.max(...need) + 1000 / output.fps < was - 10 ? delay.reset(need) : delay.update(need);
   pictureDelay = r.P;
   for (const [, b] of buffers) b.keepMs = pictureDelay + 120; // (the moment on air and a few frames either side: at 1080p a frame is 8 MB)
@@ -167,10 +176,10 @@ function matchSound() {
 }
 
 // ---- the sync check: clap once where every camera can see it ----
-let checking = null, lastCheck = null;
+let checking = null, lastCheck = null, clapWatch = false;
 export function syncCheck() {
   if (checking) return checking;
-  if (!buffers.size) return void toast('The sync check is for cameras plugged into this computer: none yet');
+  if (![...buffers.keys()].some((p) => !live.get(p)?.screen)) return void toast('The sync check is for cameras plugged into this computer: none yet');
   const main = mainMic();
   if (!main) return void toast('The sync check needs a microphone on this computer to hear the clap');
   const box = $('#soundAlert');
@@ -181,7 +190,9 @@ export function syncCheck() {
   };
   checking = (async () => {
     const start = performance.now();
-    for (const b of buffers.values()) {
+    clapWatch = true;
+    for (const [p, b] of buffers) {
+      if (live.get(p)?.screen) continue; // (a screen can't see the clap: see latencyOf)
       b.series = [];
       b.watching = true;
     }
@@ -192,6 +203,7 @@ export function syncCheck() {
     say('Sync check: clap now');
     await new Promise((r) => setTimeout(r, 4000));
     const end = performance.now();
+    clapWatch = false;
     const [refPeer, ref] = main;
     const heard = soundOnset(ref.slice(start, end), TAP_RATE, start);
     const results = [];
@@ -206,6 +218,7 @@ export function syncCheck() {
     lastCheck = { heard: Math.round(heard.t), strength: Math.round(heard.strength), cams: [] }; // (diagnostics: what the check saw)
     for (const [peer, b] of buffers) {
       const l = live.get(peer);
+      if (!l || l.screen) continue;
       const was = latencyOf(l), lag = b.lag;
       const series = b.series.map((x) => ({ moment: x.ts + lag - was, change: x.change }));
       // (a camera sees it from a little before it's heard (its old figure too high) to half a second after (too low): only there)
@@ -231,6 +244,7 @@ export function syncCheck() {
     return results;
   })().finally(() => {
     checking = null;
+    clapWatch = false;
     for (const b of buffers.values()) b.watching = false;
   });
   return checking;

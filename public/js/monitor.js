@@ -92,6 +92,11 @@ function warnings(p) {
   return w;
 }
 
+const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+  cam: svg('<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/>'),
+  mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>'),
+};
 const LIMIT = { cpu: "phone's encoder", bandwidth: 'network', other: 'other', none: '' };
 const TIER = { program: 'On air', preview: 'Preview', idle: 'Standby' };
 const mbps = (k) => (k == null ? '—' : k >= 1000 ? `${(k / 1000).toFixed(1)}` : `${(k / 1000).toFixed(2)}`);
@@ -99,8 +104,9 @@ const mbps = (k) => (k == null ? '—' : k >= 1000 ? `${(k / 1000).toFixed(1)}` 
 function liveCell(l) {
   if (!l) return '—';
   // (a camera plugged into the studio's computer: its picture goes straight in, no network, no compression)
-  if (l.local && l.audio) return `<span class="tag ${l.tier === 'program' ? 'air' : ''}">${l.tier === 'program' ? 'On air' : 'Sound'}</span> straight in<br><small>sound from this computer · no network, no compression</small>`;
-  if (l.local) return `<span class="tag ${l.tier === 'program' ? 'air' : ''}">${TIER[l.tier] || l.tier}</span> straight in${l.w ? `<br><small>${l.w}×${l.h}${l.fps ? ' @' + l.fps : ''} · no network, no compression</small>` : ''}`;
+  // (one line: it's straight in, no network or compression, as THIS PC says)
+  if (l.local && l.audio) return `<span class="tag ${l.tier === 'program' ? 'air' : ''}">${l.tier === 'program' ? 'On air' : 'Sound'}</span> <small>straight in</small>`;
+  if (l.local) return `<span class="tag ${l.tier === 'program' ? 'air' : ''}">${TIER[l.tier] || l.tier}</span> ${l.w ? `${l.w}×${l.h}${l.fps ? ' @' + l.fps : ''} ` : ''}<small>straight in</small>`;
   const lim = LIMIT[l.limit] ?? '';
   return `<span class="tag ${l.tier === 'program' ? 'air' : ''}">${TIER[l.tier] || l.tier}</span> ${mbps(l.kbps)} / ${mbps(l.capKbps)} Mbps`
     + `${l.capKbps < l.targetKbps ? ` <small title="Stepped down from ${mbps(l.targetKbps)} Mbps for a congested link">(of ${mbps(l.targetKbps)})</small>` : ''}`
@@ -145,33 +151,47 @@ function render(d) {
     history.set(p.peer, h);
   }
 
-  if (!d.peers.length) $('#peers').innerHTML = '<p class="empty">No phones connected.</p>';
+  // the sections' counts, in the row of links at the top
+  $('#nSources').textContent = d.peers.length || '';
+  $('#nSources').classList.toggle('bad', warnCount > 0);
+  $('#nSources').title = warnCount ? `${warnCount} needing attention` : '';
+  $('#srcSum').textContent = d.peers.length ? `${cams.length} camera${cams.length === 1 ? '' : 's'} · ${mics.length} microphone${mics.length === 1 ? '' : 's'}${warnCount ? ` · ${warnCount} needing attention` : ''}` : '';
+  $('#nRec').textContent = d.totals.clips || '';
+  $('#recSum').textContent = d.totals.clips ? `${d.totals.clips} · ${fmtMB(d.totals.bytes)} on this computer` : '';
+
+  // Each source a card: what it is, how it's connected, its live picture, and only the figures it
+  // has (a camera on this computer has no round trip or battery). One that needs attention is
+  // outlined amber, one on air red. Cameras, then microphones.
+  if (!d.peers.length) $('#peers').innerHTML = '<p class="empty">Nothing connected yet.</p>';
   else {
-    $('#peers').innerHTML = `<table><thead><tr>
-      <th scope="col">Name</th><th scope="col">Role</th><th scope="col">Shot</th><th scope="col">Link</th><th scope="col">Round trip</th><th scope="col">Jitter</th><th scope="col">Loss</th>
-      <th scope="col">Preview</th><th scope="col" title="What this camera's live picture is set to (it follows the show: on air, in preview, or neither), what it's sending, and what's holding it back">Live picture</th><th scope="col">kbps (60 s)</th><th scope="col">Camera</th><th scope="col">Battery</th><th scope="col">Free</th><th scope="col">Device</th><th scope="col">Connected</th><th scope="col">Attention</th>
-    </tr></thead><tbody>${d.peers.map((p) => {
-      const t = p.tele || {};
-      const state = [p.onAir ? '<span class="tag air">ON AIR</span>' : '', p.rec ? '<span class="dot rec" title="Recording"></span>' : ''].join(' ');
-      return `<tr>
-        <th scope="row">${esc(p.name)} ${state}</th>
-        <td>${p.role === 'mic' ? 'Microphone' : `Camera${p.shape ? ` ${p.shape === 'portrait' ? '▯' : '▭'}` : ''}`}</td>
-        <td>${p.score != null ? `<meter min="0" max="1" low="0.35" high="0.6" optimum="1" value="${p.score}" title="Shot quality ${Math.round(p.score * 100)}%"></meter> ${Math.round(p.score * 100)}` : '—'}</td>
-        <td><span class="tag ${p.route === 'lan' || p.route === 'nat' || p.route === 'local' ? 'lan' : p.route ? 'net' : ''}" title="${esc(p.path ? `this computer: ${p.path.local?.type || '?'} ${p.path.local?.protocol || ''} · phone: ${p.path.remote?.type || '?'} ${p.path.remote?.address || ''}` : '')}">${{ lan: 'LAN', nat: 'LAN·NAT', cellular: 'CELL', local: 'THIS COMPUTER' }[p.route] || (p.route ? p.route.toUpperCase() : '…')}</span></td>
-        <td class="num">${p.rttMs != null ? p.rttMs + ' ms' : '—'}</td>
-        <td class="num">${p.jitterMs != null ? p.jitterMs + ' ms' : '—'}</td>
-        <td class="num">${p.lossPct != null ? p.lossPct + '%' : '—'}</td>
-        <td class="num">${p.width ? `${p.width}×${p.height}${p.fps ? ' @' + p.fps : ''} ${esc(p.codec || '')}` : p.role === 'mic' ? 'audio' : '—'}</td>
-        <td>${liveCell(t.link)}</td>
-        <td><canvas class="spark" data-spark="${esc(p.peer)}" width="240" height="56" role="img" aria-label="Bitrate over the last minute: now ${(p.videoKbps || 0) + (p.audioKbps || 0)} kbps"></canvas></td>
-        <td class="num" title="${esc(t.lens || '')}">${t.camW ? `${t.camW}×${t.camH}${t.camFps ? ' @' + t.camFps : ''}${t.zoom && t.zoom !== 1 ? ` · ${t.zoom}×` : ''}` : '—'}</td>
-        <td class="num">${t.battery != null ? `${t.battery}%${t.charging ? ' ⚡' : ''}` : '—'}</td>
-        <td class="num">${t.freeMB != null ? fmtMB(t.freeMB * 1048576) : '—'}</td>
-        <td>${esc([t.platform, t.browser].filter(Boolean).join(' · ') || '—')}${t.mic ? `<br><small title="Microphone">🎙 ${esc(t.mic)}</small>` : ''}</td>
-        <td class="num">${p.joinedAt ? since(p.joinedAt) : '—'}</td>
-        <td class="warns">${warnings(p).map((w) => `<span>${esc(w)}</span>`).join('') || '—'}</td>
-      </tr>`;
-    }).join('')}</tbody></table>`;
+    const card = (p) => {
+      const t = p.tele || {}, w = warnings(p);
+      const remote = p.route !== 'local';
+      const routeTag = `<span class="tag ${p.route === 'lan' || p.route === 'nat' || p.route === 'local' ? 'lan' : p.route ? 'net' : ''}" title="${esc(p.path ? `this computer: ${p.path.local?.type || '?'} ${p.path.local?.protocol || ''} · phone: ${p.path.remote?.type || '?'} ${p.path.remote?.address || ''}` : remote ? '' : 'On this computer: straight in, no network, no compression')}">${{ lan: 'LAN', nat: 'LAN·NAT', cellular: 'CELL', local: 'THIS PC' }[p.route] || (p.route ? p.route.toUpperCase() : '…')}</span>`;
+      const stats = [
+        ['Round trip', p.rttMs != null && `${p.rttMs} ms`],
+        ['Jitter', p.jitterMs != null && `${p.jitterMs} ms`],
+        ['Loss', p.lossPct != null && `${p.lossPct}%`],
+        // (this computer's: its size is on the line above, and it sends what it captures)
+        ['Sending', remote && p.width && `${p.width}×${p.height}${p.fps ? ' @' + p.fps : ''}${p.codec && p.codec !== 'raw' ? ' ' + esc(p.codec) : ''}`],
+        ['Camera', remote && t.camW && `${t.camW}×${t.camH}${t.camFps ? ' @' + t.camFps : ''}${t.zoom && t.zoom !== 1 ? ` · ${t.zoom}×` : ''}`],
+        ['Shot', p.score != null && `<meter min="0" max="1" low="0.35" high="0.6" optimum="1" value="${p.score}" title="Shot quality ${Math.round(p.score * 100)}%"></meter> ${Math.round(p.score * 100)}`],
+        ['Battery', t.battery != null && `${t.battery}%${t.charging ? ' ⚡' : ''}`],
+        ['Free', t.freeMB != null && fmtMB(t.freeMB * 1048576)],
+        ['Connected', p.joinedAt && since(p.joinedAt)],
+      ].filter(([, v]) => v);
+      const device = [t.platform, t.browser].filter(Boolean).join(' · ');
+      return `<article class="src${w.length ? ' attn' : ''}${p.onAir ? ' air' : ''}">
+        <header><span class="ico" aria-hidden="true">${ICON[p.role === 'mic' ? 'mic' : 'cam']}</span><b class="nm" title="${esc(p.name)}">${esc(p.name)}</b>${p.onAir ? '<span class="tag air">ON AIR</span>' : ''}${p.rec ? '<span class="dot rec" title="Recording"></span>' : ''}${routeTag}</header>
+        ${t.link ? `<div class="live">${liveCell(t.link)}</div>` : ''}
+        ${remote ? `<canvas class="spark" data-spark="${esc(p.peer)}" width="480" height="52" role="img" aria-label="Bitrate over the last minute: now ${(p.videoKbps || 0) + (p.audioKbps || 0)} kbps"></canvas>` : ''}
+        ${stats.length ? `<dl>${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}
+        ${device || t.mic ? `<p class="dev" title="${esc(device)}">${esc(device)}${t.mic ? ` · mic: ${esc(t.mic)}` : ''}</p>` : ''}
+        ${w.length ? `<ul class="warns" aria-label="Needs attention">${w.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      </article>`;
+    };
+    const group = (title, list) => (list.length ? `<h3 class="sub">${title} <span class="n">${list.length}</span></h3><div class="srcgrid">${list.map(card).join('')}</div>` : '');
+    $('#peers').innerHTML = group('Cameras and screens', cams) + group('Microphones', mics) + group('Other', d.peers.filter((p) => p.role !== 'cam' && p.role !== 'mic'));
     const css = getComputedStyle(document.documentElement);
     document.querySelectorAll('canvas[data-spark]').forEach((c) => {
       const h = history.get(c.dataset.spark) || [];
@@ -203,6 +223,7 @@ function render(d) {
   for (const r of d.remotes || []) liveOut.push(stream(r.name, `Phone remote · control${r.visible ? ', open on its screen (with camera pictures)' : ', in the background'}${r.since ? ` · joined ${since(r.since)} ago` : ''}${r.heard && Date.now() - r.heard > 15000 ? ` · last heard ${since(r.heard)} ago` : ''}`, r.kbps));
   if (d.stream) liveOut.push(stream(d.stream.name || 'Stream', 'the program, streaming out', d.stream.kbps));
   const xin = [...liveIn, ...inc.map((x) => row(x.name, 'recording', x))], xout = [...liveOut, ...out.map((x) => row(x.name, `part ${x.part} of the live cut`, x))];
+  $('#nXfer').textContent = inc.length + out.length || '';
   $('#xfIn').innerHTML = xin.length ? xin.join('') : '<p class="empty">Nothing coming in.</p>';
   $('#xfOut').innerHTML = xout.length ? xout.join('') : '<p class="empty">Nothing going out.</p>';
   const rec = d.received || [];
@@ -227,7 +248,7 @@ function render(d) {
 
   if (d.log[0]?.at !== lastLogAt) {
     lastLogAt = d.log[0]?.at;
-    $('#log').innerHTML = d.log.map((l) => `<li><time>${new Date(l.at).toLocaleTimeString()}</time>${esc(l.text)}</li>`).join('') || '<li class="empty">Quiet so far.</li>';
+    $('#log').innerHTML = d.log.map((l) => `<li><time>${new Date(l.at).toLocaleTimeString()}</time><span>${esc(l.text)}</span></li>`).join('') || '<li class="empty">Quiet so far.</li>';
   }
 }
 
@@ -262,13 +283,37 @@ function strip(cv, recent, value, lo, hi, guide) {
   }
   g.stroke();
 }
-let lastSession = null;
+let lastSession = null, lastLines = '';
+const openMoments = new Set(); // (a list of moments you opened stays open as the log updates)
+$('#slLines').addEventListener('toggle', (e) => {
+  const k = e.target.dataset?.k;
+  if (k == null) return;
+  if (e.target.open) openMoments.add(k);
+  else openMoments.delete(k);
+}, true);
 function renderShowLog(sl) {
   strip($('#slFps'), sl.recent, (r) => r[1], 0, 35, 30);
   strip($('#slSnd'), sl.recent, (r) => r[2], -90, 0, -90 + 6);
   $('#slAlert').hidden = !sl.alerts.length;
   $('#slAlert').textContent = sl.alerts.length ? `⚠ ${sl.alerts.join(' · ')}` : '';
-  $('#slLines').innerHTML = sl.lines.map((l) => `<li>${esc(l)}</li>`).join('');
+  $('#nAlerts').textContent = sl.alerts.length || '';
+  $('#nAlerts').classList.toggle('bad', sl.alerts.length > 0);
+  // Each line of the summary, with its moments (the indented lines under it: "12:01:30 …") folded
+  // under it: open to see them. A moment's time in a column of its own.
+  const groups = [];
+  for (const l of sl.lines) {
+    if (/^\s/.test(l) && groups.length) groups.at(-1).more.push(l.trim());
+    else groups.push({ text: l, more: [] });
+  }
+  const moment = (m) => {
+    const [, t, rest] = m.match(/^(\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?)\s+(.*)$/i) || [];
+    return t ? `<li><time>${esc(t)}</time><span>${esc(rest)}</span></li>` : `<li><span></span><span>${esc(m)}</span></li>`;
+  };
+  const html = groups.map((g) => `<li>${esc(g.text)}${g.more.length ? `<details${openMoments.has(g.text.slice(0, 24)) ? ' open' : ''} data-k="${esc(g.text.slice(0, 24))}"><summary>${g.more.length} moment${g.more.length === 1 ? '' : 's'}</summary><ul class="moments">${g.more.map(moment).join('')}</ul></details>` : ''}</li>`).join('') || '<li>Nothing logged yet.</li>';
+  if (html !== lastLines) {
+    lastLines = html;
+    $('#slLines').innerHTML = html;
+  }
   if (sl.session !== lastSession) {
     lastSession = sl.session;
     renderSessions();

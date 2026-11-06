@@ -11,110 +11,230 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
+  /* The monitor: a summary, then the sources, the show log, transfers and recordings, with the
+     event log and the saved show logs beside them on a wide screen (under them on a narrow one).
+     A row of links at the top goes to each. */
   body { font-size: 15px; }
-  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
+  .top { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px 6px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); min-width: 0; }
+  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; flex: none; }
   .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
-  .bar h1 { font-size: 1.05rem; margin: 0; }
+  .bar h1 { font-size: 1.05rem; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar h1 .muted { font-family: var(--mono); font-size: .85rem; font-weight: 600; letter-spacing: .06em; }
   .bar .spacer { flex: 1; }
-  .link { font-size: .85rem; color: var(--text-2); display: flex; align-items: center; gap: .4em; }
-  .wrap { padding: 16px; display: grid; gap: 16px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; }
-  .tile b { display: block; font-size: 1.6rem; font-stretch: 125%; line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .tile span { color: var(--text-2); font-size: .82rem; }
-  .tile.warn b { color: var(--amber); }
-  .tile.bad b { color: var(--tally); }
-  .panel { background: var(--surface); border-radius: 12px; overflow: auto; }
-  .panel h2 { font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); font-stretch: 100%; }
-  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
-  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
-  thead th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); font-weight: 700; position: sticky; top: 0; background: var(--surface); }
-  tbody th { font-weight: 700; }
-  td.num { font-family: var(--mono); text-align: right; }
-  .tag { display: inline-block; font-size: .7rem; font-weight: 700; padding: .1em .45em; border-radius: 4px; background: var(--surface-3); }
+  .bar #themeBtn { min-height: 34px; flex: none; }
+  .link { font-size: .82rem; color: var(--text-2); display: flex; align-items: center; gap: .45em; white-space: nowrap; flex: none; }
+  .jump { display: flex; gap: 4px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: none; }
+  .jump::-webkit-scrollbar { display: none; }
+  .jump a { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: .8rem; font-weight: 600; color: var(--text-2); text-decoration: none; }
+  .jump a:hover, .jump a:focus-visible { background: var(--surface-2); color: var(--text); }
+  .jump a .n { font-family: var(--mono); font-size: .72rem; background: var(--surface-2); border-radius: 999px; padding: 0 .5em; min-width: 1.6em; text-align: center; }
+  .jump a .n.bad { background: var(--amber); color: #3b2500; }
+  .jump a .n:empty { display: none; }
+  html { scroll-padding-top: 100px; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  .wrap { padding: 16px; display: grid; gap: 16px; max-width: 1800px; margin: 0 auto; }
+  .waiting { background: var(--amber); color: #3b2500; padding: 12px 16px; border-radius: 12px; font-weight: 600; }
+  .waiting[hidden] { display: none; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line); min-width: 0; }
+  .tile b { display: block; font-size: 1.5rem; font-stretch: 125%; line-height: 1.1; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile span { display: block; color: var(--text-2); font-size: .78rem; margin-top: 2px; }
+  .tile.warn { border-color: var(--amber); } .tile.warn b { color: var(--amber); }
+  .tile.bad { border-color: var(--tally); } .tile.bad b { color: var(--tally); }
+
+  /* the page: a main column and, on a wide screen, a side column that stays in view */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 16px; align-items: start; }
+  .maincol, .side { display: grid; gap: 16px; min-width: 0; }
+  .side { position: sticky; top: 100px; max-height: calc(100vh - 116px); grid-template-rows: minmax(0, 1fr) auto; }
+  .side #events { display: flex; flex-direction: column; min-height: 0; }
+  .side #events ol.log { flex: 1; max-height: none; min-height: 0; }
+
+  .panel { background: var(--surface); border-radius: 14px; border: 1px solid var(--line); min-width: 0; overflow: hidden; }
+  .ph { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .ph h2 { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); margin: 0; font-stretch: 100%; }
+  .ph small { font-size: .76rem; color: var(--muted); }
+  .ph .phx { margin-left: auto; font-size: .78rem; color: var(--text-2); }
+  h3.sub { display: flex; align-items: center; gap: 8px; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 16px 8px; font-stretch: 100%; }
+  h3.sub small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  h3.sub .n { font-family: var(--mono); letter-spacing: 0; background: var(--surface-2); border-radius: 999px; padding: 0 .5em; }
+  .empty { padding: 14px 16px; color: var(--text-2); margin: 0; font-size: .88rem; }
+  .tag { display: inline-block; font-size: .66rem; font-weight: 800; letter-spacing: .04em; padding: .15em .5em; border-radius: 4px; background: var(--surface-3); white-space: nowrap; }
   .tag.lan { background: var(--preview); color: #fff; }
   .tag.net { background: var(--amber); color: #3b2500; }
   .tag.air { background: var(--tally); color: #fff; }
-  .warns { white-space: normal; min-width: 160px; }
-  .warns span { display: inline-block; font-size: .75rem; background: #f0a82b33; border-radius: 4px; padding: .05em .4em; margin: 1px 2px; }
-  canvas.spark { width: 120px; height: 28px; display: block; }
-  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 16px; }
-  ol.log { list-style: none; margin: 0; padding: 6px 14px 12px; font-size: .86rem; max-height: 420px; overflow: auto; }
-  ol.log li { padding: 4px 0; border-bottom: 1px solid var(--line); }
-  ol.log time { font-family: var(--mono); color: var(--text-2); margin-right: .6em; font-size: .78rem; }
-  .waiting { background: var(--amber); color: #3b2500; padding: 12px 16px; border-radius: 12px; font-weight: 600; }
-  .empty { padding: 12px 14px; color: var(--text-2); margin: 0; }
-  .stack { display: grid; gap: 16px; align-content: start; }
-  h3.sub { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 12px 14px 4px; font-stretch: 100%; }
-  h3.sub small { text-transform: none; letter-spacing: 0; font-weight: 500; }
-  .xrow { display: grid; grid-template-columns: minmax(0, 1fr) 140px 90px; gap: 10px; align-items: center; padding: 6px 14px; font-size: .86rem; }
+
+  /* sources: a card each, cameras then microphones */
+  .srcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; padding: 0 16px 16px; }
+  .src { display: grid; gap: 8px; align-content: start; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .src.attn { border-color: var(--amber); box-shadow: inset 3px 0 0 var(--amber); }
+  .src.air { border-color: var(--tally); box-shadow: inset 3px 0 0 var(--tally); }
+  .src > header { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .src .ico { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--surface); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .src .ico svg { width: 17px; height: 17px; }
+  .src .nm { flex: 1; min-width: 0; font-weight: 700; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .live { font-size: .8rem; line-height: 1.45; }
+  .src .live small { color: var(--text-2); font-size: .74rem; }
+  .src canvas.spark { width: 100%; height: 26px; display: block; }
+  .src dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 6px 10px; margin: 0; }
+  .src dl div { min-width: 0; }
+  .src dt { font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .src dd { margin: 0; font-family: var(--mono); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src dd meter { width: 44px; height: 8px; vertical-align: middle; }
+  .src .dev { margin: 0; font-size: .74rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .warns { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .src .warns li { font-size: .72rem; font-weight: 600; background: #f0a82b2e; color: var(--text); border-radius: 5px; padding: .15em .5em; }
+
+  /* the show log */
+  .slbody { padding: 14px 16px 16px; display: grid; gap: 12px; }
+  .slalert { background: var(--tally, #d93025); color: #fff; font-weight: 700; border-radius: 8px; padding: 8px 12px; margin: 0; }
+  .slalert[hidden] { display: none; }
+  .slstrips { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+  .slstrips figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+  .slstrips figcaption { font-size: .74rem; font-weight: 600; color: var(--text-2); }
+  .slstrips canvas { width: 100%; height: 56px; background: var(--field, #121316); border: 1px solid var(--line); border-radius: 6px; display: block; }
+  .slkey { margin: 0; font-size: .74rem; color: var(--text-2); }
+  .slkey .k-bg { display: inline-block; width: 14px; height: 10px; vertical-align: middle; background: #f0a82b40; border: 1px solid #f0a82b; border-radius: 2px; margin-right: 4px; }
+  .sllines { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .86rem; line-height: 1.45; }
+  .sllines > li { padding-left: 14px; position: relative; }
+  .sllines > li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+  .sllines details { margin-top: 4px; }
+  .sllines summary { cursor: pointer; font-size: .78rem; font-weight: 600; color: var(--text-2); width: max-content; max-width: 100%; }
+  .sllines summary:hover { color: var(--text); }
+  .moments { margin: 6px 0 2px; padding: 0; list-style: none; border-left: 2px solid var(--line); }
+  .moments li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 8px; padding: 2px 0 2px 10px; font-size: .8rem; }
+  .moments time { font-family: var(--mono); font-size: .74rem; color: var(--text-2); }
+
+  /* transfers */
+  .xcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .xcols > div + div { border-left: 1px solid var(--line); }
+  .xrow { display: grid; grid-template-columns: minmax(0, 1fr) 110px 86px; gap: 10px; align-items: center; padding: 7px 16px; font-size: .84rem; border-top: 1px solid var(--line); }
+  .xrow > span:first-child { overflow: hidden; text-overflow: ellipsis; }
   .xrow progress { width: 100%; }
-  .xrow .num { font-family: var(--mono); font-size: .78rem; text-align: right; color: var(--text-2); }
+  .xrow .num { font-family: var(--mono); font-size: .76rem; text-align: right; color: var(--text-2); }
   .xrow .live { font-size: .72rem; font-weight: 700; color: var(--text-2); }
   .xrow .live i { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: var(--preview); margin-right: .35em; }
   .xrow .live.off i { background: var(--surface-3); }
-  .rlist { list-style: none; margin: 0; padding: 4px 0; max-height: 380px; overflow: auto; }
-  .rlist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: .86rem; }
-  .rlist .th { width: 64px; height: 36px; border-radius: 4px; background: var(--surface-3) center/cover no-repeat; display: grid; place-items: center; font-size: .9rem; }
-  .rlist small { display: block; color: var(--text-2); font-size: .76rem; }
+
+  /* recordings, sent parts, saved show logs */
+  .rlist { list-style: none; margin: 0; padding: 0; }
+  #received .rlist { max-height: 460px; overflow: auto; }
+  .rlist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--line); font-size: .86rem; }
+  .rlist li > span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .rlist .th { width: 64px; height: 36px; border-radius: 6px; background: var(--surface-3) center/cover no-repeat; display: grid; place-items: center; font-size: .9rem; }
+  .rlist small { display: block; color: var(--text-2); font-size: .74rem; }
   .rlist .acts { display: flex; gap: 4px; }
-  .rlist .acts button, .rlist .acts a { min-height: 28px; padding: 0 .7em; font-size: .76rem; }
+  .rlist .acts button, .rlist .acts a { min-height: 30px; padding: 0 .75em; font-size: .76rem; }
+  .rlist .acts .danger { background: #7a1f1a; color: #fff; }
+  .rlist li.going { opacity: .45; }
+  #slSessions { max-height: 280px; overflow: auto; }
+  #slSessions li { grid-template-columns: minmax(0, 1fr) auto; }
+  #slSessions b { font-size: .84rem; }
+
+  /* the event log */
+  ol.log { list-style: none; margin: 0; padding: 4px 16px 12px; font-size: .84rem; max-height: 460px; overflow: auto; }
+  ol.log li { display: grid; grid-template-columns: 6.6em minmax(0, 1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); line-height: 1.4; }
+  ol.log li.empty { display: block; border: 0; }
+  ol.log time { font-family: var(--mono); color: var(--text-2); font-size: .74rem; padding-top: .1em; }
+
   dialog#pv { padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--text); width: min(960px, 94vw); }
   dialog#pv::backdrop { background: #000b; }
   #pvVideo { width: 100%; max-height: 70vh; background: #000; display: block; border-radius: 14px 14px 0 0; }
   .pvbar { display: flex; gap: 10px; align-items: center; padding: 10px 14px; }
   .pvbar .spacer { flex: 1; }
-  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
-  .rlist .acts .danger { background: #7a1f1a; color: #fff; border-color: #b43a32; }
-  .rlist li.going { opacity: .45; }
-  .slalert { background: var(--tally, #d93025); color: #fff; font-weight: 700; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; }
-  .slalert[hidden] { display: none; }
-  .slstrips { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; }
-  .slstrips canvas { width: 100%; height: 56px; background: var(--field, #121316); border: 1px solid var(--line); border-radius: 6px; }
-  .sllab { font-size: .8rem; color: var(--text-2); }
-  .slkey .k-bg { display: inline-block; width: 14px; height: 10px; vertical-align: middle; background: #f0a82b40; border: 1px solid #f0a82b; border-radius: 2px; }
-  .sllines { margin: 6px 0 10px; padding-left: 18px; font-size: .86rem; line-height: 1.45; }
-  @media (max-width: 600px) { .slstrips { grid-template-columns: 1fr; } }
+
+  /* narrower: one column, the event log and saved logs after the rest */
+  @media (max-width: 1279px) {
+    .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* (eight in two rows of four, not six and two) */
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; max-height: none; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-template-rows: none; align-items: start; }
+    .side #events ol.log { max-height: 380px; }
+  }
+  @media (max-width: 700px) {
+    .wrap { padding: 10px; gap: 10px; }
+    .bar { padding-left: 12px; padding-right: 12px; gap: 8px; }
+    .link span:last-child { display: none; } /* (the light says it) */
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tile b { font-size: 1.2rem; }
+    .srcgrid { grid-template-columns: minmax(0, 1fr); padding: 0 10px 10px; }
+    .xcols > div + div { border-left: 0; }
+    .xrow { grid-template-columns: minmax(0, 1fr) 80px; padding: 7px 12px; }
+    .xrow > :first-child { grid-column: 1 / -1; }
+    .rlist li { grid-template-columns: 48px minmax(0, 1fr); padding: 8px 12px; }
+    .rlist .th { width: 48px; height: 28px; }
+    .rlist .acts { grid-column: 1 / -1; justify-content: flex-end; }
+    #slSessions li { grid-template-columns: minmax(0, 1fr) auto; }
+    #slSessions .acts { grid-column: auto; }
+    .slstrips { grid-template-columns: minmax(0, 1fr); }
+    .ph { padding: 10px 12px; }
+    .ph small, h3.sub small { display: none; } /* (the headings say enough on a phone) */
+  }
 </style>
 </head>
 <body>
-<header class="bar">
-  <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
-  <h1><span id="title">Monitor</span> <span class="muted" id="code"></span></h1>
-  <span class="spacer"></span>
-  <span class="link" id="linkState" role="status"><span class="dot" id="linkDot"></span><span id="linkText">Waiting for the studio…</span></span>
-  <button type="button" id="themeBtn"></button>
-</header>
+<div class="top">
+  <header class="bar">
+    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <h1><span id="title">Monitor</span> <span class="muted" id="code"></span></h1>
+    <span class="spacer"></span>
+    <span class="link" id="linkState" role="status"><span class="dot" id="linkDot"></span><span id="linkText">Waiting for the studio…</span></span>
+    <button type="button" id="themeBtn"></button>
+  </header>
+  <nav class="jump" aria-label="Sections">
+    <a href="#sources">Sources <span class="n" id="nSources"></span></a>
+    <a href="#showlog">Show log <span class="n" id="nAlerts"></span></a>
+    <a href="#transfers">Transfers <span class="n" id="nXfer"></span></a>
+    <a href="#recordings">Recordings <span class="n" id="nRec"></span></a>
+    <a href="#events">Event log</a>
+    <a href="#saved">Saved show logs</a>
+  </nav>
+</div>
 <main class="wrap">
   <div class="waiting" id="waiting">Open the studio for this event in another tab of this browser. The monitor reads from it directly; nothing is sent anywhere.</div>
   <section class="tiles" aria-label="Summary" id="tiles"></section>
-  <section class="panel" aria-labelledby="ph">
-    <h2 id="ph">Phones</h2>
-    <div id="peers"><p class="empty">No phones connected.</p></div>
-  </section>
-  <section class="panel" aria-labelledby="slh">
-    <h2 id="slh">Show log <small class="muted">(the last 10 minutes, second by second)</small></h2>
-    <p class="slalert" id="slAlert" role="alert" hidden></p>
-    <div class="slstrips">
-      <span class="sllab">Program frames a second</span><canvas id="slFps" height="56" role="img" aria-label="Program frame rate, the last 10 minutes"></canvas>
-      <span class="sllab">Program sound (dB)</span><canvas id="slSnd" height="56" role="img" aria-label="Program sound level, the last 10 minutes"></canvas>
-    </div>
-    <p class="fine slkey"><i class="k-bg" aria-hidden="true"></i> studio hidden or covered (the background clock draws the program)</p>
-    <ul class="sllines" id="slLines"><li class="empty">Waiting for the studio…</li></ul>
-    <h3 class="sub">Saved on this computer <small>(one for each time the studio was open; kept 30 days)</small></h3>
-    <ul class="rlist" id="slSessions"><li class="empty">None yet.</li></ul>
-  </section>
-  <div class="cols">
-    <div class="stack">
-      <section class="panel" aria-labelledby="th"><h2 id="th">Transfers</h2>
-        <h3 class="sub">Coming in <small>(live pictures and sound, and recordings)</small></h3><div id="xfIn"><p class="empty">Nothing coming in.</p></div>
-        <h3 class="sub">Going out <small>(TVs, the stream, and cameras' parts of the live cut)</small></h3><div id="xfOut"><p class="empty">Nothing going out.</p></div>
+  <div class="layout">
+    <div class="maincol">
+      <section class="panel" id="sources" aria-labelledby="ph">
+        <header class="ph"><h2 id="ph">Sources</h2><small>phones, and this computer's cameras and microphones</small><span class="phx" id="srcSum"></span></header>
+        <div id="peers"><p class="empty">Nothing connected yet.</p></div>
       </section>
-      <section class="panel" aria-labelledby="rh"><h2 id="rh">Received</h2><div id="received"><p class="empty">Nothing received yet.</p></div></section>
-      <section class="panel" aria-labelledby="sh"><h2 id="sh">Sent to cameras</h2><div id="sent"><p class="empty">Nothing sent yet.</p></div></section>
+      <section class="panel" id="showlog" aria-labelledby="slh">
+        <header class="ph"><h2 id="slh">Show log</h2><small>the last 10 minutes, second by second</small></header>
+        <div class="slbody">
+          <p class="slalert" id="slAlert" role="alert" hidden></p>
+          <div class="slstrips">
+            <figure><figcaption>Program frames a second</figcaption><canvas id="slFps" height="56" role="img" aria-label="Program frame rate, the last 10 minutes"></canvas></figure>
+            <figure><figcaption>Program sound (dB)</figcaption><canvas id="slSnd" height="56" role="img" aria-label="Program sound level, the last 10 minutes"></canvas></figure>
+          </div>
+          <p class="slkey"><i class="k-bg" aria-hidden="true"></i>studio hidden or covered (the background clock draws the program)</p>
+          <ul class="sllines" id="slLines"><li>Waiting for the studio…</li></ul>
+        </div>
+      </section>
+      <section class="panel" id="transfers" aria-labelledby="th">
+        <header class="ph"><h2 id="th">Transfers</h2></header>
+        <div class="xcols">
+          <div><h3 class="sub">Coming in <small>live pictures and sound, and recordings</small></h3><div id="xfIn"><p class="empty">Nothing coming in.</p></div></div>
+          <div><h3 class="sub">Going out <small>TVs, the stream, and cameras' parts of the live cut</small></h3><div id="xfOut"><p class="empty">Nothing going out.</p></div></div>
+        </div>
+      </section>
+      <section class="panel" id="recordings" aria-labelledby="rh">
+        <header class="ph"><h2 id="rh">Recordings received</h2><span class="phx" id="recSum"></span></header>
+        <div id="received"><p class="empty">Nothing received yet.</p></div>
+        <h3 class="sub">Sent to cameras <small>parts of the live cut</small></h3>
+        <div id="sent"><p class="empty">Nothing sent yet.</p></div>
+      </section>
     </div>
-    <section class="panel" aria-labelledby="lh"><h2 id="lh">Event log</h2><ol class="log" id="log" aria-live="polite"></ol></section>
+    <aside class="side">
+      <section class="panel" id="events" aria-labelledby="lh">
+        <header class="ph"><h2 id="lh">Event log</h2><small>newest first</small></header>
+        <ol class="log" id="log" aria-live="polite"><li class="empty">Quiet so far.</li></ol>
+      </section>
+      <section class="panel" id="saved" aria-labelledby="svh">
+        <header class="ph"><h2 id="svh">Saved show logs</h2><small>one for each time the studio was open; kept 30 days</small></header>
+        <ul class="rlist" id="slSessions"><li class="empty">None yet.</li></ul>
+      </section>
+    </aside>
   </div>
   <dialog id="pv" aria-labelledby="pvTitle"><video id="pvVideo" controls playsinline></video><div class="pvbar"><b id="pvTitle"></b><span class="spacer"></span><a class="btn ghost" id="pvDl" download>Download</a><button type="button" id="pvClose">Close</button></div></dialog>
 </main>

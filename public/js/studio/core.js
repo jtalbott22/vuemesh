@@ -114,6 +114,106 @@ export function askName(title, value) {
   });
 }
 
+// ---- naming a source: who it is and what it shows, or anything typed ----
+// A show's sources are usually named the same few ways (Host, Guest, Wide, Lav 1), so the name
+// can be put together from two lists, typed, or taken from the names used before (kept on this
+// computer). A phone's name, given here, is kept for that phone on this computer (titles below);
+// this computer's own sources keep theirs with the source (sources.js).
+const TITLE_WHO = ['Host', 'Co-host', 'Guest', 'Guest 2', 'Presenter', 'Speaker', 'Teacher', 'Student', 'Interviewer', 'Interviewee', 'Panel', 'Moderator', 'Pastor', 'Worship leader', 'Band', 'Choir', 'Singer', 'Audience', 'Stage', 'Slides', 'Lectern', 'Desk'];
+const TITLE_SHOT = {
+  cam: ['Wide', 'Medium', 'Close-up', 'Two-shot', 'Left', 'Center', 'Right', 'Overhead', 'Roaming', 'Reverse', 'Screen'],
+  mic: ['Lav', 'Lav 2', 'Handheld', 'Headset', 'Podium', 'Room', 'Ambient', 'Music', 'Instrument', 'Input 1', 'Input 2'],
+};
+const RECENT_KEY = 'vm_title_recent';
+const recentTitles = () => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+function keepRecent(name) {
+  const list = [name, ...recentTitles().filter((x) => x !== name)].slice(0, 12);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+/**
+ * The name picker: Who and Shot lists (each sets its part of the name), the name itself (typed,
+ * or made by the lists), the names used before, and the device's own name to go back to.
+ * Resolves to the new name, '' for the device's own name, or null (cancelled).
+ */
+export function askTitle({ heading = 'Name this source', value = '', original = '', kind = 'cam' } = {}) {
+  return new Promise((done) => {
+    const d = document.createElement('dialog');
+    d.className = 'localdlg titledlg';
+    const opt = (list, ph) => `<option value="">${ph}</option>${list.map((x) => `<option>${esc(x)}</option>`).join('')}`;
+    const recent = recentTitles().filter((x) => x !== value).slice(0, 8);
+    d.innerHTML = `<form method="dialog">
+      <h2></h2>
+      <div class="tpick"><label><span>Who</span><select data-who>${opt(TITLE_WHO, 'Anyone')}</select></label><label><span>${kind === 'mic' ? 'Microphone' : 'Shot'}</span><select data-shot>${opt(TITLE_SHOT[kind] || TITLE_SHOT.cam, kind === 'mic' ? 'Any' : 'Any shot')}</select></label></div>
+      <label class="tname"><span>Name</span><input maxlength="40" autocomplete="off" spellcheck="false"></label>
+      ${recent.length ? `<div class="trecent" aria-label="Names used before">${recent.map((x) => `<button type="button" class="chip" data-name="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
+      <div class="tfoot">${original ? `<button type="button" class="ghost" data-orig title="${esc(original)}">Use its own name</button>` : '<span></span>'}<span class="row" style="gap:8px"><button value="">Cancel</button><button value="ok" class="primary">Save</button></span></div>
+    </form>`;
+    d.querySelector('h2').textContent = heading;
+    const input = d.querySelector('input'), who = d.querySelector('[data-who]'), shot = d.querySelector('[data-shot]');
+    input.value = value || '';
+    const compose = () => {
+      const parts = [who.value, shot.value].filter(Boolean);
+      if (parts.length) input.value = parts.join(' · ');
+    };
+    who.onchange = compose;
+    shot.onchange = compose;
+    let orig = false;
+    d.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-name]');
+      if (chip) {
+        input.value = chip.dataset.name;
+        input.focus();
+      }
+      if (e.target.closest('[data-orig]')) {
+        orig = true;
+        d.close('ok');
+      }
+    });
+    // Enter saves (left to the form, it pressed the first button: Cancel)
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      d.close('ok');
+    });
+    d.addEventListener('close', () => {
+      const name = input.value.trim().slice(0, 40);
+      if (d.returnValue !== 'ok') done(null);
+      else if (orig || !name) done('');
+      else {
+        keepRecent(name);
+        done(name);
+      }
+      d.remove();
+    });
+    document.body.append(d);
+    d.showModal();
+    input.select();
+  });
+}
+// A phone's name as this computer calls it (by its identity), when it's been given one here.
+const TITLES_KEY = 'vm_titles';
+const titlesSaved = () => {
+  try {
+    return JSON.parse(localStorage.getItem(TITLES_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+export const titleFor = (cid) => (cid && titlesSaved()[cid]) || null;
+export function setTitle(cid, name) {
+  if (!cid) return;
+  const all = titlesSaved();
+  if (name) all[cid] = name;
+  else delete all[cid];
+  localStorage.setItem(TITLES_KEY, JSON.stringify(all));
+}
+
 // Recording formats, best first: H.264 in MP4 plays everywhere, including iPhones.
 export const REC_MIMES = ['video/mp4;codecs=avc1.42E01F,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=h264,opus', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
 export const recMime = () => REC_MIMES.find((m) => window.MediaRecorder?.isTypeSupported(m));
@@ -561,7 +661,8 @@ async function init() {
           // The picture can arrive a moment before who-it-is does; fill it in now.
           if (!l.cid && p.cid) {
             l.cid = p.cid;
-            l.name = p.name || l.name;
+            l.phoneName = p.name || l.phoneName;
+            l.name = titleFor(p.cid) || p.name || l.name;
             l.role = p.role === 'mic' ? 'mic' : l.role;
             if (l.role !== 'mic') noteAngle(p.cid);
           }
@@ -585,7 +686,7 @@ async function init() {
         const prev = live.get(peer) || {};
         const back = returning.get(peer);
         returning.delete(peer);
-        live.set(peer, { ...prev, stream, role: role || info.role || 'cam', name: info.name || 'Guest', cid: info.cid, rec: info.rec, route: prev.route || 'connecting', joinedAt: prev.joinedAt || back?.joinedAt || Date.now() });
+        live.set(peer, { ...prev, stream, role: role || info.role || 'cam', name: titleFor(info.cid) || info.name || 'Guest', phoneName: info.name || 'Guest', cid: info.cid, rec: info.rec, route: prev.route || 'connecting', joinedAt: prev.joinedAt || back?.joinedAt || Date.now() });
         if (KIOSK) for (const ms of [800, 3000, 9000]) setTimeout(() => hub?.message(peer, { t: 'uploads', on: false }), ms); // (phones keep their clips; again in case the link wasn't ready)
         if (typeof isBlocked === 'function' && isBlocked(info.cid)) {
           hub?.message(peer, { t: 'kick', block: true });

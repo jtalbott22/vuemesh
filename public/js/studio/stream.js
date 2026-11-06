@@ -260,7 +260,9 @@ export function fitDock() {
   // flat strips: exactly as tall as their rows (never empty space, never cut off);
   // upright strips (dragged tall): the height it was dragged to
   const flat = dockFlat();
-  const h = flat ? Math.min(Math.round(innerHeight * 0.6), dockNeed()) : clampL('dock', layout.live.dock);
+  // (at most a third of the window: on a 768-px laptop with six strips it took 40%, and the sources
+  // above had room for one tile; past that its strips scroll)
+  const h = flat ? Math.min(Math.round(innerHeight * (innerHeight < 1000 ? 0.34 : 0.45)), dockNeed()) : clampL('dock', layout.live.dock);
   document.documentElement.style.setProperty('--dock', h + 'px');
   dock.classList.toggle('horiz', flat);
   $('#splitD')?.setAttribute('aria-valuenow', String(h));

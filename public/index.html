@@ -361,6 +361,16 @@
     --tally: #dc211c; --preview: #129a47; --amber: #a86a08; --wall: #0b0e12;
     --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
   }
+  /* Auto (no theme chosen) on a device in light mode: the same light palette (vm.css switches its
+     own colours here; these are the page's, so the keys were left dark on a light page) */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
+      --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #646e7b;
+      --tally: #dc211c; --preview: #129a47; --amber: #a86a08;
+      --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
+    }
+  }
   body { font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
   h1, h2, h3, .mark, .app b, .kitgrid b, .for p, .made .code, ol.steps li::before, .btn, .qrcap .tc {
     font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif; font-stretch: normal;

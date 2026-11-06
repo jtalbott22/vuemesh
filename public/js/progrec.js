@@ -51,11 +51,14 @@ export class ProgramRecorder {
    */
   constructor(o) {
     Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, onError: o.onError || (() => {}) });
-    this.fixes = { dropped: 0, added: 0, gapMs: 0 }; // (the sound kept with the picture: ms taken out, put in, and silence for gaps)
+    this.fixes = { dropped: 0, added: 0, gapMs: 0, overMs: 0 }; // (the sound kept with the picture: ms taken out, put in, silence for gaps, and sound past the recording's time left out)
+    this.clamped = 0; // frames not written: more were asked for than the recording's time has room for
     this.W = o.canvas.width;
     this.H = o.canvas.height;
     this.n = 0; // video frames written
     this.dropped = 0; // frames the encoder couldn't take (its queue full)
+    this.held = 0; // frames the studio was late for, written as the picture before held longer
+    this.nextKey = 0; // the frame number from which the next one written is a key frame
     this.audioUs = 0; // the end of the sound written, in µs
     this.failed = null;
     this.stopping = false;
@@ -184,6 +187,22 @@ export class ProgramRecorder {
       start = 0;
     }
     if (this.out == null) this.out = start;
+    // The sound never goes past the recording's own time (the page's clock since it started,
+    // and a quarter second of slack): in a Windows show with the studio hidden, the engine's
+    // reading said it had stopped about a quarter of every second, the gaps were filled with
+    // silence, and then the sound held back came all at once, 24 s of it, and the file was 125 s
+    // for 80 s of show. Sound past the recording's time is left out, and a gap is filled only
+    // up to it.
+    const room = Math.round(((performance.now() - this.t0) / 1000 + 0.25) * rate) - this.out;
+    if (room < L.length) {
+      if (room <= 0) {
+        this.fixes.overMs += Math.round((L.length / rate) * 1000);
+        return;
+      }
+      this.fixes.overMs += Math.round(((L.length - room) / rate) * 1000);
+      L = L.subarray(0, room);
+      R = R.subarray(0, room);
+    }
     // How far the sound is from the picture: the engine's clock against the page's, from the
     // engine's own reading of both (not when blocks reach the page: a busy page takes them late).
     const drift = this.clockDrift() - this.fixMs;
@@ -191,15 +210,17 @@ export class ProgramRecorder {
     if (drift < -250) {
       // the engine stopped (its clock stood still while the page's went on): silence for the gap,
       // so everything after keeps its place against the picture
-      const gap = Math.round((-drift / 1000) * rate);
-      this.write(new Float32Array(gap), new Float32Array(gap));
-      this.fixMs -= (gap / rate) * 1000;
-      this.fixes.gapMs += Math.round((gap / rate) * 1000);
+      const gap = Math.min(Math.round((-drift / 1000) * rate), room - L.length);
+      if (gap > 0) {
+        this.write(new Float32Array(gap), new Float32Array(gap));
+        this.fixes.gapMs += Math.round((gap / rate) * 1000);
+      }
+      this.fixMs += drift; // (the reading is taken as caught up either way: a gap not filled isn't owed)
     } else if (drift > 15 && L.length > 4 * step) {
       [L, R] = [cut(L, step), cut(R, step)];
       this.fixMs += 1;
       this.fixes.dropped++;
-    } else if (drift < -15) {
+    } else if (drift < -15 && L.length > 4 * step) {
       [L, R] = [stretch(L, step), stretch(R, step)];
       this.fixMs -= 1;
       this.fixes.added++;
@@ -267,28 +288,43 @@ export class ProgramRecorder {
   /** The program was just drawn: write it as `count` frames (more than one if the studio fell behind). */
   frame(count = 1) {
     if (this.failed || this.stopping) return;
-    const dur = 1e6 / this.fps;
-    const first = new VideoFrame(this.canvas, { timestamp: Math.round(this.n * dur), duration: Math.round(dur) });
-    try {
-      for (let i = 0; i < count; i++) {
-        const f = i === 0 ? first : new VideoFrame(first, { timestamp: Math.round(this.n * dur), duration: Math.round(dur) });
-        // the encoder behind (a struggling computer): skip this frame rather than let a queue
-        // build. A short queue skips a frame here and there (a little less smooth); a long
-        // one held seconds of frames and then skipped them all at once (a freeze).
-        if (this.venc.encodeQueueSize > MAX_QUEUE) this.dropped++;
-        else this.venc.encode(f, { keyFrame: this.n % this.keyEvery === 0 });
-        if (i > 0) f.close();
-        this.n++;
-      }
-    } finally {
-      first.close();
+    // never more frames than the recording's own time (the page's clock since it started, and
+    // two to spare): the same show's file once gained 710 frames in a second, twice
+    const room = Math.floor(((performance.now() - this.t0) * this.fps) / 1000) + 2 - this.n;
+    if (count > room) {
+      this.clamped += count - Math.max(0, room);
+      count = Math.max(0, room);
     }
+    if (!count) return;
+    // the encoder behind (a struggling computer): skip this frame rather than let a queue
+    // build. A short queue skips a frame here and there (a little less smooth); a long
+    // one held seconds of frames and then skipped them all at once (a freeze).
+    if (this.venc.encodeQueueSize > MAX_QUEUE) {
+      this.dropped += count;
+      this.n += count;
+      return;
+    }
+    // A studio that fell behind owes `count` frames of the same picture: one frame that lasts
+    // that long, not `count` copies. The copies came in a burst that filled the encoder's queue,
+    // and the next new picture was then skipped (a busy show's file kept 1 frame in 7).
+    const dur = 1e6 / this.fps;
+    const f = new VideoFrame(this.canvas, { timestamp: Math.round(this.n * dur), duration: Math.round(dur * count) });
+    try {
+      // (a key frame every couple of seconds, though the count may step past the exact one)
+      const key = this.n >= this.nextKey;
+      this.venc.encode(f, { keyFrame: key });
+      if (key) this.nextKey = this.n + this.keyEvery;
+      this.held += count - 1;
+    } finally {
+      f.close();
+    }
+    this.n += count;
   }
 
   /** How it's going (the show log): frames, skipped, encoder queue, and sound ahead (+) or behind the picture, ms. */
   stats() {
     const videoUs = (this.n * 1e6) / this.fps;
-    return { frames: this.n, dropped: this.dropped, queue: this.venc?.encodeQueueSize || 0, drift: Math.round((this.audioUs - videoUs) / 1000), ...(this.tap ? { fixes: { ...this.fixes } } : {}) };
+    return { frames: this.n, dropped: this.dropped, ...(this.held ? { held: this.held } : {}), queue: this.venc?.encodeQueueSize || 0, drift: Math.round((this.audioUs - videoUs) / 1000), ...(this.clamped ? { clamped: this.clamped } : {}), ...(this.tap ? { fixes: { ...this.fixes } } : {}) };
   }
 
   /** Finish the file (also after a failure: what was recorded is kept) and hand it back. */
