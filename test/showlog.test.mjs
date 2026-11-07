@@ -38,6 +38,24 @@ const at = (s) => T0 + s * 1000;
   ok("sound watch: nothing raised for sources that aren't in the mix, or a camera that never had sound");
 }
 {
+  // a USB interface on the studio's computer beside 1080p cameras there (flagged usb): its alerts say why and what to do
+  const w = new SoundWatch();
+  const sc = (a, db, usb) => ({ id: 's', n: 'Scarlett', open: true, a, db, ...(usb ? { usb: 1 } : {}) });
+  w.update(at(0), { program: { db: -40, expect: true }, sources: [sc('live', -46, true)] });
+  let r = w.update(at(1), { program: { db: -99, expect: true }, sources: [sc('live', -99, true)] });
+  r = w.update(at(7), { program: { db: -99, expect: true }, sources: [sc('live', -99, true)] });
+  const silent = r.active.find((a) => a.kind === 'source-silent');
+  assert.ok(silent && /taking its USB at 1080p/.test(silent.text) && /720p/.test(silent.text), silent);
+  r = w.update(at(8), { program: { db: -99, expect: true }, sources: [sc('ended', null, true)] });
+  assert.match(r.raised.find((a) => a.kind === 'source-ended')?.text || '', /^Scarlett: its sound stopped \(the device let go of it\)\. This computer’s cameras are taking its USB/);
+  // without the flag: as before
+  const w2 = new SoundWatch();
+  w2.update(at(0), { program: { db: -40, expect: true }, sources: [sc('live', -46, false)] });
+  r = w2.update(at(1), { program: { db: -99, expect: true }, sources: [sc('ended', null, false)] });
+  assert.equal(r.raised.find((a) => a.kind === 'source-ended')?.text, 'Scarlett: its sound stopped (the device let go of it)');
+  ok('sound watch: a USB interface beside 1080p cameras on the same computer is told why it stopped and what to do');
+}
+{
   const w = new SoundWatch();
   const live = (s, db) => w.update(at(s), { program: { db: -20, expect: true }, sources: [{ id: 'm', n: 'Mic', open: true, a: 'live', db }] });
   live(0, -20);

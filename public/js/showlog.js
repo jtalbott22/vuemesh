@@ -197,6 +197,10 @@ export function summarize(rows, events = [], target = 30) {
  * where expect is whether the program should have sound (something in the mix, not black or a
  * break) and each source is { id, n, open, db, a } (a: live/muted/ended/off/none).
  */
+// A USB microphone or interface on the studio's computer, beside cameras at 1080p there (the studio
+// flags it: usb): three webcams at 1080p took the USB from a Focusrite Scarlett, which went to
+// silence and then let go, again and again, where at 720p it didn't.
+const USB_HINT = '. This computer’s cameras are taking its USB at 1080p: plug it into another USB port (one on the computer itself, away from the cameras), or set Output to 720p.';
 export class SoundWatch {
   constructor({ programAfterMs = 3000, sourceAfterMs = 5000, mutedAfterMs = 2000, floorDb = FLOOR_DB } = {}) {
     Object.assign(this, { programAfterMs, sourceAfterMs, mutedAfterMs, floorDb });
@@ -221,10 +225,10 @@ export class SoundWatch {
     };
     for (const s of sources) {
       if (s.a === 'live') this.hadSound.add(s.id);
-      const had = this.hadSound.has(s.id);
-      check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)` });
-      check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device` });
-      check(`silent:${s.id}`, s.open && s.a === 'live' && typeof s.db === 'number' && s.db < this.floorDb, this.sourceAfterMs, { kind: 'source-silent', id: s.id, n: s.n, text: `${s.n}: it has gone silent` });
+      const had = this.hadSound.has(s.id), usb = s.usb ? USB_HINT : '';
+      check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)${usb}` });
+      check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device${usb}` });
+      check(`silent:${s.id}`, s.open && s.a === 'live' && typeof s.db === 'number' && s.db < this.floorDb, this.sourceAfterMs, { kind: 'source-silent', id: s.id, n: s.n, text: `${s.n}: it has gone silent${usb}` });
     }
     // A source that leaves while its sound is in the mix (a USB interface dropping out is
     // taken as unplugged, and the source goes): say so, and keep expecting the program's sound,
@@ -234,7 +238,7 @@ export class SoundWatch {
     for (const [id, was] of this.before) if (!now.has(id) && was.open && this.hadSound.has(id)) {
       const key = `gone:${id}`;
       if (this.gone.has(key)) continue;
-      this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)` });
+      this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)${was.usb ? USB_HINT : ''}` });
     }
     this.before = now;
     const heard = typeof program.db === 'number' && program.db >= this.floorDb;

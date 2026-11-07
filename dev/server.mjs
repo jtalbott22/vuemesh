@@ -1,8 +1,14 @@
 // Local stand-in for the AWS stack: serves public/, runs the same core API and
 // signaling code with an in-memory store, and accepts "published" uploads.
-// Phones need HTTPS for the camera, so on a real LAN test use the AWS deploy;
-// this is for laptop testing (localhost counts as secure).
+// Phones and other computers need HTTPS (a camera, a screen share and the page's own signing all
+// need a secure address; only localhost counts as one over plain http). So it also serves HTTPS on
+// PORT + 1000 with a self-signed certificate made by openssl (dev/.cert/, made once): another
+// device opens https://<this computer's address>:<that port>, accepts the warning once, and joins.
 import http from 'node:http';
+import https from 'node:https';
+import { networkInterfaces } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +21,36 @@ import { memoryStore } from '../aws/functions/lib/store-memory.mjs';
 const ROOT = fileURLToPath(new URL('../public/', import.meta.url));
 const UPLOADS = fileURLToPath(new URL('./uploads/', import.meta.url));
 const PORT = Number(process.env.PORT || 8790);
+const HTTPS_PORT = Number(process.env.HTTPS_PORT || PORT + 1000);
+const lanRank = (a) => (a.startsWith('192.168.') ? 0 : a.startsWith('10.') ? 1 : a.startsWith('172.') ? 2 : 3);
+const lanAddresses = () => Object.values(networkInterfaces()).flat().filter((a) => a && a.family === 'IPv4' && !a.internal).map((a) => a.address).sort((x, y) => lanRank(x) - lanRank(y));
+/** This computer's self-signed certificate (made with openssl the first time), or null without openssl. */
+function devCert() {
+  const dir = fileURLToPath(new URL('./.cert/', import.meta.url));
+  const key = join(dir, 'key.pem'), cert = join(dir, 'cert.pem');
+  if (!existsSync(key) || !existsSync(cert)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+      const alt = ['DNS:localhost', 'IP:127.0.0.1', ...lanAddresses().map((a) => 'IP:' + a)].join(',');
+      const args = ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '825', '-subj', '/CN=VUEMesh dev', '-addext', 'subjectAltName=' + alt];
+      // (openssl on the path, or the one Git for Windows brings)
+      const tries = ['openssl', ...[process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'Programs')].filter(Boolean).map((d) => join(d, 'Git', 'usr', 'bin', 'openssl.exe'))];
+      const made = tries.some((exe) => {
+        try {
+          execFileSync(exe, args, { stdio: 'ignore' });
+          return true;
+        } catch {
+          return false;
+        }
+      });
+      if (!made) return null;
+    } catch {
+      return null;
+    }
+  }
+  return { key: readFileSync(key), cert: readFileSync(cert) };
+}
+let httpsUp = false;
 const store = memoryStore();
 // Local admin key: set ADMIN_KEY, or use "dev-admin".
 const ADMIN_KEY = process.env.ADMIN_KEY || 'dev-admin';
@@ -47,13 +83,18 @@ const post = async (connId, data) => {
   return true;
 };
 
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const cdn = `http://${req.headers.host}`;
   try {
     if (url.pathname === '/config.js') {
       res.writeHead(200, { 'content-type': 'text/javascript' });
-      return res.end(`window.VM_CONFIG = { api: '/api', ws: 'ws://${req.headers.host}/ws' };`);
+      return res.end(`window.VM_CONFIG = { api: '/api', ws: '${req.socket.encrypted ? 'wss' : 'ws'}://${req.headers.host}/ws' };`);
+    }
+    // (where another device on this network can open the show: the studio's links use it when it runs on localhost)
+    if (url.pathname === '/_dev/lan') {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return res.end(JSON.stringify({ https: httpsUp ? lanAddresses().map((a) => `https://${a}:${HTTPS_PORT}`) : [] }));
     }
     if (url.pathname.startsWith('/api/')) {
       const chunks = [];
@@ -98,10 +139,12 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');
   }
-});
+};
+
+const server = http.createServer(handler);
 
 const wss = new WebSocketServer({ noServer: true });
-server.on('upgrade', async (req, socket, head) => {
+const onUpgrade = async (req, socket, head) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname !== '/ws') return socket.destroy();
   const connectionId = randomUUID();
@@ -118,6 +161,17 @@ server.on('upgrade', async (req, socket, head) => {
       signal({ route: '$disconnect', connectionId }, { store, post });
     });
   });
-});
+};
 
+server.on('upgrade', onUpgrade);
 server.listen(PORT, () => console.log(`VUEMesh dev server on http://localhost:${PORT}  (admin key: ${ADMIN_KEY}${flags.globe ? ', globe on' : ''})`));
+const tls = devCert();
+if (tls) {
+  const secure = https.createServer(tls, handler);
+  secure.on('upgrade', onUpgrade);
+  secure.on('error', (e) => console.log(`HTTPS for other devices is off: ${e.message}`));
+  secure.listen(HTTPS_PORT, () => {
+    httpsUp = true;
+    console.log(`For phones and other computers: ${lanAddresses().map((a) => `https://${a}:${HTTPS_PORT}`).join('  ') || `https://localhost:${HTTPS_PORT}`}  (self-signed: accept the warning once)`);
+  });
+} else console.log('HTTPS for other devices is off (openssl not found): phones and other computers need it');

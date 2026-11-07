@@ -1169,7 +1169,19 @@ async function openLocalPicker() {
 }
 $('#addLocal').onclick = openLocalPicker;
 /** The page another computer opens to share its screen into this show (see share.js). */
-export const shareUrl = () => `${location.origin}/share?e=${eventId}`;
+export const shareUrl = () => `${shareBase}/share?e=${eventId}`;
+// On this computer's own dev server (localhost), the link said localhost, which another computer
+// can't open, and sharing a screen needs a secure address: the dev server's https address on this
+// network instead, when it has one (see dev/server.mjs).
+let shareBase = location.origin;
+if (/^(localhost|127.0.0.1|[::1])$/.test(location.hostname)) {
+  fetch('/_dev/lan').then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j?.https?.[0]) return;
+    shareBase = j.https[0];
+    const el = document.getElementById('shareUrl');
+    if (el) el.textContent = shareUrl();
+  }).catch(() => {});
+}
 $('#localList').addEventListener('click', async (e) => {
   if (e.target.closest('[data-copy-share]')) {
     try {
