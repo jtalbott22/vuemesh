@@ -3,6 +3,7 @@
 import './mixer.js';
 import { api, toast, esc, now } from '/js/vm.js';
 import { snapToCamera } from '/js/camctl.js';
+import { cleanLabel, matchSaved, renamed, usbIdOf } from '/js/devmatch.js';
 import * as idb from '/js/idb.js';
 import {
   $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
@@ -35,10 +36,46 @@ const hashStr = (s) => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
   return h.toString(36);
 };
-const cleanLabel = (s) => String(s || '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').replace(/^Default - /, '').trim();
+// (each one as it's saved: with its USB id, where the browser gives one, so it's found again under
+// another name; see devmatch.js)
+const savedOf = (p, l) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.wholeName || l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined, ...(l.usb ? { usb: l.usb } : {}), ...(l.as && !l.side ? { as: l.as } : {}), ...(l.side ? { split: { L: l.name, R: live.get(halfOf(p))?.name || null } } : {}) });
+// Saved ones that aren't plugged in (or that the browser hasn't allowed yet, or that wouldn't open)
+// stay saved, and come back when they can: they were dropped from the list the next time it was
+// saved, so a Scarlett whose new driver renamed it was gone for good from every show after. One
+// leaves this list only by being itself again: brought back, in the show under its own id, added
+// by hand as the one it is (consumeFor), or forgotten. Never because something like it is in the
+// show: two of the same mic, two Focusrites, or two inputs of one interface are different devices.
+let missing = [];
+let pending = []; // (the saved ones the startup restore hasn't got to yet: kept if the studio closes meanwhile)
+const inflight = new Map(); // (one being brought back, with the device it's going to: kept until it's in the show)
+const forgotten = new Set(); // (forgotten while it was being brought back: not kept if that fails)
+const notListed = new Set(); // (missing ones whose device wasn't listed the last time it was looked for)
+const keyOf = (s) => `${s.kind}:${s.deviceId}`;
 function saveLocalList() {
-  const list = [...live].filter(([, l]) => l.local && !l.screen && !l.splitOf).map(([p, l]) => ({ kind: l.role, deviceId: l.deviceId, label: l.deviceLabel, name: l.wholeName || l.name, micId: l.micId || null, micLabel: l.micLabel || null, sound: l.role === 'cam' ? !!l.micId : undefined, ...(l.as && !l.side ? { as: l.as } : {}), ...(l.side ? { split: { L: l.name, R: live.get(halfOf(p))?.name || null } } : {}) }));
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+  const list = [...live].filter(([, l]) => l.local && !l.screen && !l.splitOf && !l.removing).map(([p, l]) => savedOf(p, l));
+  const here = new Set(list.map(keyOf));
+  missing = missing.filter((s) => !here.has(keyOf(s)));
+  const going = [...inflight].filter(([s, to]) => !here.has(keyOf(s)) && !here.has(`${s.kind}:${to}`)).map(([s]) => s);
+  localStorage.setItem(LOCAL_KEY, JSON.stringify([...list, ...missing, ...going, ...pending.filter((s) => !here.has(keyOf(s)))]));
+}
+/** The saved ones not in the show now (for + This computer). */
+export const missingSaved = () => missing.slice();
+// Devices removed from the show by hand: a missing one never takes one of these but by its own id
+// (a third webcam of the same kind, unplugged, would otherwise bring back the second one, removed)
+const REMOVED_KEY = 'vm_local_removed';
+const removedByHand = () => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+};
+function setRemovedByHand(deviceId, on) {
+  if (!deviceId) return;
+  const ids = removedByHand();
+  if (on) ids.add(deviceId);
+  else if (!ids.delete(deviceId)) return;
+  localStorage.setItem(REMOVED_KEY, JSON.stringify([...ids].slice(-30)));
 }
 // A camera on this computer brings its sound, as a phone does: the microphone in the same
 // device (a USB webcam's own mic, which the browser groups with it), else one whose name
@@ -193,7 +230,8 @@ async function reopenAtSize(peer, l, h) {
     l.video.play().catch(() => {});
   }
   if ((track.getSettings().height || 0) !== h) l.sizeTried = h;
-  note(`${l.name} opened again at ${track.getSettings().height || '?'}p${s.smaller ? ` (${s.smaller})` : ''}`);
+  const set = track.getSettings();
+  note(`${l.name} opened again at ${set.height || '?'}p${set.width ? ` (${set.width}x${set.height}${set.frameRate ? `, ${Math.round(set.frameRate)} frames a second` : ''}${set.resizeMode === 'crop-and-scale' ? ', shrunk by the browser from a bigger picture' : ''})` : ''}${s.smaller ? ` (${s.smaller})` : ''}`);
   // (what was set in Camera control, on the new track; a camera nobody touched keeps its own)
   const z = l.cam?.zn && l.cam.z !== 1 ? { zoom: l.cam.z } : {};
   if ((l.localEv ?? 0) !== 0 || (l.localCt ?? 1) !== 1 || z.zoom) await localCtl(peer, { ev: l.localEv ?? 0, ct: l.localCt ?? 1, ...z });
@@ -284,7 +322,9 @@ function registerLocal(kind, stream, { deviceId, name, quiet, micId, screen, lab
     if (same) name = `${label} ${same + 1}`;
   }
   const micTrack = kind === 'cam' ? stream.getAudioTracks()[0] : null;
-  live.set(peer, { stream, role: kind, name: name || label, cid, local: true, screen: !!screen, deviceId, deviceLabel: label, micId: micTrack ? micId : null, micLabel: micTrack ? cleanLabel(micTrack.label) : null, route: 'local', fixed: true, joinedAt: Date.now() });
+  // (with its USB id, to find it again if a driver renames it)
+  const ids = screen ? {} : { rawLabel: track.label || null, usb: usbIdOf(track.label) };
+  live.set(peer, { stream, role: kind, name: name || label, cid, local: true, screen: !!screen, deviceId, deviceLabel: label, ...ids, micId: micTrack ? micId : null, micLabel: micTrack ? cleanLabel(micTrack.label) : null, route: 'local', fixed: true, joinedAt: Date.now() });
   if (kind !== 'mic') noteAngle(cid);
   // a device that stops (a USB interface dropping out, a camera's driver hiccuping) is opened
   // again into the same source, so its mixer channel, sound mode and recording carry on
@@ -442,14 +482,33 @@ async function reopenLocal(peer, part, old) {
       reopenWake.delete(wake);
     }
     if (live.get(peer) !== l || l.removing) return;
-    const track = await openAgain(kind, id, label).catch(() => null);
+    const track = await openAgain(kind, id, label, part === 'sound').catch(() => null);
     if (!track) continue;
     if (live.get(peer) !== l) return void track.stop();
     l.stream.removeTrack(old);
     l.stream.addTrack(track);
     if (part === 'sound') l.micLabel = cleanLabel(track.label);
+    // Found by its name under another id (a webcam moved to another USB port): it's that device
+    // now, so nothing else (a saved one coming back, another that dropped) takes it, and it's saved so.
+    const nowId = track.getSettings?.().deviceId;
+    if (nowId && nowId !== id) {
+      if (part === 'sound') l.micId = nowId;
+      else {
+        l.deviceId = nowId;
+        l.rawLabel = track.label || l.rawLabel;
+        l.usb = usbIdOf(track.label) || l.usb;
+        const half = live.get(halfOf(peer));
+        if (half) half.deviceId = nowId;
+      }
+      saveLocalList();
+    }
     watchLocal(peer, track, part);
     delete l.reopening[part];
+    if (part === 'main' && l.soundAgain) {
+      const was = l.soundAgain;
+      l.soundAgain = null;
+      reopenLocal(peer, 'sound', was); // (its sound gave up while the picture was away: once more, now it's back)
+    }
     if (l.video && part === 'main') {
       l.video.srcObject = l.stream;
       l.video.play().catch(() => {});
@@ -472,17 +531,24 @@ async function reopenLocal(peer, part, old) {
   note(`${what}: its device didn't come back in ${REOPEN_MS / 1000} s`);
   if (part === 'main') removeLocalSource(peer, 'unplugged');
   else {
+    // (its picture is being opened again too, as when a webcam is unplugged: that decides. If the
+    // picture comes back, its sound is tried again; if it goes, it's kept with the sound it had,
+    // not saved as a camera without sound)
+    if (l.removing || live.get(peer) !== l) return;
+    if (l.reopening?.main) return void (l.soundAgain = old);
     l.micId = null;
     toast(`${l.name} has no sound now: its microphone didn't come back`, 8000);
     mixAttach(peer);
     renderMixer();
   }
 }
-/** The same device as a fresh track: by its id, or (plugged back in somewhere else) by its name. */
-async function openAgain(kind, id, label) {
+/** The same device as a fresh track: by its id, or (plugged back in somewhere else) by its name, but never one of the same name that's already in the show (one of three webcams that dropped mustn't show another's picture). */
+async function openAgain(kind, id, label, sharable = false) {
   const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
   const want = kind === 'mic' ? 'audioinput' : 'videoinput';
-  const d = devs.find((x) => x.kind === want && x.deviceId === id) || devs.find((x) => x.kind === want && label && cleanLabel(x.label) === label);
+  // (a camera's sound can come from a microphone another camera uses too: that's the one exception)
+  const used = new Set(sharable ? [] : [...live.values()].filter((x) => x.local && x.deviceId && x.deviceId !== id).map((x) => x.deviceId));
+  const d = devs.find((x) => x.kind === want && x.deviceId === id) || devs.find((x) => x.kind === want && label && cleanLabel(x.label) === label && !used.has(x.deviceId));
   if (!d) return null;
   const s = kind === 'mic'
     ? await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } })
@@ -500,6 +566,17 @@ export function removeLocalSource(peer, why) {
   const l = live.get(peer);
   if (!l?.local) return;
   l.removing = true; // (its tracks ending now is no reason to open it again)
+  // Unplugged (it didn't come back in 30 s): it stays saved, and comes back when it can. Looked for
+  // at once too: a driver installed mid-show brings it back under a new name, already listed, with
+  // no device change to come. Removed by hand: it isn't taken by a saved one that's like it.
+  if (!l.splitOf && !l.screen) {
+    if (why === 'unplugged') {
+      const s = savedOf(peer, l);
+      for (const set of [couldntOpen, notListed, forgotten]) set.delete(keyOf(s)); // (a fresh start for this one)
+      missing.push(s);
+      setTimeout(restoreMissing, 2000);
+    } else setRemovedByHand(l.deviceId, true);
+  }
   if (l.splitOf) {
     // one side of a split input: the other side still uses the device
     dropHalf(peer, why);
@@ -1115,7 +1192,7 @@ function drawPreviews() {
   }
   pvRaf = requestAnimationFrame(drawPreviews);
 }
-async function openLocalPicker() {
+async function openLocalPicker(o) {
   const dlg = $('#localDlg');
   let devs = await navigator.mediaDevices.enumerateDevices();
   const named = devs.some((d) => d.label);
@@ -1152,20 +1229,39 @@ async function openLocalPicker() {
     return row(kind, title, '', inn ? '' : kind === 'cam' ? sound(d) : asSel(d), inn ? '<span class="lbadge">In the show</span>' : `<button type="button" class="ladd" data-add="${kind}" data-dev="${esc(d.deviceId)}">Add</button>`, inn ? 'in' : '', thumb);
   };
   const sec = (title, items, empty, count = true) => `<section class="lsec"><h3>${title}${count && items.length ? ` <span class="n">${items.length}</span>` : ''}</h3><ul class="ldevs">${items.join('') || `<li class="lnone">${empty}</li>`}</ul></section>`;
+  // saved ones not in the show: they come back when they can, or can be forgotten (each says why:
+  // the browser asks for cameras and microphones separately)
+  const perm = { cam: await devState('camera'), mic: await devState('microphone') };
+  const tries = (s) => couldntOpen.get(keyOf(s)) || 0;
+  // (stopped trying: each time this list opens, it's tried once more, with its saved settings)
+  const stuck = missing.filter((s) => tries(s) > RETRIES && !notListed.has(keyOf(s)));
+  const why = (s) => (perm[s.kind] !== 'granted' ? `Kept: it comes back once this computer’s ${s.kind === 'mic' ? 'microphones are' : 'cameras are'} allowed`
+    : !tries(s) || notListed.has(keyOf(s)) ? 'Not plugged in: it comes back into the show when it is'
+    : tries(s) <= RETRIES ? 'Plugged in, but it couldn’t be opened (another app may be using it): it’s tried again'
+    : 'Plugged in, but it couldn’t be opened: close any other app using it. It’s tried again each time this list opens');
+  const gone = (kind) => missing.filter((s) => s.kind === kind).map((s) => row(kind, `<span class="lt">${esc(s.name || s.label)}</span>${s.name && s.name !== s.label ? `<small class="lown">${esc(s.label)}</small>` : ''}`, why(s), '', `<button type="button" class="ladd lforget" data-forget="${esc(`${s.kind}:${s.deviceId}`)}" title="Stop bringing it back">Forget</button>`, 'gone'));
   const shares = [
     row('screen', 'A screen or window', 'With its sound, if the browser shares it', '', '<button type="button" class="ladd" data-share="screen">Share…</button>'),
     row('sound', 'This computer’s sound', myOs === 'mac' ? 'On a Mac: a Chrome tab’s sound (tick Share tab audio)' : 'Pick Entire screen and tick Share system audio', '', '<button type="button" class="ladd" data-share="sound">Share…</button>'),
     row('link', 'Another computer’s screen', `Open <b id="shareUrl">${esc(shareUrl())}</b> on it, name it, share`, '', '<button type="button" class="ladd" data-copy-share>Copy link</button>'),
   ];
-  $('#localList').innerHTML = (!named
-    ? `<div class="lallow"><span class="lico" aria-hidden="true">${LICON.cam}</span><p>To list this computer’s cameras and microphones, the browser needs your OK.</p><button type="button" class="primary" id="localAllow">Allow cameras and microphones</button></div>`
-    : sec('Cameras', cams.map((d) => dev(d, 'cam')), 'None found') + sec('Microphones', mics.map((d) => dev(d, 'mic')), 'None found')) + sec('Screen and sound', shares, '', false);
+  // (the OK asked for when nothing is listed, or a kind with saved ones waiting isn't allowed yet)
+  const allow = !named || missing.some((s) => perm[s.kind] !== 'granted');
+  $('#localList').innerHTML = (allow ? `<div class="lallow"><span class="lico" aria-hidden="true">${LICON.cam}</span><p>To list this computer’s cameras and microphones, the browser needs your OK.</p><button type="button" class="primary" id="localAllow">Allow cameras and microphones</button></div>` : '')
+    + (named
+      ? sec('Cameras', [...cams.map((d) => dev(d, 'cam')), ...gone('cam')], 'None found') + sec('Microphones', [...mics.map((d) => dev(d, 'mic')), ...gone('mic')], 'None found')
+      : missing.length ? sec('Kept from before', [...gone('cam'), ...gone('mic')], '') : '')
+    + sec('Screen and sound', shares, '', false);
   if (!dlg.open) {
     pvGen++;
     dlg.showModal();
     $('#localList').focus({ preventScroll: true }); // (the list, not the close button, has the focus when it opens)
   }
   if (named) attachPreviews(cams, mics, inShowPeer);
+  if (stuck.length && !o?.noRetry) {
+    for (const s of stuck) couldntOpen.set(keyOf(s), RETRIES); // (one more try each: no more timers after it)
+    restoreMissing().then(() => $('#localDlg').open && openLocalPicker({ noRetry: true })); // (redrawn once: not tried again by that)
+  }
 }
 $('#addLocal').onclick = openLocalPicker;
 /** The page another computer opens to share its screen into this show (see share.js). */
@@ -1210,7 +1306,19 @@ $('#localList').addEventListener('click', async (e) => {
     } catch {
       return toast('The browser said no: allow the camera and microphone for this site in its settings (the icon left of the address)', 7000);
     }
+    await restoreMissing(); // (the saved ones, now they're allowed)
     return openLocalPicker();
+  }
+  const fg = e.target.closest('[data-forget]');
+  if (fg) {
+    const s = missing.find((x) => keyOf(x) === fg.dataset.forget) || [...inflight.keys()].find((x) => keyOf(x) === fg.dataset.forget);
+    missing = missing.filter((x) => x !== s);
+    if (s && inflight.has(s)) forgotten.add(fg.dataset.forget); // (being opened right now: not kept if that fails)
+    couldntOpen.delete(fg.dataset.forget);
+    notListed.delete(fg.dataset.forget);
+    saveLocalList();
+    if (s) note(`${s.name || s.label}: forgotten (not brought back when it's plugged in)`);
+    return void openLocalPicker();
   }
   const nb = e.target.closest('[data-name-dev]');
   if (nb) {
@@ -1244,7 +1352,9 @@ $('#localList').addEventListener('click', async (e) => {
   // (its preview lets go of the device first: Windows opens a camera that's still open only at the size it's open at)
   await stopPreview(`${b.dataset.add}:${b.dataset.dev}`, true);
   try {
-    await addLocalSource(b.dataset.add, b.dataset.dev, pendingNames.get(b.dataset.dev) || undefined, false, snd === undefined ? undefined : snd || null, as);
+    const was = missingFor(b.dataset.add, b.dataset.dev); // (before it's added: its save comes first)
+    const peer = await addLocalSource(b.dataset.add, b.dataset.dev, pendingNames.get(b.dataset.dev) || undefined, false, snd === undefined ? undefined : snd || null, as);
+    if (peer) consumeFor(peer, was); // (a saved one that's this device isn't missing now)
     if (pendingNames.has(b.dataset.dev)) setLocalName(b.dataset.add, b.dataset.dev, pendingNames.get(b.dataset.dev));
     pendingNames.delete(b.dataset.dev);
   } catch (err) {
@@ -1252,32 +1362,175 @@ $('#localList').addEventListener('click', async (e) => {
   }
   openLocalPicker();
 });
-// the ones added before come back (when the browser still allows it)
-setTimeout(async () => {
-  const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
-  if (!saved.length || !isHost || EDIT_ONLY) return; // (the Edit page uses no cameras)
-  const cam = await navigator.permissions?.query({ name: 'camera' }).then((p) => p.state).catch(() => null);
-  const mic = await navigator.permissions?.query({ name: 'microphone' }).then((p) => p.state).catch(() => null);
-  const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
-  const taken = new Set(); // (by name, each saved one gets a different device: three of the same webcam stay three)
-  for (const s of saved) {
-    if ((s.kind === 'mic' ? mic : cam) !== 'granted') continue;
-    // by its id, or (ids can change) by its name
-    const same = devs.find((d) => d.deviceId === s.deviceId && !taken.has(d.deviceId)) || devs.find((d) => d.kind === (s.kind === 'mic' ? 'audioinput' : 'videoinput') && cleanLabel(d.label) === s.label && !taken.has(d.deviceId) && !saved.some((o) => o !== s && o.deviceId === d.deviceId));
-    if (same) taken.add(same.deviceId);
-    if (!same) {
-      note(`${s.label || 'A source'} on this computer isn't plugged in now`);
-      continue;
-    }
-    let micId;
-    if (s.kind === 'cam' && s.sound === false) micId = null;
-    // (a camera saved with "Default" as its sound, from before: it picks a microphone by name again)
-    else if (s.kind === 'cam' && s.micId !== 'default' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
-    const peer = await addLocalSource(s.kind, same.deviceId, s.name, true, micId, s.split ? undefined : s.as).catch((e) => note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`));
-    if (peer && s.split) splitLocalMic(peer, s.split);
+// the ones added before come back (when the browser still allows it): by their id, or (ids and
+// names can change) their name, their USB id or, an interface whose maker's driver renamed it, the
+// one device of that maker on the other driver (see devmatch.js)
+const devState = (kind) => navigator.permissions?.query({ name: kind }).then((p) => p.state).catch(() => null);
+/** Device ids a saved one mustn't take by anything but its own id: in the show, another saved one's, or removed by hand. */
+function claimedFor(s, saved, devs, taken) {
+  const ids = new Set([...taken, ...removedByHand()]);
+  for (const l of live.values()) if (l.local && l.deviceId) ids.add(l.deviceId);
+  for (const o of saved) if (o !== s && devs.some((d) => d.deviceId === o.deviceId)) ids.add(o.deviceId);
+  return ids;
+}
+// Missing ones whose device is listed but didn't open (another app holding it, a camera that timed
+// out): no device change is coming for those, so they're tried again a few times, and + This
+// computer says so rather than "not plugged in".
+const couldntOpen = new Map(); // key → tries
+const RETRY_MS = 15_000, RETRIES = 6;
+let retryTimer = null; // (one for all of them: each failing one counts its own tries)
+function openFailed(s) {
+  const n = (couldntOpen.get(keyOf(s)) || 0) + 1;
+  couldntOpen.set(keyOf(s), n);
+  if (n <= RETRIES && !retryTimer) retryTimer = setTimeout(() => {
+    retryTimer = null;
+    restoreMissing();
+  }, RETRY_MS);
+}
+/** It failed to open: kept, and tried again (unless it was forgotten meanwhile). */
+function keepFailed(s) {
+  if (forgotten.delete(keyOf(s))) return;
+  missing.push(s);
+  openFailed(s);
+}
+/** The missing one a device added by hand is, looked for before it's added (its save comes first): its own entry, by its id, and nothing else (a guess by name took a twin's). */
+function missingFor(kind, deviceId) {
+  return missing.find((x) => x.kind === kind && x.deviceId === deviceId) || null;
+}
+/** Added by hand: the missing one it is (found by missingFor before it was added) is in the show now, and the device isn't "removed by hand" any more. */
+function consumeFor(peer, s) {
+  const l = live.get(peer);
+  if (!l?.local || l.screen) return;
+  setRemovedByHand(l.deviceId, false);
+  if (!s) return;
+  missing = missing.filter((x) => x !== s);
+  couldntOpen.delete(keyOf(s));
+  notListed.delete(keyOf(s));
+  forgotten.delete(keyOf(s));
+  saveLocalList();
+}
+/** A saved one, found as m ({ d, how }), into the show again; under a new name, its own name, mixer settings and given names come with it. */
+async function bringBack(s, m, devs) {
+  const now = cleanLabel(m.d.label), moved = m.how !== 'id' && now !== s.label;
+  let micId;
+  if (s.kind === 'cam' && s.sound === false) micId = null;
+  // (a camera saved with "Default" as its sound, from before: it picks a microphone by name again)
+  else if (s.kind === 'cam' && s.micId !== 'default' && (s.micId || s.micLabel)) micId = (devs.find((d) => d.deviceId === s.micId) || devs.find((d) => d.kind === 'audioinput' && cleanLabel(d.label) === s.micLabel))?.deviceId;
+  if (moved || m.d.deviceId !== s.deviceId) carryOver(s, m.d.deviceId);
+  const name = moved && (!s.name || s.name === s.label) ? undefined : s.name; // (named after the device: after its new name)
+  inflight.set(s, m.d.deviceId); // (kept in the saved list while it opens: a camera stepping down can take 30 s)
+  const pid = `local-${s.kind}-${hashStr(m.d.deviceId)}`;
+  let peer = null, already = false;
+  try {
+    peer = (await addLocalSource(s.kind, m.d.deviceId, name, true, micId, s.split ? undefined : s.as).catch((e) => void note(`${s.label || 'A source'} on this computer isn't available now: ${e.message}`))) || null;
+    // (already in the show, added by hand meanwhile: that's it back, as it was added)
+    if (!peer && live.has(pid)) [peer, already] = [pid, true];
+  } finally {
+    inflight.delete(s);
   }
-  if (saved.some((s) => (s.kind === 'mic' ? mic : cam) !== 'granted')) toast('This computer\u2019s cameras and microphones are off until you allow them: + This computer', 7000);
+  if (!peer) return null;
+  forgotten.delete(keyOf(s)); // (in the show again: nothing to forget)
+  if (already) return peer;
+  if (s.split) splitLocalMic(peer, moved ? renamed(s.split, s.label, now) : s.split);
+  if (moved) note(`${s.label} is here under another name: ${now} (found by its ${{ usb: 'USB id', driver: 'maker, whose driver renamed it', name: 'name' }[m.how] || m.how}). Its settings came with it.`);
+  return peer;
+}
+/** A saved one under a new device id: the name it was given here and its mixer settings in this show go with it. */
+function carryOver(s, toId) {
+  const names = localNames(), was = names[`${s.kind}:${s.deviceId}`];
+  if (was && !names[`${s.kind}:${toId}`]) setLocalName(s.kind, toId, was);
+  const cid = (id) => 'L' + hashStr(`${s.kind}:${id}`).slice(0, 10);
+  for (const side of ['', 'R']) {
+    const { touched, ...st } = mixState(cid(s.deviceId) + side, s.kind);
+    if (touched && !mixState(cid(toId) + side, s.kind).touched) mixSave(cid(toId) + side, st);
+  }
+}
+let restoredOnce = false; // (a device plugged in while the saved ones are still opening waits for them)
+setTimeout(async () => {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+  } catch {
+    saved = [];
+  }
+  if (!saved.length || !isHost || EDIT_ONLY) return void (restoredOnce = true); // (the Edit page uses no cameras)
+  pending = saved.slice(); // (each leaves as it's looked at: a save meanwhile keeps the rest)
+  try {
+    const cam = await devState('camera'), mic = await devState('microphone');
+    const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    const taken = new Set(); // (each saved one gets a different device: three of the same webcam stay three)
+    for (const s of saved) {
+      pending = pending.filter((x) => x !== s);
+      if ((s.kind === 'mic' ? mic : cam) !== 'granted') {
+        missing.push(s); // (kept: back once they're allowed)
+        continue;
+      }
+      const m = matchSaved(s, devs, claimedFor(s, saved, devs, taken));
+      if (!m) {
+        missing.push(s);
+        notListed.add(keyOf(s));
+        note(`${s.label || 'A source'} on this computer isn't plugged in now: it's kept, and comes back when it's plugged in`);
+        continue;
+      }
+      notListed.delete(keyOf(s));
+      taken.add(m.d.deviceId);
+      if (!(await bringBack(s, m, devs))) keepFailed(s);
+    }
+    if (saved.some((s) => (s.kind === 'mic' ? mic : cam) !== 'granted')) toast('This computer\u2019s cameras and microphones are off until you allow them: + This computer', 7000);
+  } finally {
+    missing.push(...pending); // (only if something went wrong on the way)
+    pending = [];
+    saveLocalList(); // (with the ones still missing)
+    restoredOnce = true;
+    if (restoreAgain) restoreMissing(); // (one plugged in meanwhile)
+  }
 }, 1500);
+// A missing one plugged in (or found under a new name) comes back into the show then and there.
+// Asked again while it's looking (a hub's devices arrive one by one, each with its own device
+// change) or before the startup restore is done, it looks once more when it's done.
+let restoring = null, restoreAgain = false;
+export function restoreMissing() {
+  if (!isHost || EDIT_ONLY) return Promise.resolve();
+  if (!restoredOnce || restoring) {
+    restoreAgain = true;
+    return restoring || Promise.resolve();
+  }
+  if (!missing.length) return Promise.resolve();
+  restoring = (async () => {
+    do {
+      restoreAgain = false;
+      const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+      const taken = new Set();
+      for (const s of [...missing]) {
+        if (!missing.includes(s)) continue; // (forgotten meanwhile)
+        if ((await devState(s.kind === 'mic' ? 'microphone' : 'camera')) !== 'granted') continue;
+        const m = matchSaved(s, devs, claimedFor(s, missing, devs, taken));
+        // (not listed this time: its tries aren't reset, so two of the same name taking turns at one
+        // device that won't open still run out of tries)
+        if (!m) {
+          notListed.add(keyOf(s));
+          continue;
+        }
+        notListed.delete(keyOf(s));
+        taken.add(m.d.deviceId);
+        missing = missing.filter((x) => x !== s);
+        const peer = await bringBack(s, m, devs);
+        if (!peer) keepFailed(s);
+        else {
+          const stuck = couldntOpen.delete(keyOf(s)); // (listed all along: it opened this time)
+          note(`${live.get(peer)?.name || s.label} ${stuck ? 'opened this time' : 'is plugged in again'}: back in the show`);
+          toast(`${live.get(peer)?.name || s.label} is back in the show`, 5000);
+        }
+      }
+      saveLocalList();
+    } while (restoreAgain);
+  })().finally(() => {
+    restoring = null;
+  });
+  return restoring;
+}
+navigator.mediaDevices?.addEventListener?.('devicechange', () => setTimeout(restoreMissing, 1500)); // (once Windows has it ready)
+window.vmMissingSaved = missingSaved; // (tests and diagnostics)
 window.addEventListener('pagehide', () => { for (const [peer, l] of live) if (l.local) stopLocalRec(peer); });
 
 // --------------------------------------------------------------- moderation ---

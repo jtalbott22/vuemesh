@@ -13,7 +13,8 @@
 //   s     each source: id, n (name), k (cam/mic/screen), loc (this computer), open (in the mix),
 //         db (its loudest, before the fader), a (its sound: live/muted/ended/off/none),
 //         vf (frames its camera delivered that second), vp (frames shown on its tile),
-//         ad (sound dropped that second, ms), lat (sound latency, ms), sr (sample rate),
+//         ad (sound dropped that second, ms), dv (sound the device delivered that second, ms: about
+//         1000, silence included; none when nothing arrives from it), lat (sound latency, ms), sr (sample rate),
 //         mic (the microphone a camera's sound comes from), pl (a camera here: its own delay, sensor to
 //         arrival, ms), sp (how much later than that its frames come, ms), held (stopped sending: its last
 //         picture held), sd (how long its sound waits, ms), ch (this computer's: sides it opened with),
@@ -55,7 +56,8 @@ export class ShowLog {
 
   /** Something that happened: kind is a short word (note, window, sound, source, alert, ...). */
   event(kind, text, extra) {
-    const e = { t: this.now(), kind, text: String(text).slice(0, 300), ...(extra || {}) };
+    // (an alert keeps all of its advice: a long device name and what to try ran past 300)
+    const e = { t: this.now(), kind, text: String(text).slice(0, kind.startsWith('alert') ? 700 : 300), ...(extra || {}) };
     this.events.push(e);
     if (this.events.length > this.maxEvents) this.events.splice(0, this.events.length - this.maxEvents);
     return e;
@@ -129,13 +131,20 @@ export function summarize(rows, events = [], target = 30) {
   const src = new Map();
   for (const r of rows) for (const s of r.s || []) {
     let x = src.get(s.id);
-    if (!x) src.set(s.id, (x = { id: s.id, n: s.n, k: s.k, loc: !!s.loc, first: r.t, last: r.t, ended: null, droppedMs: 0, mic: s.mic || null }));
+    if (!x) src.set(s.id, (x = { id: s.id, n: s.n, k: s.k, loc: !!s.loc, first: r.t, last: r.t, ended: null, droppedMs: 0, mic: s.mic || null, starvedSeconds: 0, starvedTimes: 0 }));
     x.last = r.t;
     x.n = s.n;
     if (s.mic) x.mic = s.mic;
     if ((s.a === 'ended' || s.a === 'none') && x.hadSound && !x.ended) x.ended = r.t;
     if (s.a === 'live') x.hadSound = true;
     x.droppedMs += s.ad || 0;
+    // nothing arriving from the device while its track was live (it stopped sending: not silence)
+    const starved = s.loc && s.k !== 'screen' && s.a === 'live' && typeof s.dv === 'number' && s.dv < STARVED_MS;
+    if (starved) {
+      x.starvedSeconds++;
+      if (!x.wasStarved) x.starvedTimes++;
+    }
+    x.wasStarved = starved;
   }
   // a camera here delivering fewer frames than it should (USB or the computer not keeping up)
   const camFps = new Map();
@@ -145,7 +154,7 @@ export function summarize(rows, events = [], target = 30) {
     a.k++;
     camFps.set(s.id, a);
   }
-  out.sources = [...src.values()].map(({ hadSound, ...x }) => x);
+  out.sources = [...src.values()].map(({ hadSound, wasStarved, ...x }) => x);
   for (const [, a] of camFps) {
     const avg = a.sum / a.k;
     if (a.k >= 10 && avg < target * 0.8) out.lines.push(`${a.n} delivered ${Math.round(avg * 10) / 10} frames a second on average (of about ${target}): ${avg >= target * 0.4 && avg <= target * 0.6 ? 'about half, as most webcams do in dim light (they slow down to let in more light): more light on the subject brings it back' : "the camera, its USB port or the computer wasn't keeping up"}.`);
@@ -172,6 +181,7 @@ export function summarize(rows, events = [], target = 30) {
   for (const x of out.sources) {
     if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);
     if (x.droppedMs >= 100) out.lines.push(`${x.n}: ${mmss(x.droppedMs)} of its sound was dropped on the way in (the device or the computer couldn't keep up).`);
+    if (x.starvedSeconds >= 2) out.lines.push(`${x.n}: nothing arrived from the device for ${mmss(x.starvedSeconds * 1000)} in all, ${x.starvedTimes} time(s) (it stopped sending, rather than sending silence).`);
   }
   // cameras sharing one microphone, or on the computer's default one
   const byMic = new Map();
@@ -218,10 +228,23 @@ export function summarize(rows, events = [], target = 30) {
  * where expect is whether the program should have sound (something in the mix, not black or a
  * break) and each source is { id, n, open, db, a } (a: live/muted/ended/off/none).
  */
-// A USB microphone or interface on the studio's computer, beside cameras at 1080p there (the studio
-// flags it: usb): three webcams at 1080p took the USB from a Focusrite Scarlett, which went to
-// silence and then let go, again and again, where at 720p it didn't.
-const USB_HINT = '. This computer’s cameras are taking its USB at 1080p: plug it into another USB port (one on the computer itself, away from the cameras), or set Output to 720p.';
+// A microphone or interface on the studio's own computer that stops and comes back on its own. A
+// Focusrite Scarlett 2i2 4th Gen did that every minute, three minutes in a row, every 15 minutes:
+// nothing at all arrived from it (not silence: no sound), and about 12 s later Chrome gave up on it.
+// It had been put down to 1080p webcams taking its USB, but with Easy Start off (the small drive it
+// shows when new) it ran clean at 1080p and at 720p: the computer's maker's software (Dell TechHub)
+// looked at that drive every 15 minutes, and then every minute for three, and its sound stopped each
+// time. The USB note is kept, second, for a computer whose cameras do run at 1080p (usb).
+const DRIVE_HINT = ' If it also shows up as a small drive (a Scarlett’s Easy Start), turn that off (open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again): software that checks the drives, such as Dell TechHub, stops its sound.';
+const USB_HINT = ' Its USB also carries cameras at 1080p: if it keeps happening, try Output at 720p, or another USB port.';
+/** What to try, after a source's alert: for a microphone on this computer, and its USB beside 1080p cameras. */
+const hintFor = (s) => {
+  const h = (s.loc && s.k === 'mic' ? DRIVE_HINT : '') + (s.usb ? USB_HINT : '');
+  return h ? `.${h}` : '';
+};
+// (Chrome's count of the sound a device delivered that second, in ms: about 1000 when it's sending,
+// silence included; none when nothing arrives from it)
+const STARVED_MS = 50;
 export class SoundWatch {
   constructor({ programAfterMs = 3000, sourceAfterMs = 5000, mutedAfterMs = 2000, floorDb = FLOOR_DB } = {}) {
     Object.assign(this, { programAfterMs, sourceAfterMs, mutedAfterMs, floorDb });
@@ -246,10 +269,18 @@ export class SoundWatch {
     };
     for (const s of sources) {
       if (s.a === 'live') this.hadSound.add(s.id);
-      const had = this.hadSound.has(s.id), usb = s.usb ? USB_HINT : '';
-      check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)${usb}` });
-      check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device${usb}` });
-      check(`silent:${s.id}`, s.open && s.a === 'live' && typeof s.db === 'number' && s.db < this.floorDb, this.sourceAfterMs, { kind: 'source-silent', id: s.id, n: s.n, text: `${s.n}: it has gone silent${usb}` });
+      const had = this.hadSound.has(s.id), hint = hintFor(s);
+      check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)${hint}` });
+      check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device${hint}` });
+      // silent: nothing arriving from the device (it stopped sending), or the device sending silence
+      // (its cable, gain or mute), where Chrome says which (dv); else as before
+      // (this computer's own devices only: a phone's sound keeps arriving, as silence, when its network drops)
+      const dv = s.loc && s.k !== 'screen' && typeof s.dv === 'number' ? s.dv : null;
+      const starved = dv != null && dv < STARVED_MS, quiet = dv != null && !starved;
+      check(`silent:${s.id}`, s.open && s.a === 'live' && typeof s.db === 'number' && s.db < this.floorDb, this.sourceAfterMs, {
+        kind: 'source-silent', id: s.id, n: s.n,
+        text: starved ? `${s.n}: no sound is arriving from the device${hint}` : quiet ? `${s.n}: it has gone silent (the device is sending silence: check its cable, its gain and any mute)` : `${s.n}: it has gone silent${hint}`,
+      });
     }
     // A source that leaves while its sound is in the mix (a USB interface dropping out is
     // taken as unplugged, and the source goes): say so, and keep expecting the program's sound,
@@ -259,7 +290,7 @@ export class SoundWatch {
     for (const [id, was] of this.before) if (!now.has(id) && was.open && this.hadSound.has(id)) {
       const key = `gone:${id}`;
       if (this.gone.has(key)) continue;
-      this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)${was.usb ? USB_HINT : ''}` });
+      this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)${hintFor(was)}` });
     }
     this.before = now;
     const heard = typeof program.db === 'number' && program.db >= this.floorDb;
