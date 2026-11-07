@@ -306,7 +306,7 @@ flowchart LR
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
 | **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |
 | **Landing** (`/`) | Live multi-angle demo, a globe and board of public events, and start an event (landscape or portrait, optionally listed on the globe). |
-| **Sponsors** (`/sponsors`) | Where sponsors can appear and the house rules. Contact goes to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
+| **Work with VUEMesh** (`/sponsors`) | Collaborating, gear to try, sponsoring the breaks in local shows, and hosting your shows on the site, with the house rules. Its buttons write to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
 | **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL. All scale to zero. |
 
 Live cuts made on the host are stamped on the shared clock, so when the full-quality clips arrive

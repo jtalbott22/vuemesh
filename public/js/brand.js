@@ -2,7 +2,7 @@
 export const BRAND = {
   name: 'VUEMesh',
   patreon: 'https://www.patreon.com/duh_live_video',
-  // Where partner inquiries go (the Partners page's buttons, each with its own subject). Leave empty
+  // Where partner inquiries go (the Work with VUEMesh page's buttons, each with its own subject). Leave empty
   // to send people to Patreon messages instead.
   sponsorEmail: 'jtalbott22@gmail.com',
 };
@@ -16,10 +16,10 @@ export const FEATURES = {
 // Bump this when the Terms change; people are asked to agree again.
 export const TERMS_VERSION = '2026-10-11';
 
-export const sponsorContactHref = (subject = 'Partnering with VUEMesh') =>
+export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
   BRAND.sponsorEmail
     ? `mailto:${BRAND.sponsorEmail}?subject=${encodeURIComponent(subject)}`
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.61.14';
+export const APP_VERSION = '0.61.15';

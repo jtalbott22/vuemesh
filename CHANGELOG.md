@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.61.15 — Work with VUEMesh: collaborate, or host your shows here
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The partners page is now about working together** (`/sponsors`, "Work with VUEMesh"): **Collaborate on something** (integrations, devices, models, or a show made together: hit me up), **Host your shows on VUEMesh** (publishing is built and switched off for now; hosted and played here, with the watch page checking every contributor's signature, partnering on the delivery: you cover what it costs to host and serve your content), **Send something to try** (gear, honest results either way) and **Get into the breaks of shows people watch** (local sponsors). The house rules stay.
+- Gone from it: founding pilots and founding-partner pricing, "How VUEMesh will pay for itself" with its paid plans, and sponsor placements "coming as the audience grows".
+- Its links read **Collab** (the home page's and the tour's top bar) and **Work with me** (the footers of the home page, the studio, Edit and the kiosk).
+
 ## 0.61.14 — the home page sells the whole studio; no beta, no "free"
 **Deploy:** `./aws/deploy.sh` (site only).
 
