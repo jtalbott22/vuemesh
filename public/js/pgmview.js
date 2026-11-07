@@ -7,7 +7,7 @@
 import { meshSocket, ICE } from '/js/vm.js';
 
 export class ProgramView {
-  /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text) */
+  /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js) */
   constructor(o) {
     Object.assign(this, o);
     this.host = null;
@@ -85,6 +85,7 @@ export class ProgramView {
     this.ctl.onopen = () => this.say('');
     const stream = new MediaStream();
     pc.ontrack = (e) => {
+      if (e.track.kind === 'audio' && this.onSound) return this.onSound(e.track);
       stream.addTrack(e.track);
       this.video.srcObject = stream;
       this.video.play().catch(() => {});

@@ -190,6 +190,8 @@ export class DisplayHub {
       if (e.channel.label !== 'ctl') return;
       l.ctl = e.channel;
       e.channel.onopen = () => this.sendMode(peer);
+      // (closed from its end: the page went, or it's starting again; it can come straight back)
+      e.channel.onclose = () => this.links.get(peer)?.ctl === e.channel && this.close(peer, true);
       e.channel.onmessage = (ev) => {
         let m;
         try { m = JSON.parse(ev.data); } catch { return; }
@@ -403,15 +405,19 @@ export class DisplayHub {
 
   syncPeers(peers) {
     const here = new Set(peers.map((p) => p.peer));
-    for (const peer of [...this.links.keys()]) if (!here.has(peer)) this.close(peer);
+    // (a phone in a pocket can lose its signalling while its picture and sound still come: those go
+    // straight between the two, so a link that's still connected stays; sweep() sees to the rest)
+    for (const [peer, l] of [...this.links]) if (!here.has(peer) && l.pc?.connectionState !== 'connected') this.close(peer);
     for (const peer of [...this.waiting.keys()]) if (!here.has(peer)) this.waiting.delete(peer);
     this.changed?.();
   }
 
   sweep() {
-    // A TV that stopped pinging for 20 s is gone (asleep, unplugged); its key stays.
+    // A TV that stopped pinging for 20 s is gone (asleep, unplugged); its key stays. Unless its link
+    // is still connected (the connection itself checks the other end is there, every few seconds):
+    // a phone playing the sound with its screen locked pings late, and its sound mustn't stop.
     const now = Date.now();
-    for (const [peer, l] of [...this.links]) if (l.ctl && now - l.lastSeen > 20000) this.close(peer, true);
+    for (const [peer, l] of [...this.links]) if (l.ctl && now - l.lastSeen > 20000 && l.pc?.connectionState !== 'connected') this.close(peer, true);
   }
 
   /** What each connected TV is being sent (for Monitor's Transfers): rate, codec, size, route. */

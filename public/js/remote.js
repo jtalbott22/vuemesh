@@ -6,6 +6,7 @@
 // home screen, it opens on the last show. Its own camera can scan the studio's code too: a
 // home-screen app can't be opened by the camera app's scan.
 import { ProgramView } from '/js/pgmview.js';
+import { ProgramSound } from '/js/progsound.js';
 import { decodeQR, meshSocket } from '/js/vm.js';
 
 const $ = (s) => document.querySelector(s);
@@ -112,6 +113,7 @@ function onMessage(m) {
   } else if (m.t === 'removed') {
     pgm?.stop();
     pgm = null;
+    psound.stop();
     $('#pgmBox').hidden = $('#pgmRow').hidden = true;
     key = null;
     localStorage.removeItem(keyStore(eventId));
@@ -145,7 +147,7 @@ function startProgram(tvKey) {
   showSound();
   if (!pgmOn() || pgm?.key === tvKey) return;
   pgm?.stop();
-  pgm = new ProgramView({ eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t) });
+  pgm = new ProgramView({ eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t) });
 }
 $('#pgmTgl').onclick = () => {
   const on = !pgmOn();
@@ -153,6 +155,7 @@ $('#pgmTgl').onclick = () => {
   if (!on) {
     pgm?.stop();
     pgm = null;
+    psound.stop();
   }
   $('#pgmTgl').setAttribute('aria-pressed', String(on));
   $('#pgmBox').hidden = !on;
@@ -161,49 +164,20 @@ $('#pgmTgl').onclick = () => {
 };
 
 // The program's sound, with the picture: off to start with (a phone in the studio's room would
-// play it back into the microphones), on with a tap, for earbuds, and remembered. A phone plays
-// sound only after a tap on the page, so opened again with it on, it comes on with the first tap
-// anywhere (a cut, say), and the button says so until then.
-const SOUND = 'vm_remote_sound';
-const soundWanted = () => localStorage.getItem(SOUND) === '1';
+// play it back into the microphones), on with a tap, and remembered. It plays as a music app's
+// does (progsound.js): with the screen locked, behind other apps, in earbuds or the car, with
+// what's on air in Now Playing.
+const psound = new ProgramSound({ store: 'vm_remote_sound', onChange: () => showSound() });
 function showSound() {
-  const v = $('#pgm'), b = $('#sndBtn'), on = !v.muted, waiting = !on && soundWanted();
+  const b = $('#sndBtn'), on = psound.on, waiting = psound.waiting;
   b.hidden = !pgmOn();
   b.setAttribute('aria-pressed', String(on));
   b.classList.toggle('wait', waiting);
   b.querySelector('span').textContent = on ? 'Sound on' : waiting ? 'Tap for sound' : 'Sound off';
   b.setAttribute('aria-label', on ? 'Program sound on: tap to mute' : 'Program sound off: tap to hear it');
 }
-function soundOn() {
-  const v = $('#pgm');
-  try {
-    if (navigator.audioSession) navigator.audioSession.type = 'playback'; // (Safari: plays with the ring switch on silent, and into earbuds)
-  } catch {}
-  v.muted = false;
-  v.play().catch(() => {
-    // (not allowed yet: muted, and the picture keeps going)
-    v.muted = true;
-    v.play().catch(() => {});
-    showSound();
-  });
-  showSound();
-}
-$('#sndBtn').onclick = () => {
-  const on = $('#pgm').muted;
-  localStorage.setItem(SOUND, on ? '1' : '0');
-  if (on) soundOn();
-  else {
-    $('#pgm').muted = true;
-    showSound();
-  }
-};
-for (const t of ['click', 'touchend']) {
-  document.addEventListener(t, (e) => {
-    if (e.target.closest?.('#sndBtn') || !soundWanted() || !$('#pgm').muted || !pgm) return;
-    soundOn();
-  }, true);
-}
-window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: $('#pgm').muted }; // (tests)
+$('#sndBtn').onclick = () => psound.set(!psound.on);
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
 // seconds, the show's code can be changed (still listening, in case it's only opening late).
@@ -309,6 +283,7 @@ function render() {
   const air = state.cams.find((c) => c.onAir), snd = (state.sound || []).find((s) => s.onAir);
   const what = state.black ? 'Black' : state.brk ? 'On a break' : state.media ? `On air · ${state.media}` : air ? `On air · ${air.name}` : snd ? `On air · ${snd.name} · sound only` : 'Nothing on air';
   $('#onAir').textContent = what;
+  psound.setMeta(what.replace(/^On air · /, ''), state.title || 'VUEMesh');
   $('#status').className = 'status' + (!state.black && !state.brk && (air || snd || state.media) ? ' air' : '');
   setHtml($('#cams'), state.cams.map((c) => {
     return `<button type="button" class="cam${c.onAir ? ' air' : c.preview ? ' pvw' : ''}" data-peer="${esc(c.peer)}" aria-label="Cut to ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">

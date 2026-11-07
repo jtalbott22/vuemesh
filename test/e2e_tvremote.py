@@ -37,6 +37,17 @@ with sync_playwright() as p:
     tv.wait_for_function('vmTvLinked()', timeout=20000)
     step('a TV joined and was let in: it shows the program')
 
+    # its sound: its own player (on with a phone locked), off to start with, on with Sound, the show in Now Playing
+    tv.wait_for_function('vmTvSound().track', timeout=20000)
+    assert not tv.evaluate('vmTvSound().on') and tv.inner_text('#soundBtn') == 'Sound off'
+    assert tv.evaluate("document.querySelector('#out').srcObject.getAudioTracks().length") == 0, 'the sound is played apart from the picture'
+    tv.click('#soundBtn')
+    tv.wait_for_function("vmTvSound().on && vmTvSound().nowPlaying === 'Hall'", timeout=5000)
+    assert tv.inner_text('#soundBtn') == 'Sound on' and tv.evaluate('navigator.mediaSession.playbackState') == 'playing'
+    tv.click('#soundBtn')
+    assert not tv.evaluate('vmTvSound().on') and tv.evaluate('navigator.mediaSession.playbackState') == 'paused'
+    step("the TV's sound plays from a player of its own, not the picture: off to start, on with Sound, with the show in Now Playing (playing, then paused)")
+
     # it says what it's getting, and the studio keeps it
     host.wait_for_function("vmShowLog().rows.slice(-8).some(r => (r.tv || []).some(t => t.n === 'Hall TV' && t.rfps > 5))", timeout=30000)
     t = next(x for r in reversed(host.evaluate('vmShowLog().rows')) for x in (r.get('tv') or []) if x['n'] == 'Hall TV' and x.get('rfps'))
@@ -87,13 +98,27 @@ with sync_playwright() as p:
     assert rem.inner_text('#sndBtn') == 'Sound on'
     rem.reload()
     rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().sound && vmProgramView().shown > 5", timeout=30000)
-    assert rem.evaluate('vmProgramView().muted') and rem.inner_text('#sndBtn') == 'Tap for sound'
-    rem.wait_for_selector('#cams .cam')
-    rem.click('#cams .cam')
+    time.sleep(1)
+    came = 'by itself'
+    if rem.evaluate('vmProgramView().muted'):  # (a browser that wants a tap first, as a phone does)
+        assert rem.inner_text('#sndBtn') == 'Tap for sound'
+        rem.wait_for_selector('#cams .cam')
+        rem.click('#cams .cam')
+        came = 'with the first tap'
     rem.wait_for_function("!vmProgramView().muted && document.querySelector('#sndBtn').textContent.trim() === 'Sound on'", timeout=5000)
+    on_air = rem.inner_text('#onAir').replace('On air · ', '')
+    rem.wait_for_function(f"vmProgramView().nowPlaying === {on_air!r}", timeout=5000)
     rem.click('#sndBtn')
     assert rem.evaluate('vmProgramView().muted') and rem.inner_text('#sndBtn') == 'Sound off'
-    step("Program out has the program's sound: muted to start, on with a tap (remembered: opened again, the first tap anywhere turns it on), and off again")
+    step(f"Program out has the program's sound: muted to start, on with a tap (remembered: opened again, back on {came}), what's on air in Now Playing ({on_air}), and off again")
+
+    # a phone in a pocket: its pings late and its signalling gone, while its link is still connected: the studio keeps it
+    kept = host.evaluate("""(() => { const h = vmDisplayHub(); for (const l of h.links.values()) l.lastSeen -= 30000; h.sweep(); h.syncPeers([]);
+      return [...h.links.values()].filter((l) => l.pc && l.pc.connectionState === 'connected').length; })()""")
+    assert kept == 2, kept
+    time.sleep(2)
+    assert rem.evaluate('vmProgramView().linked') and tv.evaluate('vmTvLinked()')
+    step('a phone whose pings come late (its screen locked) and whose signalling has gone keeps its picture and sound while its link is connected')
 
     # the cameras aren't drawn again every second (that made the program stutter on a phone): only when something changes
     time.sleep(1.5)  # (after the cut: its state has come)
