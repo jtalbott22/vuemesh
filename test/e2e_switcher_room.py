@@ -59,6 +59,16 @@ with sync_playwright() as p:
     hclick('#swTgl'); time.sleep(0.3)
     assert host.is_hidden('#pvwBox')
     step('the preview box goes with Tap: Air, after its source went on air, and with the switcher closed; Edit never shows it')
+    # closed, the switcher leaves Tap: Preview behind: a tapped source goes straight on air
+    assert host.evaluate('vmSwitcher().tapMode') == 'air'
+    hclick('.tile[data-peer]:has-text("Ana")'); time.sleep(0.6)
+    assert 'Ana' in host.inner_text('#progLabel') and host.is_hidden('#pvwBox'), host.inner_text('#progLabel')
+    hclick('#swTgl'); time.sleep(0.3)
+    assert host.get_attribute('#switcher [data-tap="preview"]', 'aria-pressed') == 'true' and host.evaluate('vmSwitcher().tapMode') == 'preview'
+    hclick('#swTgl'); time.sleep(0.3)
+    hclick('.tile[data-peer]:has-text("Ben")'); time.sleep(0.6)
+    assert 'Ben' in host.inner_text('#progLabel')
+    step('with the switcher closed, tapping a camera puts it on air (Tap: Air); opened again, it is back on Tap: Preview')
 
     # Camera control: PAUSED like the studio
     with ctx.expect_page() as pop: hclick('#ccuBtn')

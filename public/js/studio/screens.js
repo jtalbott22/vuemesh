@@ -24,7 +24,7 @@ import { recByHand } from './autopilot.js';
 import { incoming, monitorLight, outgoing, sentLog, setMonitorSeenAt } from './phones.js';
 import { clipTitle, deleteRecording } from './library.js';
 import { exporting, rendering } from './export.js';
-import { backupMics, showLogBrief, soundAlerts, soundOn } from './showlog.js';
+import { showLogBrief } from './showlog.js';
 import { pipAir, pipSettings, setPip } from './pip.js';
 
 // ---------------------------------------------------------------- monitor ----
@@ -115,11 +115,9 @@ function remoteState() {
   return {
     title: $('#title')?.textContent || 'Studio', cams, sound, clips, mics, auto: !!autoOn, black: atBlack, brk,
     media: mediaOn ? reelOf(mediaOn.id)?.name || 'A clip' : null, rec: !!(progRec && !progRec.stopping),
-    // sound alerts (the show log's sound watch), with the sources that could stand in
+    // (sound alerts stay in the studio, under Notifications: the remote doesn't show them)
     mix: remoteMix(),
     pip: pipSettings(),
-    alerts: soundAlerts.map((a) => ({ kind: a.kind, text: a.text })),
-    backups: soundAlerts.length ? backupMics().slice(0, 3).map((b) => ({ peer: b.peer, name: b.name })) : [],
   };
 }
 window.vmRemoteState = () => remoteState(); // (diagnostics and tests)
@@ -167,7 +165,6 @@ function remoteAct(a, arg) {
     setPip({ on: !!arg }, `Phone remote: picture-in-picture ${arg ? 'on' : 'off'}`);
     return '';
   }
-  if (a === 'soundOn') return soundOn(arg);
   if (a === 'mixMode' || a === 'mixGain') {
     const known = remoteMix()?.rows.find((r) => r.id === arg?.id);
     if (!known) return 'That channel has gone';

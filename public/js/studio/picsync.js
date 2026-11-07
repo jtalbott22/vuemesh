@@ -226,11 +226,11 @@ export function syncCheck() {
   if (![...buffers.keys()].some((p) => !live.get(p)?.screen)) return void toast('The sync check is for cameras plugged into this computer: none yet');
   const main = mainMic();
   if (!main) return void toast('The sync check needs a microphone on this computer to hear the clap');
-  const box = $('#soundAlert');
+  const box = $('#syncSay'); // (its own box over the program: sound alerts are under Notifications)
   const say = (html) => {
     if (!box) return;
     box.hidden = false;
-    box.innerHTML = `<span class="sa-text">${html}</span>`;
+    box.innerHTML = html;
   };
   checking = (async () => {
     const start = performance.now();

@@ -436,12 +436,8 @@ export function renderMixer() {
         el.querySelector('[data-mute]')?.setAttribute('aria-pressed', String(!!r.st.muted));
         el.querySelector('[data-mono]')?.setAttribute('aria-pressed', String(!!r.st.mono));
         el.querySelector('[data-duck]')?.setAttribute('aria-pressed', String(!!r.track?.duck));
-        const range = el.querySelector('input[type=range]:not([data-pan])');
+        const range = el.querySelector('input[type=range]');
         if (range && document.activeElement !== range) range.value = String(gainToDb(r.st.gain));
-        const pan = el.querySelector('input[data-pan]');
-        if (pan && document.activeElement !== pan) pan.value = String(Math.round((r.st.pan || 0) * 100));
-        const po = el.querySelector('.pano');
-        if (po) po.textContent = fmtPan(r.st.pan || 0);
         const out = el.querySelector('.db');
         if (out) out.textContent = `${gainToDb(r.st.gain)} dB`;
         if (r.live) el.classList.toggle('open', !!r.open?.());
@@ -455,15 +451,14 @@ export function renderMixer() {
   mixSig = sig;
   const modeBtns = (r) => MODES.map((m) => `<button type="button" data-amode="${m}" aria-pressed="${r.st.mode === m}" title="${{ afv: 'Audio follows video: heard only while on air', on: 'Always in the mix', off: 'Never in the mix' }[m]}">${MODE_LABEL[m]}</button>`).join('');
   const monoBtn = (r, label = 'Mono') => `<button type="button" data-mono aria-pressed="${!!r.st.mono}" title="Play both channels as one (off: stereo)" aria-label="${esc(r.name)}: mono">${label}</button>`;
-  const panIn = (r, cls = '') => `<input type="range" data-pan${cls ? ` class="${cls}"` : ''} min="-100" max="100" step="1" value="${Math.round((r.st.pan || 0) * 100)}" title="Balance (double-click: centre)" aria-label="${esc(r.name)} balance">`;
+  // (no balance here: it's in the audio console, with the EQ)
   // inspector: horizontal strips
   $('#mixer').innerHTML = mixRows.map((r) => `<div class="strip${r.master ? ' master' : ''}" data-strip="${esc(r.id)}">
       <span class="nm"${r.live ? ' title="Double-click to rename"' : ''}>${esc(r.name)}</span>
       ${r.master ? '<span></span>' : `<span class="btns">${r.live ? modeBtns(r) + monoBtn(r) : `${r.track?.follow ? `<button type="button" data-duck aria-pressed="${!!r.track.duck}" title="Quiet while a microphone recording plays, on everywhere else">Duck</button>` : ''}${monoBtn(r)}<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">Mute</button>`}</span>`}
       ${r.live && r.peer ? routeLine(r) : ''}
       ${(twoSides(r) ? [0, 1] : [0]).map((c) => `<span class="lvl" aria-hidden="true"><i data-ch="${c}"></i></span>`).join('')}
-      ${r.master ? '' : `<input type="range" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels"><output class="db">${gainToDb(r.st.gain)} dB</output>
-      ${panIn(r)}<output class="db pano">${fmtPan(r.st.pan || 0)}</output>`}
+      ${r.master ? '' : `<input type="range" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels"><output class="db">${gainToDb(r.st.gain)} dB</output>`}
     </div>`).join('');
   // full screen: vertical meter bridge
   const scale = [0, -6, -12, -18, -24, -36, -48].map((db) => `<span style="--p:${((db + 60) / 60) * 100}%">${db}</span>`).join('');
@@ -475,7 +470,7 @@ export function renderMixer() {
         ${r.master ? '' : `<input type="range" class="vfader" min="-60" max="12" step="1" value="${gainToDb(r.st.gain)}" aria-label="${esc(r.name)} level in decibels">`}
       </div>
       <output class="db">${r.master ? 'L R' : gainToDb(r.st.gain) + ' dB'}</output>
-      ${r.master ? '' : `<div class="vpan">${panIn(r, 'vpanr')}${monoBtn(r, 'MONO')}</div>`}
+      ${r.master ? '' : `<div class="vpan">${monoBtn(r, 'MONO')}</div>`}
       ${r.master ? '' : `<div class="vbtns">${r.live ? modeBtns(r) : `<button type="button" data-mute aria-pressed="${r.st.muted}" aria-label="Mute ${esc(r.name)}">M</button>`}</div>`}
       ${r.master ? '' : (r.live && r.peer && routeLine(r, true)) || '<div class="vroute"></div>'}
     </div>`).join('');

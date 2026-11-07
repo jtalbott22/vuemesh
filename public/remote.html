@@ -51,12 +51,6 @@
   .pgm .pgmsay { position: absolute; inset: auto 8px 8px 8px; color: var(--dim); font-size: .85rem; text-align: center; }
   .pgmtgl { min-height: 36px; padding: 6px; font-size: .9rem; margin: 0 0 8px; }
   .pgmtgl[hidden] { display: none; }
-  /* a sound alert from the studio: the program or a source in it has no sound */
-  .alert { background: var(--tally); color: #fff; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; font-weight: 700; }
-  .alert[hidden] { display: none; }
-  .alert small { display: block; font-weight: 500; opacity: .9; margin-top: 2px; }
-  .alert .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .alert button { background: #fff; color: #7a130d; border: 0; font-weight: 800; }
   .status .big { font-size: 1.5rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status .rec { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--tally); }
   .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -115,7 +109,6 @@
 
   <section id="ctlView" hidden aria-label="The show">
     <div class="status" id="status"><span class="big" id="onAir">Waiting for the studio…</span><span class="rec" id="recTime" hidden></span></div>
-    <div class="alert" id="alert" role="alert" hidden></div>
     <div class="pgm" id="pgmBox" hidden>
       <video id="pgm" muted playsinline autoplay aria-label="Program out: what's on air"></video>
       <span class="pgmsay" id="pgmSay"></span>

@@ -2,7 +2,7 @@
 # every second is logged (program frame rate, sound, each source's sound and frames, the mic a
 # camera's sound comes from), and Monitor draws the last ten minutes. When the microphone lets
 # go of its sound for good (a USB interface that drops out and doesn't come back: the studio
-# keeps trying to open it again) with the camera's own sound off by hand, the studio says so over the program and on the phone remote, and offers the camera's sound
+# keeps trying to open it again) with the camera's own sound off by hand, the studio says so under Notifications (the bell), not over the program or on the phone remote, and offers the camera's sound
 # instead; turning it on clears the program alert. Save show log makes one file with all of
 # it, and the log of an earlier studio session is still there in Monitor after a reload.
 # Run: node dev/server.mjs &  then  python3 test/e2e_showlog.py
@@ -60,22 +60,30 @@ with sync_playwright() as p:
     # (and it's really gone: opening it again fails, so the studio keeps trying while the alerts say so)
     host.evaluate("() => { navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Requested device not found', 'NotFoundError'); }; }")
     host.evaluate(f"vmEndSound('{mic['id']}')")
-    host.wait_for_selector('#soundAlert:not([hidden])', timeout=5000)
-    first = host.inner_text('#soundAlert')
+    # nothing over the program: the bell in the top bar counts them, red until they're looked at
+    host.wait_for_selector('#notifCount.new:not([hidden])', timeout=5000)
+    assert host.query_selector('#soundAlert') is None
+    first = host.evaluate('vmNotifs()')['now'][0]
     assert 'its sound stopped' in first, first
-    host.wait_for_function("document.querySelector('#soundAlert').textContent.includes('The program has no sound')", timeout=8000)
+    host.wait_for_function("vmNotifs().now.includes('The program has no sound') && vmNotifs().badge === 2", timeout=8000)
     rs = host.evaluate('vmRemoteState()')
-    assert any(a['kind'] == 'program-silent' for a in rs['alerts']) and any(x['peer'] == cam['id'] for x in rs['backups']), rs
-    btn = host.inner_text(f'#soundAlert [data-sound-on="{cam["id"]}"]')
-    step(f'the mic dropping out: "{first.splitlines()[0]}", then the program alert; the phone remote has both and offers "{btn}"')
+    assert 'alerts' not in rs and 'backups' not in rs, rs   # (the phone remote doesn't show them)
+    host.click('#notifBtn'); host.wait_for_selector('#notifPop:popover-open', timeout=3000)
+    shown = host.inner_text('#notifList')
+    assert 'its sound stopped' in shown and 'The program has no sound' in shown, shown
+    assert not host.evaluate('vmNotifs().fresh')   # (looked at: the count goes grey)
+    btn = host.inner_text(f'#notifList [data-sound-on="{cam["id"]}"]')
+    step(f'the mic dropping out: the bell counts "{first}", then the program alert; nothing over the program or on the phone remote; Notifications lists both and offers "{btn}"')
 
-    host.click(f'#soundAlert [data-sound-on="{cam["id"]}"]')
+    host.click(f'#notifList [data-sound-on="{cam["id"]}"]')
     host.wait_for_function("!vmShowLog().alerts.some(a => a.kind === 'program-silent')", timeout=8000)
-    left = host.inner_text('#soundAlert') if host.is_visible('#soundAlert') else ''
+    host.wait_for_function("vmNotifs().earlier.includes('The program has no sound')", timeout=5000)
+    left = host.evaluate('vmNotifs()')['now']
     assert 'The program has no sound' not in left, left
     kinds = [e['kind'] for e in host.evaluate('vmShowLog()')['events']]
     assert 'alert' in kinds and 'alert-action' in kinds and 'alert-clear' in kinds, kinds
-    step(f"{btn}: the camera's sound is in the program and that alert cleared (still showing: \"{left.splitlines()[0] if left else 'nothing'}\"); the log has the alert, the fix and the clearing")
+    host.keyboard.press('Escape'); host.wait_for_function("!document.querySelector('#notifPop').matches(':popover-open')", timeout=3000)
+    step(f"{btn}: the camera's sound is in the program and that alert moved to Earlier (still now: {left or 'nothing'}); the log has the alert, the fix and the clearing")
 
     with host.expect_download() as dl:
         host.click('#slSave')

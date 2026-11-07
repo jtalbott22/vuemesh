@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.61.16 — sound alerts under a bell, not over the program; closing the switcher is Tap: Air again
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Sound alerts are under Notifications, a bell in the studio's top bar,** where a red box covered the top of the program. The bell counts what's happening now, red until you've looked, then grey while it lasts; its list has each alert and when it started (the program's own first), with **Turn on** for a source that could stand in, as the box had. One that clears moves to **Earlier**, with when it started and ended (**Clear earlier** empties it). They're still in the show log, and still on this computer's own alerts while the studio is hidden, if those are allowed.
+- **The phone remote doesn't show sound alerts:** no red box over its cameras, and it no longer buzzes for one.
+- **Closing the switcher puts tapping back to Tap: Air.** With Tap: Preview chosen, closing the switcher (⇅) still sent a tapped source to preview, with no CUT, AUTO or T-bar to take it to air. Closed, a tapped source goes straight to air; opening the switcher again brings back Tap: Preview.
+- **No balance slider on the audio mixer's strips** (in Live and in Edit): each has its fader and Mono, with AFV / ON / OFF in Live and Mute in Edit. Balance is still in the audio console, beside the EQ.
+- **The sync check (clap once) has its own prompt over the program,** dark rather than red: its countdown, "clap now" and what it found had shared the sound alerts' box.
+
 ## 0.61.15 — Work with VUEMesh: collaborate, or host your shows here
 **Deploy:** `./aws/deploy.sh` (site only).
 

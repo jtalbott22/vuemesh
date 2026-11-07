@@ -12,7 +12,6 @@ import {
   MODE_LABEL, mix, mixInit, mixSave, mixState, renderMixer, setStripMode, stripNodes, toggleStripMono,
   twoSides,
 } from './mixer.js';
-import { conSet } from './ccu.js';
 import { programVideoTrack } from './switcher.js';
 import { renderTimeline } from './edit.js';
 import { clampL, layout } from './transport.js';
@@ -284,10 +283,9 @@ for (const box of [$('#mixer'), $('#bridge')]) {
     const el = range?.closest('[data-strip]');
     const r = el && mixRows.find((x) => x.id === el.dataset.strip);
     if (!r || r.master) return;
-    if (range.hasAttribute('data-pan')) return conSet(r, 'pan', +range.value);
     const g = dbToGain(+range.value);
     document.querySelectorAll(`[data-strip="${CSS.escape(r.id)}"]`).forEach((x) => {
-      const rr = x.querySelector('input[type=range]:not([data-pan])');
+      const rr = x.querySelector('input[type=range]');
       if (rr && rr !== range) rr.value = range.value;
       const out = x.querySelector('.db');
       if (out) out.textContent = `${range.value} dB`;
@@ -301,12 +299,6 @@ for (const box of [$('#mixer'), $('#bridge')]) {
       mixSave(r.id, { ...mixState(r.id, r.role), gain: g });
       stripNodes(r)?.fader.gain.setTargetAtTime(g, player.ctx.currentTime, 0.02);
     }
-  });
-  box.addEventListener('dblclick', (e) => {
-    const pan = e.target.closest('input[data-pan]');
-    const el = pan?.closest('[data-strip]');
-    const r = el && mixRows.find((x) => x.id === el.dataset.strip);
-    if (r) conSet(r, 'pan', 0);
   });
   box.addEventListener('click', (e) => {
     const b = e.target.closest('button');

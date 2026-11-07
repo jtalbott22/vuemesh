@@ -146,7 +146,10 @@ export function setPvwClip(v) { return (pvwClip = v); }
 export var pvwSpecial = null; // the break or black in preview ('break' | 'black')
 // (toSpecial / fromSpecial: a dissolve to or from the break or black)
 export var sw = { from: null, to: null, toClip: null, toSpecial: null, fromClip: null, fromSpecial: null, p: 0, target: 0, rest: 0, pos: 0, auto: null, midAt: null };
-export let tapMode = localStorage.getItem('vm_tapmode') === 'preview' ? 'preview' : 'air';
+// Tap: Preview only while the switcher is open (it's where preview, CUT and the T-bar are); closed,
+// tapping puts a source on air. Opening it again brings back the way it was set.
+const tapWanted = (open) => (open && localStorage.getItem('vm_tapmode') === 'preview' ? 'preview' : 'air');
+export let tapMode = tapWanted(localStorage.getItem('vm_switcher') === '1');
 export const swActive = () => !!(sw.to || sw.toClip || sw.toSpecial);
 /** The break or black on air (taken by hand), if either is. */
 const airSpecial = () => (black.target === 1 ? 'black' : breakManual ? 'break' : null);
@@ -517,11 +520,17 @@ $('#swMidi').onclick = async () => {
 function setSwitcher(on) {
   $('#switcher').hidden = !on;
   document.querySelector('.monitor')?.classList.toggle('withswitcher', on);
+  const tap = tapWanted(on), tapChanged = tap !== tapMode;
+  tapMode = tap; // (closed: Tap: Air, so tapping a source puts it on air again)
   if (!on && inPreview() && !swActive()) clearPreview(); // (no switcher, no preview)
   fitMonitors();
   $('#swTgl').setAttribute('aria-pressed', String(on));
   localStorage.setItem('vm_switcher', on ? '1' : '0');
   renderSwitcher();
+  if (tapChanged) {
+    renderLive();
+    renderClips();
+  }
 }
 $('#swTgl').onclick = () => setSwitcher($('#switcher').hidden);
 // The row under the program stays on one line: when it doesn't fit, the key hints go (the keys

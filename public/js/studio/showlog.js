@@ -1,7 +1,7 @@
 // Studio, part 24 of 26: the show log and the sound watch.
 // Loads after screens.js: that import comes first, so the parts run in order (see ../studio.js).
 import './screens.js';
-import { toast, esc } from '/js/vm.js';
+import { toast, esc, announce } from '/js/vm.js';
 import { APP_VERSION } from '/js/brand.js';
 import * as idb from '/js/idb.js';
 import { ShowLog, SoundWatch, dbOf, joinChunks } from '/js/showlog.js';
@@ -13,7 +13,7 @@ import { mix, setStripMode } from './mixer.js';
 import { streamOut } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { progFrames, progRec, reelOf, stalled } from './switcher.js';
-import { displayHub, remoteHost } from './screens.js';
+import { displayHub } from './screens.js';
 import { output } from './clips.js';
 import { buffers, latencyOf, pictureDelay } from './picsync.js';
 
@@ -28,7 +28,7 @@ export const showLog = new ShowLog();
 const session = Date.now().toString(36);
 let chunkNo = 0;
 export const soundWatch = new SoundWatch();
-export let soundAlerts = []; // (what's raised now: the banner, the remote)
+export let soundAlerts = []; // (what's raised now: Notifications, the bell in the top bar)
 
 // ---- what each tick measures (the loudest moments between samples) ----
 const bufs = new Map(); // size → a buffer to read meters into
@@ -218,24 +218,31 @@ navigator.mediaDevices?.addEventListener?.('devicechange', async () => {
 });
 document.addEventListener('visibilitychange', () => showLog.event('window', document.hidden ? 'The studio window was hidden' : 'The studio window is showing again'));
 
-// ---- the sound watch: say so, loudly, when the program or a source in it goes silent ----
-let snoozed = new Set(); // alerts dismissed (until they clear and come back)
+// ---- the sound watch: say so when the program or a source in it goes silent ----
+// Under Notifications (the bell in the top bar), not over the program: the bell's count turns
+// red until they've been looked at. What has cleared stays there, under Earlier.
+const seen = new Set(); // alerts looked at in Notifications (until they clear and come back)
+let earlier = []; // cleared alerts, newest first: { text, at, until }
+const raisedAt = new Map(); // alert key → when it was raised
 function watchSound(row) {
   const expect = row.s.some((x) => x.open) && row.air !== 'Black' && row.air !== 'Break';
-  const r = soundWatch.update(Date.now(), { program: { db: row.pk, expect }, sources: row.s });
+  const t = Date.now();
+  const r = soundWatch.update(t, { program: { db: row.pk, expect }, sources: row.s });
   for (const a of r.raised) {
     showLog.event('alert', a.text, { alert: a.kind, id: a.id || null });
+    raisedAt.set(a.key, t);
     notify(a);
   }
+  // (one announcement for all of them: a second would replace the first before it's read)
+  if (r.raised.length) announce(`Notification: ${r.raised.map((a) => a.text).join('. ')}`);
   for (const a of r.cleared) {
     showLog.event('alert-clear', `Cleared: ${a.text}`, { alert: a.kind, id: a.id || null });
-    snoozed.delete(a.key);
+    earlier = [{ text: a.text, at: raisedAt.get(a.key) || a.since || t, until: t }, ...earlier].slice(0, 20);
+    raisedAt.delete(a.key);
+    seen.delete(a.key);
   }
   soundAlerts = r.active;
-  if (r.raised.length || r.cleared.length) {
-    renderAlert();
-    remoteHost?.push?.();
-  }
+  if (r.raised.length || r.cleared.length) renderNotifs();
 }
 /** Sources that could stand in: in the show, with sound, but not in the mix now. */
 export function backupMics() {
@@ -247,7 +254,7 @@ export function backupMics() {
   }
   return out.sort((a, b) => b.mic - a.mic);
 }
-/** Put a source's sound in the program (ON in the mixer): from the alert, here or on the remote. */
+/** Put a source's sound in the program (ON in the mixer): from Notifications. */
 export function soundOn(peer) {
   const l = live.get(peer);
   if (!l) return 'That source has gone';
@@ -255,31 +262,51 @@ export function soundOn(peer) {
   showLog.event('alert-action', `Turned on ${l.name}'s sound`);
   return '';
 }
-function renderAlert() {
-  const box = $('#soundAlert');
-  if (!box) return;
-  const shown = soundAlerts.filter((a) => !snoozed.has(a.key));
-  box.hidden = !shown.length;
-  if (!shown.length) return;
-  const head = shown.find((a) => a.kind === 'program-silent') || shown[0];
-  const more = shown.filter((a) => a !== head).map((a) => a.text);
-  const backups = backupMics().slice(0, 3);
-  box.innerHTML = `<span class="sa-text">⚠ ${esc(head.text)}${more.length ? `<small>${more.map(esc).join(' · ')}</small>` : ''}</span>`
-    + backups.map((b) => `<button type="button" data-sound-on="${esc(b.peer)}">Turn on ${esc(b.name)}</button>`).join('')
-    + '<button type="button" class="ghost" data-sound-snooze>Hide</button>';
+const hms = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+const notifOpen = () => !!$('#notifPop')?.matches(':popover-open');
+function renderNotifs() {
+  const btn = $('#notifBtn'), count = $('#notifCount'), list = $('#notifList');
+  if (!btn) return;
+  // (the program first: it's the one that matters most)
+  const now = [...soundAlerts].sort((a, b) => (b.kind === 'program-silent') - (a.kind === 'program-silent'));
+  if (notifOpen()) for (const a of now) seen.add(a.key);
+  const fresh = now.filter((a) => !seen.has(a.key)).length;
+  count.hidden = !now.length;
+  count.textContent = String(now.length);
+  count.classList.toggle('new', fresh > 0);
+  btn.setAttribute('aria-label', now.length ? `Notifications: ${now.length} sound alert${now.length === 1 ? '' : 's'}${fresh ? ', new' : ''}` : 'Notifications');
+  btn.title = now.length ? `Notifications: ${now.map((a) => a.text).join(' · ')}` : 'Notifications';
+  $('#notifClear').hidden = !earlier.length;
+  if (!notifOpen()) return; // (drawn when it opens)
+  const backups = now.length ? backupMics().slice(0, 3) : [];
+  list.innerHTML = (now.length
+    ? `<h3>Now</h3><ul>${now.map((a) => `<li class="now"><span class="nico" aria-hidden="true">⚠</span><span>${esc(a.text)}</span><small>Since ${esc(hms(raisedAt.get(a.key) || a.since || Date.now()))}</small></li>`).join('')}</ul>`
+      + (backups.length ? `<div class="nacts"><span>Sound from another source:</span>${backups.map((b) => `<button type="button" data-sound-on="${esc(b.peer)}">Turn on ${esc(b.name)}</button>`).join('')}</div>` : '')
+    : '<p class="nempty">Nothing needs you right now. If a microphone or the program goes silent, it shows here.</p>')
+    + (earlier.length ? `<h3>Earlier</h3><ul>${earlier.map((e) => `<li class="was"><span class="nico" aria-hidden="true">✓</span><span>${esc(e.text)}</span><small>${esc(hms(e.at))} to ${esc(hms(e.until))}</small></li>`).join('')}</ul>` : '');
 }
-$('#soundAlert')?.addEventListener('click', (e) => {
-  const on = e.target.closest('[data-sound-on]')?.dataset.soundOn;
-  if (on) {
-    const err = soundOn(on);
-    if (err) toast(err);
-    return;
-  }
-  if (e.target.closest('[data-sound-snooze]')) {
-    for (const a of soundAlerts) snoozed.add(a.key);
-    renderAlert();
-  }
+$('#notifPop')?.addEventListener('beforetoggle', (e) => {
+  if (e.newState !== 'open') return;
+  // (just under the bell, wherever the top bar put it)
+  const b = $('#notifBtn').getBoundingClientRect(), pop = e.target;
+  pop.style.top = `${Math.round(b.bottom + 8)}px`;
+  // (lined up with the bell's right edge, but never past the left of the window: on a phone it's most of the width)
+  const w = Math.min(380, innerWidth - 16);
+  pop.style.right = `${Math.max(8, Math.min(Math.round(innerWidth - b.right), innerWidth - w - 8))}px`;
 });
+$('#notifPop')?.addEventListener('toggle', (e) => e.newState === 'open' && renderNotifs());
+$('#notifList')?.addEventListener('click', (e) => {
+  const on = e.target.closest('[data-sound-on]')?.dataset.soundOn;
+  if (!on) return;
+  const err = soundOn(on);
+  if (err) toast(err);
+  renderNotifs();
+});
+$('#notifClear')?.addEventListener('click', () => {
+  earlier = [];
+  renderNotifs();
+});
+window.vmNotifs = () => ({ now: soundAlerts.map((a) => a.text), earlier: earlier.map((e) => e.text), badge: $('#notifCount')?.hidden ? 0 : +$('#notifCount').textContent, fresh: !!$('#notifCount')?.classList.contains('new') }); // (tests and diagnostics)
 function notify(a) {
   // on this computer while the studio is hidden (behind a slideshow): the system's own alert
   if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
@@ -296,9 +323,9 @@ function renderAlertSetting() {
   if (!b) return;
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
   b.hidden = perm === 'granted' || perm === 'unsupported';
-  if (p) p.textContent = perm === 'granted' ? 'Sound alerts show over the program, on the phone remote, and on this computer while the studio is hidden.'
-    : perm === 'denied' ? 'Sound alerts show over the program and on the phone remote. This browser blocks its alerts for this site: allow notifications in its site settings to see them while the studio is hidden.'
-    : 'Sound alerts show over the program and on the phone remote. Allow alerts to see them on this computer while the studio is hidden too.';
+  if (p) p.textContent = perm === 'granted' ? 'Sound alerts show under Notifications (the bell at the top), and on this computer while the studio is hidden.'
+    : perm === 'denied' ? 'Sound alerts show under Notifications (the bell at the top). This browser blocks its alerts for this site: allow notifications in its site settings to see them while the studio is hidden.'
+    : 'Sound alerts show under Notifications (the bell at the top). Allow alerts to see them on this computer while the studio is hidden too.';
 }
 $('#slAlerts')?.addEventListener('click', async () => {
   await Notification.requestPermission().catch(() => {});
@@ -409,6 +436,7 @@ if (!EDIT_ONLY) {
   addEventListener('pagehide', () => flush());
   tidy();
   renderAlertSetting();
+  renderNotifs();
   help.querySelector('.bd')?.insertAdjacentHTML('beforeend', '<p><button type="button" id="slHelpSave">Save show log…</button> A second-by-second record of this show (frame rate, sound, devices), to send along with the diagnostics.</p>');
   help.querySelector('#slHelpSave')?.addEventListener('click', () => saveShowLog());
 }
