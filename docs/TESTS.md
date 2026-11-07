@@ -26,7 +26,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/docsync.test.mjs` | one version in `package.json`, `APP_VERSION` and the newest `CHANGELOG.md` heading; every version renders on What's new without raw markdown; every file the README links to exists |
 | `test/framesync.test.mjs` | one timeline: a camera's quickest delivery, the picture delay (up at once, down between shows), each camera's frame of a moment, a stalled camera held, the clap in sound and picture |
 | `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
-| `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged; nothing arriving or sending silence; what to try for an interface here), the summary, chunks put back together |
+| `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged; nothing arriving or sending silence; what to try for an interface here), the mixer's watch putting back a sound that stopped reaching it, the summary, chunks put back together |
 | `test/devmatch.test.mjs` | finding a saved camera or microphone again: by its id, name or USB id, or (renamed by its maker's driver) the one on the other driver; never another device (twins, two Focusrites, a laptop's two inputs) |
 
 ## End-to-end suites (browser)

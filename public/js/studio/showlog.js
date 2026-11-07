@@ -51,7 +51,9 @@ function measure() {
   progPeak = Math.max(progPeak, peakOf(mix.meterL), peakOf(mix.meterR));
   for (const [peer, st] of mix.strips) {
     if (!st.pre || !st.src) continue;
-    srcPeak.set(peer, Math.max(srcPeak.get(peer) || 0, peakOf(st.pre)));
+    const p = peakOf(st.pre);
+    srcPeak.set(peer, Math.max(srcPeak.get(peer) || 0, p));
+    if (p > 0) st.heardAt = Date.now(); // (its sound is reaching the mixer: see mixerWatch in /js/showlog.js)
     // an input of this computer in stereo (an interface's Input 1 left, Input 2 right): each side on its own
     if (live.get(peer)?.stereo && st.fix?.aL) {
       const [l, r] = sidePeak.get(peer) || [0, 0];
