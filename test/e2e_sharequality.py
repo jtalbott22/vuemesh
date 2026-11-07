@@ -110,6 +110,52 @@ with sync_playwright() as p:
     else: step(f"its sound is stereo: left {r1['L']:.3f}, right {r1['R']:.3f}")
     if strip != [2]: ok = False; print(f'FAIL  mixer strip meters {strip} (want [2])', flush=True)
     else: step('its mixer strip is stereo (two meters)')
+    # the audio console: a stereo source has a meter for each side (left lit, right dark: mono would light both)
+    with host.context.expect_page() as pop:
+        host.locator('[data-console]').first.click()
+    con = pop.value
+    con.wait_for_selector('.ch[data-strip]', timeout=5000); time.sleep(1.5)
+    bars = con.evaluate("""() => { const ch = [...document.querySelectorAll('.ch[data-strip]')].find((c) => c.textContent.includes('Presenter'));
+      const cv = ch.querySelector('[data-meter]'), g = cv.getContext('2d'), H = cv.height, W = cv.width;
+      const px = (x) => [...g.getImageData(Math.round(x), H - 3, 1, 1).data.slice(0, 3)];
+      return { left: px(W * 0.2), right: px(W * 0.8) }; }""")
+    lit = lambda p: p[1] > 120
+    assert lit(bars['left']) and not lit(bars['right']), bars
+    step(f"the audio console shows the screen's two sides: left lit {bars['left']}, right dark {bars['right']}")
+    con.close()
+    # Camera control: the screen has a card with CUT (nothing else to adjust), and CUT works
+    with host.context.expect_page() as pop:
+        host.click('#ccuBtn')
+    ccu = pop.value
+    ccu.wait_for_selector('section.cam:has-text("Presenter") .cut', timeout=8000)
+    hint = ccu.inner_text('section.cam:has-text("Presenter") .hint')
+    assert 'screen' in hint and 'Waiting' not in hint, hint
+    cuts = lambda: host.evaluate("vmNotes().filter((n) => /Cut: .*Presenter/.test(n)).length")
+    before = cuts()
+    ccu.click('section.cam:has-text("Presenter") .cut'); time.sleep(1)
+    assert cuts() == before + 1 and 'Presenter' in host.inner_text('#progLabel'), (before, cuts(), host.inner_text('#progLabel'))
+    step(f'Camera control: the screen has CUT ("{hint}"), and CUT cut to it')
+    ccu.close()
+    # the stream key: a text field shown as dots, so Chrome doesn't take the studio for a login page
+    key = host.evaluate("(() => { const k = document.querySelector('#stKey'); return [k.type, getComputedStyle(k).webkitTextSecurity, document.querySelectorAll('input[type=password]').length]; })()")
+    assert key == ['text', 'disc', 0], key
+    step('no password field in the studio: the stream key is a text field shown as dots')
+    # no message box for another computer's screen (its share page has nowhere to show one)
+    assert host.locator('.cam:has-text("Presenter") .dmrow').count() == 0
+    step('no Message… under the screen (its share page has nowhere to show one)')
+    # what's on it: slides keep their size, video keeps its frame rate
+    PREF = "() => { for (const pc of window.__pcs) for (const s of pc.getSenders()) if (s.track?.kind === 'video') return [s.getParameters().degradationPreference, s.track.contentHint]; return null; }"
+    assert sh.evaluate(PREF) == ['maintain-resolution', 'detail'], sh.evaluate(PREF)
+    sh.check('input[name="mode"][value="motion"]'); time.sleep(0.5)
+    assert sh.evaluate(PREF) == ['maintain-framerate', 'motion'], sh.evaluate(PREF)
+    assert sh.evaluate("localStorage.getItem('vm_share_mode')") == 'motion'
+    sh.check('input[name="mode"][value="detail"]'); time.sleep(0.5)
+    assert sh.evaluate(PREF) == ['maintain-resolution', 'detail'], sh.evaluate(PREF)
+    step('Slides and text keeps the size (frames give way); Video and motion keeps 30 a second (size gives way), switchable while sharing, remembered')
+    # the studio's log has what the screen says about its own sending
+    host.wait_for_function("(() => { const r = window.vmShowLog?.()?.rows?.at(-1); return (r?.s || []).some((s) => s.n === 'Presenter' && typeof s.tx === 'number'); })()", timeout=15000)
+    row = next(s for s in host.evaluate("window.vmShowLog().rows.at(-1).s") if s['n'] == 'Presenter')
+    step(f"the show log has what it says it sent: tx {row.get('tx')} fps, {row.get('txk')} kbit/s, held back: {row.get('lim')}, encoder {row.get('enc')}")
     sh.wait_for_function("!document.querySelector('#sendSay').hidden && /frames a second/.test(document.querySelector('#sendSay').textContent)", timeout=8000)
     say, codec = sh.inner_text('#sendSay'), sh.evaluate('vmShare().codec')
     step(f'the share page says what it sends: "{say}" (codec {codec})')

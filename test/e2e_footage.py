@@ -28,7 +28,7 @@ with sync_playwright() as p:
     cam.goto(f"{BASE}/cam?e={ev['id']}"); cam.fill('#name', 'Rosa'); cam.check('#agreeGuest'); cam.click('#joinForm button[type=submit]')
     host.wait_for_selector('.tile[data-peer] video', timeout=20000); time.sleep(1)
     host.click('.tile[data-peer]')  # on air, for the on-air tally
-    row = host.locator('.dmrow').first; row.locator('input').fill('Great angle, keep it'); row.locator('input').press('Enter')
+    host.locator('.dmrow .dmopen').first.click(); host.fill('#dmText', 'Great angle, keep it'); host.press('#dmText', 'Enter')
     host.fill('#rundownText', 'Entrance\nToasts'); host.click('#rundownSend'); time.sleep(0.3); host.click('#cueNext')
     delivered = lambda: cam.evaluate("[...document.querySelectorAll('.toast')].filter(t => t.textContent.includes('delivered')).length")
     def shoot(sec):

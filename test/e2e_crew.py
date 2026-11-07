@@ -34,12 +34,15 @@ with sync_playwright() as p:
     step(f'status line showed "Connected to host on local Wi-Fi", then faded on its own; the event name keeps a {dot.split()[-1]} dot')
 
     # one phone
-    row = host.locator('.dmrow', has=host.locator('input[aria-label="Message Rosa"]'))
-    row.locator('input').fill('Get the cake table from the left'); row.locator('input').press('Enter')
+    host.click('.dmrow button[aria-label="Message Rosa"]')  # (opens a proper box to type in)
+    host.wait_for_selector('#dmDlg[open]', timeout=3000)
+    assert host.inner_text('#dmWho') == 'Rosa'
+    host.fill('#dmText', 'Get the cake table from the left'); host.press('#dmText', 'Enter')
+    host.wait_for_function("!document.querySelector('#dmDlg').open", timeout=3000)  # (sent: the box closes)
     rosa.wait_for_selector('#dm:not([hidden])', timeout=6000)
     assert 'cake table' in rosa.inner_text('#dmText') and dev.is_hidden('#dm')
     host.wait_for_function("[...document.querySelectorAll('.dmrow .dmstat')].some(s => s.textContent.startsWith('✓✓ seen'))", timeout=6000)
-    step(f"message under Rosa's tile reached only Rosa (\"{rosa.inner_text('#dmText')}\"); the studio shows ✓✓ seen")
+    step(f"Message… under Rosa's tile opened a box for her; it reached only Rosa (\"{rosa.inner_text('#dmText')}\"); the studio shows ✓✓ seen")
     rosa.click('#dm [data-reply="👍 Got it"]')
     host.wait_for_function("[...document.querySelectorAll('.dmrow .dmstat.reply')].some(s => s.textContent.includes('Got it'))", timeout=6000)
     step('Rosa tapped 👍: the reply shows under her tile and in the event log')

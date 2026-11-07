@@ -98,23 +98,24 @@ function ccuCard(peer) {
   const k = (key, label, v, min, max, step, shown, how, off) => `<label class="k"><span>${label}<br><small>${how}</small></span><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${v}" ${c && !off ? '' : 'disabled'} aria-label="${esc(l.name)}: ${label}"><output data-o="${key}">${shown}</output></label>`;
   return `<section class="cam${peer === liveActive ? ' air' : ''}" data-peer="${esc(peer)}" aria-label="${esc(l.name)}">
     <h3><span class="n">${n}</span>${esc(l.name)}<span class="tag">${peer === liveActive ? 'ON AIR' : 'READY'}</span></h3>
-    <div class="pic" data-pic title="Click to focus there"><canvas data-v aria-label="${esc(l.name)}'s picture: click to focus there"></canvas></div>
+    <div class="pic" data-pic${l.screen ? '' : ' title="Click to focus there"'}><canvas data-v aria-label="${esc(l.name)}'s picture${l.screen ? '' : ': click to focus there'}"></canvas></div>
     <div class="scopes"><div><span>HISTOGRAM</span><canvas data-h aria-hidden="true"></canvas></div><div><span>WAVEFORM</span><canvas data-w aria-hidden="true"></canvas></div></div>
     ${c?.lenses?.length > 1 ? `<div class="lenses" role="group" aria-label="${esc(l.name)}: camera">${c.lenses.map((x) => `<button type="button" data-lens="${esc(x.id)}" aria-pressed="${x.id === c.lens}">${esc(x.label)}</button>`).join('')}</div>` : ''}
     ${c ? `${k('z', 'ZOOM', c.z, c.zmin, c.zmax, 0.01, c.z.toFixed(1) + '×', c.zn ? 'lens' : c.local ? 'not on this camera' : 'digital', c.local && !c.zn)}
     ${k('ev', 'BRIGHTNESS', c.ev, c.evmin, c.evmax, 0.1, fmtEv(c.ev), c.evn ? (c.local ? 'camera' : 'exposure') : c.local ? 'not on this camera' : 'digital', c.local && !c.evn)}
     ${k('ct', 'CONTRAST', c.ct, 0.5, 1.6, 0.01, c.ct.toFixed(2), c.local ? (c.ctn ? 'camera' : 'not on this camera') : 'digital', c.local && !c.ctn)}
     <div class="btns"><button type="button" data-act="lock" aria-pressed="${c.lock}" ${c.canLock ? '' : 'disabled title="This camera can&#39;t lock from a browser"'}>AE/AF LOCK</button><button type="button" data-act="wb" aria-pressed="${c.wb}" ${c.canWb ? '' : 'disabled title="This camera can&#39;t lock white balance from a browser"'}>WB LOCK</button><button type="button" data-act="auto">AUTO</button><button type="button" class="cut" data-act="cut">CUT ${n}</button></div>
-    ${l.local ? '<p class="hint" style="margin:0">A camera on this computer: on the studio\u2019s own clock, no beacon needed.</p>' : `<form class="msg" data-msg><input type="text" maxlength="140" placeholder="Message ${esc(l.name)}…" aria-label="Message ${esc(l.name)}"><button type="submit">Send</button></form>`}
+    ${l.local ? '<p class="hint" style="margin:0">A camera on this computer: on the studio\u2019s own clock, no beacon needed.</p>' : l.screen ? '' : `<form class="msg" data-msg><input type="text" maxlength="140" placeholder="Message ${esc(l.name)}…" aria-label="Message ${esc(l.name)}"><button type="submit">Send</button></form>`}
     ${c.remote ? '' : `<div class="off">${esc(l.name)} has turned off remote control in the camera's settings.</div>`}`
-    : '<p class="hint" style="margin:0">Waiting for this camera to send its settings (it needs VUEMesh 0.21 or later: reload the camera page).</p>'}
+    : `${l.screen ? `<p class="hint" style="margin:0">${l.local ? 'A screen on this computer' : 'Another computer\u2019s screen'}: nothing to adjust from here${l.local ? '' : ' (its presenter picks Slides and text or Video and motion on their share page)'}.</p>` : '<p class="hint" style="margin:0">Waiting for this camera to send its settings (it needs VUEMesh 0.21 or later: reload the camera page).</p>'}
+    <div class="btns"><button type="button" class="cut" data-act="cut">CUT ${n}</button></div>`}
   </section>`;
 }
 export function ccuSync() {
   const w = ccuWin;
   if (!w || w.closed) return;
   const peers = ccuCams();
-  const sig = peers.map((p) => `${p}:${!!live.get(p).cam}:${live.get(p).cam?.remote}:${live.get(p).cam?.zmax}:${live.get(p).cam?.evn}:${(live.get(p).cam?.lenses || []).map((x) => x.id).join(',')}`).join('|');
+  const sig = peers.map((p) => `${p}:${!!live.get(p).screen}:${!!live.get(p).cam}:${live.get(p).cam?.remote}:${live.get(p).cam?.zmax}:${live.get(p).cam?.evn}:${(live.get(p).cam?.lenses || []).map((x) => x.id).join(',')}`).join('|');
   const main = w.document.getElementById('cams');
   if (!main) return;
   if (sig !== ccuSig) {

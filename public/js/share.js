@@ -16,6 +16,22 @@ const isLinux = /Linux/.test(navigator.platform || '') && !/Android/.test(naviga
 const canShare = !!navigator.mediaDevices?.getDisplayMedia;
 
 const err = (t) => ($('#joinErr').textContent = t || '');
+// What's on it: slides and text keep every word sharp (frames give way first); video and motion
+// keep 30 frames a second (the size gives way first). Remembered on this computer.
+const modeOf = () => document.querySelector('input[name="mode"]:checked')?.value === 'motion' ? 'motion' : 'detail';
+try {
+  const m = localStorage.getItem('vm_share_mode');
+  if (m === 'motion' || m === 'detail') document.querySelector(`input[name="mode"][value="${m}"]`).checked = true;
+} catch {}
+document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
+  try { localStorage.setItem('vm_share_mode', modeOf()); } catch {}
+  const v = stream?.getVideoTracks()[0];
+  if (v && 'contentHint' in v) v.contentHint = modeOf();
+  if (link) {
+    link.motion = modeOf() === 'motion';
+    link.applyQuality();
+  }
+}));
 const show = (v) => {
   for (const id of ['joinView', 'liveView', 'stoppedView']) $('#' + id).hidden = id !== v;
 };
@@ -68,7 +84,7 @@ async function pick() {
     systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude',
   });
   const v = s.getVideoTracks()[0];
-  if (v && 'contentHint' in v) v.contentHint = 'detail'; // (slides and text: keep them sharp)
+  if (v && 'contentHint' in v) v.contentHint = modeOf(); // (slides and text: sharp; video: smooth)
   v?.addEventListener('ended', () => stream === s && stopped('You stopped sharing from the browser.'));
   return s;
 }
@@ -103,6 +119,7 @@ async function start(e) {
   }
   showStream();
   show('liveView');
+  $('#sendSay').after($('#modeBox')); // (the choice comes along: it can change while sharing)
   $('#liveName').textContent = ev?.title ? `${name} \u2192 ${ev.title}` : name;
   wakeLock(true);
   if (!sock) connect();
@@ -129,6 +146,7 @@ function connect() {
   link = new CamLink({
     sock,
     screen: true,
+    motion: modeOf() === 'motion',
     stream: () => stream,
     onState: (s) => {
       $('#conn').className = 'dot' + (s === 'lan' || s === 'internet' || s === 'relay' ? ' on' : '');
@@ -164,7 +182,8 @@ function connect() {
       } catch {}
     }
     const held = { cpu: "this computer's processor is busy", bandwidth: 'the network is busy', other: 'the browser' }[s.limit];
-    el.textContent = `Sending ${s.w} × ${s.h} at ${s.fps ?? '?'} frames a second${link.codec ? ` (${link.codec}${s.hw ? ', on the graphics hardware' : ''})` : ''}${s.tier === 'idle' ? ', smaller until the studio needs it' : ''}${held ? `. Held back: ${held}.` : '.'}`;
+    const tip = held && modeOf() === 'detail' && s.fps != null && s.fps < 24 ? ' Showing a video? Choose Video and motion for smoother pictures.' : '';
+    el.textContent = `Sending ${s.w} × ${s.h} at ${s.fps ?? '?'} frames a second${link.codec ? ` (${link.codec}${s.hw ? ', on the graphics hardware' : ''})` : ''}${s.tier === 'idle' ? ', smaller until the studio needs it' : ''}${held ? `. Held back: ${held}.` : '.'}${tip}`;
     el.hidden = false;
   }, 2000);
 }

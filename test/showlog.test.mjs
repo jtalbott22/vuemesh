@@ -182,4 +182,24 @@ const at = (s) => T0 + s * 1000;
   ok('kept chunks: put back together into one log per studio session, newest first, saved as the same file');
 }
 
+{
+  // another computer's screen arriving slowly: its own word on why (what it sent, what held it back)
+  const t0 = Date.UTC(2026, 10, 7, 13, 46, 0);
+  const row = (i, src) => ({ t: t0 + i * 1000, vis: 'v', fps: 30, s: [src] });
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(row(i, { id: 'm', n: 'Mac', k: 'screen', fps: 30, tx: 30, tier: 'program' }));
+  for (let i = 10; i < 25; i++) rows.push(row(i, { id: 'm', n: 'Mac', k: 'screen', fps: 11, tx: 12, lim: 'cpu', enc: 'VideoToolbox', hw: true, tier: 'program' }));
+  for (let i = 25; i < 30; i++) rows.push(row(i, { id: 'm', n: 'Mac', k: 'screen', fps: 30, tx: 30, tier: 'program' }));
+  // off air (idle) it may be sent smaller and slower on purpose: not a problem
+  for (let i = 30; i < 50; i++) rows.push(row(i, { id: 'm', n: 'Mac', k: 'screen', fps: 8, tier: 'idle' }));
+  // a phone that never says: still named, with no word from its side
+  for (let i = 0; i < 50; i++) rows[i].s.push({ id: 'p', n: 'Phone', k: 'cam', fps: i < 12 ? 10 : 30 });
+  const lines = summarize(rows, [], 30).lines;
+  const mac = lines.filter((l) => l.startsWith("Mac's picture"));
+  assert.equal(mac.length, 1, lines.join('\n'));
+  assert.match(mac[0], /arrived at 11 frames a second \(of 30\) from .* for 15 s: it sent 12, held back by its processor \(encoding VideoToolbox on its graphics hardware\)\./);
+  assert.ok(lines.some((l) => /^Phone's picture arrived at 10 frames a second .* for 12 s: no word from its side\.$/.test(l)), lines.join('\n'));
+  ok("a remote picture arriving slowly for 10 s or more: when, how slowly, what it says it sent and what held it back; not while it's off air");
+}
+
 console.log('\nAll show log tests passed.');

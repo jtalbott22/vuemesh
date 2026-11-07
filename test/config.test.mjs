@@ -28,8 +28,14 @@ for (const page of pages) {
   const first = h.indexOf(`src="${mods[0]}"`);
   if (cfg < 0 || cfg > first) bad.push(`${page}: talks to the cloud but doesn't load /config.js before its modules`);
 }
+// No password fields but the admin key: with one in a page, Chrome takes the text boxes around it
+// for a login (offering saved passwords in them) and asks to save what's typed (the stream key did)
+for (const page of pages) {
+  if (page === 'admin.html') continue;
+  if (/<input[^>]*type="password"/.test(readFileSync(join(root, page), 'utf8'))) bad.push(`${page}: has a password field (Chrome then offers to save it and fills the boxes around it)`);
+}
 if (bad.length) {
   console.error(bad.join('\n'));
   process.exit(1);
 }
-console.log('ok  every page that talks to the cloud loads /config.js first');
+console.log('ok  every page that talks to the cloud loads /config.js first; no password fields but the admin key');

@@ -13,7 +13,7 @@ import { renderQuality } from './usage.js';
 import { autoOn, director, manualUntil, setDirectorBreak, setManualUntil, syncTally } from './onair.js';
 import { mix, mixFollowCut, mixState } from './mixer.js';
 import { ccuSync } from './ccu.js';
-import { dmRow, renderBus } from './room.js';
+import { dmRemove, dmRow, renderBus } from './room.js';
 import {
   blackHint, drawMicVisual, mediaOn, onBreak, setBreakManual, slateLook, slateText, stopMedia,
   syncBreakUi,
@@ -116,7 +116,8 @@ export function renderLive() {
     let pz = l.tile.querySelector('.pz');
     if (l.paused && !pz) l.tile.insertAdjacentHTML('beforeend', '<span class="pz">PAUSED</span>');
     else if (!l.paused) pz?.remove();
-    if (isHost && !l.local) dmRow(peer, l, i);
+    if (isHost && !l.local && !l.screen) dmRow(peer, l, i);
+    else dmRemove(peer); // (another computer's screen: no messages; its share page has nowhere to show them)
     l.tile.querySelector('.n').textContent = angleOfCid(l.cid) || i + 1;
     l.tile.querySelector('.who').textContent = l.name;
     // a camera that hasn't synced with the beacon: its clips would be placed by its own clock

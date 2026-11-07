@@ -174,7 +174,7 @@ export class CamLink {
         init.sendEncodings = [{ maxBitrate: kbps * 1000, scaleResolutionDownBy: scale, maxFramerate: 30 }];
       }
       const tr = pc.addTransceiver(track, init);
-      // a shared screen: H.264 first where both ends have it (on a Mac's or PC's hardware encoder)
+      // a shared screen: H.264 first where both ends have it (see screenCodecs)
       if (this.screen && track.kind === 'video') {
         try {
           const caps = RTCRtpReceiver.getCapabilities?.('video')?.codecs;
@@ -276,8 +276,9 @@ export class CamLink {
       const pri = this.tier === 'program' ? 'high' : this.tier === 'preview' ? 'medium' : 'low';
       Object.assign(p.encodings[0], { maxBitrate: cap * 1000, scaleResolutionDownBy: scale, maxFramerate: 30, priority: pri, networkPriority: pri });
       // (on air: keep the picture's size, let the frame rate give a little first; otherwise balance;
-      // a shared screen always keeps its size: slides and text go unreadable long before they stutter)
-      p.degradationPreference = this.tier === 'program' || this.screen ? 'maintain-resolution' : 'balanced';
+      // a shared screen of slides and text keeps its size: they go unreadable long before they
+      // stutter; a screen of video or motion keeps its frame rate, and its size gives way first)
+      p.degradationPreference = this.screen ? (this.motion ? 'maintain-framerate' : 'maintain-resolution') : this.tier === 'program' ? 'maintain-resolution' : 'balanced';
       await sender.setParameters(p);
       this.applied = { kbps: cap, scale };
     } catch {}

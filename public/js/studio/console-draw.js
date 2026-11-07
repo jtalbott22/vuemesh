@@ -3,7 +3,7 @@
 import './ccu.js';
 import { eqOf, eqFlat, eqCurve } from '/js/audiofx.js';
 import { mode, player } from './core.js';
-import { conHolds, conWin, mix, mixInit, stereoMeters } from './mixer.js';
+import { conHolds, conWin, mix, mixInit, stereoMeters, twoSides } from './mixer.js';
 import { mixRows } from './stream.js';
 
 // ---- console drawing (on the console window's own animation frames) ----
@@ -171,10 +171,18 @@ export function consoleFrame(w) {
       cc.dataset.sig = sig;
       drawCurve(ctxOf(cc), cc.width, cc.height, r.st.eq);
     }
-    const an = r.meter?.();
-    const lv = an ? peakIn(timeData(an, conL)) : 0;
     const mc = el.querySelector('[data-meter]');
-    drawBars(ctxOf(mc), mc.width, mc.height, [lv], [hold(r.id, 0, lv, t)]);
+    // a stereo source (this computer's sound, a screen, a stereo input, Clips): a meter for each
+    // side, as the studio's own mixer shows it; mono (or Mono pressed): one
+    const pair = twoSides(r) ? r.meters?.() : null;
+    if (pair?.[0] && pair[1]) {
+      const lv = [peakIn(timeData(pair[0], conL)), peakIn(timeData(pair[1], conL))];
+      drawBars(ctxOf(mc), mc.width, mc.height, lv, lv.map((v, i) => hold(r.id, i, v, t)));
+    } else {
+      const an = r.meter?.();
+      const lv = an ? peakIn(timeData(an, conL)) : 0;
+      drawBars(ctxOf(mc), mc.width, mc.height, [lv], [hold(r.id, 0, lv, t)]);
+    }
   }
   // the output: meters, readouts, spectrum, waveform, stereo picture
   if (mode === 'live') mixInit();
