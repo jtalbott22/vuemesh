@@ -26,7 +26,7 @@ with sync_playwright() as p:
     host.click('#swTgl'); host.click('#switcher [data-tap="preview"]')
     host.click('.tile.media'); time.sleep(2.5)
     sw = host.evaluate('vmSwitcher()'); c = host.evaluate('vmClips()')[0]
-    assert sw['pvwClip'] == c['id'] and c['paused'] and c['t'] == 0 and host.is_visible('#pvwBox') and 'cued' in host.inner_text('#pvwLabel'), (sw, c)
+    assert sw['pvwClip'] == c['id'] and c['paused'] and c['t'] == 0 and host.is_visible('#pvwFrame') and 'cued' in host.inner_text('#pvwLabel'), (sw, c)
     assert 'pvw' in host.get_attribute('.tile.media', 'class') and 'Rosa' in host.inner_text('#progLabel')
     step(f"Tap: Preview, click the clip: it's in preview (\"{host.inner_text('#pvwLabel')}\"), paused at {c['t']} s, and it stays there; Rosa stays on air")
 

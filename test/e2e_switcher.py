@@ -31,7 +31,7 @@ with sync_playwright() as p:
     host.click('#switcher [data-tap="preview"]')
     host.click('.tile[data-peer]:has-text("Ben")')
     # (on a slow machine, wait for it rather than assume a moment is enough)
-    host.wait_for_function("document.querySelector('#progLabel').textContent.includes('Ana') && !document.querySelector('#pvwBox').hidden && document.querySelector('#pvwLabel').textContent.includes('Ben')", timeout=20000)
+    host.wait_for_function("document.querySelector('#progLabel').textContent.includes('Ana') && !document.querySelector('#pvwFrame').hidden && document.querySelector('#pvwLabel').textContent.includes('Ben')", timeout=20000)
     assert 'pvw' in host.get_attribute('.tile[data-peer]:has-text("Ben")', 'class')
     phones['Ben'].wait_for_selector('#pvwTag:not([hidden])', timeout=8000)
     step('Tap: Preview: tapping Ben put him in preview (green tile, the preview box, PREVIEW on his phone) and Ana stayed on air')
