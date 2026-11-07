@@ -5,14 +5,15 @@
 <h1 align="center">VUEMesh</h1>
 
 <p align="center">
-  <strong>A multi-camera production studio that runs in the browser.</strong><br>
-  Every phone in the room becomes a synced camera. Switch it live, mix the sound, record the program, and walk away with every angle, cut and ready to edit.
+  <strong>A complete live production studio in one browser tab.</strong><br>
+  Plug in your USB cameras and audio interface, bring in any screen (yours or another computer's), add phones over Wi-Fi when you want more angles, then switch, mix, record, stream and edit. No installs, no capture cards, no drivers.
 </p>
 
 <p align="center">
   <a href="https://vuemesh.com"><img alt="Live at vuemesh.com" src="https://img.shields.io/badge/live-vuemesh.com-e8372c?style=flat-square"></a>
   <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-f5a623?style=flat-square">
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
+  <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
   <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
   <img alt="Serverless on AWS" src="https://img.shields.io/badge/AWS-serverless%2C%20scales%20to%20zero-232f3e?style=flat-square">
 </p>
@@ -27,34 +28,59 @@
 
 ---
 
-![The VUEMesh studio mid-show: sources on the left (webcams, two shared screens and the computer's sound), the program with a "Starting soon" slate, the T-bar switcher, the audio mixer along the bottom and the output settings on the right.](public/media/screens/studio.webp)
+![The VUEMesh studio mid-show: sources on the left (three USB webcams, two shared screens and the computer's sound), the program with a "Starting soon" slate, the T-bar switcher, the audio mixer along the bottom and the output settings on the right.](public/media/screens/studio.webp)
 
-<p align="center"><sub>The studio during a real show: five sources, the program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
+<p align="center"><sub>A real show run from one desk: three USB webcams, two shared screens and the computer's sound, no phones at all. The program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
 
 ## What is VUEMesh?
 
-Everyone at an event already carries a good camera. VUEMesh turns them into one production.
+VUEMesh is a switcher, audio mixer, recorder, streamer and editor that runs in Chrome, Edge or
+Safari. Open the studio and add sources from wherever they are:
 
-Guests scan a code on a screen and their phone becomes a camera, or a microphone. A laptop running
-the **studio** sees every camera live, and you cut between them by hand or let the **auto director**
-do it. Each phone records its own angle in full quality and sends it to the studio when it stops,
-lined up to the frame against the same clock as the live cut. When the show ends you have a finished
-program **and** every angle, ready to re-cut in the built-in editor.
+| Source | How it gets in |
+| --- | --- |
+| 🎥 **USB webcams** | Plugged into the studio computer. Pick them in **+ This computer**, see each one before adding it, and name them. |
+| 🎚️ **USB microphones and audio interfaces** | A Scarlett-style interface comes in as stereo, two mono tracks (Input 1 and 2, each with its own strip), or mono. |
+| 🖥️ **This computer's screens and sound** | Any screen, window or tab, with its sound, kept sharp for slides and text and always shown whole, whatever its shape. |
+| 💻 **Another computer's screen** | The presenter opens a link (`/share`) and picks what to share. It arrives as a source over the local network, with its sound, and is shown whole (a Mac's 16:10 screen keeps its menu bar and Dock in a 16:9 show). |
+| 📱 **Phones and tablets** | Scan a code to join as a camera or a microphone. Each records in full quality and sends a live picture over Wi-Fi. |
 
-Nothing to install, no capture cards, no cables to the cameras. Everything runs in a web browser.
+Start with one webcam and a screen share for a stream, a podcast or a talk. Add a presenter's laptop
+for a hybrid meeting. Hand out the join code when you want a dozen angles of a wedding or a gig.
+**It's the same studio either way**, and every source is cut, mixed, recorded and edited the same
+way: the switcher and auto director, the mixer with EQ, picture-in-picture, Record program, streaming,
+and the editor afterwards.
+
+Each source is also recorded on its own in full quality. Cameras and screens on the studio computer
+record there, and phones record on themselves and send the file when each take ends. All of it lines
+up against the same clock as the live cut. When the show ends you have the finished program **and**
+every angle, already cut on the timeline and ready to re-cut.
 
 **What makes it different**
 
-- **LAN-first.** Phones find the studio through a tiny cloud handshake, then send everything
+- **Nothing to install or wire up.** No capture cards, no NDI, no drivers, no app on the phones.
+  A browser tab is the whole control room, and every device that has a browser can be a source.
+- **One studio from a single desk to a whole venue.** USB devices, screens, other computers and
+  phones are all sources of the same kind, with the same switcher, mixer, recording and edit.
+- **LAN-first.** Remote devices find the studio through a tiny cloud handshake, then send everything
   **directly over the local network** with WebRTC. The cloud never carries raw video, so there's no
-  upload bottleneck and no bandwidth bill. It only sees the finished film, and only if the host publishes it.
-- **Frame-accurate sync with no timecode hardware.** The beacon shows an optical clock. Each phone
-  reads it through its camera, so clips from a dozen different phones line up to the frame.
+  upload bottleneck and no bandwidth bill.
+- **Frame-accurate sync with no timecode hardware.** Sources on the studio computer share its clock.
+  Phones read an optical clock off the beacon screen through their cameras, so angles from different
+  devices line up to the frame.
 - **Signed footage.** Every phone has its own key. Each clip is hashed in parts and signed, and the
-  studio verifies every part before accepting it. Published films carry the signatures, so anyone can
-  check who shot what.
+  studio verifies every part before accepting it. Published films carry the signatures.
 - **Serverless and nearly free to run.** CloudFront, S3, API Gateway, Lambda and DynamoDB with TTLs.
   Every piece scales to zero, and event data deletes itself after 30 days.
+
+### Three ways to use it
+
+| | Solo desk | Presentation or hybrid meeting | Event |
+| --- | --- | --- | --- |
+| **For** | Streams, podcasts, tutorials, talks | Conferences, classes, board meetings, church | Weddings, gigs, sport, parties |
+| **Sources** | USB webcams, a USB interface, this computer's screens | Room cameras, plus the presenter's laptop over `/share` | Guests' phones and tablets (with any of the above) |
+| **Setup** | Plug in, open the studio, **+ This computer** | Send the presenter the share link | Put the beacon on a screen; people scan it |
+| **Out** | Record, stream, or be the webcam in Zoom, Teams or Meet | Projector or TV via Program out or `/tv`, plus a recording | Live on screens, the program file, every angle to edit, and each person's own part |
 
 ## Contents
 
@@ -74,22 +100,22 @@ Nothing to install, no capture cards, no cables to the cameras. Everything runs 
 <tr>
 <td width="50%" valign="top">
 
-### 🎥 Capture
-- **Any phone, tablet or laptop is a camera.** Scan, type a name, and it's in the show.
-- **Full-quality local recording** on every device, sent to the studio in hashed 8 MB parts when each take ends. An outbox on the phone survives reloads.
-- **Phone as microphone**, with its own meter and a choice of input (a plugged-in USB mic too).
-- **Webcams, audio interfaces and screens on the studio computer**, plus **another computer's screen** over `/share`.
-- **Remote camera control:** zoom, lens, exposure, white balance and focus point, with a histogram and waveform per camera.
-- **Tally lights** on each phone (red on air, green in preview) and messages from the director.
+### 🎥 Sources
+- **USB webcams on the studio computer**, each seen before it's added, named, and opened at the output's size (it falls back gracefully when a USB port runs out of room).
+- **USB microphones and audio interfaces** as stereo, two mono tracks, or mono, plus **two microphones from one stereo input**.
+- **Screens, windows and tabs**, with their sound, captured sharp for text and **always shown whole**, with bars if the screen is another shape than the show. **The computer's own sound** too.
+- **Another computer's screen** over `/share`: no install, its sound included, and a tally that tells the presenter when they're up next or on air.
+- **Phones and tablets** as cameras or microphones, with full-quality local recording, tally lights, and messages from the director.
+- **Camera control** for every camera, as far as each device allows: zoom, exposure, contrast, white balance and focus, with a histogram and waveform.
 
 </td>
 <td width="50%" valign="top">
 
 ### 🎬 Live production
-- **Switcher** with CUT, AUTO and a T-bar, dissolves, fade to and cut to black, and a MIDI fader.
+- **Switcher** with CUT, AUTO and a T-bar, dissolves, fade to and cut to black, and **any MIDI controller's fader** as the T-bar (move it once to learn it).
 - **Auto director** and **autopilot**, which can run a whole show alone: intro, fade up, record, cut, and wrap up.
 - **Break slate** with a sponsor reel, **lower thirds**, clips, and a **rundown** with cues.
-- **Picture-in-picture**: a camera in the corner over a shared screen.
+- **Picture-in-picture**: a camera in the corner over a shared screen, the presenter beside their slides.
 - **Live picture quality follows the show**: sharp on air, light on standby (see [the table](#live-picture-quality)).
 - **Record-only overflow:** past 12 live pictures, more phones still record and wait to swap in.
 
@@ -119,11 +145,11 @@ Nothing to install, no capture cards, no cables to the cameras. Everything runs 
 <td valign="top">
 
 ### 📡 Output and distribution
-- **Record the program** to a file while the show runs.
+- **Record the program** to a file while the show runs, and **every source on its own** in full quality.
 - **Stream out** over WHIP straight from the browser (Twitch, Restream, Cloudflare Stream), or to **RTMP** services (YouTube, Facebook, Kick, Vimeo) through a small local relay.
 - **Program out** window for a projector or OBS, and the program **as a webcam** in Zoom, Teams or Meet.
 - **TV screens:** `/tv` in any browser, or the **Apple TV app**, plays the live program from the studio over the LAN.
-- **Each camera person gets their part of the live cut** on their own phone.
+- **Each camera person gets their part of the live cut** on their own device.
 
 </td>
 <td valign="top">
@@ -141,20 +167,21 @@ Nothing to install, no capture cards, no cables to the cameras. Everything runs 
 
 ## Screens
 
-VUEMesh is a handful of pages, each with one job. Every picture below is from a real show; the
-[tour](https://vuemesh.com/tour) has all of them.
+VUEMesh is a handful of pages, each with one job. Most pictures below are from one real show, run
+from a desk with USB webcams and shared screens and a phone joining as a camera. The
+[tour](https://vuemesh.com/tour) has every screen.
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="public/media/screens/beacon.webp" alt="The beacon: a large QR code, the show's name, a running clock, phones in and recording counts, and a Wi-Fi join code."><br><sub><b>Beacon.</b> Phones scan it to join, and read its clock to sync.</sub></td>
-<td width="50%" align="center"><img src="public/media/screens/camera.webp" alt="A phone camera aimed at the studio's two monitors: Synced badge, record button, zoom lenses 0.5x to 3x and a level meter."><br><sub><b>Camera.</b> Records full quality, sends a live picture, shows its tally.</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="public/media/screens/mixer.webp" alt="The audio console: five strips with AFV, ON, OFF and MONO buttons, EQ curves, faders and meters, with program peak, RMS, spectrum, waveform and stereo scope."><br><sub><b>Audio console.</b> EQ, AFV and stereo meters for every source.</sub></td>
-<td align="center"><img src="public/media/screens/ccu.webp" alt="Camera control: five cameras side by side, each with a histogram, a waveform, zoom, brightness and contrast, AE/AF and white balance locks, and a CUT button."><br><sub><b>Camera control.</b> Histogram, waveform and exposure for each angle.</sub></td>
+<td width="50%" align="center"><img src="public/media/screens/mixer.webp" alt="The audio console: five strips with AFV, ON, OFF and MONO buttons, EQ curves, faders and meters, with program peak, RMS, spectrum, waveform and stereo scope."><br><sub><b>Audio console.</b> A strip for every camera, microphone and interface input.</sub></td>
+<td align="center"><img src="public/media/screens/ccu.webp" alt="Camera control: five cameras side by side, each with a histogram, a waveform, zoom, brightness and contrast, AE/AF and white balance locks, and a CUT button."><br><sub><b>Camera control.</b> Three USB webcams and two screens, each with its scopes.</sub></td>
 </tr>
 <tr>
 <td align="center"><img src="public/media/screens/monitor.webp" alt="The monitor: summary tiles, a table of every source with link, live picture, camera, battery and device, plus transfers, received recordings and an event log."><br><sub><b>Monitor.</b> The health of every link, transfer and device.</sub></td>
+<td align="center"><img src="public/media/screens/beacon.webp" alt="The beacon: a large QR code, the show's name, a running clock, phones in and recording counts, and a Wi-Fi join code."><br><sub><b>Beacon.</b> Phones scan it to join, and read its clock to sync.</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="public/media/screens/camera.webp" alt="A phone camera aimed at the studio's two monitors: Synced badge, record button, zoom lenses 0.5x to 3x and a level meter."><br><sub><b>Camera.</b> Records full quality, sends a live picture, shows its tally.</sub></td>
 <td align="center"><img src="public/media/screens/kiosk.webp" alt="Kiosk mode: an empty program beside a large QR code reading Scan to start a show, with camera, clip and sending counts."><br><sub><b>Kiosk.</b> A self-running show that guests start by scanning.</sub></td>
 </tr>
 </table>
@@ -169,40 +196,59 @@ VUEMesh is a handful of pages, each with one job. Every picture below is from a 
 
 ## How it works
 
-The cloud only introduces devices to each other. Pictures and sound travel **directly between
-devices on the venue's network**.
+Everything plugged into the studio computer goes straight into the studio tab. Devices elsewhere in
+the room (other computers, phones, tablets, TVs) use the cloud only to find each other, then send
+pictures and sound **directly over the local network**. The cloud side is CloudFront and S3 for the
+app, an HTTP API and a WebSocket API on Lambda, and DynamoDB with a 30-day TTL, all scaling to zero.
 
 ```mermaid
-flowchart TB
-  subgraph AWS["☁️ AWS: serverless, scales to zero"]
-    direction LR
-    CDN["CloudFront + S3<br/>the app · published films"]
-    HTTP["HTTP API + Lambda<br/>events · discovery · publish"]
-    WS["WebSocket API + Lambda<br/>presence · WebRTC handshakes"]
-    DB[("DynamoDB<br/>expires in 30 days")]
-    HTTP --- DB
-    WS --- DB
-  end
-
-  subgraph Venue["📍 Venue network: all video stays here"]
-    direction LR
-    Beacon["📺 Beacon<br/>join code + optical clock"]
-    Cams["📱 Phone cameras<br/>and microphones"]
+flowchart LR
+  subgraph In["Sources"]
+    USBc["🎥 USB webcams"]
+    USBa["🎚️ USB mics and<br/>audio interfaces"]
+    Scr["🪟 Screens, windows, tabs<br/>and the computer's sound"]
     Share["💻 Another computer<br/>/share"]
-    Studio["🖥️ Studio laptop<br/>/studio"]
-    TV["📺 TV screens<br/>/tv · Apple TV"]
-    Remote["📱 Phone remote"]
-    Cams -. "scan, read clock" .-> Beacon
-    Cams == "live picture + full-quality clips" ==> Studio
-    Share == "screen + sound" ==> Studio
-    Studio == "live program" ==> TV
-    Remote -. "cut, break, record" .-> Studio
+    Cams["📱 Phones and tablets<br/>cameras and microphones"]
   end
 
-  Venue <-. "load the app · find each other (signalling only)" .-> AWS
+  Cloud["☁️ AWS handshake<br/>signalling only, no video"]
+
+  Studio["🖥️ <b>VUEMesh studio</b><br/>one browser tab<br/><br/>switch · mix · record<br/>stream · edit"]
+
+  subgraph Ctl["Control"]
+    Midi["🎛️ MIDI fader"]
+    Remote["📱 Phone remote"]
+  end
+
+  subgraph Outs["Outputs"]
+    Rec["💾 The program file and<br/>every source's own recording"]
+    Stream["📡 Live stream<br/>WHIP or RTMP"]
+    Screens["📺 Program out, TVs, Apple TV"]
+    Call["🎦 The webcam in Zoom, Teams, Meet"]
+    Edit["✂️ Edit, then Render MP4"]
+  end
+
+  USBc -- "USB" --> Studio
+  USBa -- "USB" --> Studio
+  Scr -- "this computer" --> Studio
+  Share == "local network" ==> Studio
+  Cams == "local network" ==> Studio
+  Share -.- Cloud
+  Cams -.- Cloud
+  Cloud -.- Studio
+  Midi --> Studio
+  Remote -.-> Studio
+  Studio ==> Rec
+  Studio ==> Stream
+  Studio ==> Screens
+  Studio ==> Call
+  Studio ==> Edit
 ```
 
 ### A phone joining a show
+
+Sources on the studio computer need none of this: they're added from **+ This computer**. Phones and
+tablets join like this; another computer over `/share` does the same without the beacon.
 
 ```mermaid
 sequenceDiagram
@@ -230,12 +276,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A["Phones record<br/>full quality, locally"] --> B["Live pictures<br/>to the studio"]
-  B --> C{"Live: switcher,<br/>auto director, mixer"}
+  A["Sources<br/>USB cameras and audio, screens,<br/>other computers, phones"] --> C{"Live: switcher,<br/>auto director, mixer"}
   C --> D["Record program"]
   C --> E["Stream out<br/>WHIP · RTMP relay"]
   C --> F["Program out · TVs<br/>video calls"]
-  A --> G["Clips arrive after<br/>each take, verified"]
+  A --> G["Every source recorded on its own,<br/>full quality (phones send theirs<br/>after each take, verified)"]
   C -- "cuts stamped on<br/>the shared clock" --> H["Edit: the live cut is<br/>already on the timeline"]
   G --> H
   H --> I["Render MP4"]
@@ -248,9 +293,10 @@ flowchart LR
 | --- | --- |
 | **Beacon** (a screen at the venue) | One QR code that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
 | **Guest phone** (`/cam`) | Join, sign the terms with the phone's own key, optical sync, record full quality locally. Streams a low-res live preview to the host and sends each finished clip over a WebRTC data channel in 8 MB hashed parts. Unsent clips wait in the phone's outbox (survives reloads) until the host confirms them. |
-| **Host laptop** (`/studio`) | The hub. **Live**: every phone's preview in a multiview, cut with 1–9, break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
+| **Host laptop** (`/studio`) | The hub. **Live**: every source's live picture in a multiview, cut with 1–9, break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
+| **This computer** (**+ This computer** in the studio) | USB webcams, USB microphones and audio interfaces, screens, windows and tabs, and the computer's sound, added straight into the studio with a preview of each. Each records its own full-quality file on the studio computer. |
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
-| **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every phone, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
+| **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
 | **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). |
 | **Admin** (`/admin`) | For you and your team: every event, rename, list/unlist, change expiry, delete films and events. |
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off during the beta. |
@@ -269,16 +315,21 @@ browser to use for the studio, and network and capacity planning.
 | | |
 | --- | --- |
 | **Studio** | A laptop or desktop with **Chrome or Edge** (Mac or Windows), or Safari on a Mac. Linux works but records VP9, which iPhones can't play. |
-| **Cameras** | Any recent phone or tablet browser (iPhone Safari, Android Chrome), or a computer with a webcam. HTTPS is required for the camera. |
+| **Cameras** | USB webcams on the studio computer; any recent phone or tablet browser (iPhone Safari, Android Chrome); or another computer's Chrome or Edge over `/share`. |
+| **Sound** | Any USB microphone or audio interface the computer sees. On Linux, set a two-input interface to **Pro Audio** to hear both inputs. |
 | **Network** | Your own router is best: Wi-Fi 6 on 5 GHz, the studio on a cable. Venue Wi-Fi with client isolation blocks the direct path. |
-| **Capacity** | About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that. |
+| **Capacity** | About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that. A 720p output suits most computers; several 1080p webcams can crowd one USB controller, so spread them across ports. |
 
 ## Getting started
 
 ### Use it
 
-Open **[vuemesh.com](https://vuemesh.com)**, choose **Start a show**, open the studio on a laptop,
-and put the beacon on a screen. Phones scan it to join. That's all.
+Open **[vuemesh.com](https://vuemesh.com)**, choose **Start a show**, and open the studio on a laptop
+or desktop. Then:
+
+- **+ This computer** adds your USB cameras, microphones and interfaces, screens and the computer's sound.
+- **Another computer's screen:** send the presenter the link shown under **+ This computer → Screen and sound**.
+- **Phones and tablets:** put the beacon on a screen. People scan it to join.
 
 ### Run it locally
 

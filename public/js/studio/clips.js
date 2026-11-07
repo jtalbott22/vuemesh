@@ -206,10 +206,12 @@ export function orientAt(clip, ms) {
   return e;
 }
 export function viewOf(item, ms) {
-  const e = orientAt(clipOf(item.src), ms);
+  const c = clipOf(item.src), e = orientAt(c, ms);
   // Square recordings (before 0.12): where the shot sits in the square. Native recordings:
   // how to turn the camera's picture upright, plus any digital zoom or exposure the phone used.
-  return e ? { rect: e.rect || null, rot: e.rot || 0, ev: e.ev || 0, ct: e.ct || 0 } : null;
+  // A screen's recording is shown whole, as it was live (unless this item says otherwise).
+  const fit = c?.screen ? 'fit' : undefined;
+  return e ? { rect: e.rect || null, rot: e.rot || 0, ev: e.ev || 0, ct: e.ct || 0, fit } : fit ? { rect: null, rot: 0, fit } : null;
 }
 /** The shape a clip item shows, after any manual rotation. */
 export function shapeOf(item) {
