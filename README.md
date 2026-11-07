@@ -42,7 +42,7 @@ Safari. Open the studio and add sources from wherever they are:
 | 🎥 **USB webcams** | Plugged into the studio computer. Pick them in **+ This computer**, see each one before adding it, and name them. |
 | 🎚️ **USB microphones and audio interfaces** | A Scarlett-style interface comes in as stereo, two mono tracks (Input 1 and 2, each with its own strip), or mono. |
 | 🖥️ **This computer's screens and sound** | Any screen, window or tab, with its sound, kept sharp for slides and text and always shown whole, whatever its shape. |
-| 💻 **Another computer's screen** | The presenter opens a link (`/share`) and picks what to share. It arrives as a source over the local network, with its sound, and is shown whole (a Mac's 16:10 screen keeps its menu bar and Dock in a 16:9 show). |
+| 💻 **Another computer's screen** | The presenter opens a link (`/share`) and picks what to share. It arrives as a source over the local network, with its sound in stereo, and is shown whole (a Mac's 16:10 screen keeps its menu bar and Dock in a 16:9 show). |
 | 📱 **Phones and tablets** | Scan a code to join as a camera or a microphone. Each records in full quality and sends a live picture over Wi-Fi. |
 | 🎞️ **Clips: ads, b-roll, packages** | Drop in video or image files. Each waits in Sources, ready, and goes on air with a click: once and back to the camera, or looped until you cut away. |
 
@@ -105,7 +105,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **USB webcams on the studio computer**, each seen before it's added, named, and opened at the output's size (it falls back gracefully when a USB port runs out of room).
 - **USB microphones and audio interfaces** as stereo, two mono tracks, or mono, plus **two microphones from one stereo input**.
 - **Screens, windows and tabs**, with their sound, captured sharp for text and **always shown whole**, with bars if the screen is another shape than the show. **The computer's own sound** too.
-- **Another computer's screen** over `/share`: no install, its sound included, and a tally that tells the presenter when they're up next or on air.
+- **Another computer's screen** over `/share`: no install, its sound in stereo, encoded on its graphics hardware where it can be, and a tally that tells the presenter when they're up next or on air.
 - **Phones and tablets** as cameras or microphones, with full-quality local recording, tally lights, and messages from the director.
 - **Clips** for ads, b-roll, a pre-made package, a bumper or a logo: video or images, ready in Sources, aired with a click (once and back to the camera, or looped), with their sound on their own mixer strip. Aired video clips land in Edit where they aired.
 - **Camera control** for every camera, as far as each device allows: zoom, exposure, contrast, white balance and focus, with a histogram and waveform.

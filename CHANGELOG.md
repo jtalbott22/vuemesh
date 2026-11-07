@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.61.11 — another computer's screen in stereo, on the hardware encoder
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Another computer's screen sends its sound in stereo.** WebRTC sends Opus in mono unless both sides say otherwise, and nothing did, so a shared tab's music or a video's stereo arrived as one channel (both sides the same), on a one-meter strip. The share page now says its sound is stereo, the studio answers that it takes it, and the screen's mixer strip is stereo (two meters, balance), as a screen shared on the studio's own computer already was. Phones don't say so, so their sound is as it was.
+- **Another computer's screen is encoded on its graphics hardware where it can be:** the link prefers H.264, which a Mac or a Windows PC encodes on its hardware, over VP8, which is encoded on the processor (a busy 1080p screen at 30 frames a second is a lot of work for it). A studio browser without H.264 gets VP8 as before.
+- **The share page says what it's sending:** its size, frame rate, codec, whether it's on the graphics hardware, and what's holding it back (the processor, the network), every two seconds. Off air it's half size, as every camera is, until the studio puts it in preview or on air.
+- Measured with a busy 1920 x 1080 screen redrawn 30 times a second, with a tone on the left only: on air it arrived at 1920 x 1080 and 30 frames a second, as before (there's no cap at 15: that's for a screen shared on the studio's own computer in a 1080p show); its sound arrived left only, where it had been the same on both sides at half the level.
+
 ## 0.61.10 — a shared screen is always shown whole; What's new reads as written
 **Deploy:** `./aws/deploy.sh` (site only).
 
