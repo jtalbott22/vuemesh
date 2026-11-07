@@ -104,11 +104,18 @@ function sources() {
         if (sp) Object.assign(s, { dbL: dbOf(sp[0]), dbR: dbOf(sp[1]), st2: st?.fix?.stereo ? 1 : 0 });
         if (l.side) s.side = l.side;
       }
-      // (Chrome counts sound the device delivered and what it had to drop on the way in)
+      // (Chrome counts sound the device delivered and what it had to drop on the way in: delivered,
+      // about 1000 ms a second, silence included, and none when nothing arrives from it, so a log
+      // can tell a device that stopped sending from one sending silence. Counted per source: the two
+      // sides of a split input share one track)
       const as = at.stats;
       if (as && 'totalFramesDuration' in as) {
-        const lost = delta(at, 'lost', as.totalFramesDuration - as.deliveredFramesDuration);
+        const lost = delta(at, `lost:${peer}`, as.totalFramesDuration - as.deliveredFramesDuration);
         if (lost) s.ad = Math.round(lost);
+        // (this computer's own devices only: a phone's sound keeps "arriving" as silence when its network
+        // drops, and a shared screen's or this computer's sound is no device to check)
+        const got = l.local && !l.screen ? delta(at, `got:${peer}`, as.deliveredFramesDuration) : null;
+        if (got != null) s.dv = Math.round(got);
         if (as.latency != null) s.lat = Math.round(as.latency);
       }
     }
@@ -197,22 +204,38 @@ function noticeChanges(row) {
   }
   last = row;
 }
+/** A camera here as it really captures: its size and frame rate, and whether Chrome is shrinking a bigger picture (then its USB still carries the bigger one). */
+function captureOf(l) {
+  const v = l?.local && !l.screen ? l.stream?.getVideoTracks()[0]?.getSettings?.() : null;
+  if (!v?.width) return '';
+  return `${v.width}x${v.height}${v.frameRate ? `, ${Math.round(v.frameRate)} frames a second` : ''}${v.resizeMode === 'crop-and-scale' ? ', shrunk by the browser from a bigger picture' : ''}`;
+}
 function joinedText(x) {
   const l = live.get(x.id);
   const where = x.loc ? ' (this computer)' : '';
-  if (x.k === 'cam') return `${x.n}${where} joined as a camera${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}, sound from ${l?.micLabel || (x.a === 'none' ? 'nothing' : 'its own microphone')}${x.sr ? ` at ${x.sr} Hz` : ''}`;
+  const cap = captureOf(l);
+  if (x.k === 'cam') return `${x.n}${where} joined as a camera${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}${cap ? ` at ${cap}` : ''}, sound from ${l?.micLabel || (x.a === 'none' ? 'nothing' : 'its own microphone')}${x.sr ? ` at ${x.sr} Hz` : ''}`;
   return `${x.n}${where} joined as ${x.k === 'mic' ? 'a microphone' : 'a shared screen'}${l?.deviceLabel ? `: ${l.deviceLabel}` : ''}${x.sr ? ` at ${x.sr} Hz` : ''}${x.k === 'mic' && x.ch ? (x.side ? `, its ${x.side === 'L' ? 'left' : 'right'} side` : x.ch > 1 ? `, in stereo (${x.ch} sides: an interface's Input 1 left, Input 2 right)` : ', mono') : ''}`;
 }
-let devicesBefore = null;
+let devicesBefore = null, namesHidden = false;
 async function devices() {
   const all = await navigator.mediaDevices?.enumerateDevices?.().catch(() => []) || [];
-  return all.filter((d) => d.kind !== 'audiooutput' && d.label).map((d) => `${d.kind === 'videoinput' ? 'camera' : 'microphone'}: ${d.label}`);
+  const ins = all.filter((d) => d.kind !== 'audiooutput');
+  namesHidden = ins.some((d) => !d.label); // (cameras or microphones not allowed yet: those come without names)
+  return ins.filter((d) => d.label).map((d) => `${d.kind === 'videoinput' ? 'camera' : 'microphone'}: ${d.label}`);
 }
 navigator.mediaDevices?.addEventListener?.('devicechange', async () => {
   const now = await devices();
   if (devicesBefore) {
-    for (const d of now) if (!devicesBefore.includes(d)) showLog.event('device', `Plugged in: ${d}`);
-    for (const d of devicesBefore) if (!now.includes(d)) showLog.event('device', `Unplugged: ${d}`);
+    // (counted, not just looked up: one of three webcams of the same name unplugged is still one less)
+    const count = (list) => list.reduce((m, d) => m.set(d, (m.get(d) || 0) + 1), new Map());
+    const was = count(devicesBefore), is = count(now);
+    let changed = 0;
+    for (const [d, n] of is) for (let i = was.get(d) || 0; i < n; i++, changed++) showLog.event('device', `Plugged in: ${d}`);
+    for (const [d, n] of was) for (let i = is.get(d) || 0; i < n; i++, changed++) showLog.event('device', `Unplugged: ${d}`);
+    // (every time the computer says so: a device reset under the same name left no trace before)
+    // (speakers and headphones count too, and aren't listed: so it says only what it knows)
+    if (!changed) showLog.event('device', `The computer said its devices changed (${namesHidden ? 'some names are hidden until cameras and microphones are allowed' : 'no camera or microphone changed'})`);
   }
   devicesBefore = now;
 });

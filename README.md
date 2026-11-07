@@ -320,7 +320,7 @@ browser to use for the studio, and network and capacity planning.
 | --- | --- |
 | **Studio** | A laptop or desktop with **Chrome or Edge** (Mac or Windows), or Safari on a Mac. Linux works but records VP9, which iPhones can't play. |
 | **Cameras** | USB webcams on the studio computer; any recent phone or tablet browser (iPhone Safari, Android Chrome); or another computer's Chrome or Edge over `/share`. |
-| **Sound** | Any USB microphone or audio interface the computer sees. On Linux, set a two-input interface to **Pro Audio** to hear both inputs. |
+| **Sound** | Any USB microphone or audio interface the computer sees. On Linux, set a two-input interface to **Pro Audio** to hear both inputs. A Focusrite Scarlett 4th Gen: turn off **Easy Start** (open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again), or software that checks the computer's drives can stop its sound every few minutes. |
 | **Network** | Your own router is best: Wi-Fi 6 on 5 GHz, the studio on a cable. Venue Wi-Fi with client isolation blocks the direct path. |
 | **Capacity** | About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that. A 720p output suits most computers; several 1080p webcams can crowd one USB controller, so spread them across ports. |
 
