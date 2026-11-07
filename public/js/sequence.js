@@ -81,19 +81,27 @@ export function audioItems(seq, tr) {
 
 /**
  * Rebuild the Program track (and microphone tracks) from the multicam cut log.
- * @param edl   resolved cuts [{t, clip}] on the event clock
+ * @param edl   resolved cuts [{t, clip}] on the event clock; {t, missing: true} is a cut to a
+ *              camera whose recording isn't here (yet, or at all)
  * @param clips all clip records ({id, t0, dur, kind, cid, name})
+ * @param fills the program as aired ({id, t0, dur}): where a cut's camera has no footage (a phone
+ *              still sending its clip, a source nothing recorded), Edit shows what aired there,
+ *              not black. When the real clip arrives, the next rebuild uses it instead.
  */
-export function rebuildFromCuts(seq, edl, clips) {
+export function rebuildFromCuts(seq, edl, clips, fills = []) {
   const videos = clips.filter((c) => c.kind !== 'audio');
   const audios = clips.filter((c) => c.kind === 'audio');
-  if (!clips.length) return seq;
-  seq.origin = Math.min(...clips.map((c) => c.t0));
-  const endT = Math.max(...clips.map((c) => c.t0 + c.dur));
+  if (!clips.length && !fills.length) return seq;
+  // The edit spans the cameras' own recordings, as it did: the program as aired only fills inside
+  // it, or past it when the show began or ended on a source with no footage (then it moves).
+  const own = clips.length ? clips : fills;
+  seq.origin = Math.min(...own.map((c) => c.t0));
+  const endT = Math.max(...own.map((c) => c.t0 + c.dur));
+  const fillEnd = fills.length ? Math.max(endT, ...fills.map((c) => c.t0 + c.dur)) : endT;
   const prog = program(seq);
   prog.items = [];
   let cuts = edl.slice().sort((a, b) => a.t - b.t);
-  if (!cuts.length && videos.length) {
+  if (!cuts.some((e) => !e.missing) && videos.length) {
     // No cuts yet: use the longest angle so there's always something to watch.
     const longest = videos.slice().sort((a, b) => b.dur - a.dur)[0];
     cuts = [{ t: longest.t0, clip: longest.id }];
@@ -103,11 +111,24 @@ export function rebuildFromCuts(seq, edl, clips) {
   const eff = cuts.map((e) => {
     if (e.slate) return e.t < endT ? { slate: e.slate, t: e.t } : null; // (a break in the show)
     if (e.black) return e.t < endT ? { black: true, fade: e.fade || 0, t: e.t } : null; // (to black)
+    // (no footage of that camera: what aired fills it; with nothing to fill it, the shot before holds as it did)
+    if (e.missing) return fills.length && e.t < fillEnd ? { miss: true, t: e.t, x: e.dissolve || 0 } : null;
     const c = videos.find((k) => k.id === e.clip);
     return c ? { c, t: Math.max(e.t, c.t0), x: e.dissolve || 0, fadeIn: e.fadeIn || 0 } : null;
   }).filter(Boolean);
+  // the program as aired, from a to b (on the cameras' clock), where it was recording
+  const fillIn = (a, b, first) => {
+    for (const f of fills.slice().sort((x, y) => x.t0 - y.t0)) {
+      const s = Math.max(a, f.t0), t = Math.min(b, f.t0 + f.dur);
+      if (t - s < FRAME) continue;
+      const it = { id: uid(), type: 'clip', src: f.id, start: s - seq.origin, dur: t - s, in: s - f.t0 + (f.inBase || 0), fill: true };
+      if (first && s === first.t && first.x >= FRAME && prog.items.length) it.transIn = { dur: Math.min(4000, Math.round(first.x)) };
+      prog.items.push(it);
+    }
+  };
   eff.forEach((e, i) => {
-    const end = eff[i + 1]?.t ?? endT;
+    const end = eff[i + 1]?.t ?? (e.miss ? fillEnd : endT);
+    if (e.miss) return fillIn(e.t, end, e);
     // Black: nothing on air until the next cut; a fade to black fades the shot before it out.
     if (e.black) {
       const last = prog.items[prog.items.length - 1];
@@ -127,7 +148,9 @@ export function rebuildFromCuts(seq, edl, clips) {
     // Stay on this camera until the next cut. If its phone rolled to a new clip (it was
     // turned, or changed lens), follow it into that clip from the moment it starts; and if it
     // stopped recording and started again while still on air (a break, a second take), pick
-    // it up again where it did (the time between is a gap, which Collapse gaps takes out).
+    // it up again where it did. What aired in between (and after its recording stopped, while
+    // it was still on air) comes from the program as aired, when there is one; without one, the
+    // time between is a gap, which Collapse gaps takes out.
     let a = e.t, c = e.c;
     while (c && a < end) {
       const next = videos
@@ -141,11 +164,21 @@ export function rebuildFromCuts(seq, edl, clips) {
         if (e.x >= FRAME && a === e.t && prog.items.length) it.transIn = { dur: Math.min(4000, Math.round(e.x)) };
         prog.items.push(it);
       }
-      if (!next || b >= end) break;
+      if (!next || b >= end) {
+        if (b < end) fillIn(b, end); // (its recording stopped while it was still on air)
+        break;
+      }
       a = Math.max(b, next.t0);
+      if (a > b) fillIn(b, a); // (between two of its recordings)
       c = next;
     }
   });
+  // (the show began on a source with no footage: the edit starts with what aired there)
+  const lo = Math.min(0, ...prog.items.map((it) => it.start));
+  if (lo < 0) {
+    for (const it of prog.items) it.start -= lo;
+    seq.origin += lo;
+  }
   // One audio track per microphone phone, its pieces laid where they were recorded.
   const mics = [...new Set(audios.map((c) => c.cid))];
   seq.tracks = seq.tracks.filter((t) => !t.mic || mics.includes(t.mic));
@@ -171,7 +204,7 @@ export function rebuildFromCuts(seq, edl, clips) {
   // Every Program item gets a single shape: slice where a phone turned.
   const wasLocked = prog.locked;
   prog.locked = false;
-  splitAtOrientation(seq, (id) => videos.find((c) => c.id === id)?.orient, [prog.id]);
+  splitAtOrientation(seq, (id) => (videos.find((c) => c.id === id) || fills.find((c) => c.id === id))?.orient, [prog.id]);
   prog.locked = wasLocked;
   seq.liveTail = endT; // (how far the live footage reaches, on the cameras' clock: see appendLive)
   return seq;
@@ -184,10 +217,10 @@ export function rebuildFromCuts(seq, edl, clips) {
  * between them, so Collapse gaps can take it out again. Hand edits stay as they are.
  * Returns { from, to, gap, at } (cameras' clock, and where it went), or null if nothing new.
  */
-export function appendLive(seq, edl, clips) {
+export function appendLive(seq, edl, clips, fills = []) {
   const tail = seq.liveTail ?? (seq.origin != null ? seq.origin + end(seq) : -Infinity);
   const fresh = newSequence();
-  rebuildFromCuts(fresh, edl, clips);
+  rebuildFromCuts(fresh, edl, clips, fills);
   if (fresh.origin == null) return null;
   const picks = [];
   for (const tr of fresh.tracks) {

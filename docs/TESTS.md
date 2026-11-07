@@ -78,6 +78,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_pvwtwoup.py` | Tap: Preview: preview and program side by side, the same size; the preview's corner camera over a screen (what CUT will give), the program's only once taken; flip-flop; Tap: Air, the program alone |
 | `test/e2e_screen.py` | a shared screen (with its sound) and this computer's sound as sources |
 | `test/e2e_sharequality.py` | another computer's screen (/share): 1080p at 30 frames a second on air, its sound in stereo (left stays left), a stereo mixer strip, the share page saying what it sends, Slides and text / Video and motion, no message box for it, its sending in the show log, no password field in the studio |
+| `test/e2e_remotescreenrec.py` | every source that aired is in Edit: another computer's screen (`/share`) recorded in the studio while on air; a phone whose clips aren't here filled from the program as aired; neither black |
 | `test/e2e_screenfit.py` | a 16:10 screen in a 16:9 show on Fill is shown whole (menu bar and Dock), from this computer and over `/share`; its recording is marked a screen |
 | `test/e2e_vcam.py` | the program as a camera for video calls: relay → (stand-in) OBS over local UDP, H.264 + AAC |
 | `test/e2e_phonerobust.py` | a phone that won't store blobs, a camera that stops in the background, a camera that never answers on join |

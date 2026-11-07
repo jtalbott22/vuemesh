@@ -31,7 +31,7 @@ import { camOrder, fitTile, renderLive } from './live.js';
 import { renderQuality } from './usage.js';
 import { autoOn, director, updateNetwork } from './onair.js';
 import { mixAttach, mixDetach, renderMixer } from './mixer.js';
-import { flushRecordings, isBlocked } from './sources.js';
+import { flushRecordings, isBlocked, localRecFollow, rollLocalRec, stopLocalRec } from './sources.js';
 import { ccuSync } from './ccu.js';
 import { crewHeard, media, renderMoments, welcomePhone } from './room.js';
 import { addReel, reel } from './graphics.js';
@@ -721,6 +721,7 @@ async function init() {
         leavingPeers.delete(peer);
         (l?.card || l?.tile)?.remove();
         if (!l?.leaving) presenceOff(l?.cid); // (one who said they were leaving left then, not when the link closed)
+        if (l?.recorder) stopLocalRec(peer); // (another computer's screen, recorded here: what it recorded is kept)
         mixDetach(peer);
         live.delete(peer);
         if (liveActive === peer) {
@@ -743,6 +744,7 @@ async function init() {
         const l = live.get(peer);
         if (!l) return;
         l.stream = stream;
+        if (l.recorder && !l.local) rollLocalRec(peer); // (recorded here: the next recording has the new tracks, its sound too)
         mixAttach(peer);
         if (l.video) {
           if (l.video.srcObject !== stream) l.video.srcObject = stream;
@@ -766,6 +768,7 @@ async function init() {
           l.screen = true;
           note(`${l.name} is another computer's screen${l.stream?.getAudioTracks().length ? ', with its sound (stereo)' : ''}`);
           renderLive();
+          localRecFollow(); // (it's recorded here while it's on air: it records nothing itself)
           if (l.stream?.getAudioTracks().length) {
             mixAttach(peer); // (its strip again, as a screen's: stereo, two meters)
             renderMixer();
