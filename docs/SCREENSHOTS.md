@@ -40,4 +40,4 @@ for portrait phones.
 ## When they're in
 
 All eleven are in (October 2026), taken from a real show. The tour is linked from the home page's
-"How it works" and from the Partners page.
+"How it works" and from the Work with VUEMesh page.
