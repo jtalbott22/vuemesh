@@ -56,7 +56,7 @@ export class Timeline {
     const seq = this.seq();
     const endT = Math.max(S.end(seq), 10000);
     const width = Math.max(this.x(endT) + 240, this.scroller.clientWidth);
-    const heads = [`<div class="head ruler-head" style="height:24px"></div>`];
+    const heads = [`<div class="head ruler-head"></div>`];
     const lanes = [];
     const step = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600].find((s) => s * this.px >= 70) || 600;
     let ticks = '';
@@ -70,29 +70,39 @@ export class Timeline {
     // the export range (In to Out), if one is marked
     const r = seq.range;
     const band = r ? `<span class="inout" style="left:${this.x(r.in)}px;width:${Math.max(2, this.x(r.out) - this.x(r.in))}px" title="Export range ${fmtDur(r.in)} – ${fmtDur(r.out)}" aria-hidden="true"></span>` : '';
-    lanes.push(`<div class="trow ruler" data-ruler>${band}${ticks}${markers}</div>`);
+    lanes.push(`<div class="trow ruler" data-ruler style="--minor:${(step * this.px) / 5}px">${band}${ticks}${markers}</div>`);
     const kinds = seq.tracks.map((t) => t.kind);
+    // each track's name in an editing suite's terms: video counts up from the bottom (V1 under V2),
+    // audio down from the top (A1 over A2)
+    const vids = seq.tracks.filter((t) => t.kind === 'video'), auds = seq.tracks.filter((t) => t.kind !== 'video');
+    const codeOf = (tr) => (tr.kind === 'video' ? 'V' + (vids.length - vids.indexOf(tr)) : 'A' + (auds.indexOf(tr) + 1));
+    const icon = (id) => `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>`;
     seq.tracks.forEach((tr, i) => {
       const canUp = i > 0 && kinds[i - 1] === tr.kind;
       const canDown = i < kinds.length - 1 && kinds[i + 1] === tr.kind;
+      const code = codeOf(tr);
       const toggle = tr.kind === 'video'
-        ? `<button type="button" data-hide="${tr.id}" aria-pressed="${!tr.hidden}" aria-label="${tr.hidden ? 'Show' : 'Hide'} ${esc(tr.name)}" title="Show or hide">${tr.hidden ? '◌' : '●'}</button>`
-        : `<button type="button" data-mute="${tr.id}" aria-pressed="${!!tr.muted}" aria-label="${tr.muted ? 'Unmute' : 'Mute'} ${esc(tr.name)}" title="Mute">${tr.muted ? 'M' : 'm'}</button>`;
+        ? `<button type="button" class="hb" data-hide="${tr.id}" aria-pressed="${!tr.hidden}" aria-label="${tr.hidden ? 'Show' : 'Hide'} ${esc(tr.name)}" title="${tr.hidden ? 'Hidden: show this track' : 'Showing: hide this track'}">${icon(tr.hidden ? 'eyeoff' : 'eye')}</button>`
+        : `<button type="button" class="hb" data-mute="${tr.id}" aria-pressed="${!!tr.muted}" aria-label="${tr.muted ? 'Unmute' : 'Mute'} ${esc(tr.name)}" title="${tr.muted ? 'Muted: turn this track back on' : 'Mute this track'}">M</button>`;
       // the targeted track of each kind is where Insert and Overwrite land (the Program track by default)
       const tgt = (seq.target?.[tr.kind] && seq.tracks.some((t) => t.id === seq.target[tr.kind]) ? seq.target[tr.kind] : tr.kind === 'video' ? seq.tracks.find((t) => t.program)?.id : seq.tracks.find((t) => t.kind === 'audio' && !t.follow)?.id) === tr.id;
-      const target = tr.follow ? '' : `<button type="button" data-target="${tr.id}" aria-pressed="${tgt}" aria-label="${tgt ? 'Targeted for Insert and Overwrite: ' : 'Target for Insert and Overwrite: '}${esc(tr.name)}" title="${tgt ? 'Insert and Overwrite land here' : 'Make Insert and Overwrite land here'}">${tgt ? '◉' : '○'}</button>`;
+      const target = tr.follow
+        ? `<span class="tcode" title="Follows ${esc(seq.tracks.find((k) => k.id === tr.follow)?.name || 'Program')}">${code}</span>`
+        : `<button type="button" class="tcode" data-target="${tr.id}" aria-pressed="${tgt}" aria-label="${code}: ${tgt ? 'targeted for Insert and Overwrite' : 'target for Insert and Overwrite'}, ${esc(tr.name)}" title="${tgt ? 'Insert and Overwrite land on this track' : 'Click to make Insert and Overwrite land on this track'}">${code}</button>`;
+      const lock = tr.follow ? '' : `<button type="button" class="hb" data-lock="${tr.id}" aria-pressed="${!!tr.locked}" aria-label="${tr.locked ? 'Unlock' : 'Lock'} ${esc(tr.name)}" title="${tr.locked ? 'Locked: click to unlock' : 'Lock this track'}">${icon(tr.locked ? 'lock' : 'unlock')}</button>`;
       heads.push(`<div class="head ${tr.kind}${tr.program ? ' prog' : ''}${tr.locked ? ' locked' : ''}" data-track="${tr.id}">
-        ${target}${toggle}
-        ${tr.follow ? '' : `<button type="button" data-lock="${tr.id}" aria-pressed="${!!tr.locked}" aria-label="${tr.locked ? 'Unlock' : 'Lock'} ${esc(tr.name)}" title="Lock track">${tr.locked ? '🔒' : '🔓'}</button>`}
-        <span class="nm" title="${esc(tr.name)}">${esc(tr.name)}</span>
-        <button type="button" data-up="${tr.id}" ${canUp ? '' : 'disabled'} aria-label="Move ${esc(tr.name)} up" title="Higher priority">▲</button>
-        <button type="button" data-down="${tr.id}" ${canDown ? '' : 'disabled'} aria-label="Move ${esc(tr.name)} down" title="Lower priority">▼</button>
-        ${tr.program || tr.follow ? '' : `<button type="button" data-rmtrack="${tr.id}" aria-label="Delete track ${esc(tr.name)}" title="Delete track">×</button>`}
+        ${target}<span class="nm" title="${esc(tr.name)}">${esc(tr.name)}</span>
+        <span class="hmore">
+          <button type="button" data-up="${tr.id}" ${canUp ? '' : 'disabled'} aria-label="Move ${esc(tr.name)} up" title="Higher priority">▲</button>
+          <button type="button" data-down="${tr.id}" ${canDown ? '' : 'disabled'} aria-label="Move ${esc(tr.name)} down" title="Lower priority">▼</button>
+          ${tr.program || tr.follow ? '' : `<button type="button" data-rmtrack="${tr.id}" aria-label="Delete track ${esc(tr.name)}" title="Delete track">×</button>`}
+        </span>
+        ${lock}${toggle}
       </div>`);
       const items = (tr.follow ? [] : tr.items).map((it) => {
         const l = this.label(it);
         const cls = ['item', it.id === this.selected ? 'sel' : '', (l.pip ?? it.rect) ? 'pip' : '', l.mismatch ? 'mismatch' : ''].join(' ');
-        return `<div class="${cls}" data-item="${it.id}" tabindex="0" role="button"
+        return `<div class="${cls}" data-item="${it.id}"${tr.kind === 'video' && it.type === 'clip' && it.src ? ` data-src="${esc(it.src)}"` : ''} tabindex="0" role="button"
           aria-label="${esc(l.text)}${it.transIn?.dur > 0 ? `, dissolves in over ${it.transIn.dur / 1000} s` : ''}${l.shape ? ', ' + l.shape : ''}${l.mismatch ? ', wrong shape for the output' : ''}, starts ${fmtDur(it.start).slice(0, -3)}, ${Math.round(it.dur / 100) / 10} seconds"
           style="left:${this.x(it.start)}px;width:${Math.max(4, this.x(it.dur))}px;--c:${l.color}">
           ${it.transIn?.dur > 0 ? `<i class="xd" style="width:${Math.max(6, this.x(Math.min(it.transIn.dur, it.dur)))}px" title="Dissolve in: ${it.transIn.dur / 1000} s" aria-hidden="true"></i>` : ''}<span class="h l" data-edge="start" aria-hidden="true"></span><span class="lbl">${l.shape ? `<i class="shape" aria-hidden="true">${l.shape === 'portrait' ? '▯' : '▭'}</i>` : ''}${esc(l.text)}</span><span class="h r" data-edge="end" aria-hidden="true"></span></div>`;

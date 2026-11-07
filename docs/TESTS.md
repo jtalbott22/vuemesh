@@ -40,7 +40,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_director.py` | AI director: cuts away from a shaky shot with a reason, tally, override, break slate, local-only |
 | `test/e2e_render.py` | renderer: lying encoder, corrupted clip, iPhone rotation flag (needs ffmpeg) |
 | `test/e2e_camera_pro.py` | phone: lenses, separate mic, zoom in the recording, focus, lock, overlays, meter, full screen |
-| `test/e2e_media.py` | media manager: moments, tags, stars, Source monitor, subclips, insert/overwrite, export, trim, delete |
+| `test/e2e_media.py` | media manager: moments, tags, stars, the Source viewer beside the Program, subclips, insert/overwrite, export, trim, delete |
 | `test/e2e_controlroom.py` | full screen control room: switcher bus, meter bridge, AFV / ON / OFF, breakaway |
 | `test/e2e_crew.py` | director messages, replies, rundown cues, output shape, pause, leave and rejoin |
 | `test/e2e_layout.py` | Live and Edit rooms, Program out window, resizable panels, transforms (needs ffmpeg) |

@@ -588,10 +588,225 @@
   .kdlg h2 { margin: 0 0 8px; font-size: 1.8rem; }
   /* the Edit page (/edit): editing only, no Live */
   body.editpage #liveTab, body.editpage #editTab, body.editpage [data-mode="live"] { display: none !important; }
+
+  /* ===== the Edit workspace, laid out like an editing suite (Premiere's Editing workspace, Resolve's
+     Edit page): media on the left, a Source viewer and a Program viewer side by side, each with its
+     own transport; the inspector as the studio's cards; the timeline under them with its tools. ===== */
+  .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  :root { --left: 270px; --right: 320px; }
+
+  /* top bar: what editing needs (the live show's controls are in the studio's own window) */
+  .modes, .status, #beaconBtn, #fsBtn, #ccuBtn, #pgmFormat { display: none !important; }
+  .wsbadge { display: inline-flex; align-items: center; min-height: 26px; padding: 0 .85em; border-radius: 7px; background: var(--text); color: var(--bg); font-size: .78rem; font-weight: 700; }
+  .bar #exportTop { gap: 6px; }
+  .bar #exportTop .ic { width: 14px; height: 14px; }
+
+  /* the left panel */
+  .sources .phead #srcCount { margin-left: auto; font-weight: 600; letter-spacing: .04em; text-transform: none; }
+  .sources .ptabs { margin: 8px 10px; }
+  #multi { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; padding: 0 10px 10px; }
+  #multi .tile .who { font-size: .66rem; }
+  #multi .tile.live { box-shadow: 0 0 0 2px var(--amber); }
+  #multi .empty { grid-column: 1 / -1; }
+
+  /* --- the viewers ------------------------------------------------------------------------ */
+  .center { background: var(--surface); }
+  .viewers { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; }
+  .vprog > * { border-left: 1px solid var(--line); }
+  .viewer { display: contents; }
+  .viewer > * { min-width: 0; }
+  .vsrc > .vhead { grid-area: 1 / 1; } .vsrc > .vmon { grid-area: 2 / 1; } .vsrc > .srcbar { grid-area: 3 / 1; } .vsrc > .vctl { grid-area: 4 / 1; }
+  .vprog > .vhead { grid-area: 1 / 2; } .vprog > .vmon { grid-area: 2 / 2; } .vprog > .pbar { grid-area: 3 / 2; } .vprog > .vctl { grid-area: 4 / 2; }
+  /* a narrow window: one viewer at a time, the two headers as its tabs */
+  body:not(.dual) .viewer:not(.on) > :not(.vhead) { display: none !important; }
+  body:not(.dual) .viewer.on > :not(.vhead) { grid-column: 1 / -1; }
+  .vhead { position: relative; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 10px 0 4px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .vhead [role=tab] { min-height: 24px; padding: 0 .55em; border-radius: 5px; background: transparent; box-shadow: none; color: var(--text-2); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .vhead [role=tab]:hover { background: var(--surface-2); filter: none; }
+  .viewer.on > .vhead [role=tab] { color: var(--text); }
+  .viewer.on > .vhead::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--amber); }
+  .vtitle { flex: 1; min-width: 0; font-size: .78rem; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vtc { flex: none; font-family: var(--mono); font-size: .92rem; font-weight: 700; color: var(--amber); min-width: 8.5ch; text-align: right; }
+  .vtc:empty::after { content: "--:--:--"; color: var(--muted); }
+  #srcTc { position: static; background: none; color: var(--amber); }
+  .vsrc:has(> .srcbar[hidden]) > .vmon { grid-row: 2 / 4; } /* (no clip: the picture takes the bar's room too) */
+  .center .monitor.vmon { padding: 8px; background: #0b0c0e; min-height: 120px; }
+  .monitor.vmon.withmeters { padding-right: 52px !important; }
+  .frame, body[data-mode="edit"] .frame, #srcFrame { box-shadow: 0 0 0 1px #ffffff14; border-radius: 0; }
+  #program, #srcCanvas { border-radius: 0; }
+  #progLabel, #ptc, #srcLabel { display: none !important; } /* (the viewer's header says what's showing, and where) */
+  .vempty { margin: 0; max-width: 36ch; text-align: center; color: #9aa0ad; font-size: .8rem; line-height: 1.55; }
+  .vempty b { color: #d6d9e0; }
+  .vempty kbd { background: #1d1f25; border-color: #33363e; color: #d6d9e0; }
+  /* the scrub bar under each picture: where you are, and the In to Out range */
+  .vsrc > .srcbar, .vprog > .pbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 6px 10px 4px; background: var(--surface); border-top: 1px solid var(--line); }
+  .srcbar .scrub, .pbar .scrub { height: 14px; border-radius: 3px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .scrub .range { border-width: 0 2px; border-style: solid; border-color: var(--amber); background: color-mix(in srgb, var(--amber) 28%, transparent); }
+  .scrub .head { top: -3px; bottom: -3px; height: auto; width: 2px; margin-left: -1px; background: var(--tally); }
+  .scrub .tick { background: var(--tally); }
+  #srcRange, #pRange { justify-self: end; font-size: .68rem; color: var(--text-2); white-space: nowrap; min-height: 1.2em; }
+  /* each viewer's transport */
+  .viewers .vctl { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--surface); border-top: 1px solid var(--line); flex-wrap: nowrap; overflow: hidden; }
+  .vctl .tgroup { display: inline-flex; align-items: center; gap: 1px; flex: none; }
+  .vctl .tspace { flex: 1 1 0; min-width: 4px; }
+  .vctl .deck { background: var(--surface-2); border-radius: 8px; padding: 2px; }
+  body .viewers .vctl button, body .tlbar button, body .tlbar .addmenu summary { min-height: 28px; min-width: 28px; padding: 0 6px; border-radius: 6px; background: transparent; color: var(--text-2); box-shadow: none; font-size: .74rem; font-weight: 600; gap: 5px; }
+  body .viewers .vctl button.icon, body .tlbar button.icon { padding: 0 !important; width: 28px; min-width: 28px; }
+  body .viewers .vctl button:hover, body .tlbar button:hover, body .tlbar .addmenu summary:hover { background: var(--surface-3); color: var(--text); filter: none; }
+  body .viewers .vctl .deck button { min-height: 26px; }
+  body .viewers .vctl button.play { width: 38px; min-width: 38px; background: var(--text); color: var(--bg); }
+  body .viewers .vctl button.play:hover { background: var(--text); color: var(--bg); filter: brightness(1.15); }
+  body .viewers .vctl button[aria-pressed="true"], body .tlbar button[aria-pressed="true"] { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--text); }
+  body .viewers .vctl button.txt { padding: 0 8px; }
+  .vdur { font-family: var(--mono); font-size: .72rem; color: var(--text-2); margin-right: 6px; white-space: nowrap; }
+  .vdur:not(:empty)::before { content: "Length "; font-family: var(--font); font-weight: 600; color: var(--muted); }
+
+  /* --- the timeline's tools ------------------------------------------------------------- */
+  body .tlbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface); border-top: 0; border-bottom: 1px solid var(--line); position: relative; z-index: 6; } /* (not clipped: the Add menu opens below it) */
+  .tlbar > * { flex: none; }
+  .tltc { width: 184px; padding: 0 4px; font-family: var(--mono); font-size: 1.05rem; font-weight: 700; color: var(--amber); }
+  body .tlbar .tools { display: inline-flex; gap: 1px; padding: 2px; border-radius: 8px; background: var(--surface-2); }
+  body .tlbar .tools button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .tlbar .tgroup { display: inline-flex; gap: 1px; align-items: center; }
+  .tlbar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
+  body .tlbar .addmenu summary { display: inline-flex; align-items: center; cursor: pointer; padding: 0 8px; }
+  .tlbar .addmenu .menu { top: calc(100% + 6px); bottom: auto; z-index: 40; }
+  #toolHelp { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; }
+  #toolHelp b { color: var(--text); font-weight: 700; }
+  .tlbar .zoomctl { gap: 2px; }
+  .tlbar .zoomctl input { width: 110px; min-height: 0; accent-color: var(--text-2); }
+  .tlbar .tspace { display: none; }
+  body .tlbar #snapBtn[aria-pressed="true"], body .viewers #meterTgl[aria-pressed="true"] { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--text); }
+  body .viewers #togLeft[aria-pressed="true"], body .viewers #togRight[aria-pressed="true"] { background: transparent; color: var(--text); }
+
+  /* --- the timeline: track headers like an editing suite's (V2 V1 A1 A2), a ruler with minor ticks - */
+  body > .timeline { grid-template-columns: 200px minmax(0, 1fr); border-top: 0; }
+  .heads { background: var(--surface); }
+  body .head { height: 40px; gap: 4px; padding: 0 6px 0 4px; font-size: .76rem; }
+  body .head.ruler-head { height: 26px; }
+  body .trow { height: 40px; }
+  body .trow.ruler { height: 26px; }
+  .head .tcode { flex: none; display: inline-grid; place-items: center; width: 30px; min-width: 30px; min-height: 22px !important; padding: 0 !important; border-radius: 4px; font: 800 .64rem/1 var(--mono); letter-spacing: .02em; background: var(--surface-2); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .head button.tcode[aria-pressed="true"] { background: #2f6fd6; color: #fff; box-shadow: none; }
+  .head .nm { font-weight: 600; }
+  .head.prog .nm { font-weight: 800; }
+  .head .hb { flex: none; display: inline-grid; place-items: center; width: 22px; min-width: 22px; min-height: 22px !important; padding: 0 !important; border-radius: 4px; color: var(--text-2); }
+  .head .hb .ic { width: 14px; height: 14px; }
+  .head .hb[data-lock][aria-pressed="true"] { color: var(--amber); }
+  .head .hb[data-hide][aria-pressed="false"] { color: var(--muted); opacity: .7; }
+  .head .hb[data-mute] { font: 800 .66rem/1 var(--mono); }
+  .head .hb[data-mute][aria-pressed="true"] { background: #2bd36b; color: #002910; }
+  .head .hb:hover { background: var(--surface-2); color: var(--text); }
+  /* move up / down and delete: there when you point at the track (or tab to it) */
+  body .head { position: relative; }
+  .head .hmore { position: absolute; right: 54px; top: 50%; transform: translateY(-50%); display: inline-flex; gap: 0; padding: 1px; border-radius: 5px; background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); opacity: 0; transition: opacity .12s; }
+  .head.audio .hmore { right: 30px; } .head.audio:has([data-lock]) .hmore { right: 54px; }
+  .head:hover .hmore, .head:focus-within .hmore { opacity: 1; }
+  .head .hmore button { width: 18px; min-width: 18px; min-height: 22px !important; padding: 0 !important; font-size: .62rem; color: var(--text-2); }
+  .head.video { box-shadow: inset 3px 0 0 color-mix(in srgb, #5b8def 70%, transparent); }
+  .head.audio { box-shadow: inset 3px 0 0 color-mix(in srgb, #2bd36b 70%, transparent); }
+  .head.audio, .lane.audio { background: color-mix(in srgb, var(--surface) 94%, #2bd36b 6%); }
+  .lane.video { background: var(--bg); }
+  .trow.ruler { background: var(--surface); border-bottom: 1px solid var(--line); background-image: linear-gradient(to right, var(--muted) 1px, transparent 1px); background-size: var(--minor, 14px) 5px; background-repeat: repeat-x; background-position: 0 100%; }
+  .trow.ruler .tick { border-left-color: var(--muted); height: 12px; top: auto; bottom: 0; padding: 0 0 0 4px; line-height: 1; transform: translateY(-11px); border-left: 0; font-size: .64rem; color: var(--text-2); }
+  .trow.ruler .tick::before { content: ""; position: absolute; left: 0; top: 11px; height: 12px; border-left: 1px solid var(--text-2); }
+  .playhead { width: 1px; background: var(--tally); }
+  .playhead::before { content: ""; position: absolute; top: 0; left: -6px; width: 13px; height: 14px; background: var(--tally); clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%); }
+  /* clips: a coloured bar with the shot's first frame at its head, name over it */
+  .item { top: 3px; bottom: 3px; border-radius: 3px; color: #0b0e1a; box-shadow: inset 0 0 0 1px #0000004d, inset 0 1px 0 #ffffff40; }
+  .item .lbl { top: 3px; transform: none; left: 7px; font-size: .68rem; text-shadow: 0 1px 0 #ffffff59; }
+  .lane.video .item[data-src] { background-image: var(--thumb, none); background-size: auto 100%; background-repeat: no-repeat; background-position: 0 0; }
+  .lane.video .item[data-src] .lbl { left: calc(var(--thumbw, 0px) + 7px); }
+  .item.sel { box-shadow: 0 0 0 2px var(--amber), inset 0 0 0 1px #0000004d; }
+
+  /* --- the inspector: the studio's cards -------------------------------------------------- */
+  .insp .cardtools { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 0 12px; }
+  .insp .ihead { font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); }
+  .insp details.card { margin: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .insp details.card > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 9px 12px; user-select: none; }
+  .insp details.card > summary::-webkit-details-marker { display: none; }
+  .insp details.card > summary::after { content: ""; grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 7px; height: 7px; margin: 0 4px 0 0; border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: translateY(-2px) rotate(45deg); transition: transform .18s; }
+  .insp details.card[open] > summary::after { transform: translateY(2px) rotate(225deg); }
+  .insp details.card > summary:hover::after { border-color: var(--text); }
+  .insp details.card[open] > summary { border-bottom: 1px solid var(--line); }
+  .insp details.card > summary:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+  .insp .sT { font-weight: 700; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .insp .sD { grid-column: 1; font-size: .74rem; color: var(--text-2); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .insp .sIn { padding: 10px 12px 12px; }
+  .insp .sIn > .fine:last-child { margin-bottom: 0; }
+  .insp #cardMix .sIn > .small { margin: 8px 0 0; }
+  #credits table { margin: 0; }
+
+  /* a laptop: each side no wider than its share, so the viewers keep the middle (below about
+     1300 px they take turns, their headers as tabs); the inspector stays at the right, as in an editing suite */
+  @media (max-width: 1439px) {
+    .work { grid-template-columns: min(var(--left), max(170px, 18vw)) 6px minmax(0, 1fr) 6px min(var(--right), max(240px, 24vw)); grid-template-rows: minmax(0, 1fr); }
+  }
+  @media (max-width: 1100px) {
+    .work > .sources { grid-column: 1; } .work > #splitL { grid-column: 2; } .work > .center { grid-column: 3; }
+    .work > #splitR { grid-column: 4; display: block; }
+    .work > .insp { grid-column: 5; grid-row: 1; display: block; border-top: 0; border-left: 1px solid var(--line); }
+    .tltc { width: auto; }
+    #toolHelp, #turnsBtn, #gapsBtn { display: none; }
+  }
+  /* a phone: the viewers, then media, then the inspector, one under the other */
+  @media (max-width: 720px) {
+    .work { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 1fr) max-content max-content; overflow-y: auto; }
+    #progDur { display: none; }
+    .work > .center { grid-column: 1; grid-row: 1; } .work > .sources { grid-column: 1; grid-row: 2; max-height: 36vh; }
+    .work > .insp { grid-column: 1; grid-row: 3; border-left: 0; border-top: 1px solid var(--line); }
+    .work > #splitL, .work > #splitR { display: none; }
+    body > .timeline { grid-template-columns: 120px minmax(0, 1fr); }
+    body .tlbar { overflow-x: auto; }
+    .tlbar .zoomctl input { width: 70px; }
+  }
 </style>
 </head>
 <body data-mode="loading" data-absent='{"addLocal":"button","blockedBox":"section","blkHead":"span","blockedList":"ul","overflowBox":"section","ovHead":"span","ovCount":"span","ovList":"ul","clipsHead":"span","clipFiles":"input","clips":"div","clipsEmpty":"p","switcher":"div","tbar":"div","tbarFill":"i","tbarHandle":"i","swCut":"button","swAuto":"button","swDur":"select","swMidi":"button","pvwBox":"div","pvwCanvas":"canvas","pvwLabel":"span","swTgl":"button","autoBtn":"button","breakBtn":"button","ftbBtn":"button","blackBtn":"button","recProgBtn":"button","markBtn":"button","directorNote":"span","autoRec":"input","liveLimit":"input","sendPgm":"input","pgmState":"p","recFades":"input","apOn":"input","apIntro":"select","apEnd":"select","gfxHead":"h2","ltText":"input","ltSub":"input","ltShow":"button","ltAuto":"input","ltRecent":"div","streamHead":"h2","stSvc":"select","stHelp":"p","stUrlLbl":"label","stUrl":"input","stKeyLbl":"label","stKey":"input","stRelayRow":"div","stRelay":"input","stRelayState":"p","relaySteps":"ol","stRelayCheck":"button","stRate":"select","stGo":"button","stState":"p","momHead":"h2","momList":"ol","momEmpty":"p","dmAll":"input","dmAllBtn":"button","rundownText":"textarea","rundownSend":"button","cuePrev":"button","cueNext":"button","rundownEnd":"button","rundownClear":"button","cueState":"p","netState":"p","directBtn":"button","refreshPics":"button","localOnly":"input","autoSlate":"input","slateLook":"select","slatePrev":"canvas","slateMsg":"input","slateSound":"input","micLook":"select","ftbTime":"select","reelFiles":"input","reel":"ul","splitD":"div","listen":"input","bridge":"div","dmDlg":"dialog","dmH":"h2","dmWho":"span","dmLast":"p","dmForm":"form","dmText":"input","dmClose":"button","dmSend":"button","stKeyShow":"button"}'>
 <a class="sr-only" href="#program">Skip to program monitor</a>
+<!-- the Edit page's icons (16 × 16, drawn in the text colour) -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.6 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><path d="M5.2 3.5v9M10.8 3.5v9" stroke-width="2.6"/></symbol>
+  <symbol id="i-tostart" viewBox="0 0 16 16"><path d="M3 3.5v9"/><path d="M8.6 3.5v9L4.2 8zM13.6 3.5v9L9.2 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-toend" viewBox="0 0 16 16"><path d="M13 3.5v9"/><path d="M7.4 3.5v9L11.8 8zM2.4 3.5v9L6.8 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-stepback" viewBox="0 0 16 16"><path d="M10.2 4v8L4.6 8z" fill="currentColor" stroke="none"/><path d="M12.4 4v8"/></symbol>
+  <symbol id="i-stepfwd" viewBox="0 0 16 16"><path d="M5.8 4v8l5.6-4z" fill="currentColor" stroke="none"/><path d="M3.6 4v8"/></symbol>
+  <symbol id="i-prevedit" viewBox="0 0 16 16"><path d="M3 3.5v9M13.5 8H5.5M8.5 5 5.5 8l3 3"/></symbol>
+  <symbol id="i-nextedit" viewBox="0 0 16 16"><path d="M13 3.5v9M2.5 8h8M7.5 5l3 3-3 3"/></symbol>
+  <symbol id="i-markin" viewBox="0 0 16 16"><path d="M9.5 2.5H5.5v11h4"/></symbol>
+  <symbol id="i-markout" viewBox="0 0 16 16"><path d="M6.5 2.5h4v11h-4"/></symbol>
+  <symbol id="i-gotoin" viewBox="0 0 16 16"><path d="M7 3H4v10h3"/><path d="M13 3.5v9L8 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-gotoout" viewBox="0 0 16 16"><path d="M9 3h3v10H9"/><path d="M3 3.5v9L8 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-insert" viewBox="0 0 16 16"><path d="M2 10.5h3.5M10.5 10.5H14M8 2.5v6M5.5 6 8 8.5 10.5 6"/><rect x="5.5" y="8.5" width="5" height="4.5" rx=".6"/></symbol>
+  <symbol id="i-overwrite" viewBox="0 0 16 16"><path d="M2 10.5h12M8 2v5M5.5 4.5 8 7l2.5-2.5"/><rect x="4.5" y="8.5" width="7" height="4.5" rx=".6"/></symbol>
+  <symbol id="i-split" viewBox="0 0 16 16"><circle cx="4.5" cy="11.5" r="2"/><circle cx="11.5" cy="11.5" r="2"/><path d="M5.9 10 12 2.5M10.1 10 4 2.5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M6 3.5 3 6.5l3 3"/><path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H6.5"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 16 16"><path d="M10 3.5l3 3-3 3"/><path d="M13 6.5H6.5a3.5 3.5 0 0 0 0 7h3"/></symbol>
+  <symbol id="i-select" viewBox="0 0 16 16"><path d="M4 2v11l2.9-2.7 1.9 4.2 1.9-.9-1.9-4.1H13z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-ripple" viewBox="0 0 16 16"><path d="M6.5 3h-3v10h3"/><path d="M8 8h6M11.5 5.5 14 8l-2.5 2.5"/></symbol>
+  <symbol id="i-roll" viewBox="0 0 16 16"><path d="M5 3H2.5v10H5M11 3h2.5v10H11"/><path d="M5.5 8h5M7 6.5 5.5 8 7 9.5M9 6.5l1.5 1.5L9 9.5"/></symbol>
+  <symbol id="i-razor" viewBox="0 0 16 16"><rect x="2.5" y="4.5" width="11" height="7" rx="1"/><path d="M6 8h4"/></symbol>
+  <symbol id="i-slip" viewBox="0 0 16 16"><rect x="5" y="3.5" width="6" height="9" rx="1"/><path d="M1.5 8h3M3 6.5 1.5 8 3 9.5M14.5 8h-3M13 6.5l1.5 1.5L13 9.5"/></symbol>
+  <symbol id="i-slide" viewBox="0 0 16 16"><path d="M2 3.5v9M14 3.5v9"/><rect x="5" y="5" width="6" height="6" rx="1"/><path d="M3.5 8h1M11.5 8h1"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 16 16"><path d="M5.5 8.5V4a1 1 0 0 1 2 0v3.5M7.5 7V3a1 1 0 0 1 2 0v4M9.5 7.5V4.5a1 1 0 0 1 2 0V10c0 2.4-1.6 4-4 4-1.7 0-2.7-.9-3.4-2L2.7 9a1 1 0 0 1 1.6-1.1l1.2 1.6"/></symbol>
+  <symbol id="i-snap" viewBox="0 0 16 16"><path d="M3.5 2.5h3v5.5a1.5 1.5 0 0 0 3 0V2.5h3V8a4.5 4.5 0 0 1-9 0z"/><path d="M3.5 5h3M9.5 5h3"/></symbol>
+  <symbol id="i-marker" viewBox="0 0 16 16"><path d="M4 2.5h8v8.2L8 13.5l-4-2.8z"/></symbol>
+  <symbol id="i-dissolve" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M2.8 13.2 13.2 2.8"/><path d="M2.5 2.5h11L2.5 13.5z" fill="currentColor" stroke="none" opacity=".35"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 13.5l11-11"/></symbol>
+  <symbol id="i-zoomin" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14M5 7h4M7 5v4"/></symbol>
+  <symbol id="i-zoomout" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14M5 7h4"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-export" viewBox="0 0 16 16"><path d="M8 10V2.5M5 5.5l3-3 3 3"/><path d="M3 9v4.5h10V9"/></symbol>
+  <symbol id="i-left" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M6 3v10"/><path d="M2.5 3.5H6v9H2.5z" fill="currentColor" stroke="none" opacity=".45"/></symbol>
+  <symbol id="i-right" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M10 3v10"/><path d="M10 3.5h3.5v9H10z" fill="currentColor" stroke="none" opacity=".45"/></symbol>
+  <symbol id="i-meters" viewBox="0 0 16 16"><path d="M5 13.5V6M8 13.5V2.5M11 13.5V8.5" stroke-width="2.2"/></symbol>
+</svg>
 <header class="bar">
   <a class="mark" href="/" aria-label="VUEMesh home"><i aria-hidden="true"></i>VUEMesh</a>
   <div class="ev"><h1 id="title">Studio</h1><span class="code" id="code"></span></div>
@@ -599,15 +814,17 @@
     <button type="button" role="tab" id="liveTab" aria-selected="true" aria-controls="program">Live</button>
     <button type="button" id="editTab" title="Edit opens in its own window, beside the live studio, and builds the edit as recordings land">Edit ↗</button>
   </div>
+  <span class="wsbadge" title="This window edits; the live show runs in the studio's own window">Edit</span>
   <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span></div>
   <span class="spacer"></span>
-  <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software">Program out ↗</button>
+  <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software (choose Edit in it to show this edit)">Program out ↗</button>
   <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">Beacon</a>
- <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen control room (F)">Full screen <kbd>F</kbd></button>
+  <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen (F)">Full screen <kbd>F</kbd></button>
   <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
   <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
   <button type="button" id="helpBtn" aria-haspopup="dialog" aria-keyshortcuts="?">Help <kbd>?</kbd></button>
   <button type="button" id="themeBtn"></button>
+  <button type="button" id="exportTop" class="primary" title="Render the edit to an MP4 (the In to Out range, if one is marked)"><svg class="ic" aria-hidden="true"><use href="#i-export"/></svg>Export</button>
   <button type="button" id="publishBtn" class="primary">Publish</button>
 </header>
 <div class="banner" id="viewOnly" hidden>This device doesn't have the host key. Open the studio link from the device that created this event — the host device is where phones send their footage.</div>
@@ -615,10 +832,10 @@
 
 <main class="work">
   <aside class="panel sources" aria-labelledby="srcHead">
-    <div class="phead"><span id="srcHead">Sources</span><button type="button" class="small" id="ccuBtn" style="margin:0 6px 0 auto" title="Every live camera's picture with histogram and waveform, and its zoom, brightness, contrast and focus, in its own window">Camera control ↗</button><span id="srcCount"></span></div>
+    <div class="phead"><span id="srcHead">Media</span><button type="button" class="small" id="ccuBtn" style="margin:0 6px 0 auto" title="Every live camera's picture with histogram and waveform, and its zoom, brightness, contrast and focus, in its own window">Camera control ↗</button><span id="srcCount"></span></div>
     <div class="ptabs" data-mode="edit" role="tablist" aria-label="Left panel">
-      <button type="button" role="tab" id="anglesTab" aria-selected="true" aria-controls="multi">Angles</button>
-      <button type="button" role="tab" id="mediaTab" aria-selected="false" aria-controls="mediaPanel">Media</button>
+      <button type="button" role="tab" id="anglesTab" aria-selected="true" aria-controls="multi" title="Each camera angle: click one (or press its number) to cut the Program to it at the playhead">Angles</button>
+      <button type="button" role="tab" id="mediaTab" aria-selected="false" aria-controls="mediaPanel" title="Every recording, subclip and marked moment">Media</button>
     </div>
     <div id="multi" role="group" aria-label="Sources. Choose one to cut to it."></div>
     <!-- (live only: on the Live studio page) -->
@@ -641,9 +858,6 @@
       <div id="localList"></div>
       <form method="dialog"><button class="primary">Done</button></form>
     </dialog>
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
     <div id="mediaPanel" class="mpanel" role="tabpanel" aria-labelledby="mediaTab" hidden>
       <input type="search" id="mediaSearch" placeholder="Search names, people, tags" aria-label="Search media">
       <div class="chips" id="mediaFilters" role="group" aria-label="Show"></div>
@@ -653,139 +867,159 @@
   </aside>
   <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click to hide or show)" aria-controls="srcHead"></div>
 
-  <section class="center" aria-label="Program">
-    <div class="monitor">
-      <button type="button" class="soundoff" id="soundOff" hidden>🔇 Sound is paused by the browser. Click to turn it on.</button>
-      <div class="pmeters" id="pMeters" hidden aria-hidden="true">
-        <div class="pmscale"><span style="--p:100%">0</span><span style="--p:80%">-12</span><span style="--p:60%">-24</span><span style="--p:40%">-36</span><span style="--p:20%">-48</span></div>
-        <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
-        <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
-        <span class="pmlab">L&nbsp;R</span>
-      </div>
-      <div class="frame" id="srcFrame" hidden>
-        <canvas id="srcCanvas" width="1280" height="720" role="img" aria-label="Source monitor"></canvas>
-        <span class="ovl" id="srcLabel">SOURCE</span>
-        <span class="ovl tc" id="srcTc"></span>
-      </div>
-      <!-- (live only: on the Live studio page) -->
-      <div class="frame" id="progFrame">
-        <canvas id="program" width="1280" height="720" role="img" aria-label="Program output"></canvas>
-        <div class="kcount" id="kCount" hidden aria-live="assertive"><b></b></div>
-        <!-- (live only: on the Live studio page) -->
-        <span class="ovl" id="progLabel">ON AIR</span>
-        <span class="ovl tc" id="ptc"></span>
-        <span class="ovl" id="slateTag" hidden>BREAK</span>
-        <div class="xform" id="xform" hidden aria-hidden="true">
-          <i class="hdl nw" data-h="nw"></i><i class="hdl ne" data-h="ne"></i><i class="hdl sw" data-h="sw"></i><i class="hdl se" data-h="se"></i>
-          <i class="rot" data-h="rot" title="Rotate (Shift: 15° steps)"></i>
+  <section class="center" aria-label="Viewers">
+    <div class="viewers" id="viewers">
+      <!-- the Source viewer: a recording from Media, to mark In and Out and put into the timeline -->
+      <div class="viewer vsrc" id="srcView">
+        <div class="vhead">
+          <button type="button" role="tab" id="srcTab" aria-selected="false" aria-controls="srcCanvas" title="Source monitor (Shift 2): Space, J K L, I, O, comma and full stop work here">Source</button>
+          <span class="vtitle" id="srcName">No clip open</span>
+          <span class="vtc tc" id="srcTc" aria-label="Source position"></span>
+        </div>
+        <div class="monitor vmon">
+          <div class="frame" id="srcFrame" hidden>
+            <canvas id="srcCanvas" width="1280" height="720" role="img" aria-label="Source monitor"></canvas>
+            <span class="ovl" id="srcLabel">SOURCE</span>
+          </div>
+          <p class="vempty" id="srcEmpty">Open a recording from <b>Media</b> (or double-click a clip on the timeline) to watch it here. Mark an In <kbd>I</kbd> and Out <kbd>O</kbd>, then <b>Insert</b> <kbd>,</kbd> or <b>Overwrite</b> <kbd>.</kbd> it at the playhead.</p>
+        </div>
+        <div class="srcbar" id="srcBar" data-mode="edit" hidden>
+          <div class="scrub" id="srcScrub" role="slider" tabindex="0" aria-label="Source position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="range" id="srcRangeBar"></i><span id="srcTicks"></span><i class="head" id="srcHeadBar"></i></div>
+          <span class="tc" id="srcRange"></span>
+        </div>
+        <div class="vctl transport" role="toolbar" aria-label="Source controls">
+          <span class="tgroup">
+            <button type="button" class="icon" id="srcIn" aria-keyshortcuts="I" aria-label="Mark In" title="Mark In (I)"><svg class="ic"><use href="#i-markin"/></svg></button>
+            <button type="button" class="icon" id="srcOut" aria-keyshortcuts="O" aria-label="Mark Out" title="Mark Out (O)"><svg class="ic"><use href="#i-markout"/></svg></button>
+          </span>
+          <span class="tspace"></span>
+          <span class="tgroup deck">
+            <button type="button" class="icon" id="srcStart" aria-keyshortcuts="Home" aria-label="Go to In" title="Go to In (Home)"><svg class="ic"><use href="#i-gotoin"/></svg></button>
+            <button type="button" class="icon" id="srcBack" aria-keyshortcuts="ArrowLeft" aria-label="Back one frame" title="Back one frame (←)"><svg class="ic"><use href="#i-stepback"/></svg></button>
+            <button type="button" class="icon play" id="srcPlay" aria-keyshortcuts="Space" aria-label="Play the source" title="Play / pause (Space)"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button type="button" class="icon" id="srcFwd" aria-keyshortcuts="ArrowRight" aria-label="Forward one frame" title="Forward one frame (→)"><svg class="ic"><use href="#i-stepfwd"/></svg></button>
+            <button type="button" class="icon" id="srcEnd" aria-keyshortcuts="End" aria-label="Go to Out" title="Go to Out (End)"><svg class="ic"><use href="#i-gotoout"/></svg></button>
+          </span>
+          <span class="tspace"></span>
+          <span class="tgroup">
+            <button type="button" class="icon" id="srcInsert" aria-keyshortcuts="," aria-label="Insert at the playhead" title="Insert (,): at the playhead, pushing what's after it along"><svg class="ic"><use href="#i-insert"/></svg></button>
+            <button type="button" class="icon" id="srcOverwrite" aria-keyshortcuts="." aria-label="Overwrite at the playhead" title="Overwrite (.): at the playhead, over what's there"><svg class="ic"><use href="#i-overwrite"/></svg></button>
+            <button type="button" id="srcSubclip" class="txt" title="Add the In to Out range to Media as a clip of its own">Subclip</button>
+            <button type="button" id="srcExport" class="txt" title="Save the In to Out range as an MP4">Export clip</button>
+          </span>
         </div>
       </div>
-    </div>
-    <div class="srcbar" id="srcBar" data-mode="edit" hidden>
-      <div class="scrub" id="srcScrub" role="slider" tabindex="0" aria-label="Source position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="range" id="srcRangeBar"></i><span id="srcTicks"></span><i class="head" id="srcHeadBar"></i></div>
-      <div class="srcrow">
-        <button type="button" id="srcPlay" class="go">Play</button>
-        <button type="button" id="srcIn" aria-keyshortcuts="I">Mark In <kbd>I</kbd></button>
-        <button type="button" id="srcOut" aria-keyshortcuts="O">Mark Out <kbd>O</kbd></button>
-        <span class="tc fine" id="srcRange"></span>
-        <span class="sp"></span>
-        <button type="button" id="srcSubclip">Make subclip</button>
-        <button type="button" id="srcInsert" aria-keyshortcuts=",">Insert <kbd>,</kbd></button>
-        <button type="button" id="srcOverwrite" aria-keyshortcuts=".">Overwrite <kbd>.</kbd></button>
-        <button type="button" id="srcExport">Export clip</button>
-      </div>
-    </div>
-    <div class="transport">
-      <button type="button" id="meterTgl" class="icon" aria-pressed="false" title="Program sound meters beside the picture" aria-label="Show program sound meters">♪</button>
-      <!-- (live only: on the Live studio page) -->
-      <div class="montabs" data-mode="edit" role="tablist" aria-label="Monitor">
-        <button type="button" role="tab" id="progTab" aria-selected="true" title="Program monitor (Shift 4)">Program</button>
-        <button type="button" role="tab" id="srcTab" aria-selected="false" title="Source monitor (Shift 2)">Source</button>
-      </div>
-      <span class="big tc" id="clock" aria-live="off">00:00:00</span>
-      <button type="button" id="playBtn" class="go icon" data-mode="edit" aria-keyshortcuts="Space" aria-label="Play" title="Play (Space)">▶</button>
-      <span class="tgroup" data-mode="edit" role="group" aria-label="Edit">
-        <button type="button" class="icon" id="undoBtn" aria-keyshortcuts="Control+Z Meta+Z" aria-label="Undo" title="Undo (Ctrl/⌘ Z)">↶</button>
-        <button type="button" class="icon" id="redoBtn" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" aria-label="Redo" title="Redo (Ctrl/⌘ Shift Z)">↷</button>
-        <button type="button" class="icon" id="splitBtn" aria-keyshortcuts="Control+K Meta+K" aria-label="Split at the playhead" title="Split at the playhead (Ctrl/⌘ K)">✂</button>
-      </span>
-      <details class="addmenu" data-mode="edit">
-        <summary class="btn">+ Add</summary>
-        <div class="menu" role="menu">
-          <button type="button" role="menuitem" data-add="lower">Lower third <kbd>T</kbd></button>
-          <button type="button" role="menuitem" data-add="card">Title card</button>
-          <button type="button" role="menuitem" data-add="slate">Break slate</button>
-          <button type="button" role="menuitem" data-add="image">Image or logo</button>
-          <button type="button" role="menuitem" data-add="pip">Picture-in-picture <kbd>P</kbd></button>
-          <button type="button" role="menuitem" data-add="vtrack">Video track</button>
-          <button type="button" role="menuitem" data-add="atrack">Audio track</button>
+      <!-- the Program viewer: the edit as it plays, at the timeline's playhead -->
+      <div class="viewer vprog on" id="progView">
+        <div class="vhead">
+          <button type="button" role="tab" id="progTab" aria-selected="true" aria-controls="program" title="Program monitor (Shift 4): Space, J K L and the arrow keys play and step the timeline">Program</button>
+          <span class="vtitle" id="progName">Timeline</span>
+          <span class="vtc tc" id="clock" aria-live="off">00:00:00</span>
         </div>
-      </details>
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <span class="tspace"></span>
-      <span class="tgroup" role="group" aria-label="Panels">
-        <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the left panel" title="Left panel">◧</button>
-        <button type="button" class="icon" id="togRight" aria-pressed="true" aria-label="Show the inspector" title="Inspector">◨</button>
-      </span>
-      <!-- (live only: on the Live studio page) -->
-      <span class="hint" data-mode="edit"><kbd>Space</kbd> play · <kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> shuttle · <kbd>1</kbd>–<kbd>9</kbd> cut · <kbd>?</kbd> all keys</span>
+        <div class="monitor vmon">
+          <button type="button" class="soundoff" id="soundOff" hidden>🔇 Sound is paused by the browser. Click to turn it on.</button>
+          <div class="pmeters" id="pMeters" hidden aria-hidden="true">
+            <div class="pmscale"><span style="--p:100%">0</span><span style="--p:80%">-12</span><span style="--p:60%">-24</span><span style="--p:40%">-36</span><span style="--p:20%">-48</span></div>
+            <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
+            <div class="pm"><i class="fill"></i><i class="peak"></i><i class="clip"></i></div>
+            <span class="pmlab">L&nbsp;R</span>
+          </div>
+          <div class="frame" id="progFrame">
+            <canvas id="program" width="1280" height="720" role="img" aria-label="Program output"></canvas>
+            <div class="kcount" id="kCount" hidden aria-live="assertive"><b></b></div>
+            <span class="ovl" id="progLabel">ON AIR</span>
+            <span class="ovl tc" id="ptc"></span>
+            <span class="ovl" id="slateTag" hidden>BREAK</span>
+            <div class="xform" id="xform" hidden aria-hidden="true">
+              <i class="hdl nw" data-h="nw"></i><i class="hdl ne" data-h="ne"></i><i class="hdl sw" data-h="sw"></i><i class="hdl se" data-h="se"></i>
+              <i class="rot" data-h="rot" title="Rotate (Shift: 15° steps)"></i>
+            </div>
+          </div>
+        </div>
+        <div class="pbar" id="pBar">
+          <div class="scrub" id="pScrub" role="slider" tabindex="0" aria-label="Position in the edit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="range" id="pRangeBar" hidden></i><i class="head" id="pHeadBar"></i></div>
+          <span class="tc" id="pRange"></span>
+        </div>
+        <div class="vctl transport" role="toolbar" aria-label="Program controls">
+          <span class="tgroup">
+            <button type="button" id="meterTgl" class="icon" aria-pressed="false" title="Program sound meters beside the picture" aria-label="Show program sound meters"><svg class="ic"><use href="#i-meters"/></svg></button>
+            <button type="button" class="icon" id="pIn" aria-keyshortcuts="I" aria-label="Mark In (what Export renders from)" title="Mark In (I): Export renders from here"><svg class="ic"><use href="#i-markin"/></svg></button>
+            <button type="button" class="icon" id="pOut" aria-keyshortcuts="O" aria-label="Mark Out (what Export renders to)" title="Mark Out (O): Export renders to here"><svg class="ic"><use href="#i-markout"/></svg></button>
+          </span>
+          <span class="tspace"></span>
+          <span class="tgroup deck">
+            <button type="button" class="icon" id="pStart" aria-keyshortcuts="Home" aria-label="Go to the start" title="Go to the start (Home)"><svg class="ic"><use href="#i-tostart"/></svg></button>
+            <button type="button" class="icon" id="pPrev" aria-keyshortcuts="ArrowUp" aria-label="Previous edit" title="Previous edit (↑)"><svg class="ic"><use href="#i-prevedit"/></svg></button>
+            <button type="button" class="icon" id="pBack" aria-keyshortcuts="ArrowLeft" aria-label="Back one frame" title="Back one frame (←, Shift: five)"><svg class="ic"><use href="#i-stepback"/></svg></button>
+            <button type="button" id="playBtn" class="icon play" aria-keyshortcuts="Space" aria-label="Play" title="Play / pause (Space; J K L shuttle)"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button type="button" class="icon" id="pFwd" aria-keyshortcuts="ArrowRight" aria-label="Forward one frame" title="Forward one frame (→, Shift: five)"><svg class="ic"><use href="#i-stepfwd"/></svg></button>
+            <button type="button" class="icon" id="pNext" aria-keyshortcuts="ArrowDown" aria-label="Next edit" title="Next edit (↓)"><svg class="ic"><use href="#i-nextedit"/></svg></button>
+            <button type="button" class="icon" id="pEnd" aria-keyshortcuts="End" aria-label="Go to the end" title="Go to the end (End)"><svg class="ic"><use href="#i-toend"/></svg></button>
+          </span>
+          <span class="tspace"></span>
+          <span class="tgroup" role="group" aria-label="Panels">
+            <span class="tc vdur" id="progDur" title="Length of the edit"></span>
+            <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the left panel" title="Media panel"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button type="button" class="icon" id="togRight" aria-pressed="true" aria-label="Show the inspector" title="Inspector"><svg class="ic"><use href="#i-right"/></svg></button>
+          </span>
+        </div>
+      </div>
     </div>
   </section>
 
   <div class="splitter v" id="splitR" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the inspector (double-click to hide or show)"></div>
 
   <aside class="panel insp" aria-label="Inspector">
-    <section>
-      <h2>Output</h2>
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <!-- (live only: on the Live studio page) -->
-      <p class="warnbox" id="pgmFormat" hidden role="status"></p>
-      <div class="seg2" role="group" aria-label="Output shape">
-        <button type="button" id="landBtn" aria-pressed="true">Landscape</button>
-        <button type="button" id="portBtn" aria-pressed="false">Portrait</button>
+    <div class="cardtools"><span class="ihead">Inspector</span><button type="button" class="small" id="cardsFold" title="Close every card (open the one you need; this computer remembers)">Close all</button></div>
+    <details class="card" id="cardSel" open>
+      <summary><span class="sT" id="selTitle">Selection</span><span class="sD" id="selDesc">Nothing selected</span></summary>
+      <div class="sIn" id="selPanel" aria-live="polite"></div>
+    </details>
+    <details class="card" id="cardMedia" open hidden>
+      <summary><span class="sT" id="mediaTitle">Recording</span><span class="sD" id="mediaDesc"></span></summary>
+      <div class="sIn" id="mediaInsp" hidden></div>
+    </details>
+    <details class="card" id="cardMix" open>
+      <summary><span class="sT">Audio mixer</span><span class="sD">Each track's level, and Mono for a one-sided microphone</span></summary>
+      <div class="sIn">
+        <div id="mixer" class="mixer"></div>
+        <button type="button" class="small" data-console title="Open the audio console in its own window: EQ, balance, big meters, spectrum and stereo picture">Audio console ↗</button>
       </div>
-      <div class="seg2" role="group" aria-label="Framing">
-        <button type="button" id="fillBtn" aria-pressed="true">Fill frame</button>
-        <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
+    </details>
+    <details class="card" id="cardOutput" open>
+      <summary><span class="sT">Output</span><span class="sD">The picture's shape, and how shots fill it</span></summary>
+      <div class="sIn">
+        <p class="warnbox" id="pgmFormat" hidden role="status"></p>
+        <div class="seg2" role="group" aria-label="Output shape">
+          <button type="button" id="landBtn" aria-pressed="true">Landscape</button>
+          <button type="button" id="portBtn" aria-pressed="false">Portrait</button>
+        </div>
+        <div class="seg2" role="group" aria-label="Framing">
+          <button type="button" id="fillBtn" aria-pressed="true">Fill frame</button>
+          <button type="button" id="fitBtn" aria-pressed="false">Whole shot</button>
+        </div>
+        <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
       </div>
-      <p class="fine">Every shot is shaped to one output, so landscape and portrait phones never mix. Fill crops to fit; whole shot adds bars.</p>
-    </section>
-    <section data-mode="edit" id="mediaInsp" hidden></section>
-    <section data-mode="edit" id="selPanel" aria-live="polite"></section>
-    <section data-mode="edit">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0">Mixer</h2><button type="button" class="small" style="margin:0" data-console title="Open the audio console in its own window: EQ, balance, big meters, spectrum and stereo picture">Audio console ↗</button></div>
-      <div id="mixer" class="mixer"></div>
-      <p class="fine" data-mode="edit">Each audio track has its own level. Mono plays a one-sided phone mic in both ears.</p>
-    </section>
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <!-- (live only: on the Live studio page) -->
-    <section data-mode="edit">
-      <h2>Finish</h2>
-      <p class="fine" id="rangeInfo" style="margin:0 0 6px">Renders the whole timeline. Press <kbd>I</kbd> and <kbd>O</kbd> on the timeline to render just part of it.</p>
-      <button type="button" id="rangeClear" class="small" hidden style="margin:0 0 6px">Clear in/out</button>
-      <button type="button" id="renderBtn" class="primary" style="width:100%;margin-bottom:6px">Render MP4</button>
-      <div class="tools">
-        <button type="button" id="syncBtn" title="Check every clip is locked to the beacon, fine-tune any with the beacon in shot, and say which phones never synced">Auto-sync</button>
-        <button type="button" id="autoCutBtn">Auto-cut</button>
-        <button type="button" id="rebuildBtn" title="Rebuild the Program track from your live cuts">Rebuild cuts</button>
-        <button type="button" id="exportBtn" title="Record the program in real time (works everywhere)">Real-time export</button>
+    </details>
+    <details class="card" id="cardFinish" open>
+      <summary><span class="sT">Export</span><span class="sD">Render the edit, and tidy it up first</span></summary>
+      <div class="sIn">
+        <p class="fine" id="rangeInfo" style="margin:0 0 6px">Renders the whole timeline. Press <kbd>I</kbd> and <kbd>O</kbd> on the timeline to render just part of it.</p>
+        <button type="button" id="rangeClear" class="small" hidden style="margin:0 0 6px">Clear in/out</button>
+        <button type="button" id="renderBtn" class="primary" style="width:100%;margin-bottom:6px">Render MP4</button>
+        <div class="tools">
+          <button type="button" id="syncBtn" title="Check every clip is locked to the beacon, fine-tune any with the beacon in shot, and say which phones never synced">Auto-sync</button>
+          <button type="button" id="autoCutBtn" title="Cut between the angles by itself">Auto-cut</button>
+          <button type="button" id="rebuildBtn" title="Rebuild the Program track from your live cuts">Rebuild cuts</button>
+          <button type="button" id="exportBtn" title="Record the program in real time (works everywhere)">Real-time export</button>
+        </div>
+        <p class="fine">Render MP4 works faster than real time and includes every layer, title, slate and fade.</p>
       </div>
-      <p class="fine">Render MP4 works faster than real time and includes every layer, title, slate and fade.</p>
-    </section>
-    <section id="credits" aria-live="polite" hidden></section>
+    </details>
+    <details class="card" id="cardCredits" open hidden>
+      <summary><span class="sT">Shot by</span><span class="sD">Whose picture is on screen, and for how long</span></summary>
+      <div class="sIn" id="credits" aria-live="polite" hidden></div>
+    </details>
   </aside>
 <aside class="kioskside" id="kioskSide" aria-label="Join this show">
   <p class="kcall" id="kCall">Scan to start a show</p>
@@ -801,22 +1035,44 @@
 </aside>
 </main>
 
-<!-- (live only: on the Live studio page) -->
-<!-- (live only: on the Live studio page) -->
 <div class="splitter h" id="splitT" data-mode="edit" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize the timeline (double-click to reset)"></div>
 <div class="tlbar" data-mode="edit" role="toolbar" aria-label="Timeline tools">
+  <span class="tltc tc" id="tlTc" title="The playhead">00:00:00</span>
   <span class="tools" id="toolBtns"></span>
   <span class="sep"></span>
-  <button type="button" id="snapBtn" aria-pressed="true" aria-keyshortcuts="S" title="Snapping (S)">Snap <kbd>S</kbd></button>
-  <button type="button" id="markerBtn" aria-keyshortcuts="M" title="Add marker (M)">Marker <kbd>M</kbd></button>
-  <button type="button" id="fitBtnTl" aria-keyshortcuts="\" title="Zoom to fit (\)">Fit <kbd>\</kbd></button>
-  <button type="button" id="turnsBtn" title="Cut clips wherever a phone was turned">Split at turns</button>
-  <button type="button" id="xdBtn" title="Dissolve into the selected clip, or the shot at the playhead (D); again takes it off. Right-click a clip for other lengths.">Dissolve</button>
-  <button type="button" id="gapsBtn" title="Take out every stretch where no camera was recording, on all tracks">Collapse gaps</button>
+  <span class="tgroup">
+    <button type="button" class="icon" id="undoBtn" aria-keyshortcuts="Control+Z Meta+Z" aria-label="Undo" title="Undo (Ctrl/⌘ Z)"><svg class="ic"><use href="#i-undo"/></svg></button>
+    <button type="button" class="icon" id="redoBtn" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" aria-label="Redo" title="Redo (Ctrl/⌘ Shift Z)"><svg class="ic"><use href="#i-redo"/></svg></button>
+  </span>
   <span class="sep"></span>
-  <span class="fine" id="toolHelp"></span>
+  <span class="tgroup">
+    <button type="button" class="icon" id="splitBtn" aria-keyshortcuts="Control+K Meta+K" aria-label="Split the selected clip at the playhead" title="Split at the playhead (Ctrl/⌘ K splits every track)"><svg class="ic"><use href="#i-split"/></svg></button>
+    <button type="button" class="icon" id="snapBtn" aria-pressed="true" aria-keyshortcuts="S" aria-label="Snapping" title="Snapping (S)"><svg class="ic"><use href="#i-snap"/></svg></button>
+    <button type="button" class="icon" id="markerBtn" aria-keyshortcuts="M" aria-label="Add a marker at the playhead" title="Add marker (M)"><svg class="ic"><use href="#i-marker"/></svg></button>
+    <button type="button" class="icon" id="xdBtn" aria-keyshortcuts="D" aria-label="Dissolve" title="Dissolve into the selected clip, or the shot at the playhead (D); again takes it off. Right-click a clip for other lengths."><svg class="ic"><use href="#i-dissolve"/></svg></button>
+  </span>
+  <details class="addmenu" data-mode="edit">
+    <summary class="btn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add</summary>
+    <div class="menu" role="menu">
+      <button type="button" role="menuitem" data-add="lower">Lower third <kbd>T</kbd></button>
+      <button type="button" role="menuitem" data-add="card">Title card</button>
+      <button type="button" role="menuitem" data-add="slate">Break slate</button>
+      <button type="button" role="menuitem" data-add="image">Image or logo</button>
+      <button type="button" role="menuitem" data-add="pip">Picture-in-picture <kbd>⇧P</kbd></button>
+      <button type="button" role="menuitem" data-add="vtrack">Video track</button>
+      <button type="button" role="menuitem" data-add="atrack">Audio track</button>
+    </div>
+  </details>
+  <button type="button" id="turnsBtn" class="txt" title="Cut clips wherever a phone was turned">Split at turns</button>
+  <button type="button" id="gapsBtn" class="txt" title="Take out every stretch where no camera was recording, on all tracks">Collapse gaps</button>
+  <span class="fine" id="toolHelp" aria-live="polite"></span>
   <span class="tspace"></span>
-  <label class="zoomctl">Zoom <input id="zoom" type="range" min="2" max="120" value="12" aria-label="Timeline zoom"></label>
+  <span class="tgroup zoomctl">
+    <button type="button" class="icon" id="zoomOut" aria-keyshortcuts="-" aria-label="Zoom out" title="Zoom out (−)"><svg class="ic"><use href="#i-zoomout"/></svg></button>
+    <input id="zoom" type="range" min="2" max="120" value="12" aria-label="Timeline zoom">
+    <button type="button" class="icon" id="zoomIn" aria-keyshortcuts="=" aria-label="Zoom in" title="Zoom in (=)"><svg class="ic"><use href="#i-zoomin"/></svg></button>
+    <button type="button" class="icon" id="fitBtnTl" aria-keyshortcuts="\" aria-label="Zoom to fit" title="Zoom to fit (\)"><svg class="ic"><use href="#i-fit"/></svg></button>
+  </span>
 </div>
 <section class="timeline" id="timeline" data-mode="edit" aria-label="Timeline">
   <div class="heads" id="heads"></div>

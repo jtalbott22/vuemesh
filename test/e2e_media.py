@@ -61,6 +61,9 @@ with sync_playwright() as p:
     # Source monitor: open the recording, mark In 1 s / Out 3 s, make a subclip
     ed.click('#mediaList li[data-kind="clip"] >> nth=0'); time.sleep(0.8)
     assert ed.is_visible('#srcFrame') and ed.is_visible('#srcBar')
+    # the Source and Program viewers side by side, as in an editing suite (the Program still showing)
+    sbox, pbox = ed.locator('#srcCanvas').bounding_box(), ed.locator('#program').bounding_box()
+    assert ed.is_visible('#progFrame') and sbox['x'] + sbox['width'] <= pbox['x'] and abs(sbox['y'] - pbox['y']) < 40, (sbox, pbox)
     sb = ed.locator('#srcScrub').bounding_box()
     dur = ed.evaluate("document.querySelector('#srcRange').textContent")
     clipdur = ed.evaluate("async () => { const c = await new Promise(r => { const q = indexedDB.open('vuemesh'); q.onsuccess = () => { const t = q.result.transaction('clips').objectStore('clips').getAll(); t.onsuccess = () => r(t.result); }; }); return c.map(x => x.dur); }")[0]

@@ -301,7 +301,8 @@ function renderSync() {
   p.textContent = !cams.length ? 'For cameras plugged into this computer; none yet.'
     : `Every picture is ${pictureDelay} ms behind the moment, from every camera, so a cut never jumps. Each camera: ${cams.map((l) => `${l.name} ${Math.round(latencyOf(l))} ms${saved[deviceKey(l)] == null ? ' (usual; run the sync check)' : ''}`).join(', ')}.`;
 }
-$('#syncBtn')?.addEventListener('click', () => syncCheck());
+// (the Edit window's #syncBtn is its own Auto-sync, of recordings: not this, which listens for a clap)
+if (!EDIT_ONLY) $('#syncBtn')?.addEventListener('click', () => syncCheck());
 window.vmSync = () => ({ P: pictureDelay, check: lastCheck, cams: [...buffers].map(([p, b]) => ({ peer: p, name: live.get(p)?.name, lag: b.lag, spread: b.spread, latency: latencyOf(live.get(p)), frames: b.frames.length, count: b.count, quiet: Math.round(b.silentFor()) })), sound: [...soundOffset].map(([p, ms]) => ({ peer: p, ms: Math.round(ms), delay: syncedSoundDelay(p) })) }); // (tests and diagnostics)
 window.vmSyncCheck = syncCheck;
 window.vmEngine = () => player.ctx; // (tests: the sound engine, to pause it as a device change can)

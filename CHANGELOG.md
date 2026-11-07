@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.62.0 — Edit laid out like an editing suite: Source and Program side by side
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **A Source viewer and a Program viewer, side by side** (as Premiere's Source and Program monitors, or Resolve's two viewers), where one monitor flipped between them and hid the edit while you looked at a recording. Open a recording from Media and it plays in Source while the Program still shows the edit at the playhead. The one you last clicked has the keys (an amber line across its top): Space, J K L, the arrows, I and O; clicking the timeline gives them to the Program. In a narrower window (under about 1,200 pixels wide, with the side panels as they start) they take turns, their two headers as tabs.
+- **Each viewer has its own transport:** go to In or the start, back a frame, play, forward a frame, go to Out or the end, and, on the Program, previous and next edit; Mark In and Mark Out on each (on the Program they set what Export renders), Insert and Overwrite on the Source, with Subclip and Export clip. Its header says what's showing and where (the angle at the playhead, its timecode), where labels sat over the picture.
+- **A bar under each picture:** where you are in the recording or the edit, with its In to Out range; drag it to scrub. The Program's says how long the edit is.
+- **The timeline's tools are icons, as an editing suite's:** Selection, Ripple, Rolling, Razor, Slip, Slide and Hand (V B N C Y U H), then Undo and Redo, Split, Snap, Marker and Dissolve, **Add** (titles, slates, images, picture-in-picture, tracks), Split at turns and Collapse gaps, and zoom out, in and to fit; the playhead's timecode at the left. Hover over one for its name and key.
+- **Tracks are named V2, V1, A1, A2** beside their names; click the name tag to target the track for Insert and Overwrite (blue). Lock, show or hide (an eye) and Mute (M) are icons, and moving a track up or down or deleting it is there when you point at it, so the names have room. Each video clip shows its recording's first frame at its head; the ruler has minor ticks, and the playhead a tab on it.
+- **The inspector is the studio's cards:** the selected clip (named, with its track, start and length), the recording or subclip from Media, the audio mixer, Output and Export, each opened or closed with Close all, and kept as you left them (apart from the studio's).
+- **Export is in the top bar,** as in an editing app. The live show's own controls aren't: no Beacon, Full screen, Camera control or "0 phones in" (the Edit window connects to no phones), and an **Edit** tag says which window this is.
+- **Auto-sync in Edit no longer starts the studio's clap check:** it lined up the recordings and also said "The sync check is for cameras plugged into this computer".
+- **"Program (as aired)" in Media is called that,** not "? Program (as aired)", and Edit no longer shows the live program recording's "? video" note.
+
+**Tests:** `e2e_media` checks the Source and Program viewers are side by side with a recording open; `e2e_audio_console` finds the audio console button in the mixer's card.
+
 ## 0.61.16 — sound alerts under a bell, not over the program; closing the switcher is Tap: Air again
 **Deploy:** `./aws/deploy.sh` (site only).
 

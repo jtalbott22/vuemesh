@@ -362,7 +362,7 @@ export const help = helpDialog('Studio help', [
       ['Alt + ← / →', 'Nudge the selected item a frame (Shift: five)'],
       ['↑ / ↓', 'Previous or next cut point or marker'],
       ['1 – 9', 'Cut the Program to that angle at the playhead'],
-      ['Shift + 2 / Shift + 4', 'Source monitor / Program monitor'],
+      ['Shift + 2 / Shift + 4', 'Give the keys to the Source / Program monitor (or click in it)'],
       ['I / O', 'In the Source monitor: mark In and Out'],
       [', / .', 'Insert / overwrite the Source In–Out at the playhead'],
       ['Ctrl/⌘ + K', 'Add edit: cut every unlocked track at the playhead'],
@@ -839,16 +839,31 @@ export function note(text) {
 }
 
 // The monitors fill whatever space the layout leaves them, keeping their shape.
+/** A card in the Edit page's inspector (a <details> round `box`): its title and line, and it shows
+ *  only while `box` does. (On a page without cards, nothing happens.) */
+export function cardHead(box, title, desc) {
+  const card = box?.closest?.('details.card');
+  if (!card) return;
+  card.hidden = !!box.hidden;
+  const sT = card.querySelector('.sT'), sD = card.querySelector('.sD');
+  if (title != null && sT && sT.textContent !== title) sT.textContent = title;
+  if (desc != null && sD && sD.textContent !== desc) sD.textContent = desc;
+}
+
 export function fitMonitors() {
-  const box = document.querySelector('.monitor');
-  if (!box) return;
-  const cs = getComputedStyle(box);
-  const W = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 6;
-  const H = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 6;
+  // each picture fits the monitor it's in (the studio has one for both; Edit has a Source and a Program viewer)
   for (const cv of [program, $('#srcCanvas')]) {
+    const box = cv?.closest?.('.monitor');
+    if (!box) continue;
+    const cs = getComputedStyle(box);
+    const W = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 6;
+    const H = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 6;
     const k = Math.max(0.05, Math.min(W / cv.width, H / cv.height));
     cv.style.width = Math.floor(cv.width * k) + 'px';
     cv.style.height = Math.floor(cv.height * k) + 'px';
   }
 }
-if (document.querySelector('.monitor')) new ResizeObserver(fitMonitors).observe(document.querySelector('.monitor'));
+{
+  const ro = new ResizeObserver(fitMonitors);
+  document.querySelectorAll('.monitor').forEach((m) => ro.observe(m));
+}

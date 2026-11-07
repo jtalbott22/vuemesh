@@ -6,7 +6,7 @@ import { PIP, tfOf, TF_PRESETS, transformBox } from '/js/compose.js';
 import { SLATE_LOOKS } from '/js/slates.js';
 import * as S from '/js/sequence.js';
 import {
-  $, COLORS, FRAME, dbToGain, fit, gainToDb, isHost, mode, note, orientation, player, program,
+  $, COLORS, FRAME, cardHead, dbToGain, fit, gainToDb, isHost, mode, note, orientation, player, program,
   selectedItem, seq, setSelectedItem, thumbs, timeline,
 } from './core.js';
 import {
@@ -14,13 +14,14 @@ import {
   videoClips, viewOf,
 } from './clips.js';
 import { reel } from './graphics.js';
-import { resolveMarkers } from './transport.js';
+import { renderProgBar, resolveMarkers } from './transport.js';
 import { cutTo, deleteSelected, splitSelected } from './editops.js';
-import { monTab } from './library.js';
+import { dual, monTab } from './library.js';
 
 // ---------------------------------------------------------------- edit mode ---
 
 export function renderMulti() {
+  renderThumbCss();
   const box = $('#multi');
   box.querySelector('.empty')?.remove();
   box.querySelectorAll('.cam, [data-peer]').forEach((t) => (t.style.display = 'none'));
@@ -52,11 +53,23 @@ export function renderMulti() {
   }
 }
 
+// each recording's first frame, at the head of its clips on the timeline (one rule per recording, not
+// one image per clip in the timeline's markup: it's drawn again on every drag)
+let thumbCss = null, thumbCount = -1;
+function renderThumbCss() {
+  if (thumbs.size === thumbCount || !document.querySelector('#tracks')) return;
+  thumbCount = thumbs.size;
+  thumbCss ||= document.head.appendChild(document.createElement('style'));
+  thumbCss.textContent = [...thumbs].map(([id, url]) => `.item[data-src="${CSS.escape(id)}"]{--thumb:url("${url}");--thumbw:60px}`).join('\n');
+}
+
 export function renderTimeline() {
+  renderThumbCss();
   resolveMarkers();
   renderRangeInfo();
   timeline.selected = selectedItem;
   timeline.render();
+  renderProgBar();
 }
 
 export function select(id) {
@@ -71,7 +84,8 @@ export function renderInspector() {
   const box = $('#selPanel');
   const f = selectedItem && S.findItem(seq, selectedItem);
   if (!f) {
-    box.innerHTML = `<h2>Selection</h2><p class="fine" style="margin:0">Click an item on the timeline to trim, move, or change it. ${seq.auto ? 'The Program follows your live cuts until you edit it by hand.' : 'The Program is hand-edited; “Rebuild cuts” starts it over from your live cuts.'}</p>`;
+    cardHead(box, 'Selection', 'Nothing selected');
+    box.innerHTML = `<p class="fine" style="margin:0">Click a clip on the timeline to trim, move, or change it. ${seq.auto ? 'The Program follows your live cuts until you edit it by hand.' : 'The Program is hand-edited; “Rebuild cuts” starts it over from your live cuts.'}</p>`;
     return;
   }
   const { item: it, track: tr } = f;
@@ -80,7 +94,8 @@ export function renderInspector() {
   const fades = [0, 300, 500, 1000];
   const fadeSel = (name, v) => `<select data-f="${name}" aria-label="${name === 'fadeIn' ? 'Fade in' : 'Fade out'}">${fades.map((x) => `<option value="${x}" ${x === (v || 0) ? 'selected' : ''}>${x ? x / 1000 + ' s' : 'None'}</option>`).join('')}</select>`;
   const isVideo = tr.kind === 'video';
-  box.innerHTML = `<h2>Selection</h2>
+  cardHead(box, l.text, `${tr.name} · ${fmtDur(it.start)} · ${fmtDur(it.dur).slice(0, -3)} long`);
+  box.innerHTML = `
     <div class="sel">
       <div class="kv"><span>Item</span><b>${esc(l.text)}</b><span>Track</span><span>${esc(tr.name)}</span><span>Starts</span><span class="tc">${fmtDur(it.start)}</span><span>Length</span><span class="tc">${fmtDur(it.dur)}</span></div>
       ${it.type === 'title' ? `<label for="selText">Text</label><input type="text" id="selText" value="${esc(it.text || '')}"><label for="selSub">Second line</label><input type="text" id="selSub" value="${esc(it.sub || '')}">` : ''}
@@ -162,8 +177,9 @@ export function renderCredits() {
   const list = credits();
   const sound = soundCredits();
   box.hidden = !list.length && !sound.length;
+  cardHead(box);
   if (box.hidden) return;
-  box.innerHTML = `<h2>Shot by</h2><table>${list
+  box.innerHTML = `<table>${list
     .map((c) => `<tr><td>${esc(c.name)}</td><td>${(c.share * 100).toFixed(0)}%</td></tr>`)
     .join('')}${sound.map((n) => `<tr><td>${esc(n)}</td><td>sound</td></tr>`).join('')}</table>`;
 }
@@ -281,7 +297,7 @@ function layerBoxCss(f) {
 }
 let xfDrag = null;
 (function xformLoop() {
-  const f = mode === 'edit' && monTab === 'program' && isHost ? selectedLayer() : null;
+  const f = mode === 'edit' && (monTab === 'program' || dual) && isHost ? selectedLayer() : null;
   // A clip is selected but the playhead isn't over it: say why there are no handles.
   const hint = document.querySelector('#tfHint');
   if (hint) {
@@ -350,7 +366,7 @@ xf.addEventListener('pointercancel', xfEnd);
 
 // Click the picture to select the layer under the pointer (top track first).
 program.addEventListener('pointerdown', (e) => {
-  if (mode !== 'edit' || monTab !== 'program') return;
+  if (mode !== 'edit' || (monTab !== 'program' && !dual)) return;
   const fr = $('#progFrame').getBoundingClientRect();
   const px = e.clientX - fr.left, py = e.clientY - fr.top;
   const t = player.t;
