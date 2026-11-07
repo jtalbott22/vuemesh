@@ -13,7 +13,7 @@ const THUMB_W = 32, THUMB_H = 18;
 
 export class FrameBuffer {
   /**
-   * @param {MediaStreamTrack} track  a live camera (or screen) track
+   * @param {MediaStreamTrack} track  a live camera (or screen) track of its own (a clone): stop() stops it
    * @param {object} [o]
    * @param {() => {w:number, h:number}} [o.size]  the program's size (frames are kept at most this big)
    * @param {'low'|'medium'|'high'} [o.quality]  how smoothly a frame bigger than that is shrunk
@@ -122,6 +122,7 @@ export class FrameBuffer {
     this.reader?.cancel().catch(() => {});
     for (const f of this.frames) f.bmp.close();
     this.frames = [];
+    this.track?.stop(); // (its own copy of the camera's track: left open, it kept the camera open after the camera left the show)
   }
 }
 
@@ -203,5 +204,6 @@ export class SoundTap {
   stop() {
     this.stopped = true;
     this.reader?.cancel().catch(() => {});
+    this.track?.stop(); // (its own copy of the track, as a FrameBuffer's)
   }
 }

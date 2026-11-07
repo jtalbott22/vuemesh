@@ -74,13 +74,20 @@ with sync_playwright() as p:
     assert off == 0 and on == 1, (off, on)
     step(f'AFV follows "{label}": the microphone is out of the mix with the other camera on air, in with that one')
 
-    # 3b. this computer's cameras at 720p (lighter on USB), at once
+    # 3b. this computer's cameras follow the output's size, or 720p (lighter on USB), at once
     hs = lambda: host.evaluate("[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).map(v => v.srcObject.getVideoTracks()[0].getSettings().height)")
+    all_at = lambda h: f"[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).every(v => v.srcObject.getVideoTracks()[0].getSettings().height === {h})"
     before = hs()
+    host.select_option('#outSize', '1080')
+    host.wait_for_function(all_at(1080), timeout=8000)
+    at1080 = hs()
     host.select_option('#camSize', '720')
-    host.wait_for_function("[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).every(v => v.srcObject.getVideoTracks()[0].getSettings().height === 720)", timeout=8000)
-    host.select_option('#camSize', '1080')
-    step(f"this computer's cameras to 720p, lighter on USB: {before} → {[720] * len(before)}, at once")
+    host.wait_for_function(all_at(720), timeout=8000)
+    host.select_option('#camSize', 'auto')
+    host.wait_for_function(all_at(1080), timeout=8000)
+    host.select_option('#outSize', '720')
+    host.wait_for_function(all_at(720), timeout=8000)
+    step(f"this computer's cameras follow the output: {before} → output 1080p {at1080} → 720p chosen, lighter on USB → as the output again (1080p) → output 720p, at once")
 
     # 4. the phone remote's mixer: a channel's mode and level from the phone
     host.click('#remoteAdd')

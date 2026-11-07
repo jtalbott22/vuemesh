@@ -26,7 +26,9 @@
 //   pd    the program's picture delay: every camera here shows the moment this long ago (ms)
 //   dup   frames the studio was too late to draw that second (the same picture again)
 //   rs    Record program: frames written, dropped (skipped), held (frames the studio was late for, written as
-//         the picture before held longer), queue (the encoder's), drift (sound minus picture, ms),
+//         the picture before held longer, when the encoder had no room for copies), queue (the encoder's),
+//         enc ([mean, longest] ms the encoder took a frame given to it with nothing waiting, that second)
+//         and out (frames it gave back that second), drift (sound minus picture, ms),
 //         clamped (frames asked for past the recording's time, not written), fixes (the sound: ms taken
 //         out, put in, silence for gaps, overMs: past the recording's time, left out)
 

@@ -987,7 +987,7 @@
       <p class="warnbox" id="pgmFormat" hidden role="status"></p>
       <div class="row" style="gap:8px;flex-wrap:wrap;margin:0 0 4px">
         <label style="margin:0">Frame rate <select id="outFps" aria-describedby="outHint"></select></label>
-        <label style="margin:0">Size <select id="outSize" aria-describedby="outHint"><option value="720">720p</option><option value="1080">1080p</option></select></label>
+        <label style="margin:0">Size <select id="outSize" aria-describedby="outHint"><option value="720">720p (smooth on most computers)</option><option value="1080">1080p (a powerful computer)</option></select></label>
       </div>
       <p class="fine" id="outHint" style="margin:0 0 8px"></p>
       <div class="seg2" role="group" aria-label="Output shape">
@@ -1042,7 +1042,7 @@
       <summary><span class="sT">Sync</span><span class="sD">This computer's cameras and microphones, in time</span></summary>
       <div class="sIn">
       <label for="camSize" style="margin-top:10px">This computer's cameras capture at</label>
-      <select id="camSize" aria-describedby="camSizeHint"><option value="1080">1080p</option><option value="720">720p (lighter on USB)</option></select>
+      <select id="camSize" aria-describedby="camSizeHint"><option value="auto">As the output</option><option value="720">720p (lighter on USB)</option></select>
       <p class="fine" id="camSizeHint" style="margin:2px 0 6px"></p>
       <h3 class="sub" style="margin:12px 0 4px">In time</h3>
       <p class="fine" id="syncState" style="margin:0 0 6px"></p>

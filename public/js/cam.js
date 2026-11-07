@@ -2928,6 +2928,8 @@ async function libRecords(evId) {
 /** A studio recording deleted here: gone from storage, from the studio's editor if it's open, and from its saved timeline. */
 async function deleteStudioRecording(r) {
   await idb.remove('clips', r.eventId, r.id).catch(() => {});
+  // (Record program's file is kept twice, as this and as the show's master: both go, or the file stays)
+  if (r.program && String(r.id).startsWith('PGM-')) await idb.remove('program', r.eventId, 'master-' + r.id.slice(4)).catch(() => {});
   try {
     const ch = new BroadcastChannel('vuemesh-monitor-' + r.eventId);
     ch.postMessage({ type: 'delete', id: r.id });

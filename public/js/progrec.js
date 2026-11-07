@@ -4,8 +4,9 @@
 // arrive, so a busy or hidden studio makes a file at a frame rate of its own (a class came out at
 // 26.11), and its MP4 is fragmented with no index, which Windows' player can't scrub. This one
 // encodes the program itself: one frame for every output frame the studio's clock says is due
-// (a frame the studio was too late to draw is the same picture again, so time is kept), each
-// stamped n / fps, with the live mix as AAC, into a normal MP4 with its index at the end.
+// (a frame the studio was too late to draw is the same picture again, so time is kept: written
+// again, or, if the encoder has no room for the copies, held for as long), each stamped n / fps,
+// with the live mix as AAC, into a normal MP4 with its index at the end.
 // It writes to this browser's private file storage as it goes, not to memory, so a long show
 // doesn't fill it. Nothing here is studio-specific: give it a canvas, a sound track, a rate.
 
@@ -24,15 +25,28 @@ export async function programRecorderSupport(W, H, fps) {
   return s?.video && s.audio ? s : null;
 }
 
-/** Program recordings left in this browser's file storage from before (kept a day, then removed). */
-export async function tidyProgramRecordings(keepMs = 86400_000) {
+/**
+ * Program recordings left in this browser's file storage from before: kept a day, then removed,
+ * unless something kept in this browser still uses the file (`inUse`, file names). A recording
+ * kept in IndexedDB (a show's master, Edit's "Program (as aired)") is only a reference to its file
+ * there: removed after a day, the next day those copies couldn't be opened.
+ * The files are looked at first; what's kept is asked about (`inUse`) only if one is old enough to
+ * go, and if that can't be answered, nothing is removed.
+ * @param {number} [keepMs]
+ * @param {() => Promise<Set<string>>} [inUse]  the file names still referenced
+ */
+export async function tidyProgramRecordings(keepMs = 86400_000, inUse = async () => new Set()) {
   try {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR, { create: true });
+    const old = [];
     for await (const [name, h] of dir.entries()) {
       if (h.kind !== 'file') continue;
       const f = await h.getFile().catch(() => null);
-      if (f && Date.now() - f.lastModified > keepMs) await dir.removeEntry(name).catch(() => {});
+      if (f && Date.now() - f.lastModified > keepMs) old.push(name);
     }
+    if (!old.length) return;
+    const used = await inUse();
+    for (const name of old) if (!used.has(name)) await dir.removeEntry(name).catch(() => {});
   } catch {}
 }
 
@@ -47,10 +61,12 @@ export class ProgramRecorder {
    * @param {number} [o.sampleRate]  the sound's rate (the sound engine's), if the track doesn't say
    * @param {AudioContext} [o.ctx]  with o.audioNode: take the sound on the sound thread (nothing dropped)
    * @param {AudioNode} [o.audioNode]  the program's sound, in o.ctx
+   * @param {number} [o.bitrate]  video bits a second (default: 10 Mbit/s at 1080p and above, else 6)
+   * @param {'hardware'|'software'} [o.prefer]  which encoder to try first (default: the graphics card's)
    * @param {(e:Error)=>void} [o.onError]  the encoder failed: stop() still saves what was recorded
    */
   constructor(o) {
-    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, onError: o.onError || (() => {}) });
+    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, bitrate: o.bitrate, prefer: o.prefer, onError: o.onError || (() => {}) });
     this.fixes = { dropped: 0, added: 0, gapMs: 0, overMs: 0 }; // (the sound kept with the picture: ms taken out, put in, silence for gaps, and sound past the recording's time left out)
     this.clamped = 0; // frames not written: more were asked for than the recording's time has room for
     this.W = o.canvas.width;
@@ -59,6 +75,8 @@ export class ProgramRecorder {
     this.dropped = 0; // frames the encoder couldn't take (its queue full)
     this.held = 0; // frames the studio was late for, written as the picture before held longer
     this.nextKey = 0; // the frame number from which the next one written is a key frame
+    this.encAt = new Map(); // frame timestamp → when it went to the encoder
+    this.lat = { sum: 0, n: 0, max: 0, out: 0 }; // the encoder's time with a frame (from an empty queue) and frames given back, since the show log last asked
     this.audioUs = 0; // the end of the sound written, in µs
     this.failed = null;
     this.stopping = false;
@@ -94,17 +112,28 @@ export class ProgramRecorder {
         }
         if (this.decoderConfig && !m?.decoderConfig) m = { ...m, decoderConfig: this.decoderConfig };
         this.decoderConfig = null;
+        // (how long the encoder took with it: a slow encoder, not a late studio, if this is long)
+        this.lat.out++;
+        const at = this.encAt.get(c.timestamp);
+        if (at != null) {
+          this.encAt.delete(c.timestamp);
+          const ms = performance.now() - at;
+          this.lat.sum += ms;
+          this.lat.n++;
+          this.lat.max = Math.max(this.lat.max, ms);
+        }
         this.muxer.addVideoChunk(c, m);
       },
       error: fail,
     });
-    const bitrate = this.H >= 1080 ? 10_000_000 : 6_000_000;
+    const bitrate = this.bitrate || (this.H >= 1080 ? 10_000_000 : 6_000_000);
     // Live, the encoder has to keep up with the show, not make the best file it can: the graphics
     // card's encoder if there is one (it costs the computer almost nothing), and real-time mode
     // (a software encoder takes its quicker settings). An offline render keeps the defaults.
     const base = { ...this.support.video.cfg, width: this.W, height: this.H, framerate: this.fps, bitrate };
     let vcfg = null;
-    for (const extra of [{ hardwareAcceleration: 'prefer-hardware', latencyMode: 'realtime' }, { latencyMode: 'realtime' }, {}]) {
+    const first = this.prefer === 'software' ? [{ hardwareAcceleration: 'prefer-software', latencyMode: 'realtime' }] : [];
+    for (const extra of [...first, { hardwareAcceleration: 'prefer-hardware', latencyMode: 'realtime' }, { latencyMode: 'realtime' }, {}]) {
       const c = { ...base, ...extra };
       if ((await VideoEncoder.isConfigSupported(c).catch(() => ({})))?.supported) {
         vcfg = c;
@@ -304,27 +333,48 @@ export class ProgramRecorder {
       this.n += count;
       return;
     }
-    // A studio that fell behind owes `count` frames of the same picture: one frame that lasts
-    // that long, not `count` copies. The copies came in a burst that filled the encoder's queue,
-    // and the next new picture was then skipped (a busy show's file kept 1 frame in 7).
+    // A studio that fell behind owes `count` frames of the same picture. Written as copies, the file
+    // keeps its steady frame rate (an editor reads a file whose frames don't all last as long as a
+    // variable frame rate, and some handle that badly); but copies in a burst filled the encoder's
+    // queue, and the next new picture was then skipped (a busy show's file kept 1 frame in 7). So
+    // copies only into the free half of the queue, the queue's other half kept for the encoder's
+    // hiccups, and the last of them lasts for the rest. The show log counts frames held like that
+    // (`held`), and only those leave the frame rate uneven.
     const dur = 1e6 / this.fps;
-    const f = new VideoFrame(this.canvas, { timestamp: Math.round(this.n * dur), duration: Math.round(dur * count) });
+    const k = Math.max(1, Math.min(count, (MAX_QUEUE >> 1) - this.venc.encodeQueueSize));
+    const idle = this.venc.encodeQueueSize === 0;
+    const at = (i) => Math.round((this.n + i) * dur), last = (i) => (i === k - 1 ? count - i : 1);
+    const first = new VideoFrame(this.canvas, { timestamp: at(0), duration: Math.round(dur * last(0)) });
     try {
-      // (a key frame every couple of seconds, though the count may step past the exact one)
-      const key = this.n >= this.nextKey;
-      this.venc.encode(f, { keyFrame: key });
-      if (key) this.nextKey = this.n + this.keyEvery;
-      this.held += count - 1;
+      for (let i = 0; i < k; i++) {
+        const f = i === 0 ? first : new VideoFrame(first, { timestamp: at(i), duration: Math.round(dur * last(i)) });
+        try {
+          // (a key frame every couple of seconds, though the count may step past the exact one)
+          const key = this.n + i >= this.nextKey;
+          // (how long the encoder takes a frame: timed only from an empty queue, so it isn't the wait behind others)
+          if (i === 0 && idle) {
+            this.encAt.set(f.timestamp, performance.now());
+            if (this.encAt.size > 120) this.encAt.delete(this.encAt.keys().next().value); // (one the encoder never gave back)
+          }
+          this.venc.encode(f, { keyFrame: key });
+          if (key) this.nextKey = this.n + i + this.keyEvery;
+        } finally {
+          if (i > 0) f.close();
+        }
+      }
+      this.held += count - k;
     } finally {
-      f.close();
+      first.close();
     }
     this.n += count;
   }
 
-  /** How it's going (the show log): frames, skipped, encoder queue, and sound ahead (+) or behind the picture, ms. */
+  /** How it's going (the show log): frames, skipped, encoder queue, how long the encoder took a frame since last asked (enc: mean and longest, ms; out: frames back), and sound ahead (+) or behind the picture, ms. */
   stats() {
     const videoUs = (this.n * 1e6) / this.fps;
-    return { frames: this.n, dropped: this.dropped, ...(this.held ? { held: this.held } : {}), queue: this.venc?.encodeQueueSize || 0, drift: Math.round((this.audioUs - videoUs) / 1000), ...(this.clamped ? { clamped: this.clamped } : {}), ...(this.tap ? { fixes: { ...this.fixes } } : {}) };
+    const enc = { ...(this.lat.n ? { enc: [Math.round(this.lat.sum / this.lat.n), Math.round(this.lat.max)] } : {}), ...(this.lat.out ? { out: this.lat.out } : {}) };
+    this.lat = { sum: 0, n: 0, max: 0, out: 0 };
+    return { frames: this.n, dropped: this.dropped, ...(this.held ? { held: this.held } : {}), queue: this.venc?.encodeQueueSize || 0, ...enc, drift: Math.round((this.audioUs - videoUs) / 1000), ...(this.clamped ? { clamped: this.clamped } : {}), ...(this.tap ? { fixes: { ...this.fixes } } : {}) };
   }
 
   /** Finish the file (also after a failure: what was recorded is kept) and hand it back. */
@@ -342,7 +392,13 @@ export class ProgramRecorder {
       if (enc?.state === 'configured') await enc.flush().catch(() => {});
       try { enc?.close(); } catch {}
     }
-    this.muxer.finalize();
+    // (a recording that never got going, or has nothing in it: its file is let go, not left open)
+    try {
+      this.muxer.finalize();
+    } catch (e) {
+      await this.writable?.abort().catch(() => {});
+      throw e;
+    }
     await this.writable.close();
     return this.handle.getFile();
   }

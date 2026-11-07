@@ -19,7 +19,7 @@ with sync_playwright() as p:
     host = b.new_context(viewport={'width': 1440, 'height': 900}).new_page(); host.on('pageerror', lambda e: errors.append(f'host: {e}'))
     host.goto(BASE + '/')
     # search and sharing tags on the public pages
-    for path, robots in [('/', None), ('/terms', None), ('/sponsors', None), ('/cam', 'noindex'), ('/watch', 'noindex')]:
+    for path, robots in [('/', None), ('/terms', None), ('/sponsors', None), ('/changelog', None), ('/cam', 'noindex'), ('/watch', 'noindex')]:
         pg = b.new_context().new_page(); pg.on('pageerror', lambda e, x=path: errors.append(f'{x}: {e}'))
         pg.goto(BASE + path)
         meta = pg.evaluate("""() => { const m = (s) => document.querySelector(s)?.getAttribute('content'); return { title: m('meta[property="og:title"]'), image: m('meta[property="og:image"]'), card: m('meta[name="twitter:card"]'), robots: m('meta[name="robots"]') }; }""")

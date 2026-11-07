@@ -14,7 +14,7 @@ import {
 import { camOrder, fitTile, micKey, micPeers } from './live.js';
 import { autoOn, setAuto } from './onair.js';
 import { cycleCameraAudio, mix, mixInit, stereoMeters } from './mixer.js';
-import { fitDock } from './stream.js';
+import { fitDock, peakOf, setStyleIfChanged } from './stream.js';
 import {
   clipsOfMoment, deleteMoment, markMoment, media, momentsChanged, renameMoment, stepCue,
   toggleFullscreen,
@@ -64,26 +64,31 @@ requestAnimationFrame(function pmLoop() {
     if (mix.meterL) pair = [mix.meterL, mix.meterR];
   } else if (monTab === 'source') pair = srcAudio?.meters || null;
   else if (player.limit) pair = editMeters ||= stereoMeters(player.ctx, player.limit);
-  const bars = document.querySelectorAll('#pMeters .pm');
+  // (read every frame, the loudest kept; drawn at most 30 times a second, and only what changed: see the mixer's meters)
+  if (!pmBars[0]?.bar.isConnected) pmBars = [...document.querySelectorAll('#pMeters .pm')].map((bar) => ({ bar, fill: bar.querySelector('.fill'), peak: bar.querySelector('.peak'), loud: 0 }));
   const t = performance.now();
-  bars.forEach((bar, ch) => {
-    let peak = 0;
+  const draw = t - pmAt >= 30;
+  if (draw) pmAt = t;
+  pmBars.forEach((b, ch) => {
     const an = pair?.[ch];
-    if (an) {
-      const buf = (an.__buf ||= new Float32Array(an.fftSize));
-      an.getFloatTimeDomainData(buf);
-      for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
-    }
+    b.loud = Math.max(b.loud, an ? peakOf(an) : 0);
+    if (!draw) return;
+    const peak = b.loud;
+    b.loud = 0;
     const db = peak > 0 ? 20 * Math.log10(peak) : -60;
     const pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
     const st = pmState[ch];
     if (pct >= st.v || t - st.at > 1500) Object.assign(st, { v: pct, at: t });
-    bar.querySelector('.fill').style.setProperty('--lvl', pct + '%');
-    bar.querySelector('.peak').style.setProperty('--pk', st.v + '%');
-    if (db > -1) bar.classList.add('over'), (bar.__over = t);
-    else if (bar.__over && t - bar.__over > 2000) bar.classList.remove('over');
+    if (b.fill) setStyleIfChanged(b.fill, '--lvl', Math.round(pct * 2) / 2 + '%');
+    if (b.peak) setStyleIfChanged(b.peak, '--pk', Math.round(st.v * 2) / 2 + '%');
+    const { bar } = b;
+    if (db > -1) {
+      if (!bar.classList.contains('over')) bar.classList.add('over');
+      bar.__over = t;
+    } else if (bar.__over && t - bar.__over > 2000 && bar.classList.contains('over')) bar.classList.remove('over');
   });
 });
+let pmBars = [], pmAt = 0;
 
 // ------------------------------------------------------------- program out ----
 // A clean window with just the program, for a TV, projector, or OBS window capture. This

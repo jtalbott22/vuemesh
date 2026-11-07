@@ -199,6 +199,7 @@ function atBlack() {
   }
   note(`Program is black${off.length ? ` (took the ${off.join(', ')} off air)` : ''}`);
 }
+/** Black over the program, by how far it's faded; the program's label for it (or null), which the caller writes. */
 export function drawBlack(g, W, H) {
   const a = blackLevel();
   if (a > 0) {
@@ -213,7 +214,7 @@ export function drawBlack(g, W, H) {
   $('#progLabel').classList.toggle('black', showing);
   $('#progFrame').classList.toggle('black', a >= 1);
   const down = swActive() && (sw.toSpecial === 'black' || sw.fromSpecial === 'black') ? sw.toSpecial === 'black' : black.target === 1; // (the T-bar's way, while it's moving)
-  if (showing) $('#progLabel').textContent = a >= 1 ? 'BLACK' : down ? 'FADING TO BLACK' : 'FADING UP';
+  return showing ? (a >= 1 ? 'BLACK' : down ? 'FADING TO BLACK' : 'FADING UP') : null;
 }
 let blackHintAt = 0;
 export function blackHint() {

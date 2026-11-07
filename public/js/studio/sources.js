@@ -8,7 +8,7 @@ import {
   $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
   player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
-import { addClip, noteAngle, rebuild } from './clips.js';
+import { addClip, noteAngle, output, rebuild } from './clips.js';
 import { renderLive } from './live.js';
 import { syncTally } from './onair.js';
 import { applyStripFx, mix, mixAttach, mixDetach, mixSave, mixState, renderMixer } from './mixer.js';
@@ -67,13 +67,16 @@ function soundFor(cam, devs) {
     null
   );
 }
-// How big this computer's cameras capture (per computer): 1080p, or 720p, which is far lighter on
-// USB (three webcams at 1080p can be more than a computer's USB takes, and sound from the same
-// ports suffers first). Changed, the cameras in the show change at once.
+// How big this computer's cameras capture (per computer): as big as the show's output, or 720p,
+// which is far lighter on USB (sound from the same ports suffers first). Never bigger than the
+// output: the live picture is drawn at the output's size, and three 1080p webcams shrunk to a
+// 720p show on every frame were more than a laptop's graphics could take (Record program skipped
+// half its frames, where the same show with 720p webcams skipped none). A 1080p chosen before
+// follows the output now. Changed, the cameras in the show change at once.
 const CAMSIZE_KEY = 'vm_localcamsize';
-export const camCapture = () => (localStorage.getItem(CAMSIZE_KEY) === '720' ? 720 : 1080);
+const camChoice = () => (localStorage.getItem(CAMSIZE_KEY) === '720' ? 720 : 'auto');
+export const camCapture = () => (camChoice() === 720 || output.height !== 1080 ? 720 : 1080);
 const sizeFor = (h) => ({ width: { ideal: Math.round((h * 16) / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } });
-const camSize = () => sizeFor(camCapture());
 // A camera that won't start at the size asked is opened smaller (720p, then 360p) rather than not
 // at all, and says so. On Windows a USB port without room for the picture says "Timeout starting
 // video source", after 10 s: two Logitech C930e on the same USB controller as a Focusrite Scarlett
@@ -85,6 +88,10 @@ async function openVideo(deviceId, label, quiet) {
   for (const h of steps) {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, ...sizeFor(h) } });
+      // (opened smaller than asked though the camera can do it: still held at another size somewhere
+      // a moment ago, as by its preview in the add list; asked once more)
+      const t = s.getVideoTracks()[0], got = t?.getSettings?.().height || h;
+      if (got < h && (t.getCapabilities?.().height?.max || 0) >= h) await t.applyConstraints(sizeFor(h)).catch(() => {});
       if (h !== steps[0]) {
         const why = `its USB port had no room for ${steps[0]}p (an audio interface or other cameras on the same port take some; another USB port, ideally one on the computer itself, may give it more)`;
         note(`${label} opened at ${h}p: ${why}`);
@@ -100,28 +107,127 @@ async function openVideo(deviceId, label, quiet) {
   throw last;
 }
 export async function setCamCapture(h) {
-  localStorage.setItem(CAMSIZE_KEY, String(h === 720 ? 720 : 1080));
-  for (const [, l] of live) {
-    if (!l.local || l.role === 'mic' || l.screen) continue;
-    const t = l.stream.getVideoTracks()[0];
-    await t?.applyConstraints(camSize()).catch(() => {});
-  }
-  renderCamCapture();
-  note(`This computer's cameras capture at ${camCapture()}p`);
+  if (h === 720) localStorage.setItem(CAMSIZE_KEY, '720');
+  else localStorage.removeItem(CAMSIZE_KEY); // (as big as the output)
+  await syncCamSizes();
 }
+// ---- each camera at its size ----
+// A camera's size can't be changed as it runs: its picture comes from the size the device was
+// opened at, and with its frame buffer's copy open too, Windows keeps it at that size (asked for
+// less, the browser only scaled one copy: the camera, its USB port and the program stayed at the
+// old size; asked for more, 720p cameras stayed 720p in a show changed to 1080p). So a camera at
+// another size than it should be is opened again at that size, as one that stopped is (a moment
+// without a picture on its tile), but only while nothing shows or records it: not on the
+// program, in a dissolve or picture-in-picture, in preview, or recording. Those wait, and are
+// done as soon as they're free (localRecFollow). One that can't be that size (it tried, or its USB
+// port had no room) is left as it is. One pass at a time; a change during one is
+// picked up by another straight after.
+const busyCam = (peer, l) => peer === liveActive || (swActive() && peer === sw.to) || pipAir()?.peer === peer || peer === pvw || !!l.recorder || !!l.reopening?.main;
+let appliedCam = null, sizing = null, sizeAgain = false;
+export function syncCamSizes() {
+  if (sizing) {
+    sizeAgain = true;
+    return sizing;
+  }
+  sizing = (async () => {
+    do {
+      sizeAgain = false;
+      const h = camCapture();
+      for (const [peer, l] of [...live]) {
+        if (!l.local || l.role === 'mic' || l.removing || live.get(peer) !== l) continue;
+        const t = l.stream.getVideoTracks()[0];
+        if (!t || t.readyState !== 'live') continue;
+        if (l.screen) {
+          await sizeScreen(peer, l);
+          continue;
+        }
+        const cur = t.getSettings().height || 0;
+        if (cur === h) {
+          l.sizeTried = null;
+          continue;
+        }
+        if (l.sizeTried === h) continue; // (opened again for this size and it came up another: it stays)
+        // (it can't be bigger: it was opened smaller for its USB port. A camera's own most isn't asked: the
+        // browser's figure for it can be less than the camera does. One that tries and can't is left, above)
+        if (cur < h && l.stream.smaller) continue;
+        if (busyCam(peer, l)) continue; // (when it's free)
+        await reopenAtSize(peer, l, h);
+      }
+      if (h !== appliedCam) {
+        if (appliedCam != null) note(`This computer's cameras capture at ${h}p${camChoice() === 'auto' ? ' (the output’s size)' : ''}`);
+        appliedCam = h;
+      }
+    } while (sizeAgain);
+    renderCamCapture();
+  })().finally(() => {
+    sizing = null;
+  });
+  return sizing;
+}
+async function reopenAtSize(peer, l, h) {
+  const old = l.stream.getVideoTracks()[0];
+  (l.reopening ||= {}).main = Date.now();
+  let s = null;
+  try {
+    const { buffers } = await import('./picsync.js'); // (loaded long since: imported here, it would load before its turn)
+    const b = buffers.get(peer);
+    if (b) {
+      b.stop(); // (its copy of the camera, let go: picsync makes a new one from the new track)
+      buffers.delete(peer);
+    }
+    old.stop(); // (stopping a track doesn't say it ended: it isn't taken for unplugged)
+    await new Promise((r) => setTimeout(r, 350)); // (Windows lets go of a camera a moment after)
+    s = await openVideo(l.deviceId, l.deviceLabel || l.name, true).catch(() => null);
+  } finally {
+    delete l.reopening.main;
+  }
+  const track = s?.getVideoTracks()[0] || null;
+  if (live.get(peer) !== l || l.removing) return void track?.stop();
+  if (!track) return void reopenLocal(peer, 'main', old); // (it didn't open: tried again, as one that stopped)
+  l.stream.removeTrack(old);
+  l.stream.addTrack(track);
+  l.stream.smaller = s.smaller || null;
+  watchLocal(peer, track, 'main');
+  if (l.video) {
+    l.video.srcObject = l.stream;
+    l.video.play().catch(() => {});
+  }
+  if ((track.getSettings().height || 0) !== h) l.sizeTried = h;
+  note(`${l.name} opened again at ${track.getSettings().height || '?'}p${s.smaller ? ` (${s.smaller})` : ''}`);
+  // (what was set in Camera control, on the new track; a camera nobody touched keeps its own)
+  const z = l.cam?.zn && l.cam.z !== 1 ? { zoom: l.cam.z } : {};
+  if ((l.localEv ?? 0) !== 0 || (l.localCt ?? 1) !== 1 || z.zoom) await localCtl(peer, { ev: l.localEv ?? 0, ct: l.localCt ?? 1, ...z });
+  else localCamState(peer);
+  renderLive();
+  localRecFollow(); // (a recording that was wanted meanwhile starts now, on the new track)
+}
+// A shared screen: its track and its frame buffer's copy both (one alone only scales that copy)
+async function sizeScreen(peer, l) {
+  const { buffers } = await import('./picsync.js');
+  for (const t of [l.stream.getVideoTracks()[0], buffers.get(peer)?.track]) if (t?.readyState === 'live') await t.applyConstraints(screenSize()).catch(() => {});
+}
+// (the output's size or frame rate changed: cameras and screens that follow it change with it, after clips.js has set it)
+$('#outSize')?.addEventListener('change', () => setTimeout(syncCamSizes));
+$('#outFps')?.addEventListener('change', () => setTimeout(syncCamSizes));
 export function renderCamCapture() {
   const sel = $('#camSize'), hint = $('#camSizeHint');
   if (!sel) return;
-  sel.value = String(camCapture());
+  const auto = sel.querySelector('option[value="auto"]');
+  if (auto) auto.textContent = `As the output (${output.height === 1080 ? 1080 : 720}p)`;
+  sel.value = String(camChoice());
   const pics = [...live.values()].filter((l) => l.local && l.role !== 'mic');
   const n = pics.filter((l) => !l.screen).length, scr = pics.length - n;
   // (a shared screen counts: three webcams and a screen, all at 1080p, were more than one laptop's
   // graphics could draw, and the program stuttered where three webcams alone didn't)
   const what = `${n} camera${n === 1 ? '' : 's'}${scr ? ` and ${scr === 1 ? 'a shared screen' : `${scr} shared screens`}` : ''}`;
-  if (hint) hint.textContent = n && n + scr >= 3 && camCapture() === 1080 ? `${what} at 1080p is a lot for one computer${scr ? '' : "'s USB"}: if pictures stutter or the sound crackles, try 720p.` : '';
+  if (hint) hint.textContent = n && n + scr >= 3 && camCapture() === 1080 ? `${what} at 1080p is a lot for one computer${scr ? '' : "'s USB"}: if pictures stutter or the sound crackles, try a 720p output, or 720p here.` : '';
 }
-$('#camSize')?.addEventListener('change', (e) => setCamCapture(Number(e.target.value)));
-renderCamCapture();
+$('#camSize')?.addEventListener('change', (e) => setCamCapture(e.target.value === '720' ? 720 : 'auto'));
+setTimeout(() => {
+  // (once clips.js has run too: it and this file import each other, and the output is set there)
+  appliedCam = camCapture();
+  renderCamCapture();
+});
 
 // Which microphone a camera here takes its sound from, once chosen in the mixer (Sound from):
 // kept per camera on this computer, and used whenever that camera is added again.
@@ -311,6 +417,7 @@ function watchLocal(peer, track, part) {
 }
 async function reopenLocal(peer, part, old) {
   const l = live.get(peer);
+  if (!l || l.removing) return;
   l.reopening ||= {};
   if (l.reopening[part]) return;
   const since = Date.now();
@@ -562,17 +669,38 @@ for (const box of [$('#mixer'), $('#bridge')]) {
   });
 }
 // ---- recording: on the studio's clock, rolling every 5 minutes
-// A camera's recording with its sound: WebM with Opus first (the steadiest way a browser
-// records a live microphone; it plays in Edit and exports the same), then the studio's other
-// formats. A format that comes out without the sound isn't used again this session.
-// VP8 before VP9: these are encoded on the processor beside Record program, and VP9 took
-// almost a whole core more for a 720p webcam (a 4-core laptop: 2.6 cores busy recording
-// with VP8, 3.6 with VP9), for a file Edit only reads back. At 8 Mbps VP8 looks the same.
+// A camera's recording with its sound: with Opus (the steadiest way a browser records a live
+// microphone; it plays in Edit and exports the same), in the first format this computer's
+// graphics card encodes, else VP8 on the processor. A format that comes out without the sound
+// isn't used again this session.
+// On the processor VP8 is the lightest (VP9 took almost a whole core more for a 720p webcam on a
+// 4-core laptop), but it's still a lot: a 1080p webcam's recording took 29% of a core on a
+// 14-thread PC, and the frames were copied off the graphics card for it. On that PC's Intel
+// graphics VP9, H.264 and H.265 were encoded on the card for nothing measurable (AV1 and VP8 weren't).
+// VP9 keeps WebM; H.264 goes in MP4, as Android phones record it (Chrome writes H.264 asked for in
+// WebM as Matroska, whose name the file's extension is chosen from). Which the card encodes is
+// asked once (WebCodecs: MediaRecorder uses the same encoders).
+const HW_VIDEO_MIMES = { vp9: ['video/webm;codecs=vp9,opus'], h264: ['video/mp4;codecs=avc1.640028,opus', 'video/mp4;codecs=avc1,opus'] };
 const LOCAL_VIDEO_MIMES = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=h264,opus', 'video/webm', ...REC_MIMES];
 const localMimeNoSound = new Set();
+export const hwVideo = { vp9: false, h264: false, asked: false };
+(async () => {
+  if (!window.VideoEncoder?.isConfigSupported) return;
+  const ask = (codec) => VideoEncoder.isConfigSupported({ codec, width: 1920, height: 1080, bitrate: 8_000_000, framerate: 30, hardwareAcceleration: 'prefer-hardware' }).then((r) => !!r.supported, () => false);
+  [hwVideo.vp9, hwVideo.h264] = await Promise.all([ask('vp09.00.41.08'), ask('avc1.640028')]);
+  hwVideo.asked = true;
+})();
+const hwMimeOf = (m) => (hwVideo.vp9 && HW_VIDEO_MIMES.vp9.includes(m)) || (hwVideo.h264 && HW_VIDEO_MIMES.h264.includes(m));
+// The format for this source's recording. The browser's recorder uses the graphics card only for a
+// picture of at least 640x480: smaller (a camera that opened at 360p for its USB port), VP9 or
+// H.264 would be encoded on the processor, heavier than VP8 there.
 function localVideoMime(l) {
-  const sound = l.stream.getAudioTracks().length > 0;
-  return LOCAL_VIDEO_MIMES.find((m) => MediaRecorder.isTypeSupported(m) && !(sound && localMimeNoSound.has(m))) || recMime();
+  const sound = !l || l.stream.getAudioTracks().length > 0;
+  const t = l && (l.recTrack?.readyState === 'live' ? l.recTrack : l.stream.getVideoTracks()[0]);
+  const s = t?.getSettings?.() || {};
+  const big = !l || ((s.width || 0) >= 640 && (s.height || 0) >= 480);
+  const hw = big ? [...(hwVideo.vp9 ? HW_VIDEO_MIMES.vp9 : []), ...(hwVideo.h264 ? HW_VIDEO_MIMES.h264 : [])] : [];
+  return [...hw, ...LOCAL_VIDEO_MIMES].find((m) => MediaRecorder.isTypeSupported(m) && !(sound && localMimeNoSound.has(m))) || recMime();
 }
 /** Does a recording have sound in it? (null: can't tell) */
 export function fileHasSound(blob) {
@@ -598,6 +726,7 @@ export function fileHasSound(blob) {
 function startLocalRec(peer) {
   const l = live.get(peer);
   if (!l?.local || l.recorder) return;
+  if (l.role !== 'mic' && !l.stream.getVideoTracks().some((t) => t.readyState === 'live')) return; // (being opened again: it starts when it's back)
   const kind = l.role === 'mic' ? 'audio' : 'video';
   const mime = kind === 'audio' ? ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((m) => MediaRecorder.isTypeSupported(m)) : localVideoMime(l);
   // A shared screen is recorded at most 1080p and 15 frames a second (slides and demos need no
@@ -658,7 +787,7 @@ function startLocalRec(peer) {
     setTimeout(() => old.state !== 'inactive' && old.stop(), 400); // (a short overlap: nothing lost at the seam)
   }, 5 * 60000);
   renderLive();
-  note(`Recording ${l.name} (this computer)`);
+  note(`Recording ${l.name} (this computer${kind === 'video' ? `, ${mime}${hwMimeOf(mime) ? ' on the graphics card' : ''}` : ''})`);
 }
 function rollLocalRec(peer) {
   const l = live.get(peer);
@@ -687,6 +816,7 @@ function stopLocalRec(peer, now_) {
     setTimeout(() => t.stop(), 500); // (after the recorder's last piece)
   }
   renderLive();
+  if (l.role !== 'mic' && !l.screen) setTimeout(() => localRecFollow(), 700); // (a camera waiting to be its size, after the recorder's last piece)
 }
 export function setLocalManualRec(peer, on) {
   const l = live.get(peer);
@@ -717,6 +847,8 @@ export function localRecFollow() {
       if (!localShouldRec(peer, l)) stopLocalRec(peer);
     }, 5000);
   }
+  // (a camera waiting to be its size, now that it may be free: see syncCamSizes)
+  if ([...live.values()].some((l) => l.local && l.role !== 'mic' && !l.screen && (l.stream.getVideoTracks()[0]?.getSettings().height || 0) !== camCapture() && l.sizeTried !== camCapture())) syncCamSizes();
 }
 // ---- Camera control for this computer's cameras: the camera's own settings, where it has them
 function localCamState(peer) {
@@ -785,18 +917,24 @@ export function flushRecordings(why) {
 // shares it; "This computer's sound" keeps just the sound, as a microphone. Which sound the
 // browser can share: Windows and ChromeOS, the whole computer's (pick Entire screen, tick
 // Share system audio); Mac, a Chrome tab's (pick the tab, tick Share tab audio).
-// At most 1080p: left to itself the browser captures a screen at its full size (a Retina iMac's
-// is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow, and the
-// text came out jagged) and recorded on air at full size (the computer's whole effort). The
-// browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
-// And 15 frames a second, as its own recording already is: slides and demos need no more, and
-// a screen at 30 beside three 1080p webcams was more than one laptop's graphics could take
-// (the program drew a new picture only every 100 ms and Record program kept 1 frame in 7).
-const SCREEN_MAX = { width: 1920, height: 1080, fps: 15 };
+// At most the output's size: left to itself the browser captures a screen at its full size (a
+// Retina iMac's is 5120x2880), and every frame of that was copied and shrunk 4x on the page (slow,
+// and the text came out jagged) and recorded on air at full size (the computer's whole effort).
+// The browser shrinks it as it captures, smoothly; 'detail' keeps it sharp over smooth motion.
+// A 1080p screen in a 720p show was shrunk again on every frame, for nothing on air. In a 720p
+// show it's the output's frame rate: beside three 720p webcams and Record program, a 720p screen
+// at 30 was as smooth as at 15, with the motion on it (a video, the pointer) smooth too. In a
+// 1080p show it's 15 a second: a shared screen is the heaviest picture there is for a laptop's
+// graphics (Windows copies the desktop for it, and the browser converts it), and at 1080p and 30
+// beside three 1080p webcams the graphics were 75-90% busy and Record program skipped up to half
+// its frames; at 15, 60% busy and none skipped. 1080p at 15 is about what 720p at 30 costs.
+const screenMax = () => (output.height === 1080 ? { width: 1920, height: 1080 } : { width: 1280, height: 720 });
+const screenFps = () => (output.height === 1080 ? 15 : Math.min(30, Math.round(output.fps)));
+const screenSize = () => ({ width: { max: screenMax().width }, height: { max: screenMax().height }, frameRate: { ideal: screenFps(), max: screenFps() } });
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: SCREEN_MAX.width }, height: { max: SCREEN_MAX.height }, frameRate: { ideal: SCREEN_MAX.fps, max: SCREEN_MAX.fps } }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -843,6 +981,9 @@ async function stopPreview(key, wait) {
   const p = previews.get(key);
   if (!p) return;
   previews.delete(key);
+  // (still opening: wait for it, then let go. Added meanwhile, a camera was opened while its
+  // 320 x 180 preview was, and Windows gave both that size: it came into the show at 320 x 180, 15 a second)
+  if (p.own && p.opening && p.pending) p.stream = await p.pending.catch(() => null);
   if (p.own) p.stream?.getTracks().forEach((t) => t.stop());
   try {
     p.src?.disconnect();
@@ -903,9 +1044,10 @@ async function attachPreviews(cams, mics, inShowPeer) {
         previews.set(key, p);
         showPreview(key);
         try {
-          const s = await navigator.mediaDevices.getUserMedia(kind === 'cam'
+          p.pending = navigator.mediaDevices.getUserMedia(kind === 'cam'
             ? { video: { deviceId: { exact: d.deviceId }, width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { max: 15 } } }
             : { audio: { deviceId: { exact: d.deviceId }, ...MIC_OPTS } });
+          const s = await p.pending;
           if (gen !== pvGen || previews.get(key) !== p) {
             s.getTracks().forEach((t) => t.stop());
             continue;

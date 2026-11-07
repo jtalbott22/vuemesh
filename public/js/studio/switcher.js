@@ -18,7 +18,7 @@ import {
   renderClips, setBreak, setEverLive, setSlateClock, slateLook, slateSound, slateText, toggleBlack,
   toggleBreak, updateAutoBreak,
 } from './graphics.js';
-import { picOf } from './picsync.js';
+import { buffers, picOf } from './picsync.js';
 import { drawPip } from './pip.js';
 
 // ---- the live program -----------------------------------------------------------------
@@ -34,22 +34,23 @@ function drawLiveFrame() {
     setSlateClock(performance.now());
   }
   const clip = mediaOn && reel.find((r) => r.id === mediaOn.id);
+  let label = null; // (the program's label: worked out here, written once at the end, and only when it changes)
   let slateUp = false;
   const micAir = liveActive && isMic(liveActive) && !onBreak();
   if (!breakManual && !clip && (micAir || micOnlyUp())) {
     setEverLive(true);
     drawMicVisual(pg, W, H);
-    $('#progLabel').textContent = micAir ? `ON AIR · MIC ${micKey(liveActive) || ''} ${live.get(liveActive).name}` : `ON AIR · MIC · ${micNames()}`;
+    label = micAir ? `ON AIR · MIC ${micKey(liveActive) || ''} ${live.get(liveActive).name}` : `ON AIR · MIC · ${micNames()}`;
   } else if (onBreak()) {
     slateUp = drawBreak(pg, W, H);
-    $('#progLabel').textContent = 'ON AIR · BREAK';
+    label = 'ON AIR · BREAK';
   } else if (clip) {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
     const el = clip.prog || clip.el;
     if (el && (el.readyState === undefined ? el.complete : el.readyState >= 2)) drawFramed(pg, el, W, H, 'fit');
     const p = clip.prog && clip.prog.duration ? clip.prog.currentTime / clip.prog.duration : 0;
-    $('#progLabel').textContent = `ON AIR · CLIP ${clip.name}${clip.prog && !clip.loop ? ` · ${Math.max(0, Math.ceil(clip.prog.duration - clip.prog.currentTime))} s` : ''}`;
+    label = `ON AIR · CLIP ${clip.name}${clip.prog && !clip.loop ? ` · ${Math.max(0, Math.ceil(clip.prog.duration - clip.prog.currentTime))} s` : ''}`;
     const bar = document.querySelector(`[data-media="${clip.id}"] .prog`);
     if (bar) bar.style.width = Math.round(p * 100) + '%';
   } else if (liveActive && activeFrameOk()) {
@@ -57,14 +58,14 @@ function drawLiveFrame() {
     pg.fillRect(0, 0, W, H);
     // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
     drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
-    $('#progLabel').textContent = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
+    label = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
-    $('#progLabel').textContent = live.size ? 'STANDBY · click a source' : 'STANDBY · waiting for phones';
+    label = live.size ? 'STANDBY · click a source' : 'STANDBY · waiting for phones';
   } else {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
-    $('#progLabel').textContent = 'ON AIR';
+    label = 'ON AIR';
   }
   // a transition in progress: the incoming source over the outgoing one, by how far it's gone
   if (swActive() && sw.p > 0.001) {
@@ -91,16 +92,21 @@ function drawLiveFrame() {
     const SPECIAL = { black: 'BLACK', break: 'BREAK' };
     const fromName = SPECIAL[sw.fromSpecial] || (sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name);
     const toName = SPECIAL[sw.toSpecial] || (r ? r.name : b?.name);
-    if (toName) $('#progLabel').textContent = `ON AIR · ${fromName || '—'} → ${toName} · ${Math.round(sw.p * 100)}%`;
+    if (toName) label = `ON AIR · ${fromName || '—'} → ${toName} · ${Math.round(sw.p * 100)}%`;
   }
   drawPip(pg, W, H); // (a camera in the corner, over a screen: see pip.js)
   drawLowerThird(pg, W, H);
   slateSound(slateUp);
-  drawBlack(pg, W, H);
+  label = drawBlack(pg, W, H) || label;
+  if (label != null) setTextIfChanged($('#progLabel'), label);
   drawSlatePreview();
   drawSourcePreviews();
-  const clock = new Date(now()).toLocaleTimeString();
-  $('#ptc').textContent = clock;
+  // (the clock: worked out once a second, not every frame)
+  const sec = Math.floor(now() / 1000);
+  if (sec === lastSec) return;
+  lastSec = sec;
+  const clock = new Date(sec * 1000).toLocaleTimeString();
+  setTextIfChanged($('#ptc'), clock);
   if (clock !== lastClock) {
     // (its AM / PM apart, so a tight row can leave it off: the time itself is what's read)
     lastClock = clock;
@@ -109,7 +115,11 @@ function drawLiveFrame() {
     else $('#clock').textContent = clock;
   }
 }
-let lastClock = '';
+let lastClock = '', lastSec = 0;
+/** Write an element's text only when it changes: the same text written again still costs the page a restyle. */
+function setTextIfChanged(el, text) {
+  if (el && el.textContent !== text) el.textContent = text;
+}
 
 // ---------------------------------------------------------------- switcher ---
 // Preview and program, like a vision mixer. With "Tap: Preview", tapping a source (or its
@@ -410,7 +420,7 @@ function drawPreviewBox() {
     if (!$('#pvwBox').hidden) $('#pvwBox').hidden = true; // (it went on air, left, or Tap: Air)
     return;
   }
-  if ($('#pvwBox').hidden) return;
+  if ($('#pvwBox').hidden || document.hidden) return;
   const c = $('#pvwCanvas'), g = c.getContext('2d');
   g.fillStyle = '#000';
   g.fillRect(0, 0, c.width, c.height);
@@ -420,7 +430,12 @@ function drawPreviewBox() {
     const el = r.prog || r.el;
     if (el && (el.readyState === undefined ? el.complete : el.readyState >= 2)) drawFramed(g, el, c.width, c.height, 'fit');
   } else if (isMic(pvw)) drawMicVisual(g, c.width, c.height, micTileOpts(pvw));
-  else if (l.video?.readyState >= 2) drawFramed(g, l.video, c.width, c.height, fit, null, l.view?.rect || null);
+  else {
+    // (a camera here: its newest frame, already turned into a picture for the program, rather than
+    // the video element's, which was converted again at full size for this small box every frame)
+    const pic = buffers.get(pvw)?.frames.at(-1)?.bmp;
+    if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fit, null, l.view?.rect || null);
+  }
 }
 document.querySelectorAll('#switcher [data-tap]').forEach((b) => (b.onclick = () => {
   tapMode = b.dataset.tap;
@@ -600,15 +615,20 @@ try {
 // and Program out. Its frames are pushed on every draw (requestFrame) rather than sampled by
 // the canvas's own timer: that timer can stop when the studio window is hidden or covered
 // (Program out full screen over it), which froze a second recording's picture while its
-// sound went on. Each user gets a copy (clone) of the one track.
+// sound went on. Each user gets a copy (clone) of the one track. With no copy in use the
+// capture stops (and starts again for the next one): every frame it took was copied off the
+// graphics card and converted at the program's full size, 30 times a second, for no one.
 var progCapture = null; // (var: the drawing loop starts before this line runs)
+var progClones = new Set(); // (var: as progCapture) the copies handed out
 export function programVideoTrack() {
   const t0 = progCapture?.getVideoTracks()[0];
   if (!t0 || t0.readyState !== 'live') {
     progCapture = program.captureStream(0);
     if (!progCapture.getVideoTracks()[0]?.requestFrame) progCapture = program.captureStream(Math.round(output.fps)); // (no push here: sampled)
   }
-  return progCapture.getVideoTracks()[0].clone();
+  const c = progCapture.getVideoTracks()[0].clone();
+  progClones.add(c);
+  return c;
 }
 function pushProgramFrame(n = 1) {
   const t = performance.now();
@@ -616,7 +636,14 @@ function pushProgramFrame(n = 1) {
   progFrames.last = t;
   progFrames.n += n;
   progFrames.dup += n - 1;
-  progCapture?.getVideoTracks()[0]?.requestFrame?.();
+  if (progCapture) {
+    for (const c of progClones) if (c.readyState !== 'live') progClones.delete(c);
+    if (progClones.size) progCapture.getVideoTracks()[0]?.requestFrame?.();
+    else {
+      progCapture.getTracks().forEach((x) => x.stop());
+      progCapture = null;
+    }
+  }
   for (const sink of frameSinks) {
     try {
       sink(n);

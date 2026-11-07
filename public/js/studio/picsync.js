@@ -89,9 +89,17 @@ function keepUp() {
       buffers.set(peer, new FrameBuffer(track.clone(), { size: () => ({ w: program.width, h: program.height }), quality: l.screen ? 'high' : 'medium' })); // (a screen's text: smoothly)
     }
     const at = l.local && !l.screen ? liveAudio(l) : null;
-    if (at && taps.get(peer)?.track?.readyState !== 'live') {
-      taps.get(peer)?.stop();
-      taps.set(peer, new SoundTap(at.clone()));
+    const tap = taps.get(peer);
+    // (a new tap when the sound's track changed too: Sound from another microphone, or none, and
+    // the old one's figure goes, or it went on measuring the microphone no longer used)
+    if (at && (tap?.track?.readyState !== 'live' || tap.src !== at)) {
+      tap?.stop();
+      if (tap) soundOffset.delete(peer);
+      taps.set(peer, Object.assign(new SoundTap(at.clone()), { src: at }));
+    } else if (!at && tap && live.has(peer)) {
+      tap.stop();
+      taps.delete(peer);
+      soundOffset.delete(peer);
     }
   }
   for (const [peer, b] of buffers) if (!live.has(peer) || b.track.readyState === 'ended') {
@@ -102,6 +110,7 @@ function keepUp() {
     t.stop();
     taps.delete(peer);
   }
+  if (!buffers.size && [...live.values()].some((l) => l.local && l.role !== 'mic' && l.reopening?.main)) return; // (one being opened again: the delay stays, and the sound with it)
   if (!buffers.size) {
     pictureDelay = null;
     settled = false;
@@ -151,27 +160,62 @@ function mainMic() {
   const mics = [...taps].filter(([p]) => live.get(p)?.role === 'mic');
   return (mics.length ? mics : [...taps])[0] || null;
 }
-function matchSound() {
+// The matching itself runs in a worker (audiosync-worker.js): on this page it took about 220 ms in
+// a row every 10 s, and the program's drawing waited (7 frames late each time). Without a worker it
+// runs here, as before.
+let matchWorker = null, matchId = 0, matching = false;
+const matchWaits = new Map(); // id → resolve
+function offsetOffPage(a, b, maxLag) {
+  if (matchWorker === null) {
+    try {
+      matchWorker = new Worker('/js/audiosync-worker.js', { type: 'module' });
+      matchWorker.onmessage = (e) => {
+        matchWaits.get(e.data.id)?.(e.data.error ? null : e.data.m);
+        matchWaits.delete(e.data.id);
+      };
+      matchWorker.onerror = () => {
+        matchWorker = false; // (it couldn't start: here from now on)
+        for (const r of matchWaits.values()) r(undefined);
+        matchWaits.clear();
+      };
+    } catch {
+      matchWorker = false;
+    }
+  }
+  if (!matchWorker) return Promise.resolve(offsetBetween(a, b, maxLag));
+  return new Promise((resolve) => {
+    const id = ++matchId;
+    matchWaits.set(id, (m) => resolve(m === undefined ? offsetBetween(a, b, maxLag) : m));
+    matchWorker.postMessage({ id, a, b, maxLag }); // (copies: a and b stay here for the fallback)
+  });
+}
+async function matchSound() {
+  if (matching) return; // (the last one is still going)
   const main = mainMic();
   if (!main) return;
   const [refPeer, ref] = main;
   const to = Math.min(...[...taps.values()].map((t) => t.newest ?? 0)) - 200;
   const from = to - 6000;
   if (!(to > 0)) return;
-  const a = ref.slice(from, to);
-  for (const [peer, tap] of taps) {
-    if (peer === refPeer) {
-      soundOffset.set(peer, 0);
-      continue;
+  matching = true;
+  try {
+    for (const [peer, tap] of [...taps]) {
+      if (peer === refPeer) {
+        soundOffset.set(peer, 0);
+        continue;
+      }
+      const b = tap.slice(from, to);
+      const m = await offsetOffPage(ref.slice(from, to), b, Math.round(0.3 * TAP_RATE));
+      if (!m || !live.has(peer)) continue;
+      if (m.score < 12 || m.clarity < 1.4) continue; // (not the same sound clearly enough: keep what we had)
+      const ms = (-m.lag * 1000) / TAP_RATE;
+      const was = soundOffset.get(peer);
+      const now = was == null ? ms : was * 0.7 + ms * 0.3;
+      soundOffset.set(peer, now);
+      if (was == null || Math.abs(now - was) > 15) showLog.event('sound-sync', `${live.get(peer)?.name}'s sound is ${Math.round(now)} ms ${now >= 0 ? 'behind' : 'ahead of'} ${live.get(refPeer)?.name}'s`);
     }
-    const b = tap.slice(from, to);
-    const m = offsetBetween(a, b, Math.round(0.3 * TAP_RATE));
-    if (m.score < 12 || m.clarity < 1.4) continue; // (not the same sound clearly enough: keep what we had)
-    const ms = (-m.lag * 1000) / TAP_RATE;
-    const was = soundOffset.get(peer);
-    const now = was == null ? ms : was * 0.7 + ms * 0.3;
-    soundOffset.set(peer, now);
-    if (was == null || Math.abs(now - was) > 15) showLog.event('sound-sync', `${live.get(peer)?.name}'s sound is ${Math.round(now)} ms ${now >= 0 ? 'behind' : 'ahead of'} ${live.get(refPeer)?.name}'s`);
+  } finally {
+    matching = false;
   }
 }
 

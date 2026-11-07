@@ -6,14 +6,15 @@ import * as S from '/js/sequence.js';
 import * as idb from '/js/idb.js';
 import {
   $, EDIT_ONLY, black, clips, editCh, ev, eventId, help, hub, isHost, live, liveActive, log, mode,
-  note, orientation, player, rawBlobs, recMime, seq, setSeq,
+  note, orientation, player, program, rawBlobs, recMime, seq, setSeq,
 } from './core.js';
-import { loadSeq } from './clips.js';
+import { loadSeq, output } from './clips.js';
 import { camOrder, renderLive } from './live.js';
-import { renderMixer } from './mixer.js';
+import { mix, renderMixer } from './mixer.js';
 import { fileHasSound, localAired } from './sources.js';
 import { onBreak } from './graphics.js';
-import { progRec } from './switcher.js';
+import { frameSinks, progRec } from './switcher.js';
+import { ProgramRecorder, programRecorderSupport } from '/js/progrec.js';
 import { select } from './edit.js';
 
 // ---- the live cut, sent to the crew ----------------------------------------------------
@@ -85,41 +86,186 @@ export function startPieces(tracks) {
 function piecesWanted() {
   if (recording() && pieceTracks && !pieceRec && anyoneFor()) rollPiece();
 }
-function rollPiece() {
-  const mime = recMime();
-  const rec = new MediaRecorder(new MediaStream(pieceTracks), { mimeType: mime, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
-  const chunks = [];
-  const piece = { id: `${eventId}-${Math.round(now())}`, part: ++pieceN, t0: now(), mime: rec.mimeType };
-  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-  rec.onstop = async () => {
-    piece.t1 = now();
-    const blob = new Blob(chunks, { type: rec.mimeType });
-    const f = await codecsOf(blob).catch(() => null);
-    if (f) piece.codecs = `${f.container} · ${f.video} + ${f.audio}`;
-    await idb.put('program', { eventId, kind: 'piece', ...piece, blob }).catch(() => {});
-    diag('event', `Live cut part ${piece.part}: ${piece.codecs || piece.mime}, ${Math.round(blob.size / 1048576)} MB`);
-    pieces.push(piece);
-    finishing.delete(piece);
-    renderPgmState();
-    sendProgramParts();
-  };
-  rec.piece = piece;
-  rec.start(1000);
+// Each piece is the program made smaller (720p at most: the parts are 2.5 Mbit/s, which looks
+// better at 720p than at 1080p), encoded on the processor into a normal MP4 that iPhones play. It
+// was the browser's own recorder on a copy of the full-size program: each frame of that copy is
+// read back off the graphics card, and at 1080p, 30 times a second, that took more than half of
+// the graphics' own thread (with one phone in a 1080p show Record program skipped a quarter to two
+// fifths of its frames). A 720p frame is less than half of that. On the graphics card's encoder
+// instead, it competed with Record program's for the card, which a laptop has least of (at 720p,
+// Record program then skipped up to 9%); the processor has room. Where the browser can't encode it
+// itself, the browser's recorder, as before.
+const PIECE_SHORT = 720, PIECE_BPS = 2_500_000;
+const PART_DIR = 'program-recordings'; // (where ProgramRecorder writes: a part's file there goes once its bytes are kept in IndexedDB)
+const pieceActive = new Set(); // the recorders taking frames now (two for a moment while one rolls to the next)
+// Each recorder has a canvas of its size: a show turned portrait mid-recording draws the next part in
+// its new shape while the last one finishes in the old. Each canvas is drawn once a frame.
+const pieceCanvases = new Map(); // 'WxH' → canvas
+const canvasFor = (w, h) => {
+  const k = `${w}x${h}`;
+  if (!pieceCanvases.has(k)) pieceCanvases.set(k, Object.assign(document.createElement('canvas'), { width: w, height: h }));
+  return pieceCanvases.get(k);
+};
+const drawPiece = (c) => c.getContext('2d', { alpha: false }).drawImage(program, 0, 0, c.width, c.height);
+const pieceSink = (n) => {
+  if (!pieceActive.size) return;
+  for (const c of new Set([...pieceActive].map((r) => r.canvas))) drawPiece(c);
+  for (const r of pieceActive) r.frame(n);
+};
+let pieceStarting = null, pieceNoted = false, pieceFails = 0;
+// Saved in the order recorded: each part waits for the one before it to be saved (or to fail), so the
+// numbers follow time and have no gaps.
+let saveTurn = Promise.resolve();
+function takeTurn(piece) {
+  piece.turn = saveTurn;
+  saveTurn = new Promise((res) => (piece.release = res));
+}
+function pieceSize() {
+  const W = program.width, H = program.height, k = Math.min(1, PIECE_SHORT / Math.min(W, H));
+  return { w: Math.round((W * k) / 2) * 2, h: Math.round((H * k) / 2) * 2 };
+}
+const stillWanted = () => recording() && (anyoneFor() || !!pieceRec);
+function rollPiece(urgent = false) {
+  // (someone leaving: the part being recorded is finished now, so it's counted as coming and goes with
+  // them; the next starts as soon as its encoder is ready. Otherwise the next starts first and they overlap a moment.)
+  if (urgent && pieceRec) finishPiece(pieceRec);
+  if (pieceStarting) return;
+  // (the encoder failed three times this show: the browser's recorder from now on)
+  if (pieceFails >= 3) return void (stillWanted() && rollPieceBrowser());
+  pieceStarting = (async () => {
+    const { w, h } = pieceSize();
+    const support = await programRecorderSupport(w, h, output.fps).catch(() => null);
+    if (!support) return void (stillWanted() && rollPieceBrowser());
+    const piece = { id: `${eventId}-${Math.round(now())}`, mime: `video/mp4;codecs=${support.video.cfg.codec},${support.audio.cfg.codec}`, codecs: `MP4 · ${support.video.label} + ${support.audio.label}` };
+    const canvas = canvasFor(w, h);
+    drawPiece(canvas); // (its first picture before the encoder warms up on it)
+    const r = new ProgramRecorder({
+      canvas, audioTrack: pieceTracks.audio?.[0], fps: output.fps, support, bitrate: PIECE_BPS, prefer: 'software', sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
+      name: `${eventId}-part-${Math.round(Date.now())}.mp4`,
+      onError: (e) => {
+        diag('event', `Live cut: the encoder failed (${e?.message || e})`);
+        pieceFails++;
+        if (!r.piece) return; // (still starting: dealt with there)
+        finishPiece(r); // (what was recorded of this part is kept)
+        setTimeout(piecesWanted, 2000); // (and the live cut carries on)
+      },
+    });
+    try {
+      await r.start();
+      if (r.failed) throw r.failed;
+    } catch (e) {
+      diag('event', `Live cut: couldn't start its encoder (${e?.message || e}); using the browser's recorder for this part`);
+      pieceFails++;
+      await r.stop().catch(() => {});
+      removePartFile(r.name);
+      return void (stillWanted() && rollPieceBrowser());
+    }
+    if (!stillWanted()) {
+      await r.stop().catch(() => {}); // (gone meanwhile)
+      return removePartFile(r.name);
+    }
+    piece.t0 = now(); // (its zero: the next frame drawn is its first)
+    if (!pieceNoted) {
+      pieceNoted = true;
+      note(`Live cut for the crew: ${w}x${h}, ${PIECE_BPS / 1e6} Mbit/s, ${support.video.label} on the ${r.encoderKind === 'hardware' ? 'graphics card' : 'processor'}, MP4`);
+    }
+    r.piece = piece;
+    takeTurn(piece);
+    installPiece(r);
+  })().finally(() => {
+    pieceStarting = null;
+  });
+}
+// The new part takes frames; the one before (if any) finishes a moment later; the next roll is set.
+function installPiece(r) {
+  if (!(r instanceof MediaRecorder)) {
+    pieceActive.add(r);
+    frameSinks.add(pieceSink);
+  }
   const prev = pieceRec;
-  pieceRec = rec;
+  pieceRec = r;
   if (prev) {
     finishing.add(prev.piece);
-    setTimeout(() => prev.state !== 'inactive' && prev.stop(), PIECE_OVERLAP);
+    setTimeout(() => finishPiece(prev), PIECE_OVERLAP);
   }
   clearTimeout(pieceTimer);
   // the next piece, or (everyone gone) this one finished and no next: it starts again with the next person
   pieceTimer = setTimeout(() => recording() && (anyoneFor() ? rollPiece() : stopPieces()), PIECE_MS);
 }
+// Finish a part, of either kind: it's counted as coming (finishing) until it's saved or has failed.
+async function finishPiece(r) {
+  if (!r || r.finishingPiece) return;
+  r.finishingPiece = true;
+  pieceActive.delete(r);
+  if (!pieceActive.size) frameSinks.delete(pieceSink);
+  if (pieceRec === r) pieceRec = null;
+  const piece = r.piece;
+  if (!piece) return;
+  finishing.add(piece);
+  if (r instanceof MediaRecorder) {
+    if (r.state !== 'inactive') r.stop(); // (its onstop saves it)
+    return;
+  }
+  let blob = null;
+  try {
+    // (its bytes, not the file: kept in IndexedDB, a file's blob is only a reference to the file,
+    // which this browser's storage tidy removes after a day, so a part sent the next day was gone)
+    const f = await r.stop();
+    blob = f && new Blob([await f.arrayBuffer()], { type: piece.mime });
+  } catch (e) {
+    diag('event', `Live cut: a part couldn't be finished (${e?.message || e})`);
+  }
+  piece.t1 = now();
+  if (blob?.size) return savePiece(piece, blob, r.name);
+  await piece.turn;
+  piece.release();
+  finishing.delete(piece);
+  removePartFile(r.name);
+  sendProgramParts(); // (someone leaving who was waiting for it is told it isn't coming)
+}
+async function savePiece(piece, blob, file) {
+  await piece.turn; // (after the part before it: numbers in the order recorded)
+  try {
+    piece.part = ++pieceN;
+    const f = piece.codecs ? null : await codecsOf(blob).catch(() => null); // (made here: it's known)
+    if (f) piece.codecs = `${f.container} · ${f.video} + ${f.audio}`;
+    const { turn: _turn, release: _release, ...rec } = piece; // (the save order isn't kept)
+    const kept = await idb.put('program', { eventId, kind: 'piece', ...rec, blob }).then(() => true, () => false);
+    if (kept && file) removePartFile(file); // (kept in IndexedDB now: not twice on the disk)
+    diag('event', `Live cut part ${piece.part}: ${piece.codecs || piece.mime}, ${Math.round(blob.size / 1048576)} MB${kept ? '' : ' (couldn’t be kept in this browser)'}`);
+    pieces.push(piece);
+  } finally {
+    piece.release();
+    finishing.delete(piece);
+  }
+  renderPgmState();
+  sendProgramParts();
+}
+function removePartFile(name) {
+  if (!name) return;
+  navigator.storage.getDirectory().then((root) => root.getDirectoryHandle(PART_DIR)).then((dir) => dir.removeEntry(name)).catch(() => {});
+}
+// The browser's own recorder, on the program's picture as a track (where the above can't run)
+function rollPieceBrowser() {
+  const mime = recMime();
+  const rec = new MediaRecorder(new MediaStream(pieceTracks()), { mimeType: mime, videoBitsPerSecond: PIECE_BPS, audioBitsPerSecond: 128_000 });
+  const chunks = [];
+  const piece = { id: `${eventId}-${Math.round(now())}`, t0: now(), mime: rec.mimeType };
+  takeTurn(piece);
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    piece.t1 = now();
+    await savePiece(piece, new Blob(chunks, { type: rec.mimeType }));
+  };
+  rec.piece = piece;
+  rec.start(1000);
+  installPiece(rec);
+}
 export function stopPieces() {
   clearTimeout(pieceTimer);
-  if (pieceRec?.piece) finishing.add(pieceRec.piece);
-  if (pieceRec?.state !== 'inactive') pieceRec?.stop();
+  const r = pieceRec;
   pieceRec = null;
+  if (r) finishPiece(r);
 }
 
 let sending = false, sendAgain = false;
@@ -144,7 +290,7 @@ export function prepareLeaving(peer) {
   const open = pieceRec?.piece;
   if (progRec && open && wasThere(l.cid, open.t0, now()) && Date.now() - lastLeaveRoll > 15000) {
     lastLeaveRoll = Date.now();
-    rollPiece(); // their part of what's being recorded now: finish it so it can go with them
+    rollPiece(true); // their part of what's being recorded now: finish it so it can go with them
   }
   const n = owedTo(l.cid).length + comingFor(l.cid);
   hub.message(peer, { t: 'owed', n });
