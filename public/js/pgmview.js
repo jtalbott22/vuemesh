@@ -1,7 +1,9 @@
 // Program out on the phone remote: the program's picture as a TV gets it (display-hub.js), on
 // its own link, so the remote shows what's on air right where it cuts. The studio let this
-// screen in when the phone was paired as a remote (no Accept), and sends it the picture only, at
-// half size. It joins again by itself, as a TV does (tv.js), and says what it's showing.
+// screen in when the phone was paired as a remote (no Accept), and sends it the picture at half
+// size, with the program's sound (the remote starts it muted: see remote.js). It joins again by
+// itself, as a TV does (tv.js), and says what it's showing, only while it's on screen: a phone
+// that's locked or in the background shows nothing, and isn't falling behind.
 import { meshSocket, ICE } from '/js/vm.js';
 
 export class ProgramView {
@@ -43,6 +45,20 @@ export class ProgramView {
       v.requestVideoFrameCallback(each);
     }
     this.timer = setInterval(() => this.tick(), 3000);
+    // (back on screen: its count starts again, so the time it was away isn't reported as frozen)
+    this.onVis = () => (this.lastQ = null);
+    document.addEventListener('visibilitychange', this.onVis);
+    // (scrolled off screen, a phone stops drawing it, Safari pauses it if muted: not reported either)
+    this.inView = true;
+    this.seen = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => {
+      this.inView = es[es.length - 1].isIntersecting;
+      if (!this.inView) this.lastQ = null;
+    }) : null;
+    this.seen?.observe(v);
+  }
+  /** Is the program's sound coming in? */
+  get hasSound() {
+    return !!this.pc?.getReceivers().some((r) => r.track?.kind === 'audio' && r.track.readyState === 'live');
   }
   signal(data) {
     if (this.host) this.sock.signal(this.host, data);
@@ -64,6 +80,7 @@ export class ProgramView {
     this.drop();
     const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
     pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
     this.ctl = pc.createDataChannel('ctl', { ordered: true });
     this.ctl.onopen = () => this.say('');
     const stream = new MediaStream();
@@ -95,8 +112,13 @@ export class ProgramView {
           if (r.type === 'inbound-rtp' && r.kind === 'video') s = r;
         });
       } catch {}
+      if (document.hidden || !this.inView) {
+        this.lastQ = null;
+        return;
+      }
       const cur = { at: now, shown: this.shown, decoded: s?.framesDecoded || 0, dropped: s?.framesDropped || 0, freezes: s?.freezeCount || 0, freezeMs: (s?.totalFreezesDuration || 0) * 1000, lost: s?.packetsLost || 0 };
-      if (this.lastQ && now - this.lastQ.at >= 4500) {
+      if (this.lastQ && now - this.lastQ.at > 15_000) this.lastQ = cur; // (the phone was asleep: timers stopped)
+      else if (this.lastQ && now - this.lastQ.at >= 4500) {
         const q = this.lastQ, secs = (now - q.at) / 1000;
         const shownFps = (cur.shown - q.shown) / secs, decodedFps = (cur.decoded - q.decoded) / secs;
         try {
@@ -119,6 +141,8 @@ export class ProgramView {
   }
   stop() {
     clearInterval(this.timer);
+    document.removeEventListener('visibilitychange', this.onVis);
+    this.seen?.disconnect();
     this.drop();
     this.sock.close();
     this.video.srcObject = null;

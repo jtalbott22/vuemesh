@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.62.6 — the remote's Program out has the program's sound, and stops stuttering
+**Deploy:** `./aws/deploy.sh` (site only).
+
+On an iPhone, the TV page (`/tv`) played the program smoothly, with its sound; the phone remote's Program out was choppy, and had no sound at all.
+
+- **Program out on the remote has the program's sound,** with a **Sound off / Sound on** button beside Program out: put earbuds in, turn it on, and hear what's on air as you cut. It starts off (a phone in the studio's room would play it back into the microphones), and the phone remembers. Opened again with it on, it comes on with the first tap anywhere (a phone plays sound only after a tap), and the button says "Tap for sound" until then.
+- **The remote's camera buttons are drawn again only when something in them changes.** The studio sends what's on air every second (the mixer's levels change that often), and each time the remote drew every camera button again, with its picture. On a phone that's enough work to make the program above them stutter, once a second.
+- **A remote that's locked, in the background or scrolled past Program out no longer tells the studio it's falling behind.** It shows nothing then, and the studio took that as frozen and lowered its picture to the floor (0.6 Mbps), which took a minute and a half to come back up. A show log had the remote's Program out "frozen 18 s of every 20" while the phone was locked.
+
+**Tests:** `e2e_tvremote` checks the remote's sound: there, muted to start, on with a tap, remembered and back with the first tap after a reload, and off again; and that the camera buttons stay as they are while the studio sends what's on air each second.
+
 ## 0.62.5 — a shared screen's sound isn't "reconnected" every 12 seconds
 **Deploy:** `./aws/deploy.sh` (site only).
 

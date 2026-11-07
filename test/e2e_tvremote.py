@@ -79,6 +79,29 @@ with sync_playwright() as p:
     rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().shown > 5", timeout=30000)
     step(f"the phone remote shows Program out above its cameras ({pv['w']}x{pv['h']}, {pv['shown']} frames so far), let in without Accept and not listed as a TV; it can be turned off and on")
 
+    # its sound: the program's, muted to start with; a tap turns it on, remembered; opened again, the first tap anywhere brings it back
+    rem.wait_for_function("vmProgramView().sound", timeout=20000)
+    assert rem.evaluate('vmProgramView().muted') and rem.get_attribute('#sndBtn', 'aria-pressed') == 'false' and rem.inner_text('#sndBtn') == 'Sound off'
+    rem.click('#sndBtn')
+    rem.wait_for_function("!vmProgramView().muted && document.querySelector('#sndBtn').getAttribute('aria-pressed') === 'true'", timeout=5000)
+    assert rem.inner_text('#sndBtn') == 'Sound on'
+    rem.reload()
+    rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().sound && vmProgramView().shown > 5", timeout=30000)
+    assert rem.evaluate('vmProgramView().muted') and rem.inner_text('#sndBtn') == 'Tap for sound'
+    rem.wait_for_selector('#cams .cam')
+    rem.click('#cams .cam')
+    rem.wait_for_function("!vmProgramView().muted && document.querySelector('#sndBtn').textContent.trim() === 'Sound on'", timeout=5000)
+    rem.click('#sndBtn')
+    assert rem.evaluate('vmProgramView().muted') and rem.inner_text('#sndBtn') == 'Sound off'
+    step("Program out has the program's sound: muted to start, on with a tap (remembered: opened again, the first tap anywhere turns it on), and off again")
+
+    # the cameras aren't drawn again every second (that made the program stutter on a phone): only when something changes
+    time.sleep(1.5)  # (after the cut: its state has come)
+    rem.evaluate("window.__cam = document.querySelector('#cams .cam'); window.__img = document.querySelector('#cams .cam img')?.src || ''")
+    time.sleep(3.5)
+    assert rem.evaluate("document.querySelector('#cams .cam') === window.__cam"), 'the camera grid was drawn again with nothing changed'
+    step('the camera buttons stay as they are while the studio sends what is on air each second')
+
     # Monitor: the remote's Program out says what it's getting, as a TV does, and its control link is there too
     mon = ctx.new_page(); mon.on('pageerror', lambda e: errors.append(f'monitor: {e}'))
     mon.goto(f"{BASE}/monitor?e={ev['id']}")

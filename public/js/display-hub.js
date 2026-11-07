@@ -257,7 +257,7 @@ export class DisplayHub {
   async applyTracks(l) {
     if (!l?.pc) return;
     const k = this.keys.get(l.key) || {}, mode = k.mode || 'program';
-    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' && !k.remote }; // (a phone remote: the picture only, so it can't echo into the room)
+    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' }; // (a phone remote too: its sound starts off there, so it can't echo into the room until someone turns it on)
     for (const tr of l.pc.getTransceivers()) {
       const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
       if (!kind) continue;

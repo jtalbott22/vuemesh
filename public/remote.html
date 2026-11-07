@@ -49,8 +49,15 @@
   .pgm[hidden] { display: none; }
   .pgm video { width: 100%; height: 100%; object-fit: contain; display: block; }
   .pgm .pgmsay { position: absolute; inset: auto 8px 8px 8px; color: var(--dim); font-size: .85rem; text-align: center; }
-  .pgmtgl { min-height: 36px; padding: 6px; font-size: .9rem; margin: 0 0 8px; }
-  .pgmtgl[hidden] { display: none; }
+  .pgmrow { display: flex; gap: 8px; margin: 0 0 8px; }
+  .pgmrow[hidden], .pgmrow button[hidden] { display: none; }
+  .pgmtgl { flex: 1; min-height: 44px; padding: 6px; font-size: 1rem; }
+  /* the program's sound on this phone: off until tapped (earbuds in, it follows every cut) */
+  .sndbtn { flex: 1; min-height: 44px; padding: 6px 10px; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .sndbtn svg { width: 22px; height: 22px; flex: none; }
+  .sndbtn[aria-pressed="true"] { background: var(--preview); color: #04120a; }
+  .sndbtn.wait { border-color: var(--amber); }
+  .sndbtn[aria-pressed="false"] .on, .sndbtn[aria-pressed="true"] .off { display: none; }
   .status .big { font-size: 1.5rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status .rec { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--tally); }
   .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -113,7 +120,10 @@
       <video id="pgm" muted playsinline autoplay aria-label="Program out: what's on air"></video>
       <span class="pgmsay" id="pgmSay"></span>
     </div>
-    <button type="button" class="pgmtgl" id="pgmTgl" aria-pressed="true" hidden>Program out</button>
+    <div class="pgmrow" id="pgmRow" hidden>
+      <button type="button" class="pgmtgl" id="pgmTgl" aria-pressed="true">Program out</button>
+      <button type="button" class="sndbtn" id="sndBtn" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><g class="on"><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></g><g class="off"><path d="M17 9l5 6M22 9l-5 6"/></g></svg><span>Sound off</span></button>
+    </div>
     <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
     <p class="fine" id="noCams" hidden>No cameras yet.</p>
     <h2 class="sub" id="soundH" hidden>Sound</h2>
