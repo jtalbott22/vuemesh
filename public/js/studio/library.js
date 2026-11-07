@@ -499,7 +499,11 @@ export async function deleteRecording(id, { confirmed = false, elsewhere = false
   const subs = media.subclips.filter((x) => x.src === id).length;
   const mb = fmtMB(rawBlobs.get(id)?.size || 0);
   if (!confirmed && !confirm(`Delete ${clipTitle(c)}'s recording (${fmtDur(c.dur).slice(0, -3)}, ${mb})?${uses ? `\n\nIt's used ${uses} time${uses === 1 ? '' : 's'} on the timeline; those pieces will be removed.` : ''}${subs ? `\n${subs} subclip${subs === 1 ? '' : 's'} will go too.` : ''}\n\nThe file is deleted from this computer. This can't be undone.`)) return;
-  if (!elsewhere) await idb.remove('clips', eventId, id); // (deleted in the other window: the file's gone already)
+  if (!elsewhere) {
+    await idb.remove('clips', eventId, id); // (deleted in the other window: the file's gone already)
+    // (Record program's file is kept twice, as this and as the show's master: both go, or the file stays)
+    if (c.program && id.startsWith('PGM-')) await idb.remove('program', eventId, 'master-' + id.slice(4)).catch(() => {});
+  }
   if (!EDIT_ONLY && !elsewhere) editCh?.postMessage({ t: 'deleted', id }); // (the Edit page, if open, drops it too)
   if (srcMon.clip?.id === id) {
     srcMon.v.pause();

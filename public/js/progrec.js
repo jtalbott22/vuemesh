@@ -25,15 +25,28 @@ export async function programRecorderSupport(W, H, fps) {
   return s?.video && s.audio ? s : null;
 }
 
-/** Program recordings left in this browser's file storage from before (kept a day, then removed). */
-export async function tidyProgramRecordings(keepMs = 86400_000) {
+/**
+ * Program recordings left in this browser's file storage from before: kept a day, then removed,
+ * unless something kept in this browser still uses the file (`inUse`, file names). A recording
+ * kept in IndexedDB (a show's master, Edit's "Program (as aired)") is only a reference to its file
+ * there: removed after a day, the next day those copies couldn't be opened.
+ * The files are looked at first; what's kept is asked about (`inUse`) only if one is old enough to
+ * go, and if that can't be answered, nothing is removed.
+ * @param {number} [keepMs]
+ * @param {() => Promise<Set<string>>} [inUse]  the file names still referenced
+ */
+export async function tidyProgramRecordings(keepMs = 86400_000, inUse = async () => new Set()) {
   try {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(DIR, { create: true });
+    const old = [];
     for await (const [name, h] of dir.entries()) {
       if (h.kind !== 'file') continue;
       const f = await h.getFile().catch(() => null);
-      if (f && Date.now() - f.lastModified > keepMs) await dir.removeEntry(name).catch(() => {});
+      if (f && Date.now() - f.lastModified > keepMs) old.push(name);
     }
+    if (!old.length) return;
+    const used = await inUse();
+    for (const name of old) if (!used.has(name)) await dir.removeEntry(name).catch(() => {});
   } catch {}
 }
 

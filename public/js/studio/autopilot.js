@@ -430,7 +430,18 @@ function watchEncoder(r) {
     }
   }, 5000);
 }
-if (!EDIT_ONLY) setTimeout(() => tidyProgramRecordings(), 20_000); // (yesterday's recordings, from this browser's file storage)
+// (yesterday's recordings, from this browser's file storage: not one still kept here, a master or
+// Edit's "Program (as aired)", whose copy in IndexedDB is only a reference to the file. If what's
+// kept can't be read, nothing is removed.)
+if (!EDIT_ONLY) setTimeout(() => tidyProgramRecordings(86_400_000, recordingsInUse), 20_000);
+/** The names of the recording files that records kept in this browser still use. */
+export async function recordingsInUse() {
+  const names = new Set();
+  for (const store of ['program', 'clips']) {
+    for (const r of await idb.listAll(store)) if (r.blob instanceof File && r.blob.name) names.add(r.blob.name);
+  }
+  return names;
+}
 // by hand: it downloads and shows the wrap-up as usual (only hands-free shows skip those)
 export const recByHand = () => {
   ap.handsFree = false;
