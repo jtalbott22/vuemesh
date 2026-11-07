@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.61.9 — another computer's screen reaches the studio on the real site
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Another computer's screen (`/share`) joins the studio on vuemesh.com.** The share page never loaded the site's settings (where the studio's signalling is), so it looked for the studio at the site's own address, which only the dev server answers. On the real site it sat on "Finding the studio…" or "Waiting for the studio to open…" with the studio open, and never showed up under Sources. It worked on the dev server, where it was tested. (Tried against a new show on vuemesh.com with the page as it is now: it joined, linked on this network, and was a source in the studio in seconds.)
+- **A test catches a page that talks to the cloud without those settings** (`npm test`), so this can't come back on another page.
+
 ## 0.61.8 — microphones added as stereo or mono; a Windows show: a screen in the sync check, and Record program while hidden
 **Deploy:** `./aws/deploy.sh` (site only).
 

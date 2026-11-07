@@ -1,17 +1,257 @@
-# VUEMesh (beta), LAN-first
+<p align="center">
+  <img src="public/og.png" alt="VUEMesh: a production studio in the browser. The phones, tablets, laptops and webcams you already own become synced cameras." width="900">
+</p>
 
-Everyone at an event shoots on their own phone. The phones find the host laptop through a tiny cloud handshake, then send everything **directly over the local Wi-Fi**: a live preview for cutting live, and each full-quality clip when they stop recording. The cloud never carries raw video. It only sees the finished film when the host publishes it.
+<h1 align="center">VUEMesh</h1>
 
-**New here?** Read [How VUEMesh fits together](docs/HOW-IT-WORKS.md): the roles, the one-beacon rule, which browser to use for the studio, network and capacity.
+<p align="center">
+  <strong>A multi-camera production studio that runs in the browser.</strong><br>
+  Every phone in the room becomes a synced camera. Switch it live, mix the sound, record the program, and walk away with every angle, cut and ready to edit.
+</p>
 
-## How the pieces fit
+<p align="center">
+  <a href="https://vuemesh.com"><img alt="Live at vuemesh.com" src="https://img.shields.io/badge/live-vuemesh.com-e8372c?style=flat-square"></a>
+  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-f5a623?style=flat-square">
+  <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
+  <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
+  <img alt="Serverless on AWS" src="https://img.shields.io/badge/AWS-serverless%2C%20scales%20to%20zero-232f3e?style=flat-square">
+</p>
+
+<p align="center">
+  <a href="https://vuemesh.com">Website</a> ·
+  <a href="https://vuemesh.com/tour">Tour of every screen</a> ·
+  <a href="docs/HOW-IT-WORKS.md">How it fits together</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="docs/TESTS.md">Tests</a>
+</p>
+
+---
+
+![The VUEMesh studio mid-show: sources on the left (webcams, two shared screens and the computer's sound), the program with a "Starting soon" slate, the T-bar switcher, the audio mixer along the bottom and the output settings on the right.](public/media/screens/studio.webp)
+
+<p align="center"><sub>The studio during a real show: five sources, the program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
+
+## What is VUEMesh?
+
+Everyone at an event already carries a good camera. VUEMesh turns them into one production.
+
+Guests scan a code on a screen and their phone becomes a camera, or a microphone. A laptop running
+the **studio** sees every camera live, and you cut between them by hand or let the **auto director**
+do it. Each phone records its own angle in full quality and sends it to the studio when it stops,
+lined up to the frame against the same clock as the live cut. When the show ends you have a finished
+program **and** every angle, ready to re-cut in the built-in editor.
+
+Nothing to install, no capture cards, no cables to the cameras. Everything runs in a web browser.
+
+**What makes it different**
+
+- **LAN-first.** Phones find the studio through a tiny cloud handshake, then send everything
+  **directly over the local network** with WebRTC. The cloud never carries raw video, so there's no
+  upload bottleneck and no bandwidth bill. It only sees the finished film, and only if the host publishes it.
+- **Frame-accurate sync with no timecode hardware.** The beacon shows an optical clock. Each phone
+  reads it through its camera, so clips from a dozen different phones line up to the frame.
+- **Signed footage.** Every phone has its own key. Each clip is hashed in parts and signed, and the
+  studio verifies every part before accepting it. Published films carry the signatures, so anyone can
+  check who shot what.
+- **Serverless and nearly free to run.** CloudFront, S3, API Gateway, Lambda and DynamoDB with TTLs.
+  Every piece scales to zero, and event data deletes itself after 30 days.
+
+## Contents
+
+- [Features](#features)
+- [Screens](#screens)
+- [How it works](#how-it-works)
+- [Getting started](#getting-started)
+- [Repository layout](#repository-layout)
+- [Keyboard](#keyboard)
+- [Security model](#security-model)
+- [Guides](#guides): streaming, the WHIP receiver, the phone remote, kiosks, video calls and more
+- [Known limits](#known-limits)
+
+## Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🎥 Capture
+- **Any phone, tablet or laptop is a camera.** Scan, type a name, and it's in the show.
+- **Full-quality local recording** on every device, sent to the studio in hashed 8 MB parts when each take ends. An outbox on the phone survives reloads.
+- **Phone as microphone**, with its own meter and a choice of input (a plugged-in USB mic too).
+- **Webcams, audio interfaces and screens on the studio computer**, plus **another computer's screen** over `/share`.
+- **Remote camera control:** zoom, lens, exposure, white balance and focus point, with a histogram and waveform per camera.
+- **Tally lights** on each phone (red on air, green in preview) and messages from the director.
+
+</td>
+<td width="50%" valign="top">
+
+### 🎬 Live production
+- **Switcher** with CUT, AUTO and a T-bar, dissolves, fade to and cut to black, and a MIDI fader.
+- **Auto director** and **autopilot**, which can run a whole show alone: intro, fade up, record, cut, and wrap up.
+- **Break slate** with a sponsor reel, **lower thirds**, clips, and a **rundown** with cues.
+- **Picture-in-picture**: a camera in the corner over a shared screen.
+- **Live picture quality follows the show**: sharp on air, light on standby (see [the table](#live-picture-quality)).
+- **Record-only overflow:** past 12 live pictures, more phones still record and wait to swap in.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🎚️ Sound
+- **A mixer strip per source:** audio follows video, on or off, fader, 3-band EQ, high-pass, balance, and mono or stereo.
+- **Pop-out audio console** with spectrum, waveform, stereo scope and phase.
+- **Multi-input interfaces** (a Scarlett 2i2, say) as stereo, two mono tracks, or mono.
+- **Sound sync** lines clips up by their shared audio, on top of the optical clock.
+
+</td>
+<td valign="top">
+
+### ✂️ Edit and render
+- **The live cut is already on the timeline** when the full-quality clips arrive, stamped on the shared clock.
+- **Layered timeline** with trims, moves, splits, ripple, roll, slip and slide, titles, slates, images and picture-in-picture, using Premiere's keys.
+- **Source and Program monitors**, markers, moments, subclips and a media library.
+- **Render MP4** faster than real time, with hardware H.264 in Chrome and Edge.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📡 Output and distribution
+- **Record the program** to a file while the show runs.
+- **Stream out** over WHIP straight from the browser (Twitch, Restream, Cloudflare Stream), or to **RTMP** services (YouTube, Facebook, Kick, Vimeo) through a small local relay.
+- **Program out** window for a projector or OBS, and the program **as a webcam** in Zoom, Teams or Meet.
+- **TV screens:** `/tv` in any browser, or the **Apple TV app**, plays the live program from the studio over the LAN.
+- **Each camera person gets their part of the live cut** on their own phone.
+
+</td>
+<td valign="top">
+
+### 🧭 Running the show
+- **Phone remote:** pair a phone with a one-time code and cut, break, fade and record from anywhere in the room.
+- **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
+- **Show log:** frame rate, sound and alerts for each session, saved for later.
+- **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
+- **Admin:** every event, listing, expiry and film, plus anonymous growth numbers and web traffic.
+
+</td>
+</tr>
+</table>
+
+## Screens
+
+VUEMesh is a handful of pages, each with one job. Every picture below is from a real show; the
+[tour](https://vuemesh.com/tour) has all of them.
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="public/media/screens/beacon.webp" alt="The beacon: a large QR code, the show's name, a running clock, phones in and recording counts, and a Wi-Fi join code."><br><sub><b>Beacon.</b> Phones scan it to join, and read its clock to sync.</sub></td>
+<td width="50%" align="center"><img src="public/media/screens/camera.webp" alt="A phone camera aimed at the studio's two monitors: Synced badge, record button, zoom lenses 0.5x to 3x and a level meter."><br><sub><b>Camera.</b> Records full quality, sends a live picture, shows its tally.</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="public/media/screens/mixer.webp" alt="The audio console: five strips with AFV, ON, OFF and MONO buttons, EQ curves, faders and meters, with program peak, RMS, spectrum, waveform and stereo scope."><br><sub><b>Audio console.</b> EQ, AFV and stereo meters for every source.</sub></td>
+<td align="center"><img src="public/media/screens/ccu.webp" alt="Camera control: five cameras side by side, each with a histogram, a waveform, zoom, brightness and contrast, AE/AF and white balance locks, and a CUT button."><br><sub><b>Camera control.</b> Histogram, waveform and exposure for each angle.</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="public/media/screens/monitor.webp" alt="The monitor: summary tiles, a table of every source with link, live picture, camera, battery and device, plus transfers, received recordings and an event log."><br><sub><b>Monitor.</b> The health of every link, transfer and device.</sub></td>
+<td align="center"><img src="public/media/screens/kiosk.webp" alt="Kiosk mode: an empty program beside a large QR code reading Scan to start a show, with camera, clip and sending counts."><br><sub><b>Kiosk.</b> A self-running show that guests start by scanning.</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="public/media/screens/remote.webp" alt="The phone remote: a tile per camera with its picture, the computer's sound, and Auto-director, Fade to black, Break and Record program buttons." width="240"><br><sub><b>Phone remote</b></sub></td>
+<td width="33%" align="center"><img src="public/media/screens/mic.webp" alt="A phone in microphone mode with its level meter." width="240"><br><sub><b>Phone as microphone</b></sub></td>
+<td width="33%" align="center"><img src="public/media/screens/media.webp" alt="My media on a phone: a list of recordings with thumbnails." width="240"><br><sub><b>My media</b></sub></td>
+</tr>
+</table>
+
+## How it works
+
+The cloud only introduces devices to each other. Pictures and sound travel **directly between
+devices on the venue's network**.
+
+```mermaid
+flowchart TB
+  subgraph AWS["☁️ AWS: serverless, scales to zero"]
+    direction LR
+    CDN["CloudFront + S3<br/>the app · published films"]
+    HTTP["HTTP API + Lambda<br/>events · discovery · publish"]
+    WS["WebSocket API + Lambda<br/>presence · WebRTC handshakes"]
+    DB[("DynamoDB<br/>expires in 30 days")]
+    HTTP --- DB
+    WS --- DB
+  end
+
+  subgraph Venue["📍 Venue network: all video stays here"]
+    direction LR
+    Beacon["📺 Beacon<br/>join code + optical clock"]
+    Cams["📱 Phone cameras<br/>and microphones"]
+    Share["💻 Another computer<br/>/share"]
+    Studio["🖥️ Studio laptop<br/>/studio"]
+    TV["📺 TV screens<br/>/tv · Apple TV"]
+    Remote["📱 Phone remote"]
+    Cams -. "scan, read clock" .-> Beacon
+    Cams == "live picture + full-quality clips" ==> Studio
+    Share == "screen + sound" ==> Studio
+    Studio == "live program" ==> TV
+    Remote -. "cut, break, record" .-> Studio
+  end
+
+  Venue <-. "load the app · find each other (signalling only)" .-> AWS
+```
+
+### A phone joining a show
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Phone
+  participant Beacon
+  participant Cloud as Cloud (HTTP + WebSocket)
+  participant Studio as Studio laptop
+
+  Phone->>Beacon: Scan the QR code (the join link)
+  Phone->>Cloud: Look up the event, sign its terms with the phone's own key
+  Phone->>Cloud: Join the event's signalling as a camera
+  Cloud-->>Studio: Who's here: a new camera
+  Phone->>Studio: WebRTC offer, answer and ICE (relayed by the cloud)
+  Note over Phone,Studio: From here on, nothing goes through the cloud
+  Phone->>Beacon: Read the optical clock through the camera (sync)
+  Phone-)Studio: Live picture, its quality set by on air, preview or standby
+  Studio-)Phone: Tally (on air or up next) and messages
+  Phone-)Studio: Each finished clip, in 8 MB hashed parts
+  Studio->>Studio: Check every part hash, the fingerprint, the key and both signatures
+  Studio-)Phone: The camera person's part of the live cut
+```
+
+### From the room to the finished film
+
+```mermaid
+flowchart LR
+  A["Phones record<br/>full quality, locally"] --> B["Live pictures<br/>to the studio"]
+  B --> C{"Live: switcher,<br/>auto director, mixer"}
+  C --> D["Record program"]
+  C --> E["Stream out<br/>WHIP · RTMP relay"]
+  C --> F["Program out · TVs<br/>video calls"]
+  A --> G["Clips arrive after<br/>each take, verified"]
+  C -- "cuts stamped on<br/>the shared clock" --> H["Edit: the live cut is<br/>already on the timeline"]
+  G --> H
+  H --> I["Render MP4"]
+  I -.-> J["Publish (optional):<br/>watch page verifies signatures"]
+```
+
+### The roles
 
 | Where | What happens |
 | --- | --- |
-| **Beacon** (a screen at the venue) | One QR that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
+| **Beacon** (a screen at the venue) | One QR code that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
 | **Guest phone** (`/cam`) | Join, sign the terms with the phone's own key, optical sync, record full quality locally. Streams a low-res live preview to the host and sends each finished clip over a WebRTC data channel in 8 MB hashed parts. Unsent clips wait in the phone's outbox (survives reloads) until the host confirms them. |
 | **Host laptop** (`/studio`) | The hub. **Live**: every phone's preview in a multiview, cut with 1–9, break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
+| **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every phone, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
+| **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). |
 | **Admin** (`/admin`) | For you and your team: every event, rename, list/unlist, change expiry, delete films and events. |
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off during the beta. |
 | **Terms** (`/terms`) | Beta Terms of Use. Hosts and guests agree before creating or joining. |
@@ -19,9 +259,30 @@ Everyone at an event shoots on their own phone. The phones find the host laptop 
 | **Sponsors** (`/sponsors`) | Where sponsors can appear and the house rules. Contact goes to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
 | **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL. All scale to zero. |
 
-Live cuts made on the host are stamped on the shared clock, so when the full-quality clips arrive the cut is already there. Put the beacon on a second screen of the host laptop to keep one clock for everything.
+Live cuts made on the host are stamped on the shared clock, so when the full-quality clips arrive
+the cut is already there. Put the beacon on a second screen of the host laptop to keep one clock for
+everything. [How VUEMesh fits together](docs/HOW-IT-WORKS.md) covers the one-beacon rule, which
+browser to use for the studio, and network and capacity planning.
 
-## Run it locally
+### Requirements at a glance
+
+| | |
+| --- | --- |
+| **Studio** | A laptop or desktop with **Chrome or Edge** (Mac or Windows), or Safari on a Mac. Linux works but records VP9, which iPhones can't play. |
+| **Cameras** | Any recent phone or tablet browser (iPhone Safari, Android Chrome), or a computer with a webcam. HTTPS is required for the camera. |
+| **Network** | Your own router is best: Wi-Fi 6 on 5 GHz, the studio on a cable. Venue Wi-Fi with client isolation blocks the direct path. |
+| **Capacity** | About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that. |
+
+## Getting started
+
+### Use it
+
+Open **[vuemesh.com](https://vuemesh.com)**, choose **Start a show**, open the studio on a laptop,
+and put the beacon on a screen. Phones scan it to join. That's all.
+
+### Run it locally
+
+Requires Node.js 20 or later. Python 3 with Playwright is only needed for the browser test suites.
 
 ```bash
 npm install
@@ -31,17 +292,40 @@ npm run test:e2e     # every browser suite, one at a time; writes test-results.t
 npm run lint         # ESLint on the JavaScript (and `ruff check .` for the Python: pip install ruff)
 ```
 
+The dev server also serves HTTPS on its port + 1000 with a self-signed certificate and prints the
+addresses for other devices, so phones and other computers on your network can join a local studio.
 [docs/TESTS.md](docs/TESTS.md) lists every suite and what it covers, and how to run just some of them.
 
-Phones need HTTPS for the camera, so real phone tests go through the AWS deploy.
+### Deploy to AWS
 
-## Put it on AWS
+See [`aws/README.md`](aws/README.md). Short version: install the AWS CLI and SAM CLI, then
+`./aws/deploy.sh`. Or paste [`aws/PROMPT.md`](aws/PROMPT.md) into Kiro (AWS's AI coding agent) and
+let it do the steps.
 
-See [`aws/README.md`](aws/README.md). Short version: install the AWS CLI and SAM CLI, then `./aws/deploy.sh`. Or paste [`aws/PROMPT.md`](aws/PROMPT.md) into Kiro (AWS's AI coding agent) and let it do the steps.
+## Repository layout
+
+```text
+public/            The whole app: plain HTML, CSS and ES modules, no build step
+  js/              Shared modules (signalling, WebRTC, quality, show log…)
+  js/studio/       The studio's parts: live, sources, mixer, edit, screens…
+  relay/           The local RTMP / virtual-camera relay (Node + ffmpeg)
+  media/screens/   The screenshots used here and on /tour
+aws/               SAM template, deploy script, and the two Lambdas (api, signal)
+  functions/lib/   The cloud core, shared by the Lambdas and the dev server
+dev/               The local dev server (same API and signalling, in memory)
+apple-tv/          The Apple TV app (SwiftUI), same protocol as /tv
+tools/             A WHIP receiver for your own computer (Python, aiortc)
+media/pipeline/    How the home page films are made (ComfyUI)
+test/              Unit tests (node) and end-to-end browser suites (Playwright)
+docs/              How it fits together, tests, screenshots, Apple TV
+```
 
 ## Keyboard
 
 Press **?** anywhere in the studio (and on guest phones with a keyboard) for the full list.
+
+<details>
+<summary><b>All studio shortcuts</b></summary>
 
 | Keys | Studio |
 | --- | --- |
@@ -69,6 +353,8 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 | Ctrl/⌘ Z, Esc | Undo (Shift to redo); deselect |
 | [ / ], H, F | Beacon: dim or brighten the code, show controls, full screen |
 
+</details>
+
 ## Security model
 
 - Each phone makes a P-256 key on first use. Joining signs the event's terms; every clip's fingerprint (hash of its part hashes) is signed off by the phone.
@@ -77,7 +363,11 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 - The host key (in the studio link) is required for hosting the signaling room and publishing. Guests can only message the host, never each other.
 - Public listings store location rounded to about a kilometer.
 
-## Streaming to RTMP (YouTube, Facebook, Kick, Vimeo…)
+## Guides
+
+Deeper notes on the parts that need setting up or explaining.
+
+### Streaming to RTMP (YouTube, Facebook, Kick, Vimeo…)
 
 Stream out in the studio sends the program to one service. WHIP services (Twitch, Restream,
 Cloudflare Stream, Dolby OptiView) take it straight from the browser. RTMP services need the
@@ -94,7 +384,7 @@ connections only from VUEMesh pages (`--origins` to add your own), only sends to
 (H.264 with a keyframe every 2 s, AAC at 160 kbit/s), which takes some CPU: if the studio says
 the computer is struggling, pick a lower quality.
 
-## Live picture quality
+### Live picture quality
 
 Each phone sends two things: its full-quality recording (kept on the phone, sent afterwards for
 Edit) and a live picture for the studio, which the program, Record program and the stream are made
@@ -119,7 +409,7 @@ Program out's Edit picture, which never leaves the computer, starts at 12 Mbps w
 what it may; its size and frame rate; what's holding it back: the network or the phone's encoder)
 and the stream's rate and picture.
 
-## A WHIP receiver on your own computer
+### A WHIP receiver on your own computer
 
 `tools/whip_receiver.py` takes the studio's program on a computer of yours (on the same network,
 say), shows it and records it: `pip install aiortc aiohttp`, then `python whip_receiver.py`. It
@@ -134,7 +424,7 @@ to 0.5 Mbit/s within three seconds); the receiver leaves out what that estimate 
 stream runs at the rate chosen. For something bigger, MediaMTX takes WHIP too, without the
 re-encoding this does for its preview.
 
-## Phone remote
+### Phone remote
 
 Run the show from your phone while you step away from the studio. In the studio's right-hand
 panel, **Phone remote > Add a phone** shows a QR code and a one-time code (good for two minutes
@@ -151,26 +441,7 @@ reload of the phone carries on too. **Remove** unpairs one at once. Pictures are
 the remote is open and on screen; nothing goes through the server but the messages (which go only
 between the studio and that phone).
 
-## The films on the home page
-
-The hero's program monitor plays the three films (First Dance, Live Tonight, Game Night) when it
-comes into view, muted, one after another, then hands over to the live demo; the keys under the
-wall pick one, and Sound turns the sound on. Put the files in `public/media/` as `wedding.mp4`,
-`concert.mp4` and `arena.mp4` (the films pipeline's `cut` makes them: H.264 MP4, 1280x720) and
-deploy as usual. A film that isn't there is left out (its key hidden), so the page works before
-they're all uploaded. Nothing plays by itself for anyone who's asked their device for less motion.
-
-## Web traffic (Admin)
-
-Every page sends one anonymous page view when it loads (not the admin pages, and not for browsers
-that ask not to be tracked: Do Not Track or Global Privacy Control). No cookies and nothing stored
-about anyone: a visitor is counted once a day by a fingerprint (a salted hash of the day, their
-address and browser) that's deleted after two days. Bots aren't counted. Admin's **Web traffic**
-panel shows visitors, page views, pages, where visitors came from, landing pages, campaigns
-(`?utm_source=` on a link), devices, browsers, countries (when the edge provides them) and how
-often each film was played and watched to the end, with a CSV.
-
-## Kiosk: a screen people walk up to (and digital signs)
+### Kiosk: a screen people walk up to (and digital signs)
 
 `/kiosk` needs nothing pressed: it opens this screen's show (or starts one) as the studio,
 stripped down: the cameras, the program, and its own join code beside them, pulsing, filling
@@ -190,7 +461,7 @@ browser for nothing (no camera, microphone or screen): it only receives phones.
 - A camera on the kiosk's own computer (a webcam added in the studio) never starts or keeps a
   show going: it joins the rotation while phones are on.
 
-### Setting up a kiosk on a sign
+#### Setting up a kiosk on a sign
 
 1. **On the sign's computer, in the browser the sign will use,** open the studio once (any
    event: `/studio`, or make one on the home page) and set how shows should look and run. The
@@ -208,7 +479,7 @@ browser for nothing (no camera, microphone or screen): it only receives phones.
 3. **Keep it on and connected** for the show: the kiosk is the studio, so phones connect to it
    (best on the same Wi-Fi), and it sends each phone its part of the live cut.
 
-## The program as a camera in video calls
+### The program as a camera in video calls
 
 Stream out → **Zoom, Teams or Meet (as a camera)** sends the program through the relay (relay
 version 2: download it again) to a camera the call can pick:
@@ -222,7 +493,26 @@ version 2: download it again) to a camera the call can pick:
   microphone "Monitor of VUEMesh".
 - **ChromeOS, or no install anywhere:** Program out, then Share screen in the call.
 
-## Growth numbers (for investors) without keeping anyone's data
+### The films on the home page
+
+The hero's program monitor plays the three films (First Dance, Live Tonight, Game Night) when it
+comes into view, muted, one after another, then hands over to the live demo; the keys under the
+wall pick one, and Sound turns the sound on. Put the files in `public/media/` as `wedding.mp4`,
+`concert.mp4` and `arena.mp4` (the films pipeline's `cut` makes them: H.264 MP4, 1280x720) and
+deploy as usual. A film that isn't there is left out (its key hidden), so the page works before
+they're all uploaded. Nothing plays by itself for anyone who's asked their device for less motion.
+
+### Web traffic (Admin)
+
+Every page sends one anonymous page view when it loads (not the admin pages, and not for browsers
+that ask not to be tracked: Do Not Track or Global Privacy Control). No cookies and nothing stored
+about anyone: a visitor is counted once a day by a fingerprint (a salted hash of the day, their
+address and browser) that's deleted after two days. Bots aren't counted. Admin's **Web traffic**
+panel shows visitors, page views, pages, where visitors came from, landing pages, campaigns
+(`?utm_source=` on a link), devices, browsers, countries (when the edge provides them) and how
+often each film was played and watched to the end, with a CSV.
+
+### Growth numbers (for investors) without keeping anyone's data
 
 Events and everything in them still delete themselves 30 days after they're created. Alongside,
 the server keeps one record per day of **anonymous counts**, which never expire: events created
@@ -237,7 +527,12 @@ as PDF) and **Save snapshot** (freezes today's numbers for the record, to quote 
 earlier days** counts the events still stored (the last 30 days) into days from before counting
 began. Footage and live-cut hours come from studios on 0.25 or later.
 
-## Known limits in v0.20
+## Known limits
+
+VUEMesh is in beta. These are the limits known today, and what has and hasn't been tested on real hardware.
+
+<details>
+<summary><b>Show the known limits</b></summary>
 
 - Guests need to be on the same network as the host for the direct path. Venue Wi-Fi with client isolation needs a travel router.
 - Very long camera clips are held in phone memory until sent; keep them under ~10 minutes. Microphone phones split automatically.
@@ -264,3 +559,5 @@ began. Footage and live-cut hours come from studios on 0.25 or later.
 - The Terms are a starting point, not legal advice. Have a lawyer review them before you charge money or turn publishing on.
 - Export renders in real time on the host laptop (keep the tab in front).
 - Remote viewers get the published director's cut. Watching any single angle remotely would mean hosting every clip, which is the expensive thing this design avoids.
+
+</details>
