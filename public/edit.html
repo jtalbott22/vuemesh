@@ -647,7 +647,8 @@
   .scrub .tick { background: var(--tally); }
   #srcRange, #pRange { justify-self: end; font-size: .68rem; color: var(--text-2); white-space: nowrap; min-height: 1.2em; }
   /* each viewer's transport */
-  .viewers .vctl { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--surface); border-top: 1px solid var(--line); flex-wrap: nowrap; overflow: hidden; }
+  /* (a viewer too narrow for its whole row, beside the panels on a laptop: the rest goes on a second line, never cut off) */
+  .viewers .vctl { display: flex; align-items: center; justify-content: center; gap: 6px; row-gap: 4px; padding: 5px 8px; background: var(--surface); border-top: 1px solid var(--line); flex-wrap: wrap; }
   .vctl .tgroup { display: inline-flex; align-items: center; gap: 1px; flex: none; }
   .vctl .tspace { flex: 1 1 0; min-width: 4px; }
   .vctl .deck { background: var(--surface-2); border-radius: 8px; padding: 2px; }
@@ -678,7 +679,10 @@
   .tlbar .zoomctl input { width: 110px; min-height: 0; accent-color: var(--text-2); }
   .tlbar .tspace { display: none; }
   body .tlbar #snapBtn[aria-pressed="true"], body .viewers #meterTgl[aria-pressed="true"] { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--text); }
-  body .viewers #togLeft[aria-pressed="true"], body .viewers #togRight[aria-pressed="true"] { background: transparent; color: var(--text); }
+  .bar .panels { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-2); }
+  body .bar .panels button { min-height: 28px; width: 30px; min-width: 30px; padding: 0 !important; border-radius: 6px; background: transparent; color: var(--muted); box-shadow: none; }
+  body .bar .panels button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+  body .bar .panels button:hover { color: var(--text); filter: none; }
 
   /* --- the timeline: track headers like an editing suite's (V2 V1 A1 A2), a ruler with minor ticks - */
   body > .timeline { grid-template-columns: 200px minmax(0, 1fr); border-top: 0; }
@@ -822,6 +826,11 @@
   <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen (F)">Full screen <kbd>F</kbd></button>
   <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
   <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
+  <!-- the panels: in the top bar, so they're always there (in the Program's row, a narrow window cut them off) -->
+  <span class="panels" role="group" aria-label="Panels">
+    <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the media panel" title="Media panel"><svg class="ic"><use href="#i-left"/></svg></button>
+    <button type="button" class="icon" id="togRight" aria-pressed="true" aria-label="Show the inspector" title="Inspector"><svg class="ic"><use href="#i-right"/></svg></button>
+  </span>
   <button type="button" id="helpBtn" aria-haspopup="dialog" aria-keyshortcuts="?">Help <kbd>?</kbd></button>
   <button type="button" id="themeBtn"></button>
   <button type="button" id="exportTop" class="primary" title="Render the edit to an MP4 (the In to Out range, if one is marked)"><svg class="ic" aria-hidden="true"><use href="#i-export"/></svg>Export</button>
@@ -957,11 +966,7 @@
             <button type="button" class="icon" id="pEnd" aria-keyshortcuts="End" aria-label="Go to the end" title="Go to the end (End)"><svg class="ic"><use href="#i-toend"/></svg></button>
           </span>
           <span class="tspace"></span>
-          <span class="tgroup" role="group" aria-label="Panels">
-            <span class="tc vdur" id="progDur" title="Length of the edit"></span>
-            <button type="button" class="icon" id="togLeft" aria-pressed="true" aria-label="Show the left panel" title="Media panel"><svg class="ic"><use href="#i-left"/></svg></button>
-            <button type="button" class="icon" id="togRight" aria-pressed="true" aria-label="Show the inspector" title="Inspector"><svg class="ic"><use href="#i-right"/></svg></button>
-          </span>
+          <span class="tc vdur" id="progDur" title="Length of the edit"></span>
         </div>
       </div>
     </div>

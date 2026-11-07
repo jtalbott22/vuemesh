@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.62.4 — Edit on a laptop: the panel buttons always there, the two viewers level
+**Deploy:** `./aws/deploy.sh` (site only).
+
+On a 1280 x 720 laptop screen (Chrome's window about 1280 x 633), with the media panel and the inspector open, each viewer has about 365 pixels.
+
+- **The Media panel and Inspector buttons are in the top bar,** beside Help, where they're always there. They were at the end of the Program viewer's row of buttons, and with the inspector open that row didn't fit, so the button to close the inspector again was cut off.
+- **A viewer's buttons go onto a second line when they don't fit** instead of being cut off: Insert, Overwrite, Subclip and Export clip under the Source, and the edit's Length under the Program.
+- **The Source and Program pictures are the same size and level with each other.** The Program's sound meters take some of its width, so its picture was smaller and lower, and the Source's looked off. Now both are drawn at the smaller of the two sizes.
+
 ## 0.62.3 — Edit's sound is the show's sound, as it was heard
 **Deploy:** `./aws/deploy.sh` (site only).
 

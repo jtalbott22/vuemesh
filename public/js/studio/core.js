@@ -856,6 +856,7 @@ export function cardHead(box, title, desc) {
 export function fitMonitors() {
   // each picture fits the monitor it's in (the studio has one for both; Edit has a Source and a Program viewer)
   // (Tap: Preview: preview and program side by side in the studio's monitor, each in half the room)
+  const fits = [];
   for (const cv of [program, $('#srcCanvas'), $('#pvwCanvas')]) {
     const box = cv?.closest?.('.monitor');
     if (!box) continue;
@@ -866,7 +867,16 @@ export function fitMonitors() {
     const H = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 6;
     const gap = two ? parseFloat(cs.columnGap) || 0 : 0;
     const cw = two ? (W - gap) / 2 : W;
-    const k = Math.max(0.05, Math.min(cw / cv.width, H / cv.height));
+    fits.push({ cv, k: Math.max(0.05, Math.min(cw / cv.width, H / cv.height)) });
+  }
+  // Edit's Source and Program side by side: the same size, level with each other (the Program's
+  // sound meters take some of its width, and the Source's picture came out bigger and higher)
+  const pair = EDIT_ONLY && document.body.classList.contains('dual') ? fits.filter((f) => f.cv === program || f.cv.id === 'srcCanvas') : [];
+  if (pair.length === 2) {
+    const k = Math.min(pair[0].k, pair[1].k);
+    for (const f of pair) f.k = k;
+  }
+  for (const { cv, k } of fits) {
     cv.style.width = Math.floor(cv.width * k) + 'px';
     cv.style.height = Math.floor(cv.height * k) + 'px';
   }
