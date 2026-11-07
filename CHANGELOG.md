@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.62.7 — the program's sound on an iPhone plays like a music app's: screen locked, other apps, CarPlay, Now Playing
+**Deploy:** `./aws/deploy.sh` (site only).
+
+The TV page (`/tv`) and the phone remote's Program out play the program's sound the way a music player does (as the avatar page plays its music), so you can lock the phone, switch apps or drive and keep listening.
+
+- **The sound plays from a player of its own,** a plain audio player beside the picture, not the picture itself (an iPhone pauses a video in the background), and never through Web Audio (iOS stops that when the screen locks, and over wireless CarPlay it stutters).
+- **The show is in Now Playing,** on the lock screen, in Control Center and on CarPlay, with the app's icon: on the remote, what's on air (it changes as you cut) over the show's name; on the TV page, the show's name. Play and pause there are Sound on and Sound off here.
+- **The phone is set to play media while the sound is on** (Safari 17's audio session): it plays with the ring switch on silent, into earbuds or the car, and carries on in the background.
+- **Sound on is remembered on the TV page too.** Opened again, it comes on by itself where the browser allows, or with the first tap or key anywhere; the button says "Tap for sound" until then.
+- **The studio keeps a phone that's still connected,** even when its pings come late (a locked phone's timers are held back) or its signalling drops: the picture and sound go straight between the two, and the connection checks the other end is there by itself. It used to close it after 20 s without a ping, and the sound stopped. A TV page that closes is still let go at once.
+- **The TV page doesn't start its link again after a gap in its clock while the program is still coming in.** A gap meant a computer had slept; on a locked phone it's only its timers held back, and starting again cut the sound.
+
+**Tests:** `e2e_tvremote` checks the TV's sound (its own player, off to start, on with Sound, the show in Now Playing playing then paused), the remote's (back on by itself after a reload where the browser allows, what's on air in Now Playing), and that the studio keeps a still-connected TV and remote whose pings are 30 s late and whose signalling has gone.
+
 ## 0.62.6 — the remote's Program out has the program's sound, and stops stuttering
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -21,7 +21,7 @@ The full design (Browse, Beacon, Wi-Fi join, enterprise Wi-Fi, timecode rules) i
 3. When the studio is in `peers`, it signals the studio `{display: {v: 1, t: "hello", name, model, caps, screen, key?}}`.
 4. The studio answers `waiting` (it shows under TV screens with Accept), or `paired` with a key if it already knows this TV. Accept is the only way in: knowing the event code (it's on every beacon) isn't enough on its own.
 5. Once paired, the TV offers a receive-only connection (video and audio recvonly, plus a reliable `ctl` data channel) with the usual `offer` / `answer` / `ice` kinds. The studio answers, H.264 first, up to 6 Mbit/s.
-6. On `ctl`: the studio sends `{t: "mode", mode: "program" | "browse" | "beacon" | "idle", pip, params: {lag}}` and `{t: "meta", title}`; the TV pings every 5 s (`{t: "ping", seq, at}`, answered `{t: "pong", seq, at, now}` with the studio's clock) and reports `{t: "state", status, mode}`. The TV can ask for a mode itself: `{t: "want", mode, pip}`; the studio remembers it and answers with `mode`.
+6. On `ctl`: the studio sends `{t: "mode", mode: "program" | "browse" | "beacon" | "idle", pip, params: {lag}}` and `{t: "meta", title}`; the TV pings every 5 s (`{t: "ping", seq, at}`, answered `{t: "pong", seq, at, now}` with the studio's clock; the studio closes a TV it hasn't heard from in 20 s only once its connection isn't connected either, so a phone with its screen locked that pings late keeps its sound) and reports `{t: "state", status, mode}`. The TV can ask for a mode itself: `{t: "want", mode, pip}`; the studio remembers it and answers with `mode`.
 
 ## Modes
 

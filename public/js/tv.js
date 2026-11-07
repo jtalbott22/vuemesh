@@ -10,6 +10,7 @@
 
 import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
+import { ProgramSound } from '/js/progsound.js';
 
 const $ = (s) => document.querySelector(s);
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -117,6 +118,7 @@ async function join(code) {
   $('#joinErr').textContent = '';
   try {
     ev = await api(`events/${code}`);
+    tvSound.setMeta(ev?.title || code, 'Live program');
   } catch {
     $('#eventCells').classList.add('bad');
     $('#joinErr').textContent = 'No event with that code. Check it on the studio or a beacon.';
@@ -185,11 +187,14 @@ function onDisplay(m) {
 // clock means this computer slept: the link is gone whatever it says, so start it again at
 // once; and when the page shows again, or the network comes back, check straight away.
 let beat = Date.now();
-function keepJoined(why) {
+async function keepJoined(why) {
   const slept = Date.now() - beat > 10_000;
   beat = Date.now();
   if (!eventId || !host) return;
   if (slept && (linked || pc)) {
+    // (a phone in a pocket, playing the sound: its clock was only held back, and the picture and
+    // sound are still coming; carry on. A computer that really slept gets nothing: start again.)
+    if (await flowing()) return ping();
     state('reconnecting', { detail: 'woke' });
     return restart('This screen was asleep: joining again.');
   }
@@ -200,11 +205,30 @@ function keepJoined(why) {
   }
 }
 setInterval(() => keepJoined(), 3000);
+// Is the picture or sound still arriving? (bytes in, over a second and a half)
+let stalled = false; // (tests: as a computer that slept)
+async function flowing() {
+  if (stalled) return (stalled = false);
+  if (!pc || pc.connectionState !== 'connected') return false;
+  const bytes = async () => {
+    let n = 0;
+    try {
+      (await pc?.getStats())?.forEach((r) => r.type === 'inbound-rtp' && (n += r.bytesReceived || 0));
+    } catch {}
+    return n;
+  };
+  const a = await bytes();
+  await new Promise((r) => setTimeout(r, 1500));
+  return (await bytes()) > a;
+}
 // (tests: the link dying, this computer waking from sleep, and a report of falling behind)
 window.vmTvBreak = () => {
   try { pc?.close(); } catch {}
 };
-window.vmTvSleep = () => (beat -= 20_000);
+window.vmTvSleep = () => {
+  beat -= 20_000;
+  stalled = true;
+};
 window.vmTvReport = (q) => ctl?.send(JSON.stringify({ t: 'quality', secs: 5, ...q }));
 window.vmTvLinked = () => !!(linked && ctl?.readyState === 'open' && pc?.connectionState === 'connected');
 document.addEventListener('visibilitychange', () => !document.hidden && keepJoined());
@@ -281,8 +305,12 @@ async function offer() {
     lastPong = Date.now();
     clearInterval(pingTimer);
     syncClock();
-    pingTimer = setInterval(() => {
-      if (Date.now() - lastPong > 15000) return restart('The studio stopped answering.');
+    pingTimer = setInterval(async () => {
+      if (Date.now() - lastPong > 15000) {
+        // (answers held up, as on a locked phone, while the program still comes: not a dead link)
+        if (await flowing()) lastPong = Date.now();
+        else return restart('The studio stopped answering.');
+      }
       ping();
     }, 5000);
   };
@@ -291,7 +319,10 @@ async function offer() {
     try { m = JSON.parse(e.data); } catch { return; }
     lastPong = Date.now();
     if (m.t === 'mode') setMode(m.mode, m.pip, m.params);
-    else if (m.t === 'meta') $('#umdTitle').textContent = m.title || ev?.title || '';
+    else if (m.t === 'meta') {
+      $('#umdTitle').textContent = m.title || ev?.title || '';
+      tvSound.setMeta(m.title || ev?.title || eventId, 'Live program');
+    }
     else if (m.t === 'pong') onPong(m);
     else if (m.t === 'list') onList(m.items || []);
     else if (m.t === 'thumb') onThumb(m.id, m.data);
@@ -299,6 +330,7 @@ async function offer() {
   };
   const stream = new MediaStream();
   pc.ontrack = (e) => {
+    if (e.track.kind === 'audio') return tvSound.setTrack(e.track); // (its own player: on with the screen locked)
     stream.addTrack(e.track);
     $('#out').srcObject = stream;
   };
@@ -562,6 +594,7 @@ function drop() {
 // ---- controls ---------------------------------------------------------------
 function leave() {
   drop();
+  tvSound.stop();
   sock?.close();
   sock = null;
   host = null;
@@ -587,11 +620,20 @@ addEventListener('keydown', (e) => {
   if (mode === 'program' && !$('#out').hidden && (e.key === 'f' || e.key === 'F') && !e.target.closest?.('input')) toggleFull();
 });
 document.addEventListener('fullscreenchange', () => ($('#fullBtn').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'));
-$('#soundBtn').onclick = () => {
-  const v = $('#out');
-  v.muted = !v.muted;
-  $('#soundBtn').textContent = v.muted ? 'Sound off' : 'Sound on';
-};
+// The program's sound: off to start with, on with a tap (remembered). It plays as a music app's
+// does (progsound.js): on a phone, with the screen locked, behind other apps and in the car, with
+// the show in Now Playing; its play and pause there are Sound on and off here.
+const tvSound = new ProgramSound({
+  store: 'vm_tv_sound',
+  onChange: () => {
+    const b = $('#soundBtn');
+    b.textContent = tvSound.on ? 'Sound on' : tvSound.waiting ? 'Tap for sound' : 'Sound off';
+    b.setAttribute('aria-pressed', String(tvSound.on));
+  },
+});
+tvSound.changed();
+$('#soundBtn').onclick = () => tvSound.set(!tvSound.on);
+window.vmTvSound = () => ({ on: tvSound.on, waiting: tvSound.waiting, track: !!tvSound.track, nowPlaying: navigator.mediaSession?.metadata?.title || null }); // (tests)
 
 // The label fades after a few quiet seconds and comes back on any movement or key.
 let quietTimer = null;
