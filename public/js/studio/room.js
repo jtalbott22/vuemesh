@@ -82,27 +82,49 @@ const msgId = () => Math.random().toString(36).slice(2, 10);
 export function dmRow(peer, l, i) {
   let row = document.querySelector(`[data-dm="${CSS.escape(peer)}"]`);
   if (!row) {
+    // (a button that opens a proper box to type in: the one under the tile was too small to use
+    // in a narrow Sources panel; the last message or reply stays on one line beside it)
     row = document.createElement('div');
     row.className = 'dmrow';
     row.dataset.dm = peer;
-    row.innerHTML = `<input type="text" maxlength="140" aria-label="Message ${esc(l.name)}" placeholder="Message ${esc(l.name)}…"><button type="button">Send</button><span class="dmstat" aria-live="polite"></span>`;
-    const input = row.querySelector('input');
-    const send = () => {
-      const text = input.value.trim();
-      if (!text) return;
-      if (sendDm(peer, text)) input.value = '';
-    };
-    row.querySelector('button').onclick = send;
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        send();
-      }
-    };
+    row.innerHTML = `<button type="button" class="dmopen" aria-label="Message ${esc(l.name)}">Message…</button><span class="dmstat" aria-live="polite"></span>`;
+    row.querySelector('button').onclick = () => openDm(peer);
     (l.card || l.tile.parentNode).append(row);
   }
   renderDmStat(peer);
 }
+/** Another computer's screen (or anything that can't show a message) has no message box. */
+export function dmRemove(peer) {
+  document.querySelector(`[data-dm="${CSS.escape(peer)}"]`)?.remove();
+}
+
+let dmPeer = null;
+export function openDm(peer) {
+  const l = live.get(peer);
+  if (!l) return;
+  dmPeer = peer;
+  $('#dmWho').textContent = l.name;
+  renderDmLast();
+  $('#dmText').value = '';
+  $('#dmDlg').showModal();
+  $('#dmText').focus();
+}
+function renderDmLast() {
+  const el = $('#dmLast'), d = dmPeer && dmLast.get(dmPeer);
+  el.hidden = !d;
+  if (!d) return;
+  el.classList.toggle('reply', d.status === 'reply');
+  el.textContent = d.status === 'reply' ? `${live.get(dmPeer)?.name || 'They'} replied: ${d.reply}` : `Last: ${d.text} (${d.status === 'seen' ? 'seen' : d.status === 'sent' ? 'sent' : 'not delivered'})`;
+}
+$('#dmForm').onsubmit = (e) => {
+  e.preventDefault();
+  const text = $('#dmText').value.trim();
+  if (!text || !dmPeer) return;
+  if (sendDm(dmPeer, text)) $('#dmDlg').close();
+  else renderDmLast();
+};
+$('#dmClose').onclick = () => $('#dmDlg').close();
+$('#dmDlg').addEventListener('close', () => (dmPeer = null));
 
 function renderDmStat(peer) {
   const st = document.querySelector(`[data-dm="${CSS.escape(peer)}"] .dmstat`);
@@ -126,7 +148,7 @@ export function sendDm(peer, text, all = false) {
 $('#dmAllBtn').onclick = () => {
   const text = $('#dmAll').value.trim();
   if (!text) return;
-  const cams = camOrder();
+  const cams = camOrder().filter((p) => !live.get(p)?.screen); // (another computer's screen can't show a message)
   if (!cams.length) return toast('No cameras connected');
   const n = cams.filter((p) => sendDm(p, text, true)).length;
   note(`To all cameras: ${text}`);
@@ -152,6 +174,7 @@ export function crewHeard(peer, m) {
     announce(`${l?.name} replied: ${m.text}`);
   }
   renderDmStat(peer);
+  if (peer === dmPeer) renderDmLast();
 }
 
 function broadcast(obj) {

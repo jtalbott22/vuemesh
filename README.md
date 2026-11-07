@@ -105,7 +105,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **USB webcams on the studio computer**, each seen before it's added, named, and opened at the output's size (it falls back gracefully when a USB port runs out of room).
 - **USB microphones and audio interfaces** as stereo, two mono tracks, or mono, plus **two microphones from one stereo input**.
 - **Screens, windows and tabs**, with their sound, captured sharp for text and **always shown whole**, with bars if the screen is another shape than the show. **The computer's own sound** too.
-- **Another computer's screen** over `/share`: no install, its sound in stereo, encoded on its graphics hardware where it can be, and a tally that tells the presenter when they're up next or on air.
+- **Another computer's screen** over `/share`: no install, its sound in stereo, sharpest for slides or smoothest for video (the presenter picks), and a tally that tells the presenter when they're up next or on air.
 - **Phones and tablets** as cameras or microphones, with full-quality local recording, tally lights, and messages from the director.
 - **Clips** for ads, b-roll, a pre-made package, a bumper or a logo: video or images, ready in Sources, aired with a click (once and back to the camera, or looped), with their sound on their own mixer strip. Aired video clips land in Edit where they aired.
 - **Camera control** for every camera, as far as each device allows: zoom, exposure, contrast, white balance and focus, with a histogram and waveform.

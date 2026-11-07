@@ -125,6 +125,10 @@ function sources() {
     if (st?.delayMs) s.sd = st.delayMs;
     const ls = linkStats.get(peer);
     if (ls && !l.local) Object.assign(s, { fps: ls.fps ?? null, loss: ls.lossPct ?? null, jit: ls.jitterMs ?? null, rtt: ls.rttMs ?? null });
+    // what a phone or another computer says about its own sending (every few seconds): frames sent,
+    // kbit/s, what's holding it back, its encoder; a slow picture then says whose end it was
+    const tx = !l.local && l.tele?.link && Date.now() - (l.tele.at || 0) < 15000 ? l.tele.link : null;
+    if (tx) Object.assign(s, { tx: tx.fps ?? null, txk: tx.kbps ?? null, lim: tx.limit || null, enc: tx.enc || null, hw: tx.hw ?? null, tier: tx.tier || null });
     out.push(s);
   }
   srcPeak.clear();

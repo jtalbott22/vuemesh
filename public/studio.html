@@ -659,10 +659,17 @@
   .tracks[data-tool="slip"] .item, .tracks[data-tool="ripple"] .item .h, .tracks[data-tool="roll"] .item .h { cursor: ew-resize; }
   .tracks[data-tool="slide"] .item { cursor: move; }
   .tracks[data-tool="hand"], .tracks[data-tool="hand"] .item { cursor: grab; }
-  .dmrow { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; margin: -2px 0 6px; }
-  .dmrow input { min-height: 30px; font-size: .78rem; padding: .25em .5em; }
-  .dmrow button { min-height: 30px; padding: 0 .6em; font-size: .75rem; }
-  .dmrow .dmstat { grid-column: 1 / -1; font-size: .7rem; color: var(--text-2); min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .secret { -webkit-text-security: disc; text-security: disc; }
+  .secret.shown { -webkit-text-security: none; text-security: none; }
+  .secretrow { display: flex; gap: 6px; } .secretrow input { flex: 1; min-width: 0; } .secretrow button { flex: none; }
+  .dmrow { display: flex; gap: 6px; align-items: center; margin: -2px 0 6px; min-width: 0; }
+  .dmrow .dmopen { flex: none; min-height: 28px; padding: 0 .7em; font-size: .75rem; }
+  .dmrow .dmstat { flex: 1; min-width: 0; font-size: .7rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dmform { margin-top: 12px; text-align: left !important; }
+  .dmform input { width: 100%; box-sizing: border-box; font-size: 1rem; min-height: 44px; padding: .5em .7em; }
+  .dmform .dmbtns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .dmlast { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: .9rem; }
+  .dmlast.reply { color: var(--preview); font-weight: 700; }
   .dmrow .dmstat.reply { color: var(--preview); font-weight: 700; }
   .tile.paused video { filter: grayscale(1) brightness(.4); }
   .tile .pz { position: absolute; inset: 0; display: grid; place-items: center; font-size: .75rem; font-weight: 800; letter-spacing: .08em; color: #fff; pointer-events: none; }
@@ -877,6 +884,15 @@
         <button value="">Cancel</button><button value="remove">Remove</button><button value="block" class="danger">Remove and block</button>
       </form>
     </dialog>
+    <dialog id="dmDlg" class="localdlg" aria-labelledby="dmH">
+      <h2 id="dmH">Message <span id="dmWho"></span></h2>
+      <p class="fine" style="margin:0">It pops up on their phone with quick replies. Their reply shows here and under their picture.</p>
+      <p class="dmlast" id="dmLast" aria-live="polite" hidden></p>
+      <form id="dmForm" class="dmform">
+        <input type="text" id="dmText" maxlength="140" autocomplete="off" spellcheck="true" aria-labelledby="dmH" placeholder="e.g. Move a little closer to the stage">
+        <div class="dmbtns"><button type="button" id="dmClose">Close</button><button type="submit" class="primary" id="dmSend">Send</button></div>
+      </form>
+    </dialog>
     <dialog id="localDlg" class="localdlg" aria-labelledby="localH">
       <header class="ldhead">
         <div><h2 id="localH">Add from this computer</h2><p>On the studio’s own clock, so they’re in sync without the beacon. A camera brings its sound and records while it’s on air; a microphone records the whole time it’s in the show.</p></div>
@@ -1079,7 +1095,9 @@
       <label for="stUrl" id="stUrlLbl">WHIP URL</label>
       <input type="url" id="stUrl" autocomplete="off" spellcheck="false" placeholder="https://…">
       <label for="stKey" id="stKeyLbl">Stream key</label>
-      <input type="password" id="stKey" autocomplete="off" spellcheck="false">
+      <!-- (not type="password": with a password field in the page, Chrome took the boxes around it for a
+           login, offered saved passwords in them and asked to save the key; it's hidden with dots instead) -->
+      <div class="secretrow"><input type="text" id="stKey" class="secret" autocomplete="off" spellcheck="false" autocapitalize="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"><button type="button" id="stKeyShow" aria-pressed="false" aria-controls="stKey">Show</button></div>
       <div id="stRelayRow" hidden>
         <label for="stRelay">Relay on this computer</label>
         <input type="text" id="stRelay" autocomplete="off" spellcheck="false" placeholder="ws://localhost:8935">

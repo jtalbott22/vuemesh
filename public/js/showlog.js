@@ -19,7 +19,9 @@
 //         picture held), sd (how long its sound waits, ms), ch (this computer's: sides it opened with),
 //         dbL / dbR (a stereo input here: each side's loudest), st2 (the mixer hears both sides), side
 //         (one side of a split input: L or R), and from a phone's link every few
-//         seconds: fps, loss (%), jit (jitter ms), rtt (ms)
+//         seconds: fps, loss (%), jit (jitter ms), rtt (ms); and what it says about its own sending:
+//         tx (frames it sent a second), txk (kbit/s), lim (what held it back: cpu, bandwidth, other,
+//         none), enc (its encoder), hw (on its graphics hardware), tier (program, preview, idle)
 //   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back), cap
 //         (its bitrate cap, kbps), and what it says it gets: rfps (frames shown a second), frz
 //         (freezes), drop (frames dropped), remote (a phone remote's Program out)
@@ -147,6 +149,25 @@ export function summarize(rows, events = [], target = 30) {
   for (const [, a] of camFps) {
     const avg = a.sum / a.k;
     if (a.k >= 10 && avg < target * 0.8) out.lines.push(`${a.n} delivered ${Math.round(avg * 10) / 10} frames a second on average (of about ${target}): ${avg >= target * 0.4 && avg <= target * 0.6 ? 'about half, as most webcams do in dim light (they slow down to let in more light): more light on the subject brings it back' : "the camera, its USB port or the computer wasn't keeping up"}.`);
+  }
+  // a phone's or another computer's picture arriving slowly for 10 s or more: when, how slowly, and
+  // whose end it was (what it says it sent, and what held it back)
+  for (const x of out.sources) {
+    if (x.loc || x.k === 'mic') continue;
+    const mine = (r) => (r.s || []).find((s) => s.id === x.id);
+    const slowIn = spans(rows, (r) => { const s = mine(r); return typeof s?.fps === 'number' && s.fps < target * 0.8 && s.tier !== 'idle'; });
+    for (const sp of slowIn) {
+      if (sp.to - sp.from < 10000) continue;
+      const during = rows.filter((r) => r.t >= sp.from && r.t < sp.to).map(mine).filter(Boolean);
+      const avg = (k) => { const v = during.map((s) => s[k]).filter((n) => typeof n === 'number'); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+      const lims = during.map((s) => s.lim).filter((l) => l && l !== 'none');
+      const lim = lims.length ? lims.sort((a, b) => lims.filter((l) => l === b).length - lims.filter((l) => l === a).length)[0] : null;
+      const enc = during.map((s) => s.enc).find(Boolean), hw = during.some((s) => s.hw === true);
+      const why = lim === 'cpu' ? `held back by its processor${enc ? ` (encoding ${enc}${hw ? ' on its graphics hardware' : ''})` : ''}`
+        : lim === 'bandwidth' ? `held back by the network${avg('txk') ? ` (sending ${avg('txk')} kbit/s)` : ''}`
+        : lim ? `held back (${lim})` : avg('tx') != null ? 'nothing held back on its side' : 'no word from its side';
+      out.lines.push(`${x.n}'s picture arrived at ${avg('fps')} frames a second (of ${target}) from ${clock(sp.from)} for ${mmss(sp.to - sp.from)}: ${avg('tx') != null ? `it sent ${avg('tx')}, ` : ''}${why}.`);
+    }
   }
   for (const x of out.sources) {
     if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);

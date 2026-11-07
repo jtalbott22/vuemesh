@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.61.13 — the Edit window opens again; a screen in Camera control and the audio console
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The Edit window opens again.** 0.61.12's new message box and the stream key's Show button weren't in the Edit window's list of the studio's own controls, so the Edit window stopped while starting and never showed. (Found by the browser tests that open Edit.)
+- **Another computer's screen in Camera control has CUT.** It showed "Waiting for this camera to send its settings" with nothing to press: a screen never sends camera settings. It now says it's another computer's screen, with nothing to adjust from here (the presenter picks Slides and text or Video and motion), and has its CUT button, for a cut in a pinch. A camera still waiting for its settings has CUT too.
+- **The audio console shows a stereo source's two sides:** each strip had one meter, whatever came in. A stereo source (this computer's sound, a screen, a stereo input, Clips) now has one for each side, as the studio's own mixer already showed; Mono pressed makes it one.
+
+From a second show log (the same Linux studio, the Mac's screen over `/share`, 13 minutes, with tab switching): the Mac sent 27 to 30 frames a second the whole time, so it wasn't the source of the drops. Its Chrome encoded the screen in software (OpenH264), not on its graphics hardware: Chrome keeps a shared screen on its software encoder. The drops were the studio laptop's: Record program (H.264 on its processor, 31 ms a frame on average against 33 ms to spare, up to 74) skipped 1,070 of 15,466 frames, most when the audio console opened and when this laptop's own screen was shared too (recorded on its own as well), alongside Program out, a TV and the webcam's recording; the TV froze 12 times. On a laptop like this one, fewer things at once (Output's "Cameras record their time on air" off, or no screen shared on the studio's own computer) gives Record program room.
+
+## 0.61.12 — another computer's screen: smooth for video, why it's slow in the log; messages in a proper box
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (a Linux studio, another computer's screen from a Mac over `/share`): the screen came in at 29 to 30 frames a second for a minute and a half, then, about 20 seconds after its sound started (a video playing), at 10 to 13 for the rest of the show, with no loss on the way. The studio drew every frame it got (the program held 30): the Mac was sending fewer. A screen kept its size and let its frame rate give way, which is right for slides and wrong for video.
+
+- **The share page asks what you're showing:** **Slides and text** (sharpest: every word stays readable, frames give way first, as before) or **Video and motion** (smoothest: keeps 30 frames a second, the size gives way first). It can be changed while sharing, and this computer remembers it. When the picture is held back on slides, it suggests Video and motion.
+- **The show log says whose end a slow picture was:** a phone or another computer now reports what it sent (frames a second, kbit/s), what held it back (its processor, the network) and its encoder, every few seconds, into the log (`tx`, `txk`, `lim`, `enc`, `hw`, `tier`). The summary names each stretch of 10 s or more a remote picture arrived slowly on air or in preview, such as "Josh's picture arrived at 11 frames a second (of 30) from 08:46:35 for 1 min 19 s: it sent 12, held back by its processor". (The log above, from before this, can only say "no word from its side".)
+- **No message box for another computer's screen:** its share page has nowhere to show one. Not under its tile, not in Camera control, and Message all cameras leaves it out.
+- **Messages to a camera open a proper box:** **Message…** under a camera opens a box to type in (full size, with their last reply), where a small field squeezed under the tile was too small to use in a narrow Sources panel. The last message or reply stays on one line beside the button.
+- **Chrome stops offering to save passwords in the studio:** the stream key was the studio's one password field, and with one in the page Chrome took the boxes around it for a login, offered saved passwords in them and asked to save the key. It's a text field shown as dots now, with **Show** beside it. (The admin page's key stays a password field: that one is a password.)
+
 ## 0.61.11 — another computer's screen in stereo, on the hardware encoder
 **Deploy:** `./aws/deploy.sh` (site only).
 

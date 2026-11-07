@@ -40,6 +40,14 @@
   .tag { position: absolute; left: 8px; top: 8px; padding: 3px 9px; border-radius: 5px; background: #000c; font-size: 1rem; }
   .pv.air .tag { background: var(--tally); color: #fff; }
   .pv.pvw .tag { background: var(--preview); color: #04120a; }
+  .mode { border: 0; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mode legend { padding: 0; margin-bottom: 6px; color: var(--dim); font-size: .95rem; }
+  .mode label { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; margin: 0; }
+  .mode label:has(input:checked) { border-color: var(--preview); background: #2ea04318; }
+  .mode input { margin: 3px 0 0; accent-color: var(--preview); }
+  .mode b { display: block; font-size: 1rem; }
+  .mode small { display: block; color: var(--dim); font-size: .82rem; margin-top: 2px; }
+  @media (max-width: 420px) { .mode { grid-template-columns: 1fr; } }
   .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #6b7280; margin-right: 6px; }
   .dot.on { background: var(--preview); }
 </style>
@@ -58,6 +66,11 @@
       </div>
       <label for="name">What to call it</label>
       <input id="name" maxlength="40" placeholder="Presenter laptop" required>
+      <fieldset class="mode" id="modeBox">
+        <legend>What you're showing</legend>
+        <label><input type="radio" name="mode" value="detail" checked><span><b>Slides and text</b><small>Sharpest: every word stays readable</small></span></label>
+        <label><input type="radio" name="mode" value="motion"><span><b>Video and motion</b><small>Smoothest: keeps 30 frames a second</small></span></label>
+      </fieldset>
       <button type="submit" class="primary" id="shareBtn">Share a screen…</button>
       <p class="say err" id="joinErr" role="alert"></p>
       <p class="fine" id="soundTip"></p>

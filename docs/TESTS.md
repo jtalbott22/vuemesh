@@ -22,7 +22,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/sequence.test.mjs` | edit operations (ripple, roll, slip, slide, slicing) and the AI director |
 | `test/quality.test.mjs` | live picture quality hints |
 | `test/imports.test.mjs` | every import across the front end is exported by its module |
-| `test/config.test.mjs` | every page that talks to the cloud loads `/config.js` first (the share page didn't, and couldn't reach the studio on the real site) |
+| `test/config.test.mjs` | every page that talks to the cloud loads `/config.js` first (the share page didn't, and couldn't reach the studio on the real site); no password fields but the admin key |
 | `test/docsync.test.mjs` | one version in `package.json`, `APP_VERSION` and the newest `CHANGELOG.md` heading; every version renders on What's new without raw markdown; every file the README links to exists |
 | `test/framesync.test.mjs` | one timeline: a camera's quickest delivery, the picture delay (up at once, down between shows), each camera's frame of a moment, a stalled camera held, the clap in sound and picture |
 | `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
@@ -75,7 +75,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_eventsapart.py` | same-named events and reused codes kept apart on a phone |
 | `test/e2e_autopilot.py` | Record with the fades; autopilot: starts at a camera, welcomes the next, ends when all have gone |
 | `test/e2e_screen.py` | a shared screen (with its sound) and this computer's sound as sources |
-| `test/e2e_sharequality.py` | another computer's screen (/share): 1080p at 30 frames a second on air, its sound in stereo (left stays left), a stereo mixer strip, and the share page saying what it sends |
+| `test/e2e_sharequality.py` | another computer's screen (/share): 1080p at 30 frames a second on air, its sound in stereo (left stays left), a stereo mixer strip, the share page saying what it sends, Slides and text / Video and motion, no message box for it, its sending in the show log, no password field in the studio |
 | `test/e2e_screenfit.py` | a 16:10 screen in a 16:9 show on Fill is shown whole (menu bar and Dock), from this computer and over `/share`; its recording is marked a screen |
 | `test/e2e_vcam.py` | the program as a camera for video calls: relay → (stand-in) OBS over local UDP, H.264 + AAC |
 | `test/e2e_phonerobust.py` | a phone that won't store blobs, a camera that stops in the background, a camera that never answers on join |

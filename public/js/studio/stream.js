@@ -35,7 +35,7 @@ function renderStreamForm() {
   $('#stUrlLbl').textContent = s.urlLabel || 'WHIP URL';
   $('#stUrl').hidden = $('#stUrlLbl').hidden = !!s.fixedUrl;
   $('#stKeyLbl').textContent = s.keyLabel || 'Key';
-  $('#stKey').hidden = $('#stKeyLbl').hidden = !!s.noKey;
+  $('#stKey').hidden = $('#stKeyLbl').hidden = $('#stKeyShow').hidden = !!s.noKey;
   $('#stUrl').value = saved.url || s.url || '';
   $('#stKey').value = saved.key || '';
 
@@ -154,6 +154,12 @@ $('#stSvc').onchange = () => {
   saveStreamCfg();
 };
 ['#stUrl', '#stKey', '#stRate'].forEach((id) => $(id).addEventListener('change', saveStreamCfg));
+// the key shows as dots (it's a text field, so no browser takes this for a login); Show reveals it
+$('#stKeyShow').onclick = () => {
+  const on = $('#stKey').classList.toggle('shown');
+  $('#stKeyShow').setAttribute('aria-pressed', String(on));
+  $('#stKeyShow').textContent = on ? 'Hide' : 'Show';
+};
 $('#stRelay').addEventListener('change', () => {
   saveStreamCfg();
   checkRelay();

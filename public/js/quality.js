@@ -59,9 +59,10 @@ export function opusStereo(sdp, kbps = 128) {
   return lines.join(nl);
 }
 
-/** Video codecs for a shared screen, H.264 first where both ends have it (a Mac or Windows PC
- *  encodes it on its graphics hardware, so a busy 1080p screen keeps 30 frames a second; VP8 is
- *  encoded on the processor), then the rest as the browser had them. */
+/** Video codecs for a shared screen, H.264 first where both ends have it, then the rest as the
+ *  browser had them. (Chrome keeps a shared screen on its software encoder, OpenH264, even where it
+ *  has H.264 hardware: from a Mac it held 27 to 30 frames a second at 1080p; a studio without
+ *  H.264 gets VP8.) */
 export function screenCodecs(codecs) {
   if (!codecs?.length) return codecs;
   const h264 = codecs.filter((c) => /h264/i.test(c.mimeType));
