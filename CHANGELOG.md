@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.62.3 — Edit's sound is the show's sound, as it was heard
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (a Linux laptop, its webcam and its own screen, both added without sound; a Mac's screen over `/share` with its sound; an iPhone): in Edit, the webcam's and the screen's shots were silent. Live, the program had sound under them the whole time (the Mac's sound and the iPhone's microphone, about -9 dB), because the mix carries every source's sound whatever's on air. Edit played each shot's own sound, and those two recordings have none.
+
+- **The program's sound as aired plays under the whole edit,** on a new **Sound as aired** track, whenever there's a Record program recording. It's on by default, with **Program sound under the whole edit** in Edit's Audio mixer to switch it off.
+- **The shots' own sound and the microphone tracks start at nothing** while it's on, because the program has their sound already (both at once is the same sound twice, a moment apart). Turn one up in the mixer to blend in its own recording. A level you set yourself stays as you set it.
+- **Switched off,** each shot plays its own sound, as before, and the program's sound plays only under a shot with none of its own (a webcam or a screen added without sound), except where a microphone track plays.
+- Where the program recording hadn't started yet (its first second, while its encoder starts), the shot's own sound plays, so the edit never starts silent. Each piece of the program's sound is the moment its shot shows, so it holds when you move or trim shots by hand.
+- **A recording made without sound says so,** so Edit knows. Recordings from before this version are checked once when Edit opens.
+
+**Tests:** `e2e_remotescreenrec` checks Edit's sound: the program's under the whole edit, the shots' own at nothing; then, switched off, the program's only under the shot with none of its own, playing there. `sequence.test.mjs` checks the Sound as aired track both ways, beside microphones, levels set by hand, the program starting late, and an edit made by hand.
+
 ## 0.62.2 — every source that aired is in Edit, not black
 **Deploy:** `./aws/deploy.sh` (site only).
 

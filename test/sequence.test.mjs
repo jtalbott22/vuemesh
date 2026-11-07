@@ -473,4 +473,68 @@ import { setSpeed, srcAt, rate, splitAt as split4, sliceRange as slice4, rippleT
   assert.equal(s5.origin, T - 1000);
   ok('no footage of a camera: the program as aired fills its time on air (and where a recording stopped on air), with its dissolve; the edit still starts and ends with the cameras\' recordings (unless the show began or ended on one with no footage); the real clip replaces it when it comes; without a program recording, as before');
 }
+// sound as aired: under shots whose recording has no sound of its own, the program's sound plays
+{
+  const T = 6_000_000;
+  const cl = [
+    { id: 'w', kind: 'video', cid: 'W', t0: T, dur: 30000, sound: false }, // a webcam added without sound
+    { id: 'm', kind: 'video', cid: 'M', t0: T, dur: 30000, sound: true },  // another computer's screen, with its sound
+  ];
+  const pgm = [{ id: 'P', kind: 'video', cid: 'PGM', program: true, t0: T, dur: 30000 }];
+  const edl = [{ t: T, clip: 'w' }, { t: T + 5000, clip: 'w' }, { t: T + 10000, clip: 'm' }, { t: T + 20000, clip: 'w' }];
+  // under the whole edit (the default): the program's sound throughout; the shots' own sound and the microphones start at nothing
+  const w = S.newSequence();
+  S.rebuildFromCuts(w, edl, [...cl, { id: 'k', kind: 'audio', cid: 'K', t0: T + 2000, dur: 4000 }], pgm);
+  assert.deepEqual(w.tracks.find((t) => t.aired).items.map((i) => [i.src, i.start, i.dur, i.in]), [['P', 0, 30000, 0]]);
+  assert.deepEqual(w.tracks.filter((t) => t.follow || t.mic).map((t) => [t.gain, !!t.forAired]), [[0, true], [0, true]]);
+  w.tracks.find((t) => t.follow).touched = true; w.tracks.find((t) => t.follow).gain = 0.5; // (turned up by hand)
+  S.rebuildFromCuts(w, edl, cl, pgm);
+  assert.equal(w.tracks.find((t) => t.follow).gain, 0.5, 'a level set by hand stays');
+  // switched off: each shot's own sound, the program's only under the shots with none
+  const sq = S.newSequence();
+  sq.soundAsAired = false;
+  S.rebuildFromCuts(sq, edl, cl, pgm);
+  assert.equal(sq.tracks.find((t) => t.follow).gain, 1, 'the shots\' own sound at full');
+  const at = sq.tracks.find((t) => t.aired);
+  assert.ok(at && at.kind === 'audio' && at.mono === false, 'a stereo Sound as aired track');
+  assert.deepEqual(at.items.map((i) => [i.src, i.start, i.dur, i.in]), [['P', 0, 10000, 0], ['P', 20000, 10000, 20000]], JSON.stringify(at.items));
+  assert.equal(sq.tracks.indexOf(at), sq.tracks.findIndex((t) => t.follow) + 1, 'just under the camera sound');
+  // not where a microphone track plays (its sound is in the program's already)
+  const s2 = S.newSequence();
+  s2.soundAsAired = false;
+  S.rebuildFromCuts(s2, edl, [...cl, { id: 'k', kind: 'audio', cid: 'K', t0: T + 2000, dur: 4000 }], pgm);
+  assert.deepEqual(s2.tracks.find((t) => t.aired).items.map((i) => [i.start, i.dur]), [[0, 2000], [6000, 4000], [20000, 10000]]);
+  // every recording with its own sound, or no program recording: no such track (and one left from before goes)
+  const s3 = S.clone(sq);
+  S.rebuildFromCuts(s3, edl, cl.map((c) => ({ ...c, sound: true })), pgm);
+  assert.ok(!s3.tracks.some((t) => t.aired));
+  const s4 = S.newSequence();
+  S.rebuildFromCuts(s4, edl, cl);
+  assert.ok(!s4.tracks.some((t) => t.aired));
+  // the program recording began a moment after the cameras' (its encoder starting): there, the shot's own sound
+  const late = [{ ...pgm[0], t0: T + 1500, dur: 28500 }];
+  const lt = S.newSequence();
+  S.rebuildFromCuts(lt, [{ t: T, clip: 'm' }], cl, late);
+  assert.deepEqual(lt.tracks.find((t) => t.aired).items.map((i) => [i.src, i.start, i.dur, i.in]), [['m', 0, 1500, 0], ['P', 1500, 28500, 0]]);
+  // with a microphone, rebuilt again: the camera sound stays at nothing
+  const wm = S.newSequence();
+  const withMic = [...cl, { id: 'k', kind: 'audio', cid: 'K', t0: T + 2000, dur: 4000 }];
+  S.rebuildFromCuts(wm, edl, withMic, pgm);
+  S.rebuildFromCuts(wm, edl, withMic, pgm);
+  assert.deepEqual(wm.tracks.filter((t) => t.follow || t.mic).map((t) => t.gain), [0, 0]);
+  // an edit made by hand (a shot moved): its sound as aired is still the moment that shot shows
+  const hm = S.newSequence();
+  S.rebuildFromCuts(hm, [{ t: T, clip: 'w' }, { t: T + 10000, clip: 'm' }], cl, pgm);
+  const shot = S.program(hm).items[1];
+  shot.start += 60000;
+  S.applySoundAsAired(hm, cl, pgm);
+  const moved = hm.tracks.find((t) => t.aired).items.find((i) => i.start === shot.start);
+  assert.ok(moved && moved.in === shot.in && moved.dur === shot.dur, JSON.stringify(hm.tracks.find((t) => t.aired).items));
+  // switching it off puts back the levels it set (not one set by hand)
+  w.soundAsAired = false;
+  w.tracks.push({ id: 'x-mic', kind: 'audio', mic: 'K', name: 'Mic', items: [], gain: 0, forAired: true });
+  S.rebuildFromCuts(w, edl, [...cl, { id: 'k', kind: 'audio', cid: 'K', t0: T + 2000, dur: 4000 }], pgm);
+  assert.deepEqual(w.tracks.filter((t) => t.follow || t.mic).map((t) => [t.gain, !!t.forAired]), [[0.5, false], [1, false]], JSON.stringify(w.tracks.map((t) => [t.name, t.gain])));
+  ok('sound as aired: under the whole edit by default (the shots\' own sound and the microphones at nothing until turned up; a level set by hand stays; switched off, the levels it set go back); switched off, the program\'s sound only under the shots with no sound of their own (one piece for shots back to back), not under a microphone track; none when every shot has its sound or there\'s no program recording');
+}
 console.log('All speed tests passed.');

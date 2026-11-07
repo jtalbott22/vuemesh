@@ -85,7 +85,7 @@ export class Timeline {
         ? `<button type="button" class="hb" data-hide="${tr.id}" aria-pressed="${!tr.hidden}" aria-label="${tr.hidden ? 'Show' : 'Hide'} ${esc(tr.name)}" title="${tr.hidden ? 'Hidden: show this track' : 'Showing: hide this track'}">${icon(tr.hidden ? 'eyeoff' : 'eye')}</button>`
         : `<button type="button" class="hb" data-mute="${tr.id}" aria-pressed="${!!tr.muted}" aria-label="${tr.muted ? 'Unmute' : 'Mute'} ${esc(tr.name)}" title="${tr.muted ? 'Muted: turn this track back on' : 'Mute this track'}">M</button>`;
       // the targeted track of each kind is where Insert and Overwrite land (the Program track by default)
-      const tgt = (seq.target?.[tr.kind] && seq.tracks.some((t) => t.id === seq.target[tr.kind]) ? seq.target[tr.kind] : tr.kind === 'video' ? seq.tracks.find((t) => t.program)?.id : seq.tracks.find((t) => t.kind === 'audio' && !t.follow)?.id) === tr.id;
+      const tgt = (seq.target?.[tr.kind] && seq.tracks.some((t) => t.id === seq.target[tr.kind]) ? seq.target[tr.kind] : tr.kind === 'video' ? seq.tracks.find((t) => t.program)?.id : seq.tracks.find((t) => t.kind === 'audio' && !t.follow && !t.aired)?.id) === tr.id;
       const target = tr.follow
         ? `<span class="tcode" title="Follows ${esc(seq.tracks.find((k) => k.id === tr.follow)?.name || 'Program')}">${code}</span>`
         : `<button type="button" class="tcode" data-target="${tr.id}" aria-pressed="${tgt}" aria-label="${code}: ${tgt ? 'targeted for Insert and Overwrite' : 'target for Insert and Overwrite'}, ${esc(tr.name)}" title="${tgt ? 'Insert and Overwrite land on this track' : 'Click to make Insert and Overwrite land on this track'}">${code}</button>`;

@@ -352,7 +352,7 @@ function targetTrack(kind) {
   const f = selectedItem && S.findItem(seq, selectedItem);
   if (f && f.track.kind === kind && !f.track.follow && !f.track.locked) return f.track;
   if (kind === 'video') return S.program(seq);
-  return seq.tracks.find((t) => t.kind === 'audio' && !t.follow && !t.locked) || S.addTrack(seq, 'audio');
+  return seq.tracks.find((t) => t.kind === 'audio' && !t.follow && !t.aired && !t.locked) || S.addTrack(seq, 'audio');
 }
 export function placeSource(how) {
   const item = srcItem();
