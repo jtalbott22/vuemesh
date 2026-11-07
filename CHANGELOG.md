@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.61.10 — a shared screen is always shown whole
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **A shared screen is always shown whole.** The show's framing (Fill, the default) cropped every source to the output's shape, so a Mac's 16:10 screen in a 16:9 show lost its menu bar and Dock. A screen, shared on this computer or from another one over `/share`, now keeps all of itself with bars at the sides, on the program, in a dissolve into it, in the preview box and on its tile. Cameras still follow Fill or Whole shot. A screen's recording is marked a screen, so Edit and Render MP4 show it whole too (an item's own Framing still wins). (Tried with a 1440 x 900 screen with a red menu bar and a green Dock, in a 720p show on Fill: before, both were cropped off; now both are on the program, from this computer and over `/share`.)
+
 ## 0.61.9 — another computer's screen reaches the studio on the real site
 **Deploy:** `./aws/deploy.sh` (site only).
 

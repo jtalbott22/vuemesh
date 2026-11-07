@@ -346,7 +346,7 @@ export function fitTile(l) {
   if (!v || !tile) return;
   const r = l.view?.rect;
   if (!r) {
-    Object.assign(v.style, { width: '100%', height: '100%', left: '0', top: '0', objectFit: 'cover' });
+    Object.assign(v.style, { width: '100%', height: '100%', left: '0', top: '0', objectFit: l.screen ? 'contain' : 'cover' }); // (a screen whole, as on the program)
     return;
   }
   const TW = tile.clientWidth, TH = tile.clientHeight;

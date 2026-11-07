@@ -24,6 +24,9 @@ import { drawPip } from './pip.js';
 // ---- the live program -----------------------------------------------------------------
 
 const pg = program.getContext('2d');
+// A screen is always shown whole (bars if it's another shape than the show): a Mac's 16:10 screen
+// filled into a 16:9 show lost its Dock and menu bar. Cameras follow the show's Fill / Whole shot.
+const fitFor = (l) => (l?.screen ? 'fit' : fit);
 let wasBreak = false, slateLayer = null;
 function drawLiveFrame() {
   if (mode !== 'live') return;
@@ -57,7 +60,7 @@ function drawLiveFrame() {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
     // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
-    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fit, null, live.get(liveActive).view?.rect || null);
+    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fitFor(live.get(liveActive)), null, live.get(liveActive).view?.rect || null);
     label = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
@@ -87,7 +90,14 @@ function drawLiveFrame() {
         drawFramed(pg, el, W, H, 'fit');
       }
     } else if (b && isMic(sw.to)) drawMicVisual(pg, W, H);
-    else if (b?.video?.readyState >= 2 || picOf(sw.to)) drawFramed(pg, picOf(sw.to) || b.video, W, H, fit, null, b.view?.rect || null);
+    else if (b?.video?.readyState >= 2 || picOf(sw.to)) {
+      // (into a screen shown whole: its bars fade in with it, as a letterboxed clip's do)
+      if (fitFor(b) === 'fit') {
+        pg.fillStyle = '#000';
+        pg.fillRect(0, 0, W, H);
+      }
+      drawFramed(pg, picOf(sw.to) || b.video, W, H, fitFor(b), null, b.view?.rect || null);
+    }
     pg.globalAlpha = 1;
     const SPECIAL = { black: 'BLACK', break: 'BREAK' };
     const fromName = SPECIAL[sw.fromSpecial] || (sw.fromClip ? reelOf(sw.fromClip)?.name : live.get(liveActive)?.name);
@@ -434,7 +444,7 @@ function drawPreviewBox() {
     // (a camera here: its newest frame, already turned into a picture for the program, rather than
     // the video element's, which was converted again at full size for this small box every frame)
     const pic = buffers.get(pvw)?.frames.at(-1)?.bmp;
-    if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fit, null, l.view?.rect || null);
+    if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fitFor(l), null, l.view?.rect || null);
   }
 }
 document.querySelectorAll('#switcher [data-tap]').forEach((b) => (b.onclick = () => {

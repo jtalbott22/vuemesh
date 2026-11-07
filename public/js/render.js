@@ -338,7 +338,7 @@ export async function renderSequence(o) {
         viewOf: (item, ms) => {
           const v = o.viewOf?.(item, ms);
           const r = ((v?.rot || 0) + (rotOf.get(item.id) || 0)) % 360;
-          return v || r ? { rect: v?.rect || null, rot: r, ev: v?.ev || 0 } : null;
+          return v || r ? { rect: v?.rect || null, rot: r, ev: v?.ev || 0, fit: v?.fit } : null;
         },
       });
       const vf = new VideoFrame(canvas, { timestamp: Math.round((n * 1e6) / fps), duration: Math.round(1e6 / fps) });

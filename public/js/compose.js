@@ -196,8 +196,9 @@ function drawClip(g, W, H, item, t, getSource, opts) {
   // digital exposure and contrast the phone used while shooting (set there, or by the director)
   const look = [view?.ev ? `brightness(${(2 ** (view.ev * 0.5)).toFixed(3)})` : '', view?.ct ? `contrast(${view.ct})` : ''].filter(Boolean).join(' ');
   if (look) g.filter = look;
-  if (src && item.tf) drawTransformed(g, src, W, H, item.fit || opts.fit || 'fill', view?.rect || null, rot, tfOf(item));
-  else if (src) drawFramed(g, src, W, H, item.fit || opts.fit || 'fill', item.rect || null, view?.rect || null, rot);
+  const fit = item.fit || view?.fit || opts.fit || 'fill'; // (the item's own, else a screen's: whole; else the output's)
+  if (src && item.tf) drawTransformed(g, src, W, H, fit, view?.rect || null, rot, tfOf(item));
+  else if (src) drawFramed(g, src, W, H, fit, item.rect || null, view?.rect || null, rot);
   if (look) g.filter = 'none';
 }
 

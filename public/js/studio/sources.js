@@ -751,7 +751,7 @@ function startLocalRec(peer) {
       const s = (l.recTrack || l.stream.getVideoTracks()[0])?.getSettings?.() || {};
       const w = s.width || 0, h = s.height || 0;
       const meta = {
-        id: `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, mime: blob.type || mime, cid: l.cid, name,
+        id: `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, mime: blob.type || mime, cid: l.cid, name, ...(l.screen && kind === 'video' ? { screen: true } : {}),
         t0, t0Source: 'studio', dur: Math.round(performance.now() - began), w, h, local: true,
         ...(kind === 'video' ? { native: true, audio: (l.stream.getAudioTracks()[0]?.getSettings?.().channelCount || 1) > 1 ? 'stereo' : 'mono', orient: [{ t: 0, rot: 0, rect: null, upright: w >= h ? 'landscape' : 'portrait', ev: 0, ct: 0 }] } : {}),
       };
