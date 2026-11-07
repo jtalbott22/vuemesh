@@ -422,20 +422,6 @@ export function helpDialog(title, sections) {
   return d;
 }
 
-// --- beta notice ---------------------------------------------------------------------------
-
-/** A slim "beta, no warranty" strip at the top of the page, linking to the Terms. */
-export function betaBanner(compact = false) {
-  const el = document.createElement('div');
-  el.className = 'betabar' + (compact ? ' compact' : '');
-  el.setAttribute('role', 'note');
-  el.innerHTML = compact
-    ? '<strong>BETA</strong> · as is, no warranty · <a href="/terms">Terms</a>'
-    : '<strong>Beta</strong> · VUEMesh is experimental software, provided as is with no warranty or liability. Keep your own copies. <a href="/terms">Terms of Use</a>';
-  document.body.prepend(el);
-  return el;
-}
-
 // ---- diagnostics: a report to copy and send when something goes wrong ------------------
 // Keeps the last errors, warnings and on-screen messages, and describes this device:
 // browser, which video formats it can record and play, network, storage. Nothing leaves

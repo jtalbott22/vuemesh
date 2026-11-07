@@ -34,8 +34,24 @@ for (const page of pages) {
   if (page === 'admin.html') continue;
   if (/<input[^>]*type="password"/.test(readFileSync(join(root, page), 'utf8'))) bad.push(`${page}: has a password field (Chrome then offers to save it and fills the boxes around it)`);
 }
+// The Edit window and the kiosk run the studio's code on pages without all of its controls; each
+// lists the ones it lacks (<body data-absent>) and gets a stand-in for them. A control the studio
+// wires up as it loads (a line starting $('#id').…) that's neither on the page nor in that list
+// stops the page loading (0.61.12's message box did this to Edit, and to the kiosk).
+{
+  const ids = (h) => new Set([...h.matchAll(/\bid="([\w-]+)"/g)].map((m) => m[1]));
+  const studio = ids(readFileSync(join(root, 'studio.html'), 'utf8'));
+  const dir = join(root, 'js', 'studio');
+  const top = new Set(readdirSync(dir).filter((f) => f.endsWith('.js')).flatMap((f) => [...readFileSync(join(dir, f), 'utf8').matchAll(/^\$\('#([\w-]+)'\)\.(?!\?)/gm)].map((m) => m[1])));
+  for (const page of ['edit.html', 'kiosk.html']) {
+    const h = readFileSync(join(root, page), 'utf8');
+    const have = ids(h), absent = JSON.parse(/data-absent='(\{.*?\})'/.exec(h)?.[1] || '{}');
+    const missing = [...top].filter((id) => studio.has(id) && !have.has(id) && !(id in absent));
+    if (missing.length) bad.push(`${page}: the studio wires up ${missing.map((m) => '#' + m).join(', ')} as it loads, and they're neither on the page nor in its data-absent list`);
+  }
+}
 if (bad.length) {
   console.error(bad.join('\n'));
   process.exit(1);
 }
-console.log('ok  every page that talks to the cloud loads /config.js first; no password fields but the admin key');
+console.log('ok  every page that talks to the cloud loads /config.js first; no password fields but the admin key; Edit and the kiosk have (or stand in for) every control the studio wires up as it loads');

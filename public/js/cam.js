@@ -1,6 +1,6 @@
 import {
   $, api, now, identity, signStatement, decodeQR, parseTimecode,
-  meshSocket, wakeLock, toast, eventIdFromUrl, thumbprint, themeButton, helpDialog, announce, betaBanner, esc, rememberEvent, myEvents, fmtDur, diag, codecsOf, diagnosticsDialog,
+  meshSocket, wakeLock, toast, eventIdFromUrl, thumbprint, themeButton, helpDialog, announce, esc, rememberEvent, myEvents, fmtDur, diag, codecsOf, diagnosticsDialog,
 } from '/js/vm.js';
 import { TERMS_VERSION } from '/js/brand.js';
 import { CamLink, sealClip } from '/js/rtc.js';
@@ -23,7 +23,6 @@ let role = 'cam';
 
 // ---------------------------------------------------------------- entry ----
 
-betaBanner(true);
 themeButton($('#themeBtn'));
 if (localStorage.getItem('vm_terms') === TERMS_VERSION) $('#agreeGuest').checked = true;
 const guestHelp = helpDialog('Shooting tips', [

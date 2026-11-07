@@ -1,10 +1,9 @@
-import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, betaBanner, updateRemembered, forgetEventLocally, hostKey } from '/js/vm.js';
+import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally, hostKey } from '/js/vm.js';
 import * as idb from '/js/idb.js';
 import { makeZip, ZIP_LIMIT } from '/js/zip.js';
 import { EventGlobe, km } from '/js/globe.js';
 import { BRAND, FEATURES, TERMS_VERSION } from '/js/brand.js';
 
-betaBanner();
 document.body.classList.toggle('globe', FEATURES.globe);
 themeButton($('#themeBtn'));
 $('#patreonLink').href = BRAND.patreon;
