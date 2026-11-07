@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.62.1 — preview beside the program
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Tap: Preview shows two monitors side by side:** the preview (green, left) and the program (red, right), level, the same size, each as big as fits beside the switcher. The preview was a small box in the program's bottom-left corner, which looked like picture-in-picture, and the real picture-in-picture could land right on it. An empty preview says so ("Tap a source to put it here"). **Tap: Air** has the program alone, as big as fits.
+- **The preview shows what CUT or AUTO will put on air, picture-in-picture included:** a screen in preview has the camera it would get in its corner, at the corner and size chosen, while the program shows its corner only once the screen is on air. After CUT, what left air waits in preview, as before.
+- The labels on both monitors stay inside them and stop short of the clock when a source's name is long.
+
 ## 0.62.0 — Edit laid out like an editing suite: Source and Program side by side
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -852,13 +852,18 @@ export function cardHead(box, title, desc) {
 
 export function fitMonitors() {
   // each picture fits the monitor it's in (the studio has one for both; Edit has a Source and a Program viewer)
-  for (const cv of [program, $('#srcCanvas')]) {
+  // (Tap: Preview: preview and program side by side in the studio's monitor, each in half the room)
+  for (const cv of [program, $('#srcCanvas'), $('#pvwCanvas')]) {
     const box = cv?.closest?.('.monitor');
     if (!box) continue;
+    const two = box.classList.contains('twoup');
+    if (cv.id === 'pvwCanvas' && !two) continue;
     const cs = getComputedStyle(box);
     const W = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 6;
     const H = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 6;
-    const k = Math.max(0.05, Math.min(W / cv.width, H / cv.height));
+    const gap = two ? parseFloat(cs.columnGap) || 0 : 0;
+    const cw = two ? (W - gap) / 2 : W;
+    const k = Math.max(0.05, Math.min(cw / cv.width, H / cv.height));
     cv.style.width = Math.floor(cv.width * k) + 'px';
     cv.style.height = Math.floor(cv.height * k) + 'px';
   }

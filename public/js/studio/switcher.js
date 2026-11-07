@@ -5,7 +5,7 @@ import { toast, now, announce } from '/js/vm.js';
 import { drawFramed, drawSlate } from '/js/compose.js';
 import { BRAND } from '/js/brand.js';
 import {
-  $, EDIT_ONLY, black, ev, fit, fitMonitors, isHost, live, liveActive, mode, player, progOutPeers,
+  $, EDIT_ONLY, KIOSK, black, ev, fit, fitMonitors, isHost, live, liveActive, mode, player, progOutPeers,
   program,
 } from './core.js';
 import { angleOfCid, output } from './clips.js';
@@ -19,7 +19,7 @@ import {
   toggleBreak, updateAutoBreak,
 } from './graphics.js';
 import { buffers, picOf } from './picsync.js';
-import { drawPip } from './pip.js';
+import { drawPip, drawPipPreview } from './pip.js';
 
 // ---- the live program -----------------------------------------------------------------
 
@@ -200,7 +200,6 @@ export function setPreview(peer) {
   if (swActive()) return toast('Finish the transition first');
   pvw = peer && (peer !== liveActive || airCovered()) && live.has(peer) ? peer : null;
   if (pvw) pvwClip = pvwSpecial = null;
-  if (!inPreview()) $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -212,7 +211,6 @@ export function clearPreview() {
   pvw = null;
   pvwClip = null;
   pvwSpecial = null;
-  $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -227,7 +225,6 @@ export function setPreviewClip(id) {
     cueClip(r);
     announce(`Preview: ${r.name}, cued at the start`);
   }
-  if (!inPreview()) $('#pvwBox').hidden = true;
   renderSwitcher();
   renderLive();
   renderClips();
@@ -420,23 +417,43 @@ function renderBar() {
 export function renderSwitcher() {
   document.querySelectorAll('#switcher [data-tap]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tap === tapMode)));
   const l = live.get(pvw), r = reelOf(pvwClip);
-  $('#pvwBox').hidden = !l && !r && !pvwSpecial;
+  syncTwoUp();
   $('#pvwLabel').textContent = pvwSpecial ? `PREVIEW · ${pvwSpecial === 'black' ? 'BLACK' : 'BREAK'}` : r ? `PREVIEW · CLIP ${r.name} · cued` : l ? `PREVIEW · ${isMic(pvw) ? `MIC ${micKey(pvw) || ''}` : angleOfCid(l.cid)} ${l.name}` : 'PREVIEW';
   renderBar();
 }
-// the preview box: the source in preview, drawn small in the corner of the program monitor
-// (only on this screen: it's never in the program itself)
+// Tap: Preview: the preview monitor beside the program, as a switcher has, rather than a box in the
+// program's corner (it looked like picture-in-picture, and the real one could land on top of it).
+// It shows what CUT or AUTO will put on air, picture-in-picture included. Only on this screen: it's
+// never in the program itself. Tap: Air has the program alone, as big as fits.
+let twoUp = null;
+function syncTwoUp() {
+  if (KIOSK || EDIT_ONLY) return; // (neither has a preview monitor)
+  const on = mode === 'live' && tapMode === 'preview' && !$('#switcher').hidden;
+  if (on === twoUp) return;
+  twoUp = on;
+  $('#pvwFrame').hidden = !on;
+  document.querySelector('.monitor')?.classList.toggle('twoup', on);
+  fitMonitors();
+}
 function drawPreviewBox() {
+  if (!twoUp || document.hidden) return;
+  const c = $('#pvwCanvas');
+  // (the same shape as the program, at half its size: enough for a monitor this size)
+  const w = Math.round(program.width / 2), h = Math.round(program.height / 2);
+  if (c.width !== w || c.height !== h) {
+    Object.assign(c, { width: w, height: h });
+    fitMonitors();
+  }
   const l = live.get(pvw), r = reelOf(pvwClip);
   const gone = pvwSpecial ? pvwSpecial === airSpecial() : (!l && !r) || (l && pvw === liveActive && !airCovered()) || (r && mediaOn?.id === pvwClip);
-  if (gone || mode !== 'live') {
-    if (!$('#pvwBox').hidden) $('#pvwBox').hidden = true; // (it went on air, left, or Tap: Air)
-    return;
-  }
-  if ($('#pvwBox').hidden || document.hidden) return;
-  const c = $('#pvwCanvas'), g = c.getContext('2d');
+  const g = c.getContext('2d');
   g.fillStyle = '#000';
   g.fillRect(0, 0, c.width, c.height);
+  if ($('#pvwEmpty').hidden !== !gone) $('#pvwEmpty').hidden = !gone;
+  if (gone) {
+    if ($('#pvwLabel').textContent !== 'PREVIEW') $('#pvwLabel').textContent = 'PREVIEW';
+    return;
+  }
   if (pvwSpecial === 'break') drawSlate(g, c.width, c.height, { ...slateText(), look: slateLook, t: performance.now(), now: now() });
   else if (pvwSpecial) return; // (black)
   else if (r) {
@@ -448,6 +465,7 @@ function drawPreviewBox() {
     // the video element's, which was converted again at full size for this small box every frame)
     const pic = buffers.get(pvw)?.frames.at(-1)?.bmp;
     if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fitFor(l), null, l.view?.rect || null);
+    drawPipPreview(g, c.width, c.height, pvw); // (the corner camera it would get on air)
   }
 }
 document.querySelectorAll('#switcher [data-tap]').forEach((b) => (b.onclick = () => {

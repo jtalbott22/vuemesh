@@ -335,10 +335,14 @@
   .thandle { position: absolute; left: 50%; width: 72px; height: 30px; margin-left: -36px; top: calc(14px + (1 - var(--y, 0)) * (100% - 28px) - 15px); border-radius: 8px; background: linear-gradient(#5b5f69, #2c2f36 55%, #1b1d22); border: 1px solid #00000099; box-shadow: 0 4px 10px #000a, inset 0 1px 0 #ffffff33; display: grid; align-content: center; gap: 3px; padding: 0 12px; pointer-events: none; }
   .thandle i { display: block; height: 2px; border-radius: 1px; background: #ffffff40; }
   .tbar.held .thandle { box-shadow: 0 4px 14px #000c, 0 0 0 2px #f2c037; }
-  .pvwbox { position: absolute; left: 10px; bottom: 10px; width: 24%; min-width: 150px; aspect-ratio: 16 / 9; border: 3px solid #1fa64a; border-radius: 6px; overflow: hidden; background: #000; z-index: 2; pointer-events: none; }
-  .pvwbox[hidden] { display: none; }
-  .pvwbox canvas { width: 100%; height: 100%; display: block; }
-  .pvwbox .ovl { left: 0; top: 0; background: #1fa64a; font-size: .62rem; padding: 2px 6px; }
+  /* Tap: Preview: preview (green) and program (red) side by side, each as big as fits */
+  .monitor.twoup { grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  #pvwFrame { box-shadow: 0 0 0 3px #1fa64a; }
+  #pvwFrame[hidden] { display: none; }
+  #pvwFrame canvas { display: block; }
+  #pvwFrame #pvwLabel { left: 8px; top: 8px; background: #1fa64a; color: #fff; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pvwempty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 12px; color: #8b93a7; font-size: .85rem; line-height: 1.5; pointer-events: none; }
+  .pvwempty[hidden] { display: none; }
   #swTgl[aria-pressed="true"] { background: var(--preview); color: #fff; }
   .mic { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px; border-radius: 6px; background: var(--surface-2); font-size: .85rem; }
   .mic b { grid-column: 2; }
@@ -405,7 +409,7 @@
   .monitor { overflow: hidden; }
   #srcFrame { box-shadow: 0 0 0 2px var(--preview); }
   .ovl { position: absolute; font-size: .75rem; font-weight: 700; line-height: 1.2; padding: .25em .55em; border-radius: 4px; }
-  #progLabel { left: 8px; top: 8px; background: var(--tally); color: #fff; }
+  #progLabel { left: 8px; top: 8px; background: var(--tally); color: #fff; max-width: calc(100% - 150px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   body[data-mode="edit"] #progLabel { background: #000b; }
   #ptc, #srcTc { right: 8px; top: 8px; background: #000b; color: #fff; font-family: var(--mono); }
   #srcLabel { left: 8px; top: 8px; background: var(--preview); color: #fff; }
@@ -977,10 +981,15 @@
         <select id="swDur" aria-label="AUTO dissolve length"><option value="0.25">¼ s</option><option value="0.5">½ s</option><option value="1" selected>1 s</option><option value="2">2 s</option><option value="3">3 s</option></select>
         <button type="button" id="swMidi" aria-pressed="false" title="Use a hardware fader (MIDI): press, then move the fader">MIDI fader</button>
       </div>
+      <!-- (Tap: Preview: the source in preview beside the program, as a switcher's two monitors) -->
+      <div class="frame" id="pvwFrame" hidden aria-label="Preview">
+        <canvas id="pvwCanvas" width="640" height="360" role="img" aria-label="Preview: what CUT or AUTO puts on air next"></canvas>
+        <span class="ovl" id="pvwLabel">PREVIEW</span>
+        <span class="pvwempty" id="pvwEmpty">Tap a source to put it here.<br>CUT or AUTO puts it on air.</span>
+      </div>
       <div class="frame" id="progFrame">
         <canvas id="program" width="1280" height="720" role="img" aria-label="Program output"></canvas>
         <div class="kcount" id="kCount" hidden aria-live="assertive"><b></b></div>
-        <div class="pvwbox" id="pvwBox" hidden aria-hidden="true" data-mode="live"><canvas id="pvwCanvas" width="480" height="270"></canvas><span class="ovl" id="pvwLabel">PREVIEW</span></div>
         <span class="ovl" id="progLabel">ON AIR</span>
         <span class="ovl tc" id="ptc"></span>
         <span class="ovl" id="slateTag" hidden>BREAK</span>

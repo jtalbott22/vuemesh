@@ -109,6 +109,24 @@ export function drawPip(g, W, H) {
   g.restore();
 }
 
+/** The preview monitor (Tap: Preview): the corner camera this source would get on air, drawn
+ *  the same as on the program (what CUT or AUTO will look like), and nothing else changed. */
+export function drawPipPreview(g, W, H, under) {
+  if (!pip || mode !== 'live' || onBreak() || !wants(under)) return;
+  // (on air now: the camera it would take the corner from, when that's a camera; else the usual choice)
+  const peer = isCamera(liveActive) && liveActive !== under && hasPicture(liveActive) && pip.cam === 'auto' ? liveActive : cameraFor(under);
+  const l = peer && live.get(peer), frame = l && (picOf(peer) || l.video);
+  if (!frame) return;
+  const w = Math.round((W * pip.size) / 100), h = Math.round((w * 9) / 16), m = Math.round(W * 0.025);
+  const x = pip.corner.endsWith('l') ? m : W - w - m, y = pip.corner.startsWith('t') ? m : H - h - m;
+  g.save();
+  g.fillStyle = '#000';
+  g.fillRect(x - 1, y - 1, w + 2, h + 2);
+  g.translate(x, y);
+  drawFramed(g, frame, w, h, 'fill', null, l.view?.rect || null);
+  g.restore();
+}
+
 /** The corner camera now (for AFV, tally, the remote), or null. */
 export function pipAir() {
   return tallied && shown.a > 0.001 ? { peer: tallied, a: shown.a } : null;

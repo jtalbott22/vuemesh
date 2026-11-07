@@ -75,6 +75,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_editbreaks.py` | live breaks as items in Edit; the Dissolve button and D; the studio's event list with no code |
 | `test/e2e_eventsapart.py` | same-named events and reused codes kept apart on a phone |
 | `test/e2e_autopilot.py` | Record with the fades; autopilot: starts at a camera, welcomes the next, ends when all have gone |
+| `test/e2e_pvwtwoup.py` | Tap: Preview: preview and program side by side, the same size; the preview's corner camera over a screen (what CUT will give), the program's only once taken; flip-flop; Tap: Air, the program alone |
 | `test/e2e_screen.py` | a shared screen (with its sound) and this computer's sound as sources |
 | `test/e2e_sharequality.py` | another computer's screen (/share): 1080p at 30 frames a second on air, its sound in stereo (left stays left), a stereo mixer strip, the share page saying what it sends, Slides and text / Video and motion, no message box for it, its sending in the show log, no password field in the studio |
 | `test/e2e_screenfit.py` | a 16:10 screen in a 16:9 show on Fill is shown whole (menu bar and Dock), from this computer and over `/share`; its recording is marked a screen |
