@@ -200,7 +200,8 @@ export function rebuildFromCuts(seq, edl, clips, fills = []) {
   // the microphone didn't cover had no sound at all. Now it ducks: quiet only while a
   // microphone recording plays. (Edits saved that way are moved over, unless you'd set it.)
   const camTr = seq.tracks.find((t) => t.follow);
-  if (camTr && mics.length && !camTr.touched && camTr.gain === 0) Object.assign(camTr, { gain: 1, duck: true });
+  if (camTr && mics.length && !camTr.touched && !camTr.forAired && camTr.gain === 0) Object.assign(camTr, { gain: 1, duck: true });
+  applySoundAsAired(seq, videos, fills);
   // Every Program item gets a single shape: slice where a phone turned.
   const wasLocked = prog.locked;
   prog.locked = false;
@@ -208,6 +209,84 @@ export function rebuildFromCuts(seq, edl, clips, fills = []) {
   prog.locked = wasLocked;
   seq.liveTail = endT; // (how far the live footage reaches, on the cameras' clock: see appendLive)
   return seq;
+}
+
+/**
+ * Sound as aired: the program recording's sound, as it was heard live. The live mix carried every
+ * source's sound (another computer's, a phone's microphone) whatever was on air, and Edit plays a
+ * picture's own sound, so a shot with none of its own (a webcam or a screen added without sound)
+ * was silent.
+ *  - Under the whole edit (seq.soundAsAired, on unless it's switched off): the program's sound
+ *    throughout, and the shots' own sound and the microphone tracks start at nothing (the program
+ *    has their sound already: both at once is the same sound twice, a moment apart). Turn one up
+ *    in the mixer to blend in its own recording; one you've set stays as you set it.
+ *  - Switched off: each shot's own sound, with the program's only under shots with none (and not
+ *    where a microphone track plays).
+ * Each piece is the moment its shot shows, so it holds on an edit made by hand too.
+ * @param videos the recordings the Program track's shots come from; fills the program as aired
+ */
+export function applySoundAsAired(seq, videos, fills) {
+  const whole = fills.length > 0 && seq.soundAsAired !== false;
+  for (const t of seq.tracks.filter((k) => k.follow || k.mic)) {
+    if (t.touched) {
+      delete t.forAired; // (yours from now on)
+      continue;
+    }
+    if (whole) Object.assign(t, { gain: 0, forAired: true });
+    else if (!whole && t.forAired) {
+      t.gain = 1;
+      delete t.forAired;
+    }
+  }
+  const aired = fills.length ? airedSound(seq, videos, fills, whole) : [];
+  let atr = seq.tracks.find((t) => t.aired);
+  if (aired.length) {
+    if (!atr) {
+      atr = { id: 't-aired', kind: 'audio', name: 'Sound as aired', aired: true, items: [], gain: 1, muted: false, mono: false };
+      const after = Math.max(seq.tracks.findIndex((t) => t.follow), ...seq.tracks.map((t, i) => (t.mic ? i : -1)));
+      seq.tracks.splice(after < 0 ? seq.tracks.length : after + 1, 0, atr);
+    }
+    atr.items = aired;
+  } else if (atr) seq.tracks = seq.tracks.filter((t) => t !== atr);
+  return whole;
+}
+function airedSound(seq, videos, fills, whole) {
+  const prog = program(seq), mics = whole ? [] : micCover(seq), out = [];
+  const srcOf = (id) => videos.find((c) => c.id === id) || fills.find((c) => c.id === id);
+  const silent = (it) => it.type === 'clip' && !it.fill && srcOf(it.src)?.sound === false;
+  const wanted = (it) => (it.speed || 1) === 1 && (whole ? (it.type === 'clip' && srcOf(it.src)) || (it.type === 'slate' && it.fromLive) : silent(it));
+  for (const it of prog.items.filter(wanted).sort((a, b) => a.start - b.start)) {
+    // when this shot happened, on the cameras' clock (a break from the live show: where it sits)
+    const c = it.type === 'clip' ? srcOf(it.src) : null;
+    const real = c ? c.t0 - (c.inBase || 0) + (it.in || 0) : it.start + seq.origin;
+    // (the shot's time, less where a microphone track plays)
+    let spans = [[it.start, it.start + it.dur]];
+    for (const [a, b] of mics) spans = spans.flatMap(([s, e]) => (b <= s || a >= e ? [[s, e]] : [[s, Math.max(s, a)], [Math.min(e, b), e]]).filter(([x, y]) => y - x >= FRAME));
+    const put = (src, s, dur, inAt) => {
+      const last = out[out.length - 1];
+      // (one piece for shots back to back)
+      if (last && last.src === src && Math.abs(last.start + last.dur - s) < 2 && Math.abs(last.in + last.dur - inAt) < 2) last.dur = s + dur - last.start;
+      else out.push({ id: uid(), type: 'clip', src, start: s, dur, in: inAt });
+    };
+    for (const [a, b] of spans) {
+      // the parts of [a, b) the program was recording for, in order
+      const r0 = real + (a - it.start), r1 = real + (b - it.start), got = [];
+      for (const f of fills.slice().sort((x, y) => x.t0 - y.t0)) {
+        const q0 = Math.max(r0, f.t0), q1 = Math.min(r1, f.t0 + f.dur);
+        if (q1 - q0 >= FRAME) got.push([q0, q1, f]);
+      }
+      // where it wasn't (its first moment, while its encoder started), under the whole edit: the
+      // shot's own sound, if it has any, so the edit never starts silent
+      const own = whole && c && !it.fill && c.sound !== false ? c : null;
+      let at = r0;
+      for (const [q0, q1, f] of [...got, [r1, r1, null]]) {
+        if (own && q0 - at >= FRAME) put(own.id, a + (at - r0), q0 - at, (it.in || 0) + (at - r0));
+        if (f) put(f.id, a + (q0 - r0), q1 - q0, q0 - f.t0 + (f.inBase || 0));
+        at = Math.max(at, q1);
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -220,11 +299,12 @@ export function rebuildFromCuts(seq, edl, clips, fills = []) {
 export function appendLive(seq, edl, clips, fills = []) {
   const tail = seq.liveTail ?? (seq.origin != null ? seq.origin + end(seq) : -Infinity);
   const fresh = newSequence();
+  fresh.soundAsAired = seq.soundAsAired; // (built the way this edit's sound is)
   rebuildFromCuts(fresh, edl, clips, fills);
   if (fresh.origin == null) return null;
   const picks = [];
   for (const tr of fresh.tracks) {
-    if (!tr.program && !tr.mic) continue;
+    if (!tr.program && !tr.mic && !tr.aired) continue;
     for (const it of tr.items) {
       const a = it.start + fresh.origin, b = a + it.dur;
       if (b <= tail + FRAME) continue;
@@ -238,7 +318,7 @@ export function appendLive(seq, edl, clips, fills = []) {
   const gap = Number.isFinite(tail) ? Math.max(0, first - tail) : 0;
   const at = end(seq) > 0 ? end(seq) + gap : 0;
   for (const p of picks) {
-    let tr = track(seq, p.tr.id) || (p.tr.mic && seq.tracks.find((t) => t.mic === p.tr.mic));
+    let tr = track(seq, p.tr.id) || (p.tr.mic && seq.tracks.find((t) => t.mic === p.tr.mic)) || (p.tr.aired && seq.tracks.find((t) => t.aired));
     if (!tr) {
       tr = { ...p.tr, items: [] };
       const firstAudio = seq.tracks.findIndex((t) => t.kind === 'audio');

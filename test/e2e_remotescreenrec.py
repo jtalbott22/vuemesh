@@ -2,6 +2,9 @@
 # nothing itself, so the studio records it while it's on air (as it arrives), and its time on air
 # comes from that. A phone whose clips aren't here (still sending, or kept on the phone: here,
 # this show keeps clips on the phones) is filled from the program as aired, at the same moment.
+# Edit's sound: the program's sound as aired under the whole edit by default (the shots' own sound
+# at nothing until turned up); switched off, each shot's own, with the program's only under a shot
+# with none of its own (a webcam or a screen added without sound).
 # On air during Record program: this computer's webcam, the other computer's screen, the phone,
 # the webcam again.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotescreenrec.py
@@ -111,6 +114,42 @@ with sync_playwright() as p:
     f_px = pic_at(fill['start'] + 1500)
     assert max(f_px) > 30, f_px
     step(f"not black in Edit: the screen's stretch is its blue {s_px}, the phone's stretch shows what aired {f_px}")
+
+    # sound. By default the program's sound as aired plays under the whole edit, and the shots' own
+    # sound starts at nothing (the program has it already: both would be the same sound twice)
+    snd = dict(host.evaluate("""(async () => (await (await import('/js/idb.js')).list('clips', new URLSearchParams(location.search).get('e'))).filter((c) => c.kind === 'video' && !c.program).map((c) => [c.name, c.sound ?? null]))()"""))
+    assert snd.get('Presenter Mac') is False, snd   # (this test's shared screen has no sound: its recording says so)
+    seq_now = lambda: ed.evaluate("JSON.parse(localStorage.getItem('vm_seq_' + new URLSearchParams(location.search).get('e')) || '{}').tracks || []")
+    for _ in range(40):
+        tracks = seq_now(); aired = next((t for t in tracks if t.get('aired')), None)
+        if aired and aired['items']: break
+        time.sleep(0.5)
+    assert aired and aired['items'], [t.get('name') for t in tracks]
+    assert ed.is_visible('#soundAsAiredRow') and ed.is_checked('#soundAsAired')
+    covered = sum(a['dur'] for a in aired['items']); total = sum(i['dur'] for i in prog)
+    cam = next(t for t in tracks if t.get('follow'))
+    assert abs(covered - total) < 200 and cam['gain'] == 0, (covered, total, cam['gain'], [(a['start'], a['dur'], a['in']) for a in aired['items']])
+    def loudest(at_ms):   # (the fake microphone beeps about once a second: the loudest moment over 2.5 s of playing)
+        ed.evaluate(f"vmSeek({at_ms})"); time.sleep(0.8)
+        return ed.evaluate("""(async () => { vmPlay(true); const top = {};
+          for (let i = 0; i < 50; i++) { await new Promise((r) => setTimeout(r, 50)); for (const [k, v] of Object.entries(vmEditLevels())) top[k] = Math.max(top[k] || 0, v); }
+          vmPlay(false); return top; })()""")
+    cams = [i for i in prog if not i['fill'] and snd.get(i['name']) is True]
+    lv = loudest(cams[0]['start'] + 500)
+    assert lv['aired'] > 0.01 and lv['camera'] < 0.001, lv
+    step(f"by default the program's sound as aired plays under the whole edit ({covered / 1000:.1f} of {total / 1000:.1f} s), the shots' own sound at nothing until turned up: under the webcam, levels {({k: round(v, 3) for k, v in lv.items()})}")
+
+    # switched off: each shot's own sound, and the program's only under the shot with none (the screen's)
+    ed.click('#soundAsAiredRow'); time.sleep(0.8)
+    assert not ed.is_checked('#soundAsAired')
+    tracks = seq_now(); aired = next((t for t in tracks if t.get('aired')), None); cam = next(t for t in tracks if t.get('follow'))
+    silent = [i for i in prog if not i['fill'] and snd.get(i['name']) is False]
+    assert cam['gain'] == 1 and aired and silent, (cam, aired)
+    assert all(any(a['start'] <= c['start'] + 50 and a['start'] + a['dur'] >= c['start'] + c['dur'] - 50 for a in aired['items']) for c in silent), (silent, aired['items'])
+    assert not any(a['start'] < c['start'] + c['dur'] - 50 and a['start'] + a['dur'] > c['start'] + 50 for a in aired['items'] for c in cams), 'not under shots with their own sound'
+    lv = loudest(silent[0]['start'] + 500)
+    assert lv['aired'] > 0.01 and lv['master'] > 0.01, lv
+    step(f"switched off: each shot's own sound, and the sound as aired only under the screen's shot (it has none of its own), playing there: levels {({k: round(v, 3) for k, v in lv.items()})}")
 
     print('\nerrors:', errors or 'none')
     assert not errors

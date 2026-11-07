@@ -13,7 +13,7 @@ import {
 import { fitTile, renderLive } from './live.js';
 import { reportUsageSoon } from './usage.js';
 import { renderMixer } from './mixer.js';
-import { flushRecordings, isBlocked } from './sources.js';
+import { fileHasSound, flushRecordings, isBlocked } from './sources.js';
 import { media } from './room.js';
 import { reel } from './graphics.js';
 import { progRec } from './switcher.js';
@@ -103,6 +103,7 @@ export function addClip(rec, blob, fresh) {
   rawBlobs.set(meta.id, blob);
   blobs.set(meta.id, URL.createObjectURL(blob));
   if (meta.kind !== 'audio') makeThumb(meta.id);
+  if (EDIT_ONLY && meta.kind === 'video' && typeof meta.sound !== 'boolean' && !meta.program && !meta.reel) checkSound(meta.id, blob);
   if (fresh) {
     const what = meta.kind === 'audio' ? 'microphone recording' : 'clip';
     note(`${meta.name}'s ${what} arrived (${Math.round(blob.size / 1048576)} MB, verified)`);
@@ -119,6 +120,26 @@ export function addClip(rec, blob, fresh) {
     renderAll();
     renderMedia();
   }
+}
+
+// Has a recording sound in it? Recordings made before 0.62.3 didn't say when they had none (a
+// webcam or screen added without sound): Edit looks once, keeps the answer with the recording,
+// and plays the sound as aired under the silent ones (see rebuildFromCuts).
+let soundRebuild = null;
+async function checkSound(id, blob) {
+  const has = await fileHasSound(blob);
+  if (has === null) return;
+  const c = clips.find((x) => x.id === id);
+  if (!c) return;
+  c.sound = has;
+  idb.patch('clips', eventId, id, { sound: has }).catch(() => {});
+  if (has || !seq.auto) return;
+  clearTimeout(soundRebuild);
+  soundRebuild = setTimeout(() => {
+    rebuild(false);
+    player.setSequence(seq);
+    renderAll();
+  }, 300);
 }
 
 // Footage that aired after the timeline was edited by hand goes on its end, after a gap as
@@ -408,6 +429,7 @@ function openEditWindow() {
 }
 
 function renderAll() {
+  syncSoundAsAired();
   if (mode === 'live') renderLive();
   else renderMulti();
   renderMixer();
@@ -415,3 +437,23 @@ function renderAll() {
   renderInspector();
   renderCredits();
 }
+
+// ---- Edit: the program's sound under the whole edit, or each shot's own (see applySoundAsAired)
+// (shown once there's a Record program recording to take it from)
+function syncSoundAsAired() {
+  const row = EDIT_ONLY && document.querySelector('#soundAsAiredRow');
+  if (!row) return;
+  row.hidden = !asAired().length;
+  row.querySelector('input').checked = seq.soundAsAired !== false;
+}
+document.querySelector('#soundAsAired')?.addEventListener('change', (e) => {
+  if (!EDIT_ONLY) return;
+  snapshot();
+  seq.soundAsAired = e.target.checked;
+  S.applySoundAsAired(seq, clips.filter((c) => !isBlocked(c.cid) && !c.program && c.kind !== 'audio').map(usable), asAired());
+  saveSeq();
+  player.setSequence(seq);
+  player.refreshMix();
+  renderAll();
+  announce(e.target.checked ? "The program's sound as aired plays under the whole edit; the shots' own sound is at nothing until you turn it up" : "Each shot plays its own sound; the program's only under shots with none");
+});

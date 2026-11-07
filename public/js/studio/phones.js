@@ -542,6 +542,12 @@ const openStudioDiag = diagnosticsDialog(studioDiagSections);
 window.vmDiag = studioDiagSections; // (tests and diagnostics)
 window.vmProgram = () => (seq.tracks.find((t) => t.id === 't-prog')?.items || []).map((it) => { const c = clips.find((k) => k.id === it.src); return { id: it.id, name: c?.name, local: !!c?.local, reel: !!c?.reel, program: !!c?.program, fill: !!it.fill, screen: !!c?.screen, start: Math.round(it.start), dur: Math.round(it.dur), dissolve: it.transIn?.dur || 0, fadeIn: it.fadeIn || 0, fadeOut: it.fadeOut || 0, type: it.type }; });
 window.vmSeek = (ms) => player.seek(ms); // (tests and diagnostics)
+// (tests and diagnostics: play or pause the edit, and how loud each audio track is now, 0..1)
+window.vmPlay = (on = true) => (on ? player.play() : player.pause());
+window.vmEditLevels = () => {
+  const lv = player.levels();
+  return { master: lv.master, ...Object.fromEntries(seq.tracks.filter((t) => t.kind === 'audio').map((t) => [t.aired ? 'aired' : t.follow ? 'camera' : t.id, lv[t.id] ?? 0])) };
+};
 window.vmSelect = (id) => select(id);
 if (!EDIT_ONLY) {
   // in the studio (tests and diagnostics): the timeline as the Edit window last saved it, and
