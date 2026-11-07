@@ -40,3 +40,6 @@ node_modules/
 
 # Logs
 *.log
+
+# Show logs saved from the studio (exported for debugging, not source)
+vuemesh-showlog-*.json
