@@ -38,22 +38,55 @@ const at = (s) => T0 + s * 1000;
   ok("sound watch: nothing raised for sources that aren't in the mix, or a camera that never had sound");
 }
 {
-  // a USB interface on the studio's computer beside 1080p cameras there (flagged usb): its alerts say why and what to do
-  const w = new SoundWatch();
-  const sc = (a, db, usb) => ({ id: 's', n: 'Scarlett', open: true, a, db, ...(usb ? { usb: 1 } : {}) });
-  w.update(at(0), { program: { db: -40, expect: true }, sources: [sc('live', -46, true)] });
-  let r = w.update(at(1), { program: { db: -99, expect: true }, sources: [sc('live', -99, true)] });
-  r = w.update(at(7), { program: { db: -99, expect: true }, sources: [sc('live', -99, true)] });
-  const silent = r.active.find((a) => a.kind === 'source-silent');
-  assert.ok(silent && /taking its USB at 1080p/.test(silent.text) && /720p/.test(silent.text), silent);
-  r = w.update(at(8), { program: { db: -99, expect: true }, sources: [sc('ended', null, true)] });
-  assert.match(r.raised.find((a) => a.kind === 'source-ended')?.text || '', /^Scarlett: its sound stopped \(the device let go of it\)\. This computer’s cameras are taking its USB/);
-  // without the flag: as before
-  const w2 = new SoundWatch();
-  w2.update(at(0), { program: { db: -40, expect: true }, sources: [sc('live', -46, false)] });
-  r = w2.update(at(1), { program: { db: -99, expect: true }, sources: [sc('ended', null, false)] });
-  assert.equal(r.raised.find((a) => a.kind === 'source-ended')?.text, 'Scarlett: its sound stopped (the device let go of it)');
-  ok('sound watch: a USB interface beside 1080p cameras on the same computer is told why it stopped and what to do');
+  // a microphone on the studio's own computer (an interface) that stops: its alerts say what to try,
+  // Easy Start first (a Scarlett's small drive, which Dell TechHub looked at and stopped its sound),
+  // and the USB note only beside cameras there at 1080p (flagged usb)
+  const sc = (a, db, { usb, loc = true, dv, k = 'mic' } = {}) => ({ id: 's', n: 'Scarlett', k, loc: loc ? 1 : undefined, open: true, a, db, ...(usb ? { usb: 1 } : {}), ...(dv != null ? { dv } : {}) });
+  const run = (o) => {
+    const w = new SoundWatch();
+    w.update(at(0), { program: { db: -40, expect: true }, sources: [sc('live', -46, o)] });
+    w.update(at(1), { program: { db: -99, expect: true }, sources: [sc('live', -99, o)] });
+    const r = w.update(at(7), { program: { db: -99, expect: true }, sources: [sc('live', -99, o)] });
+    const ended = w.update(at(8), { program: { db: -99, expect: true }, sources: [sc('ended', null, o)] }).raised.find((a) => a.kind === 'source-ended')?.text;
+    return { silent: r.active.find((a) => a.kind === 'source-silent')?.text, ended };
+  };
+  // nothing arriving from it (Chrome counted no sound delivered): that's what the Scarlett did
+  let t = run({ dv: 0 });
+  assert.match(t.silent, /^Scarlett: no sound is arriving from the device\. If it also shows up as a small drive \(a Scarlett’s Easy Start\), turn that off/);
+  assert.ok(/open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again/.test(t.silent) && !/1080p/.test(t.silent), t.silent);
+  assert.match(t.ended, /^Scarlett: its sound stopped \(the device let go of it\)\. If it also shows up/);
+  // sending silence (about a second of sound counted, all of it quiet): its cable, gain or mute, not the drive
+  t = run({ dv: 1000 });
+  assert.equal(t.silent, 'Scarlett: it has gone silent (the device is sending silence: check its cable, its gain and any mute)');
+  // not known which (no count from Chrome): the hint, as for one that stopped
+  assert.match(run({}).silent, /^Scarlett: it has gone silent\. If it also shows up/);
+  // beside 1080p cameras on this computer: the USB note too, after the drive
+  t = run({ dv: 0, usb: true });
+  assert.ok(/Easy Start.*Its USB also carries cameras at 1080p: if it keeps happening, try Output at 720p, or another USB port\.$/.test(t.silent), t.silent);
+  // a phone's microphone: no advice about this computer's drives or USB, and its delivered sound
+  // isn't taken as "sending silence" (a phone's keeps arriving, as silence, when its network drops)
+  assert.equal(run({ loc: false }).ended, 'Scarlett: its sound stopped (the device let go of it)');
+  assert.equal(run({ loc: false, dv: 1000 }).silent, 'Scarlett: it has gone silent');
+  // a shared screen's or this computer's sound: no device, cable or drive to check
+  assert.equal(run({ k: 'screen', dv: 1000 }).silent, 'Scarlett: it has gone silent');
+  assert.equal(run({ k: 'screen', dv: 0 }).silent, 'Scarlett: it has gone silent');
+  // the show log keeps all of an alert's advice, after a long device name (it was cut at 300)
+  const log = new ShowLog();
+  const long = 'Analogue 1 + 2 (Focusrite USB Audio) · Input 1 left the show while its sound was in the program (unplugged, or the device stopped)' + run({ dv: 0, usb: true }).silent.slice('Scarlett: no sound is arriving from the device'.length);
+  assert.ok(long.length > 300);
+  assert.equal(log.event('alert', long).text, long);
+  assert.equal(log.event('note', long).text.length, 300);
+  ok('sound watch: an interface here that stops says what to try (Easy Start first; the USB note beside 1080p cameras); one sending silence says check its cable, gain and mute');
+}
+{
+  // the summary: how long nothing arrived from a device, and how many times
+  const rows = [];
+  const gap = (i) => (i >= 10 && i < 22) || (i >= 30 && i < 33);
+  for (let i = 0; i < 40; i++) rows.push({ t: at(i), fps: 30, pk: -30, s: [{ id: 'f', n: 'Focusrite', k: 'mic', loc: 1, open: 1, a: 'live', db: gap(i) ? -99 : -30, dv: gap(i) ? 0 : 1000 }, { id: 'p', n: 'Phone', k: 'mic', open: 1, a: 'live', db: -30, dv: gap(i) ? 0 : 1000 }] });
+  const text = summarize(rows, [], 30).lines.join('\n');
+  assert.ok(text.includes('Focusrite: nothing arrived from the device for 15 s in all, 2 time(s) (it stopped sending, rather than sending silence).'), text);
+  assert.ok(!text.includes('Phone: nothing arrived'), 'only this computer’s own devices are counted');
+  ok('summary: how long nothing arrived from a device (stopped sending, not silence), and how many times');
 }
 {
   const w = new SoundWatch();
