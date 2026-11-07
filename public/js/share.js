@@ -12,6 +12,7 @@ const q = new URLSearchParams(location.search);
 let eventId = (q.get('e') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 let ev = null, sock = null, link = null, stream = null, cid = null, name = '';
 const isMac = /Mac/.test(navigator.platform || navigator.userAgent);
+const isLinux = /Linux/.test(navigator.platform || '') && !/Android/.test(navigator.userAgent);
 const canShare = !!navigator.mediaDevices?.getDisplayMedia;
 
 const err = (t) => ($('#joinErr').textContent = t || '');
@@ -47,12 +48,15 @@ function setup() {
       $('#joinWhat').textContent = `Into ${e.title ? `“${e.title}”` : 'the studio'}, as a source the director can cut to: slides, a demo, a video.`;
     }).catch(() => {});
   }
-  $('#soundTip').textContent = isMac
-    ? 'To send its sound too: share a Chrome tab and tick Share tab audio (a Mac shares a tab’s sound, not the whole computer’s).'
+  $('#soundTip').textContent = isMac || isLinux
+    ? `To send its sound too: share a Chrome tab and tick Share tab audio (${isMac ? 'a Mac' : 'Linux'} shares a tab’s sound, not the whole computer’s).`
     : 'To send its sound too: pick Entire screen and tick Share system audio (or a tab, with Share tab audio).';
   if (!canShare) {
     $('#joinForm').hidden = true;
     $('#cantShare').hidden = false;
+    // (over plain http on another computer's address, the browser can't share a screen at all: say so,
+    // not that this browser can't)
+    if (!window.isSecureContext) $('#cantShare').textContent = `Sharing a screen needs a secure address (https://), and this page was opened at ${location.origin}. Open the link the studio shows for another computer: it starts with https://.`;
   }
 }
 
@@ -111,7 +115,7 @@ async function start(e) {
 function showStream() {
   $('#preview').srcObject = new MediaStream(stream.getVideoTracks());
   const a = stream.getAudioTracks().length;
-  $('#soundSay').textContent = a ? 'Its sound goes to the studio too.' : 'No sound with it (the browser didn’t share any). ' + (isMac ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
+  $('#soundSay').textContent = a ? 'Its sound goes to the studio too.' : 'No sound with it (the browser didn’t share any). ' + (isMac || isLinux ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
 }
 
 function connect() {

@@ -374,6 +374,9 @@ if (!eventId) {
 }
 
 async function boot() {
+  // (a camera, and the signature that joins a show, need a secure address: over plain http on another
+  // computer's address the browser has neither, and joining failed with a message about JavaScript)
+  if (!window.isSecureContext) throw new Error(`This page needs a secure address (https://) to use the camera. It was opened at ${location.origin}: open the show's link that starts with https://.`);
   ev = await api(`events/${eventId}`);
   await keepEventsApart(ev);
   showFirstBox();

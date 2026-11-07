@@ -78,6 +78,12 @@ function onAir() {
   if (mediaOn) return `Clip: ${reelOf(mediaOn.id)?.name || 'a clip'}`;
   return live.get(liveActive)?.name || null;
 }
+/** Two or more of this computer's own cameras at 1080p: enough to take the USB from an interface beside them. */
+function usbBusy() {
+  let n = 0;
+  for (const l of live.values()) if (l.local && l.role !== 'mic' && !l.screen && (l.stream?.getVideoTracks()[0]?.getSettings?.().height || 0) >= 1080) n++;
+  return n >= 2;
+}
 function sources() {
   const out = [];
   for (const [peer, l] of live) {
@@ -85,6 +91,7 @@ function sources() {
     const at = l.stream?.getAudioTracks().at(-1), vt = l.stream?.getVideoTracks().at(-1);
     const s = { id: peer, n: l.name || 'Source', k: kindOf(l), open: st?.open ? 1 : 0, a: soundOf(at) };
     if (l.local) s.loc = 1;
+    if (l.local && at && !l.screen && usbBusy()) s.usb = 1; // (its sound and 1080p cameras on this computer's USB: see SoundWatch)
     if (srcPeak.has(peer)) s.db = dbOf(srcPeak.get(peer));
     if (at) {
       const set = at.getSettings?.() || {};
