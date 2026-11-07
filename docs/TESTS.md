@@ -14,7 +14,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 
 ## Unit tests (node, no installs)
 
-`npm test` runs all seven, and GitHub Actions runs them on every push and pull request.
+`npm test` runs all nine, and GitHub Actions runs them on every push and pull request.
 
 | File | Covers |
 | --- | --- |
@@ -22,6 +22,8 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/sequence.test.mjs` | edit operations (ripple, roll, slip, slide, slicing) and the AI director |
 | `test/quality.test.mjs` | live picture quality hints |
 | `test/imports.test.mjs` | every import across the front end is exported by its module |
+| `test/config.test.mjs` | every page that talks to the cloud loads `/config.js` first (the share page didn't, and couldn't reach the studio on the real site) |
+| `test/docsync.test.mjs` | one version in `package.json`, `APP_VERSION` and the newest `CHANGELOG.md` heading; every version renders on What's new without raw markdown; every file the README links to exists |
 | `test/framesync.test.mjs` | one timeline: a camera's quickest delivery, the picture delay (up at once, down between shows), each camera's frame of a moment, a stalled camera held, the clap in sound and picture |
 | `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
 | `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged), the summary, chunks put back together |

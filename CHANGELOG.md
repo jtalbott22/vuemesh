@@ -1,14 +1,16 @@
 # Changelog
 
-## 0.61.10 — a shared screen is always shown whole
+## 0.61.10 — a shared screen is always shown whole; What's new reads as written
 **Deploy:** `./aws/deploy.sh` (site only).
 
 - **A shared screen is always shown whole.** The show's framing (Fill, the default) cropped every source to the output's shape, so a Mac's 16:10 screen in a 16:9 show lost its menu bar and Dock. A screen, shared on this computer or from another one over `/share`, now keeps all of itself with bars at the sides, on the program, in a dissolve into it, in the preview box and on its tile. Cameras still follow Fill or Whole shot. A screen's recording is marked a screen, so Edit and Render MP4 show it whole too (an item's own Framing still wins). (Tried with a 1440 x 900 screen with a red menu bar and a green Dock, in a 720p show on Fill: before, both were cropped off; now both are on the program, from this computer and over `/share`.)
+- **What's new shows code inside bold text.** A bold lead-in with code in it, such as "The WHIP receiver (`tools/whip_receiver.py`) no longer sticks…", showed its stars as written and lost the code ("The WHIP receiver () no longer…"). Seven older versions had one; they read as written now.
+- **The changelog, What's new and the README stay in step** (`npm test`): one version in `package.json`, the app and the newest heading here; every version renders on What's new without stray stars or backticks; and every file and picture the README links to is in the repository.
 
 ## 0.61.9 — another computer's screen reaches the studio on the real site
 **Deploy:** `./aws/deploy.sh` (site only).
 
-- **Another computer's screen (`/share`) joins the studio on vuemesh.com.** The share page never loaded the site's settings (where the studio's signalling is), so it looked for the studio at the site's own address, which only the dev server answers. On the real site it sat on "Finding the studio…" or "Waiting for the studio to open…" with the studio open, and never showed up under Sources. It worked on the dev server, where it was tested. (Tried against a new show on vuemesh.com with the page as it is now: it joined, linked on this network, and was a source in the studio in seconds.)
+- **Another computer's screen joins the studio on vuemesh.com.** The share page (`/share`) never loaded the site's settings (where the studio's signalling is), so it looked for the studio at the site's own address, which only the dev server answers. On the real site it sat on "Finding the studio…" or "Waiting for the studio to open…" with the studio open, and never showed up under Sources. It worked on the dev server, where it was tested. (Tried against a new show on vuemesh.com with the page as it is now: it joined, linked on this network, and was a source in the studio in seconds.)
 - **A test catches a page that talks to the cloud without those settings** (`npm test`), so this can't come back on another page.
 
 ## 0.61.8 — microphones added as stereo or mono; a Windows show: a screen in the sync check, and Record program while hidden

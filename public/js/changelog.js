@@ -5,11 +5,15 @@
 // The **Deploy:** lines are notes for whoever deploys it, and aren't shown.
 
 const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-// (`code` first, so a ** inside code stays as written; then **bold**)
-const inline = (s) => esc(s)
-  .split(/(`[^`]+`)/)
-  .map((part) => (part.startsWith('`') && part.endsWith('`') && part.length > 1 ? `<code>${part.slice(1, -1)}</code>` : part.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')))
-  .join('');
+// (`code` is set aside first, so a ** inside code stays as written; then **bold**, which may have
+// code inside it, as in **The receiver (`tools/whip_receiver.py`) no longer…**; then the code)
+const inline = (s) => {
+  const code = [];
+  return esc(s)
+    .replace(/`([^`]+)`/g, (_, c) => `\uE000${code.push(c) - 1}\uE000`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\uE000(\d+)\uE000/g, (_, i) => `<code>${code[i]}</code>`);
+};
 
 /** One version's lines as HTML. */
 function body(lines) {
