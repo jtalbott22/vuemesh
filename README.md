@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A complete live production studio in one browser tab.</strong><br>
-  Plug in your USB cameras and audio interface, bring in any screen (yours or another computer's), add phones over Wi-Fi when you want more angles, then switch, mix, record, stream and edit. No installs, no capture cards, no drivers.
+  Plug in your USB cameras and audio interface, bring in any screen (yours or another computer's), roll your own clips and ads, add phones over Wi-Fi when you want more angles, then switch, mix, record, stream and edit. No installs, no capture cards, no drivers.
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 ![The VUEMesh studio mid-show: sources on the left (three USB webcams, two shared screens and the computer's sound), the program with a "Starting soon" slate, the T-bar switcher, the audio mixer along the bottom and the output settings on the right.](public/media/screens/studio.webp)
 
-<p align="center"><sub>A real show run from one desk: three USB webcams, two shared screens and the computer's sound, no phones at all. The program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
+<p align="center"><sub>A real show run from one desk: three USB webcams, two shared screens, the computer's sound and a clip ready to air, no phones at all. The program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
 
 ## What is VUEMesh?
 
@@ -44,12 +44,13 @@ Safari. Open the studio and add sources from wherever they are:
 | 🖥️ **This computer's screens and sound** | Any screen, window or tab, with its sound, kept sharp for slides and text and always shown whole, whatever its shape. |
 | 💻 **Another computer's screen** | The presenter opens a link (`/share`) and picks what to share. It arrives as a source over the local network, with its sound, and is shown whole (a Mac's 16:10 screen keeps its menu bar and Dock in a 16:9 show). |
 | 📱 **Phones and tablets** | Scan a code to join as a camera or a microphone. Each records in full quality and sends a live picture over Wi-Fi. |
+| 🎞️ **Clips: ads, b-roll, packages** | Drop in video or image files. Each waits in Sources, ready, and goes on air with a click: once and back to the camera, or looped until you cut away. |
 
 Start with one webcam and a screen share for a stream, a podcast or a talk. Add a presenter's laptop
 for a hybrid meeting. Hand out the join code when you want a dozen angles of a wedding or a gig.
 **It's the same studio either way**, and every source is cut, mixed, recorded and edited the same
-way: the switcher and auto director, the mixer with EQ, picture-in-picture, Record program, streaming,
-and the editor afterwards.
+way: the switcher and auto director, the mixer with EQ, picture-in-picture, breaks, lower thirds,
+Record program, streaming, and the editor afterwards.
 
 Each source is also recorded on its own in full quality. Cameras and screens on the studio computer
 record there, and phones record on themselves and send the file when each take ends. All of it lines
@@ -78,7 +79,7 @@ every angle, already cut on the timeline and ready to re-cut.
 | | Solo desk | Presentation or hybrid meeting | Event |
 | --- | --- | --- | --- |
 | **For** | Streams, podcasts, tutorials, talks | Conferences, classes, board meetings, church | Weddings, gigs, sport, parties |
-| **Sources** | USB webcams, a USB interface, this computer's screens | Room cameras, plus the presenter's laptop over `/share` | Guests' phones and tablets (with any of the above) |
+| **Sources** | USB webcams, a USB interface, this computer's screens, your intro and ads | Room cameras, plus the presenter's laptop over `/share`, and video packages | Guests' phones and tablets (with any of the above), and sponsor spots |
 | **Setup** | Plug in, open the studio, **+ This computer** | Send the presenter the share link | Put the beacon on a screen; people scan it |
 | **Out** | Record, stream, or be the webcam in Zoom, Teams or Meet | Projector or TV via Program out or `/tv`, plus a recording | Live on screens, the program file, every angle to edit, and each person's own part |
 
@@ -106,6 +107,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Screens, windows and tabs**, with their sound, captured sharp for text and **always shown whole**, with bars if the screen is another shape than the show. **The computer's own sound** too.
 - **Another computer's screen** over `/share`: no install, its sound included, and a tally that tells the presenter when they're up next or on air.
 - **Phones and tablets** as cameras or microphones, with full-quality local recording, tally lights, and messages from the director.
+- **Clips** for ads, b-roll, a pre-made package, a bumper or a logo: video or images, ready in Sources, aired with a click (once and back to the camera, or looped), with their sound on their own mixer strip. Aired video clips land in Edit where they aired.
 - **Camera control** for every camera, as far as each device allows: zoom, exposure, contrast, white balance and focus, with a histogram and waveform.
 
 </td>
@@ -113,8 +115,9 @@ every angle, already cut on the timeline and ready to re-cut.
 
 ### 🎬 Live production
 - **Switcher** with CUT, AUTO and a T-bar, dissolves, fade to and cut to black, and **any MIDI controller's fader** as the T-bar (move it once to learn it).
-- **Auto director** and **autopilot**, which can run a whole show alone: intro, fade up, record, cut, and wrap up.
-- **Break slate** with a sponsor reel, **lower thirds**, clips, and a **rundown** with cues.
+- **Auto director** and **autopilot**, which can run a whole show alone: an intro clip, fade up, record, cut, and wrap up.
+- **Breaks your way:** six built-in slates (color bars, static, please stand by, test card, VHS, station clock) with your own message and an optional tone, your sponsors' stills and videos rotating through it, or your own clip on air instead. It goes up by itself if the camera on air drops (a setting, on by default).
+- **Lower thirds** and a **rundown** with cues.
 - **Picture-in-picture**: a camera in the corner over a shared screen, the presenter beside their slides.
 - **Live picture quality follows the show**: sharp on air, light on standby (see [the table](#live-picture-quality)).
 - **Record-only overflow:** past 12 live pictures, more phones still record and wait to swap in.
@@ -209,6 +212,7 @@ flowchart LR
     Scr["🪟 Screens, windows, tabs<br/>and the computer's sound"]
     Share["💻 Another computer<br/>/share"]
     Cams["📱 Phones and tablets<br/>cameras and microphones"]
+    Clips["🎞️ Clips<br/>ads, b-roll, packages"]
   end
 
   Cloud["☁️ AWS handshake<br/>signalling only, no video"]
@@ -233,6 +237,7 @@ flowchart LR
   Scr -- "this computer" --> Studio
   Share == "local network" ==> Studio
   Cams == "local network" ==> Studio
+  Clips -- "files" --> Studio
   Share -.- Cloud
   Cams -.- Cloud
   Cloud -.- Studio
@@ -276,7 +281,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A["Sources<br/>USB cameras and audio, screens,<br/>other computers, phones"] --> C{"Live: switcher,<br/>auto director, mixer"}
+  A["Sources<br/>USB cameras and audio, screens,<br/>other computers, phones, clips"] --> C{"Live: switcher,<br/>auto director, mixer"}
   C --> D["Record program"]
   C --> E["Stream out<br/>WHIP · RTMP relay"]
   C --> F["Program out · TVs<br/>video calls"]
@@ -293,7 +298,7 @@ flowchart LR
 | --- | --- |
 | **Beacon** (a screen at the venue) | One QR code that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
 | **Guest phone** (`/cam`) | Join, sign the terms with the phone's own key, optical sync, record full quality locally. Streams a low-res live preview to the host and sends each finished clip over a WebRTC data channel in 8 MB hashed parts. Unsent clips wait in the phone's outbox (survives reloads) until the host confirms them. |
-| **Host laptop** (`/studio`) | The hub. **Live**: every source's live picture in a multiview, cut with 1–9, break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
+| **Host laptop** (`/studio`) | The hub. **Live**: every source's live picture in a multiview, cut with 1–9, clips (ads, b-roll, packages) a click away, a break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
 | **This computer** (**+ This computer** in the studio) | USB webcams, USB microphones and audio interfaces, screens, windows and tabs, and the computer's sound, added straight into the studio with a preview of each. Each records its own full-quality file on the studio computer. |
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
@@ -604,7 +609,7 @@ VUEMesh is in beta. These are the limits known today, and what has and hasn't be
 - iPhone browsers can't go full screen; adding VUEMesh to the Home Screen gives the full-screen app.
 - Media library details (tags, subclips, moments, trims) are kept in this browser on the host computer, like the edit itself. Use Export on the home page to keep a copy outside the browser.
 - Program out needs the studio tab open in the same browser (it takes the picture straight from it). It keeps running when it covers the studio, on one screen or two.
-- Clips aired live are in the program recording, but not yet placed on the Edit timeline when it's rebuilt from live cuts. Export ZIPs are limited to 4 GB; bigger events download as separate files.
+- Still images aired live are in the program recording, but not yet placed on the Edit timeline (aired video clips are, where they aired). Export ZIPs are limited to 4 GB; bigger events download as separate files.
 - The studio needs Chrome or Edge on a computer. Render MP4 speed depends on the machine: on a test machine with no graphics hardware it ran at roughly 0.25–0.8× real time (software VP9); Chrome and Edge normally use hardware H.264 and should be several times faster. Real-time export is always available.
 - Render MP4 holds decoded audio in memory; for films over about 30 minutes it writes straight to disk when the browser allows it, but very long events may be better split.
 - The Terms are a starting point, not legal advice. Have a lawyer review them before you charge money or turn publishing on.
