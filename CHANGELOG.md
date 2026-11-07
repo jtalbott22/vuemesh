@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.62.2 — every source that aired is in Edit, not black
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a show log (a Linux laptop, its webcam, a Mac's screen over `/share` and an iPhone, with Record program): in Edit, the Mac's and the iPhone's time on air was black. Only the webcam's clips and the program as aired had come in. The Mac's screen was never recorded anywhere: the share page sends only the live picture, and the studio recorded only its own computer's cameras and screens. None of the iPhone's three clips had arrived 2½ minutes after it was last on air. A phone sends a clip only once it stops recording (8 s after it goes off air), and on a busy network it eases its sending down to keep the live pictures going (that show's Phone remote froze every 20 s).
+
+- **Another computer's screen is recorded in the studio while it's on air,** as this computer's are: from the picture it sends (the output's size), with its sound, from Record program until 5 s after it goes off air. Edit has its time on air from its own recording, and it's in Media as that computer's name. The event log says "Recording Presenter Mac (here, as it arrives…)". It's finished and kept when that computer leaves, and a new recording starts if what it sends changes.
+- **Where a source that aired has no footage, Edit shows the program as aired there,** at the same moment, instead of black: a phone whose clip is still on its way, one that keeps its clips, or a source nothing recorded. When the phone's clip arrives, the automatic edit uses it instead. The same goes for the time a camera's recording stopped while it was still on air. Without a Record program recording, Edit is as it was.
+
+**Tests:** `e2e_remotescreenrec` puts this computer's webcam, another computer's screen over `/share` and a phone that keeps its clips on air during Record program, then checks Edit: the screen from its own recording, the phone's time from the program as aired, neither black. `sequence.test.mjs` checks the fill: where it goes, its dissolve, the real clip replacing it, and nothing changed without a program recording.
+
 ## 0.62.1 — preview beside the program
 **Deploy:** `./aws/deploy.sh` (site only).
 

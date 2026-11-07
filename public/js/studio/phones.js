@@ -540,7 +540,7 @@ async function studioDiagSections() {
 }
 const openStudioDiag = diagnosticsDialog(studioDiagSections);
 window.vmDiag = studioDiagSections; // (tests and diagnostics)
-window.vmProgram = () => (seq.tracks.find((t) => t.id === 't-prog')?.items || []).map((it) => { const c = clips.find((k) => k.id === it.src); return { id: it.id, name: c?.name, local: !!c?.local, reel: !!c?.reel, program: !!c?.program, start: Math.round(it.start), dur: Math.round(it.dur), dissolve: it.transIn?.dur || 0, fadeIn: it.fadeIn || 0, fadeOut: it.fadeOut || 0, type: it.type }; });
+window.vmProgram = () => (seq.tracks.find((t) => t.id === 't-prog')?.items || []).map((it) => { const c = clips.find((k) => k.id === it.src); return { id: it.id, name: c?.name, local: !!c?.local, reel: !!c?.reel, program: !!c?.program, fill: !!it.fill, screen: !!c?.screen, start: Math.round(it.start), dur: Math.round(it.dur), dissolve: it.transIn?.dur || 0, fadeIn: it.fadeIn || 0, fadeOut: it.fadeOut || 0, type: it.type }; });
 window.vmSeek = (ms) => player.seek(ms); // (tests and diagnostics)
 window.vmSelect = (id) => select(id);
 if (!EDIT_ONLY) {

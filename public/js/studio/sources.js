@@ -6,7 +6,7 @@ import { snapToCamera } from '/js/camctl.js';
 import { cleanLabel, matchSaved, renamed, usbIdOf } from '/js/devmatch.js';
 import * as idb from '/js/idb.js';
 import {
-  $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, liveActive, note,
+  $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, LIVE_DELAY, liveActive, note,
   player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
 import { addClip, noteAngle, output, rebuild } from './clips.js';
@@ -800,16 +800,23 @@ export function fileHasSound(blob) {
     v.src = url;
   });
 }
+// Recorded here: this computer's cameras, microphones and screens, and another computer's screen
+// (from /share). That page sends only the live picture and records nothing itself, so without
+// this its time on air had no footage in Edit (black there). It's recorded as it arrives, as
+// aired: at the size and rate it's sent, the output's.
+export const recordedHere = (l) => !!l && (l.local || (!!l.screen && l.role !== 'mic'));
 function startLocalRec(peer) {
   const l = live.get(peer);
-  if (!l?.local || l.recorder) return;
+  if (!recordedHere(l) || l.recorder) return;
   if (l.role !== 'mic' && !l.stream.getVideoTracks().some((t) => t.readyState === 'live')) return; // (being opened again: it starts when it's back)
   const kind = l.role === 'mic' ? 'audio' : 'video';
   const mime = kind === 'audio' ? ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((m) => MediaRecorder.isTypeSupported(m)) : localVideoMime(l);
   // A shared screen is recorded at most 1080p and 15 frames a second (slides and demos need no
   // more), from its own copy of the picture: encoding a full-size screen at 30 on the processor,
   // beside the program recording, was more than a laptop could do (the program skipped frames).
-  if (l.screen && kind === 'video' && !l.recTrack) {
+  // (another computer's screen comes already at the output's size, and a received picture can't be
+  // made smaller here: it's recorded as it arrives, from the stream itself, so new tracks are used)
+  if (l.screen && l.local && kind === 'video' && !l.recTrack) {
     const t = l.stream.getVideoTracks()[0]?.clone();
     if (t) {
       t.applyConstraints({ width: { max: 1920 }, height: { max: 1080 }, frameRate: { max: 15 } }).catch(() => {});
@@ -819,7 +826,8 @@ function startLocalRec(peer) {
   const one = () => {
     const vids = l.recTrack?.readyState === 'live' ? [l.recTrack] : l.stream.getVideoTracks();
     const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? (l.side && l.recAudio ? [l.recAudio] : l.stream.getAudioTracks()) : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? 3_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
-    const chunks = [], t0 = now(), began = performance.now();
+    // (another computer's screen arrives about as late as a phone's picture: on the cameras' clock, as the cuts are)
+    const chunks = [], t0 = now() - (l.local ? 0 : LIVE_DELAY), began = performance.now();
     const name = l.name; // (named as it was when it started: a split or a rename can come before it's saved)
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = async () => {
@@ -864,9 +872,9 @@ function startLocalRec(peer) {
     setTimeout(() => old.state !== 'inactive' && old.stop(), 400); // (a short overlap: nothing lost at the seam)
   }, 5 * 60000);
   renderLive();
-  note(`Recording ${l.name} (this computer${kind === 'video' ? `, ${mime}${hwMimeOf(mime) ? ' on the graphics card' : ''}` : ''})`);
+  note(`Recording ${l.name} (${l.local ? 'this computer' : 'here, as it arrives'}${kind === 'video' ? `, ${mime}${hwMimeOf(mime) ? ' on the graphics card' : ''}` : ''})`);
 }
-function rollLocalRec(peer) {
+export function rollLocalRec(peer) {
   const l = live.get(peer);
   if (!l?.recorder || !l.nextRecorder) return false;
   if (l.role !== 'mic' && !localShouldRec(peer, l)) {
@@ -878,7 +886,7 @@ function rollLocalRec(peer) {
   setTimeout(() => old.state !== 'inactive' && old.stop(), 400); // (a short overlap: nothing lost at the seam)
   return true;
 }
-function stopLocalRec(peer, now_) {
+export function stopLocalRec(peer, now_) {
   const l = live.get(peer);
   if (!l?.recorder) return;
   clearInterval(l.recRoll);
@@ -913,7 +921,7 @@ export function localAired(peer) {
 const localShouldRec = (peer, l) => !KIOSK && (l.recManual || (localAired(peer) && !!progRec && !progRec.stopping)); // (the phones' storage setting doesn't apply to this computer's cameras)
 export function localRecFollow() {
   for (const [peer, l] of live) {
-    if (!l.local || l.role === 'mic') continue;
+    if (!recordedHere(l) || l.role === 'mic') continue;
     const want = localShouldRec(peer, l);
     if (want) {
       clearTimeout(l.offAirStop);
@@ -982,7 +990,7 @@ export function flushRecordings(why) {
   lastFlush = Date.now();
   let n = 0;
   for (const [peer, l] of live) {
-    if (l.local) n += rollLocalRec(peer) ? 1 : 0;
+    if (recordedHere(l)) n += rollLocalRec(peer) ? 1 : 0;
     else if (l.rec && l.role !== 'mic' && hub?.message(peer, { t: 'roll' })) n++;
   }
   if (n) note(`${why}: ${n} recording${n > 1 ? 's' : ''} in progress finished so ${n > 1 ? 'they reach' : 'it reaches'} Edit now (still recording)`);

@@ -131,10 +131,10 @@ export function appendLiveSoon(delay = 3000) {
   appendTimer = setTimeout(() => {
     if (incoming.size) return appendLiveSoon(); // (more on the way)
     const edl = resolvedEdl().filter((c) => !isBlocked(c.cid));
-    const use = clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable);
-    if (seq.auto || !S.appendLive(S.clone(seq), edl, use)) return;
+    const use = clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable), fills = asAired();
+    if (seq.auto || !S.appendLive(S.clone(seq), edl, use, fills)) return;
     snapshot();
-    const r = S.appendLive(seq, edl, use);
+    const r = S.appendLive(seq, edl, use, fills);
     saveSeq();
     player.setSequence(seq);
     renderTimeline();
@@ -299,7 +299,8 @@ function resolvedEdl() {
       const near = vids.filter((k) => k.cid === e.cid && e.t >= k.t0 - 5000 && e.t < k.t0 + k.dur);
       const rolling = near.filter((k) => e.t >= k.t0).sort((a, b) => b.t0 - a.t0);
       const c = rolling[0] || near.sort((a, b) => a.t0 - b.t0)[0];
-      return c ? { t: Math.max(e.t, c.t0), clip: c.id, ...(e.dissolve ? { dissolve: e.dissolve } : {}), ...(e.fadeIn ? { fadeIn: e.fadeIn } : {}) } : null;
+      // (none: its recording isn't here, yet or at all: the program as aired fills it, see rebuildFromCuts)
+      return c ? { t: Math.max(e.t, c.t0), clip: c.id, ...(e.dissolve ? { dissolve: e.dissolve } : {}), ...(e.fadeIn ? { fadeIn: e.fadeIn } : {}) } : { t: e.t, cid: e.cid, missing: true, ...(e.dissolve ? { dissolve: e.dissolve } : {}) };
     })
     .filter(Boolean)
     .sort((a, b) => a.t - b.t);
@@ -310,9 +311,11 @@ function usable(c) {
   const r = media.range(c);
   return r.in === 0 && r.out === c.dur ? c : { ...c, t0: c.t0 + r.in, dur: r.out - r.in, inBase: r.in };
 }
+/** The program as aired (Record program's recordings), to fill a cut whose camera has no footage. */
+const asAired = () => clips.filter((c) => c.program && c.kind !== 'audio').map(usable);
 export function rebuild(announceIt = true) {
   if (!EDIT_ONLY) return; // (the Edit page builds the timeline)
-  S.rebuildFromCuts(seq, resolvedEdl().filter((c) => !isBlocked(c.cid)), clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable));
+  S.rebuildFromCuts(seq, resolvedEdl().filter((c) => !isBlocked(c.cid)), clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable), asAired());
   saveSeq();
   if (announceIt) announce('Program rebuilt from your cuts');
 }

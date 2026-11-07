@@ -432,4 +432,45 @@ import { setSpeed, srcAt, rate, splitAt as split4, sliceRange as slice4, rippleT
   assert.ok(r2 && Math.abs(r2.from - (T + 68000)) < 40 && Math.abs(S.end(sq) - (before + 4000)) < 40, JSON.stringify([r2, before, S.end(sq)]));
   ok('live after hand edits: a second take goes on the end after the real gap (hand edits kept, its mic lined up), nothing twice, only the part after what\'s there, and Collapse gaps closes it');
 }
+// no footage of a camera: the program as aired fills its time on air, not black
+{
+  const T = 5_000_000;
+  const cam = [{ id: 'a', kind: 'video', cid: 'A', t0: T, dur: 20000 }]; // this computer's webcam, recorded on air
+  const pgm = [{ id: 'P', kind: 'video', cid: 'PGM', program: true, t0: T - 1000, dur: 30000 }]; // Record program
+  // on air: the webcam, then a phone whose clip hasn't come (5 s, cut to with a dissolve), the webcam again
+  const edl = [{ t: T, clip: 'a' }, { t: T + 5000, cid: 'B', missing: true, dissolve: 500 }, { t: T + 9000, clip: 'a' }];
+  const sq = S.newSequence();
+  S.rebuildFromCuts(sq, edl, cam, pgm);
+  const items = S.program(sq).items.map((i) => [i.src, i.start, i.dur, i.in, !!i.fill]);
+  assert.deepEqual(items, [
+    ['a', 0, 5000, 0, false],
+    ['P', 5000, 4000, 6000, true], // the phone's 4 s, from the program as aired, at the same moment
+    ['a', 9000, 11000, 9000, false],
+  ], JSON.stringify(items)); // (and no more: the edit ends where the cameras' recordings do, as it did)
+  // a camera's recording that stopped while it was still on air, before the next cut
+  const s1 = S.newSequence();
+  S.rebuildFromCuts(s1, [{ t: T, clip: 'a' }, { t: T + 25000, cid: 'B', missing: true }], cam, pgm);
+  assert.deepEqual(S.program(s1).items.map((i) => [i.src, i.start, i.dur, !!i.fill]), [['a', 0, 20000, false], ['P', 20000, 5000, true], ['P', 25000, 4000, true]]);
+  assert.deepEqual(S.program(sq).items[1].transIn, { dur: 500 }, 'the live dissolve into it is kept');
+  // without a program recording: as before (the shot before holds; nothing fills the end)
+  const s2 = S.newSequence();
+  S.rebuildFromCuts(s2, edl, cam);
+  assert.deepEqual(S.program(s2).items.map((i) => [i.src, i.start, i.dur]), [['a', 0, 9000], ['a', 9000, 11000]]);
+  // the phone's clip arrives: it's used, not the fill
+  const s3 = S.newSequence();
+  const withB = [...cam, { id: 'b', kind: 'video', cid: 'B', t0: T + 4000, dur: 6000 }];
+  S.rebuildFromCuts(s3, [edl[0], { t: T + 5000, clip: 'b', dissolve: 500 }, edl[2]], withB, pgm);
+  assert.deepEqual(S.program(s3).items.slice(0, 3).map((i) => [i.src, i.start, i.dur]), [['a', 0, 5000], ['b', 5000, 4000], ['a', 9000, 11000]]);
+  // only a source with no footage at all on air (a screen shared from another computer before this
+  // version), and the program: the whole stretch comes from the program
+  const s4 = S.newSequence();
+  S.rebuildFromCuts(s4, [{ t: T, cid: 'M', missing: true }], [], pgm);
+  assert.deepEqual(S.program(s4).items.map((i) => [i.src, i.start, i.dur, i.in]), [['P', 1000, 29000, 1000]]);
+  // the show began on a phone with no footage: the edit starts with what aired (only where the program was recording)
+  const s5 = S.newSequence();
+  S.rebuildFromCuts(s5, [{ t: T - 5000, cid: 'B', missing: true }, { t: T, clip: 'a' }], cam, pgm);
+  assert.deepEqual(S.program(s5).items.map((i) => [i.src, i.start, i.dur]), [['P', 0, 1000], ['a', 1000, 20000]]);
+  assert.equal(s5.origin, T - 1000);
+  ok('no footage of a camera: the program as aired fills its time on air (and where a recording stopped on air), with its dissolve; the edit still starts and ends with the cameras\' recordings (unless the show began or ended on one with no footage); the real clip replaces it when it comes; without a program recording, as before');
+}
 console.log('All speed tests passed.');

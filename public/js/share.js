@@ -3,7 +3,8 @@
 // the studio has it as a source like a phone's camera (marked a screen, so picture-in-picture
 // and the show log treat it as one). Its sound comes too when the browser shares it. It joins
 // the way a phone does (the event's signalling, then a direct link to the studio) but sends
-// only the live picture: nothing is recorded here, so there are no clips to send.
+// only the live picture: nothing is recorded here, so there are no clips to send. The studio
+// records it as it arrives while it's on air (see recordedHere in studio/sources.js), for Edit.
 import { CamLink } from '/js/rtc.js';
 import { api, identity, meshSocket, thumbprint } from '/js/vm.js';
 
