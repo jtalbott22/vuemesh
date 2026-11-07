@@ -112,7 +112,7 @@ function onMessage(m) {
   } else if (m.t === 'removed') {
     pgm?.stop();
     pgm = null;
-    $('#pgmBox').hidden = $('#pgmTgl').hidden = true;
+    $('#pgmBox').hidden = $('#pgmRow').hidden = true;
     key = null;
     localStorage.removeItem(keyStore(eventId));
     showPairing();
@@ -127,7 +127,7 @@ function onMessage(m) {
   } else if (m.t === 'thumb') {
     thumbs.set(m.peer, m.src);
     const img = document.querySelector(`.cam[data-peer="${CSS.escape(m.peer)}"] img`);
-    if (img) img.src = m.src;
+    if (img) setThumb(img, m.src);
     else render();
   } else if (m.t === 'done' && !m.ok) {
     toast(m.why || "The studio couldn't do that");
@@ -139,9 +139,10 @@ let pgm = null, pgmKey = null;
 const pgmOn = () => localStorage.getItem('vm_remote_pgm') !== '0';
 function startProgram(tvKey) {
   pgmKey = tvKey;
-  $('#pgmTgl').hidden = false;
+  $('#pgmRow').hidden = false;
   $('#pgmTgl').setAttribute('aria-pressed', String(pgmOn()));
   $('#pgmBox').hidden = !pgmOn();
+  showSound();
   if (!pgmOn() || pgm?.key === tvKey) return;
   pgm?.stop();
   pgm = new ProgramView({ eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t) });
@@ -155,9 +156,54 @@ $('#pgmTgl').onclick = () => {
   }
   $('#pgmTgl').setAttribute('aria-pressed', String(on));
   $('#pgmBox').hidden = !on;
+  showSound();
   if (on && pgmKey) startProgram(pgmKey);
 };
-window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight }; // (tests)
+
+// The program's sound, with the picture: off to start with (a phone in the studio's room would
+// play it back into the microphones), on with a tap, for earbuds, and remembered. A phone plays
+// sound only after a tap on the page, so opened again with it on, it comes on with the first tap
+// anywhere (a cut, say), and the button says so until then.
+const SOUND = 'vm_remote_sound';
+const soundWanted = () => localStorage.getItem(SOUND) === '1';
+function showSound() {
+  const v = $('#pgm'), b = $('#sndBtn'), on = !v.muted, waiting = !on && soundWanted();
+  b.hidden = !pgmOn();
+  b.setAttribute('aria-pressed', String(on));
+  b.classList.toggle('wait', waiting);
+  b.querySelector('span').textContent = on ? 'Sound on' : waiting ? 'Tap for sound' : 'Sound off';
+  b.setAttribute('aria-label', on ? 'Program sound on: tap to mute' : 'Program sound off: tap to hear it');
+}
+function soundOn() {
+  const v = $('#pgm');
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback'; // (Safari: plays with the ring switch on silent, and into earbuds)
+  } catch {}
+  v.muted = false;
+  v.play().catch(() => {
+    // (not allowed yet: muted, and the picture keeps going)
+    v.muted = true;
+    v.play().catch(() => {});
+    showSound();
+  });
+  showSound();
+}
+$('#sndBtn').onclick = () => {
+  const on = $('#pgm').muted;
+  localStorage.setItem(SOUND, on ? '1' : '0');
+  if (on) soundOn();
+  else {
+    $('#pgm').muted = true;
+    showSound();
+  }
+};
+for (const t of ['click', 'touchend']) {
+  document.addEventListener(t, (e) => {
+    if (e.target.closest?.('#sndBtn') || !soundWanted() || !$('#pgm').muted || !pgm) return;
+    soundOn();
+  }, true);
+}
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: $('#pgm').muted }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
 // seconds, the show's code can be changed (still listening, in case it's only opening late).
@@ -244,6 +290,19 @@ $('#mix').addEventListener('change', (e) => {
   act('mixGain', { id: row.dataset.ch, db: Number(range.value) });
   setTimeout(() => (dragging = null), 1500);
 });
+// The studio sends what's on air every second (the mixer's levels change that often): a grid is
+// drawn again only when something in it changed, and a camera's picture only when it's a new one.
+// Drawing every camera's picture again each second made the program above them stutter on a phone.
+function setHtml(el, html) {
+  if (el.vmHtml === html) return;
+  el.vmHtml = html;
+  el.innerHTML = html;
+}
+function setThumb(img, src) {
+  if (!src || img.vmSrc === src) return;
+  img.vmSrc = src;
+  img.src = src;
+}
 function render() {
   if (!state) return;
   $('#title').textContent = state.title || 'Remote';
@@ -251,23 +310,23 @@ function render() {
   const what = state.black ? 'Black' : state.brk ? 'On a break' : state.media ? `On air · ${state.media}` : air ? `On air · ${air.name}` : snd ? `On air · ${snd.name} · sound only` : 'Nothing on air';
   $('#onAir').textContent = what;
   $('#status').className = 'status' + (!state.black && !state.brk && (air || snd || state.media) ? ' air' : '');
-  $('#cams').innerHTML = state.cams.map((c) => {
-    const src = thumbs.get(c.peer);
+  setHtml($('#cams'), state.cams.map((c) => {
     return `<button type="button" class="cam${c.onAir ? ' air' : c.preview ? ' pvw' : ''}" data-peer="${esc(c.peer)}" aria-label="Cut to ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
-      ${src ? `<img alt="" src="${src}">` : '<span class="nopic">picture in a moment</span>'}
+      ${thumbs.has(c.peer) ? '<img alt="">' : '<span class="nopic">picture in a moment</span>'}
       ${c.onAir ? '<span class="tag">ON AIR</span>' : c.inset ? '<span class="tag">IN CORNER</span>' : ''}${c.screen ? '<span class="scr" aria-hidden="true">🖥</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
-  }).join('');
+  }).join(''));
+  for (const img of $('#cams').querySelectorAll('.cam img')) setThumb(img, thumbs.get(img.closest('.cam').dataset.peer));
   $('#noCams').hidden = state.cams.length > 0;
   // sound-only sources: cut to one and the program shows its sound picture
   const sound = state.sound || [];
   $('#soundH').hidden = $('#sound').hidden = !sound.length;
-  $('#sound').innerHTML = sound.map((s) => `<button type="button" class="cam${s.onAir ? ' air' : ''}" data-peer="${esc(s.peer)}" aria-label="Cut to ${esc(s.name)}, sound only${s.onAir ? ' (on air)' : ''}">
-      <span class="snd" aria-hidden="true">🔊</span>${s.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(s.name)}</b></button>`).join('');
+  setHtml($('#sound'), sound.map((s) => `<button type="button" class="cam${s.onAir ? ' air' : ''}" data-peer="${esc(s.peer)}" aria-label="Cut to ${esc(s.name)}, sound only${s.onAir ? ' (on air)' : ''}">
+      <span class="snd" aria-hidden="true">🔊</span>${s.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(s.name)}</b></button>`).join(''));
   // the clips loaded in the studio: cut to one and it plays on air
   const clips = state.clips || [];
   $('#clipsH').hidden = $('#clips').hidden = !clips.length;
-  $('#clips').innerHTML = clips.map((c) => `<button type="button" class="cam${c.onAir ? ' air' : ''}" data-clip="${esc(c.id)}" aria-label="Cut to the clip ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
-      <span class="snd" aria-hidden="true">${c.kind === 'image' ? '🖼' : '🎞'}</span>${c.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(c.name)}</b></button>`).join('');
+  setHtml($('#clips'), clips.map((c) => `<button type="button" class="cam${c.onAir ? ' air' : ''}" data-clip="${esc(c.id)}" aria-label="Cut to the clip ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
+      <span class="snd" aria-hidden="true">${c.kind === 'image' ? '🖼' : '🎞'}</span>${c.onAir ? '<span class="tag">ON AIR</span>' : ''}<b>${esc(c.name)}</b></button>`).join(''));
   renderMix();
   $('#autoBtn').setAttribute('aria-pressed', String(!!state.auto));
   $('#blackBtn').setAttribute('aria-pressed', String(!!state.black));
