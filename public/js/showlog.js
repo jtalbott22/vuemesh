@@ -317,6 +317,36 @@ export class SoundWatch {
 }
 
 /**
+ * The mixer's watch over one source's sound, every 2 s (studio/usage.js): whether its sound has
+ * stopped reaching the mixer, so it's put back (reconnected), and whether the event log says so.
+ * w is the source's watch ({ heardAt, silentSince, retries }), changed here; heard is whether the
+ * look just now found anything at all. heardAt is also set by the show log's own look, 20 times a
+ * second: one look every 2 s missed sound with true silence between (another computer's shared
+ * screen: a ding, a video's quiet moments), and put it back every 12 s while it played.
+ * When putting it back brings nothing, it's most likely just silent (a shared screen with nothing
+ * playing sends exact silence, which looks the same as a sound that stopped reaching the mixer):
+ * it's tried again after 16 s, 32 s, then once a minute, and said once.
+ * Returns null, or { say } when it's to be put back now.
+ */
+export function mixerWatch(w, now, heard) {
+  if (heard) w.heardAt = now;
+  if (now - (w.heardAt || 0) < 2500) {
+    w.silentSince = 0;
+    w.retries = 0;
+    return null;
+  }
+  if (!w.silentSince) {
+    w.silentSince = now;
+    return null;
+  }
+  if (now - w.silentSince <= Math.min(60000, 8000 * 2 ** (w.retries || 0))) return null;
+  const say = !w.retries;
+  w.retries = (w.retries || 0) + 1;
+  w.silentSince = 0;
+  return { say };
+}
+
+/**
  * The chunks kept in this browser's storage (a minute each), put back together: one show log
  * per studio session, newest first, each { session, startedAt, at, meta, rows, events }.
  */

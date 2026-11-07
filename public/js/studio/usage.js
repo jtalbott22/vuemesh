@@ -9,6 +9,7 @@ import { fitTile, picHealth, preBuf } from './live.js';
 import { mix, mixAttach } from './mixer.js';
 import { progRec } from './switcher.js';
 import { bgInterval } from '/js/bgclock.js';
+import { mixerWatch } from '/js/showlog.js';
 
 // ---- usage, anonymously ----
 // This event's running totals (recordings, footage, live cut and streaming time) go to the
@@ -83,7 +84,8 @@ window.vmMedia = () =>
       recording: l.recorder ? { fps: (l.recTrack || l.stream?.getVideoTracks()[0])?.getSettings?.().frameRate ?? null, copy: !!l.recTrack } : null,
     };
   });
-// (on the worker clock: a microphone whose sound stopped reaching the mixer is put back while the studio is hidden too)
+// (on the worker clock: a microphone whose sound stopped reaching the mixer is put back while the
+// studio is hidden too; when, and when it's said, is mixerWatch's: see /js/showlog.js)
 bgInterval(() => {
   if (!mix.strips?.size) return;
   if (player.ctx?.state === 'suspended') player.ctx.resume().catch(() => {});
@@ -99,10 +101,9 @@ bgInterval(() => {
       continue;
     }
     pre.getFloatTimeDomainData(preBuf);
-    if (preBuf.some((v) => v !== 0)) st.silentSince = 0;
-    else if (!st.silentSince) st.silentSince = Date.now();
-    else if (Date.now() - st.silentSince > 8000) {
-      note(`${l.name}'s sound had stopped reaching the mixer: reconnected it`);
+    const back = mixerWatch(st, Date.now(), preBuf.some((v) => v !== 0));
+    if (back) {
+      if (back.say) note(`${l.name}'s sound had stopped reaching the mixer: reconnected it`);
       st.trackId = null;
       mixAttach(peer);
     }

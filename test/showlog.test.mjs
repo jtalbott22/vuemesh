@@ -1,7 +1,7 @@
 // The show log's own logic (public/js/showlog.js): the sound watch's alerts, the summary's
 // numbers and words, and the log's limits. No browser needed.
 import assert from 'node:assert/strict';
-import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile } from '../public/js/showlog.js';
+import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile, mixerWatch } from '../public/js/showlog.js';
 
 const ok = (m) => console.log('ok  ' + m);
 const T0 = Date.UTC(2026, 10, 4, 15, 0, 0);
@@ -233,6 +233,40 @@ const at = (s) => T0 + s * 1000;
   assert.match(mac[0], /arrived at 11 frames a second \(of 30\) from .* for 15 s: it sent 12, held back by its processor \(encoding VideoToolbox on its graphics hardware\)\./);
   assert.ok(lines.some((l) => /^Phone's picture arrived at 10 frames a second .* for 12 s: no word from its side\.$/.test(l)), lines.join('\n'));
   ok("a remote picture arriving slowly for 10 s or more: when, how slowly, what it says it sent and what held it back; not while it's off air");
+}
+
+// ---- the mixer's watch: a source whose sound stopped reaching the mixer is put back ----
+{
+  // the watch looks every 2 s; the show log's look marks heardAt 20 times a second
+  const run = (w, from, to, heardAt = () => false) => {
+    const out = [];
+    for (let s = from; s <= to; s += 2) {
+      if (heardAt(s)) w.heardAt = at(s - 0.1);
+      const r = mixerWatch(w, at(s), false);
+      if (r) out.push([s, r.say]);
+    }
+    return out;
+  };
+  // a beep a second (another computer's screen): every 2 s look lands in the silence between, but
+  // the show log hears each beep, so it's never put back (it was, every 12 s)
+  let w = {};
+  assert.deepEqual(run(w, 0, 120, () => true), [], 'sound with silence between is reaching the mixer');
+  // nothing at all for 2 minutes (a shared screen with nothing playing, or sound that stopped
+  // reaching the mixer): put back once 8 s on, then after 16 s, 32 s, then once a minute; said once
+  w = {};
+  const silent = run(w, 0, 240);
+  assert.deepEqual(silent.map(([, say]) => say), [true, false, false, false, false], JSON.stringify(silent));
+  const gaps = silent.slice(1).map(([s], i) => s - silent[i][0]);
+  assert.ok(gaps[0] >= 16 && gaps[0] <= 20 && gaps[1] >= 32 && gaps[1] <= 36 && gaps[2] >= 60 && gaps[3] <= 64, JSON.stringify(silent));
+  // its sound comes back: the watch starts over, and a later stop is put back at 8 s and said again
+  assert.deepEqual(run(w, 242, 250, () => true), []);
+  const again = run(w, 252, 270);
+  assert.equal(again.length, 1, JSON.stringify(again));
+  assert.ok(again[0][1] && again[0][0] - 252 >= 8 && again[0][0] - 252 <= 12, JSON.stringify(again));
+  // the look itself finding sound counts too (the show log not running: Edit, a context not started)
+  w = {};
+  for (let s = 0; s <= 60; s += 2) assert.equal(mixerWatch(w, at(s), true), null);
+  ok("the mixer's watch: sound with true silence between (a shared screen's) isn't put back every 12 s; one that stays silent is put back after 8, 16, 32 s, then once a minute, said once; said again after it comes back and stops");
 }
 
 console.log('\nAll show log tests passed.');

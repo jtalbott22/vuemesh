@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.62.5 — a shared screen's sound isn't "reconnected" every 12 seconds
+**Deploy:** `./aws/deploy.sh` (site only).
+
+From a 10-minute test show (this computer's three webcams and its Scarlett, another computer's screen over `/share` with its sound, and a phone, cut every 8 s with Record program on): nothing dropped out. The program held 30 frames a second, the screen came in at 30 a second, and Record program dropped no frames. In Edit, every shot was there, with every source's own recording. But the event log said "Presenter Mac's sound had stopped reaching the mixer: reconnected it" every 10 to 12 seconds, start to finish, while the show log had its sound at -10 dB every second.
+
+- **The studio no longer mistakes a shared screen's quiet moments for its sound being lost.** The watch that puts back a sound that stopped reaching the mixer looked at it for a fiftieth of a second every 2 s. Another computer's screen sends exact silence between sounds (a notification, a video's quiet parts), and those looks kept landing in it. Now any sound the show log hears, which it looks for 20 times a second, counts.
+- **A shared screen with nothing playing is put back once, not every 12 seconds.** Exact silence from it looks the same as sound that stopped reaching the mixer, so it's still put back after 8 s. When that brings nothing, it's tried again after 16 s, 32 s and then once a minute, and the event log says so once. A source whose sound comes back and then stops again is put back at 8 s and logged again.
+- A sound that really stops reaching the mixer is still put back: about 12 s after it stops, where it was about 10.
+
+**Tests:** `showlog.test.mjs` checks the watch: sound with silence between is never put back; one that stays silent is put back after 8, 16 and 32 s and then once a minute, logged once; one that comes back and stops again is logged again.
+
 ## 0.62.4 — Edit on a laptop: the panel buttons always there, the two viewers level
 **Deploy:** `./aws/deploy.sh` (site only).
 
