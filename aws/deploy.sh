@@ -43,6 +43,7 @@ BUCKET="$(out BucketName)"; API="$(out ApiUrl)"; WS="$(out WsUrl)"; SITE="$(out 
 echo "==> Uploading the site to s3://$BUCKET"
 SITE_DIR="$(mktemp -d)"
 cp -R ../public/. "$SITE_DIR/"
+cp ../CHANGELOG.md "$SITE_DIR/changelog.md" # (the site's What's new page reads it: public/changelog.html)
 echo "window.VM_CONFIG = { api: '$API', ws: '$WS' };" > "$SITE_DIR/config.js"
 # Assets: short cache. Published films live under films/ and are never touched.
 aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" --delete \

@@ -82,6 +82,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': TYPES[extname(path)] || 'application/octet-stream' });
       return res.end(data);
     }
+    // (What's new reads the changelog itself; the deploy copies it next to the pages)
+    if (path === '/changelog.md') {
+      res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(await readFile(fileURLToPath(new URL('../CHANGELOG.md', import.meta.url))));
+    }
     if (path === '/') path = '/index.html';
     else if (!extname(path)) path += '.html';
     const file = join(ROOT, normalize(path));

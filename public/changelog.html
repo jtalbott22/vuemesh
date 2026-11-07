@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What's new — VUEMesh (beta)</title>
+<meta name="description" content="Every change to VUEMesh, newest first: what was fixed, what's new, and what we learned from real shows.">
+<link rel="canonical" href="https://vuemesh.com/changelog">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/changelog">
+<meta property="og:title" content="What's new — VUEMesh">
+<meta property="og:description" content="Every change to VUEMesh, newest first: what was fixed, what's new, and what we learned from real shows.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="VUEMesh: A production studio. In the browser. A multiviewer with one camera on air, a tablet in preview, and more cameras waiting.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What's new — VUEMesh">
+<meta name="twitter:description" content="Every change to VUEMesh, newest first: what was fixed, what's new, and what we learned from real shows.">
+<meta name="twitter:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:image:alt" content="VUEMesh: A production studio. In the browser. A multiviewer with one camera on air, a tablet in preview, and more cameras waiting.">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  .wrap { max-width: 780px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
+  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin-bottom: .2em; }
+  .lede { color: var(--text-2); font-size: 1.05rem; margin-bottom: 28px; }
+  p, li { color: var(--text-2); line-height: 1.55; }
+  li { margin: .35em 0; }
+  ul ul { margin: .2em 0 .4em; }
+  code { font-size: .9em; background: var(--surface); border-radius: 5px; padding: .05em .35em; overflow-wrap: anywhere; }
+  .rel { border-top: 1px solid var(--line, rgba(128,128,128,.25)); padding: 18px 0 6px; }
+  .rel h2 { font-size: 1.2rem; margin: 0 0 .5em; line-height: 1.35; display: inline; }
+  section.rel h2 { display: block; }
+  .ver { font-stretch: 125%; font-weight: 800; margin-right: .35em; }
+  .vt { font-weight: 600; }
+  details.rel summary { cursor: pointer; list-style: none; padding: 2px 0 10px; }
+  details.rel summary::-webkit-details-marker { display: none; }
+  details.rel summary::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--text-2); transition: transform .15s; }
+  details.rel[open] summary::before { transform: rotate(90deg); }
+  details.rel summary h2 { font-size: 1.05rem; }
+  .older { margin: 28px 0 6px; font-size: .95rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .02em; }
+  @media (prefers-reduced-motion: reduce) { details.rel summary::before { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><button type="button" id="themeBtn"></button></header>
+  <main>
+    <h1>What's new</h1>
+    <p class="lede">Every change to VUEMesh, newest first. Most come from real shows: a show log sent in, a camera that misbehaved, a laptop that couldn't keep up. You're running version <b id="ver"></b>.</p>
+    <div id="log" aria-live="polite"><p>Loading…</p></div>
+  </main>
+</div>
+<script type="module">
+  import { $, themeButton } from '/js/vm.js';
+  import { APP_VERSION } from '/js/brand.js';
+  import { renderChangelog } from '/js/changelog.js';
+  themeButton($('#themeBtn'));
+  $('#ver').textContent = APP_VERSION;
+  const versions = await renderChangelog($('#log'), 3);
+  // (a line between the newest and the folded older ones)
+  const firstFolded = document.querySelector('#log details.rel');
+  if (firstFolded && versions.length > 3) firstFolded.insertAdjacentHTML('beforebegin', `<p class="older">Earlier · ${versions.length - 3} more versions</p>`);
+</script>
+</body>
+</html>
