@@ -764,8 +764,12 @@ async function init() {
         // another computer's screen (from /share): a screen, like one shared here
         if (t.screen && !l.screen) {
           l.screen = true;
-          note(`${l.name} is another computer's screen${l.stream?.getAudioTracks().length ? ', with its sound' : ''}`);
+          note(`${l.name} is another computer's screen${l.stream?.getAudioTracks().length ? ', with its sound (stereo)' : ''}`);
           renderLive();
+          if (l.stream?.getAudioTracks().length) {
+            mixAttach(peer); // (its strip again, as a screen's: stereo, two meters)
+            renderMixer();
+          }
         }
         if (was !== t.synced) {
           renderLive(); // the NO SYNC tag

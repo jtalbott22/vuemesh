@@ -10,7 +10,7 @@ import { api, identity, meshSocket, thumbprint } from '/js/vm.js';
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
 let eventId = (q.get('e') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-let ev = null, sock = null, link = null, stream = null, cid = null, name = '';
+let ev = null, sock = null, link = null, stream = null, cid = null, name = '', sendTimer = null;
 const isMac = /Mac/.test(navigator.platform || navigator.userAgent);
 const isLinux = /Linux/.test(navigator.platform || '') && !/Android/.test(navigator.userAgent);
 const canShare = !!navigator.mediaDevices?.getDisplayMedia;
@@ -115,7 +115,7 @@ async function start(e) {
 function showStream() {
   $('#preview').srcObject = new MediaStream(stream.getVideoTracks());
   const a = stream.getAudioTracks().length;
-  $('#soundSay').textContent = a ? 'Its sound goes to the studio too.' : 'No sound with it (the browser didn’t share any). ' + (isMac || isLinux ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
+  $('#soundSay').textContent = a ? 'Its sound goes to the studio too, in stereo.' : 'No sound with it (the browser didn’t share any). ' + (isMac || isLinux ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
 }
 
 function connect() {
@@ -150,7 +150,23 @@ function connect() {
     onSent: () => {},
     onFailed: () => {},
   });
-  window.vmShare = () => ({ linked: link?.pc?.connectionState === 'connected', stats: link?.linkStats || null, sound: !!stream?.getAudioTracks().length });
+  window.vmShare = () => ({ linked: link?.pc?.connectionState === 'connected', stats: link?.linkStats || null, sound: !!stream?.getAudioTracks().length, codec: link?.codec || null });
+  // What it's sending, as the link measures it every two seconds: size, frame rate, the codec,
+  // and what's holding it back (so a presenter can see, not guess, if it's not smooth)
+  clearInterval(sendTimer);
+  sendTimer = setInterval(async () => {
+    const s = link?.linkStats, el = $('#sendSay');
+    if (!s?.w || link?.pc?.connectionState !== 'connected') return void (el.hidden = true);
+    if (link.codecPc !== link.pc) Object.assign(link, { codec: null, codecPc: link.pc }); // (a new link may pick another codec)
+    if (!link.codec) {
+      try {
+        (await link.pc.getStats()).forEach((r) => { if (r.type === 'codec' && /^video\//.test(r.mimeType)) link.codec = r.mimeType.slice(6); });
+      } catch {}
+    }
+    const held = { cpu: "this computer's processor is busy", bandwidth: 'the network is busy', other: 'the browser' }[s.limit];
+    el.textContent = `Sending ${s.w} × ${s.h} at ${s.fps ?? '?'} frames a second${link.codec ? ` (${link.codec}${s.hw ? ', on the graphics hardware' : ''})` : ''}${s.tier === 'idle' ? ', smaller until the studio needs it' : ''}${held ? `. Held back: ${held}.` : '.'}`;
+    el.hidden = false;
+  }, 2000);
 }
 
 function stopped(why) {

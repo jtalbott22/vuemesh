@@ -163,13 +163,15 @@ export function mixAttach(peer) {
     st.fix.output.connect(st.mono); // a phone that only fills the left side still counts at full level
     mix.strips.set(peer, st);
   }
-  if (st.trackId !== at.id || !st.src || st.sideOf !== (l.side || null)) {
+  if (st.trackId !== at.id || !st.src || st.sideOf !== (l.side || null) || st.screen !== !!l.screen) {
     try { st.src?.disconnect(); } catch {}
     try { st.sideSplit?.disconnect(); } catch {}
-    // Two sides of its own: this computer's sound or a shared screen, or an input of this
-    // computer that opened in stereo. A phone's sound starts mono (Mono off makes it stereo).
+    // Two sides of its own: this computer's sound, a screen (shared here, or another computer's
+    // over /share, which sends its sound in stereo), or an input of this computer that opened in
+    // stereo. A phone's sound starts mono (Mono off makes it stereo).
     // One side of an input (an interface's Input 1 or 2, split into two microphones): mono.
-    l.stereo = !!l.local && !l.side && (!!l.screen || (at.getSettings?.().channelCount || 1) > 1);
+    l.stereo = !l.side && (!!l.screen || (!!l.local && (at.getSettings?.().channelCount || 1) > 1));
+    st.screen = !!l.screen; // (another computer is known to be a screen only once it says so: then this runs again)
     const only = new MediaStream([at]);
     st.src = ctx.createMediaStreamSource(only);
     st.sideOf = l.side || null;

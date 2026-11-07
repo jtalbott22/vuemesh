@@ -35,6 +35,46 @@ export function bitrateHints(sdp, { start, min, max }) {
 }
 
 /**
+ * Stereo sound on an Opus link. WebRTC sends Opus in mono unless the other side says it takes
+ * stereo, so a shared screen's sound (music, a video's stereo) arrived as one channel. Adds
+ * stereo=1 (send me stereo) and sprop-stereo=1 (I send stereo) to Opus, with room for it.
+ */
+export function opusStereo(sdp, kbps = 128) {
+  if (!sdp || typeof sdp !== 'string') return sdp;
+  const nl = sdp.includes('\r\n') ? '\r\n' : '\n';
+  const lines = sdp.split(nl);
+  const pts = lines.map((l) => /^a=rtpmap:(\d+) opus\/48000\/2/i.exec(l)?.[1]).filter(Boolean);
+  for (const pt of pts) {
+    const add = { stereo: '1', 'sprop-stereo': '1', maxaveragebitrate: String(kbps * 1000) };
+    const i = lines.findIndex((l) => l.startsWith(`a=fmtp:${pt} `));
+    if (i < 0) {
+      const r = lines.findIndex((l) => l.startsWith(`a=rtpmap:${pt} `));
+      lines.splice(r + 1, 0, `a=fmtp:${pt} ${Object.entries(add).map(([k, v]) => `${k}=${v}`).join(';')}`);
+      continue;
+    }
+    const [head, params = ''] = [lines[i].slice(0, lines[i].indexOf(' ')), lines[i].slice(lines[i].indexOf(' ') + 1)];
+    const kept = params.split(';').filter((x) => x && !Object.hasOwn(add, x.split('=')[0]));
+    lines[i] = `${head} ${[...kept, ...Object.entries(add).map(([k, v]) => `${k}=${v}`)].join(';')}`;
+  }
+  return lines.join(nl);
+}
+
+/** Video codecs for a shared screen, H.264 first where both ends have it (a Mac or Windows PC
+ *  encodes it on its graphics hardware, so a busy 1080p screen keeps 30 frames a second; VP8 is
+ *  encoded on the processor), then the rest as the browser had them. */
+export function screenCodecs(codecs) {
+  if (!codecs?.length) return codecs;
+  const h264 = codecs.filter((c) => /h264/i.test(c.mimeType));
+  // (constrained baseline with packetization-mode=1 first: what hardware encoders make)
+  h264.sort((a, b) => score(b) - score(a));
+  return [...h264, ...codecs.filter((c) => !/h264/i.test(c.mimeType))];
+  function score(c) {
+    const f = c.sdpFmtpLine || '';
+    return (/packetization-mode=1/.test(f) ? 2 : 0) + (/profile-level-id=42e0/i.test(f) ? 1 : 0);
+  }
+}
+
+/**
  * A camera's live picture, by what it's doing in the show and how it's connected: [kbit/s,
  * resolution divisor]. The camera on air sends its full picture, generously (it's what the
  * program, the recording of it and the stream are made of); the one in preview is full size too,

@@ -6,7 +6,7 @@
 //     and signed-off on arrival
 // Nothing but the handshake touches the cloud.
 
-import { bitrateHints, qualityFor, sendStats } from '/js/quality.js';
+import { bitrateHints, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
 import { ICE, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
 
 export const PART_SIZE = 8 * 1024 * 1024;
@@ -173,7 +173,14 @@ export class CamLink {
         const [kbps, scale] = qualityFor(this.tier || 'idle', this.route || 'unknown');
         init.sendEncodings = [{ maxBitrate: kbps * 1000, scaleResolutionDownBy: scale, maxFramerate: 30 }];
       }
-      pc.addTransceiver(track, init);
+      const tr = pc.addTransceiver(track, init);
+      // a shared screen: H.264 first where both ends have it (on a Mac's or PC's hardware encoder)
+      if (this.screen && track.kind === 'video') {
+        try {
+          const caps = RTCRtpReceiver.getCapabilities?.('video')?.codecs;
+          if (caps?.length && tr.setCodecPreferences) tr.setCodecPreferences(screenCodecs(caps));
+        } catch {}
+      }
     }
     if (this.paused) {
       // Rejoining while paused: nothing leaves the phone until resumed.
@@ -216,7 +223,10 @@ export class CamLink {
       if (s === 'failed') setTimeout(() => pc === this.pc && this.connect(), 2000);
       if (s === 'disconnected') setTimeout(() => pc === this.pc && pc.connectionState === 'disconnected' && this.connect(), 6000);
     };
-    await pc.setLocalDescription(await pc.createOffer());
+    const offer = await pc.createOffer();
+    // (a shared screen's sound is stereo: say so; the studio answers that it takes it)
+    if (this.screen) offer.sdp = opusStereo(offer.sdp);
+    await pc.setLocalDescription(offer);
     this.sock.signal(this.host, { kind: 'offer', sdp: pc.localDescription.toJSON() });
   }
 
@@ -570,7 +580,11 @@ export class HostHub {
     await pc.setRemoteDescription(this.localOnly?.() ? localOnlySdp(data.sdp) : data.sdp);
     link.remoteSet = true;
     for (const c of link.pendingIce.splice(0)) await pc.addIceCandidate(c).catch(() => {});
-    await pc.setLocalDescription(await pc.createAnswer());
+    const made = await pc.createAnswer();
+    // (a shared screen says its sound is stereo, sprop-stereo=1: answer that this side takes it, so
+    // it's sent and decoded in stereo; phones don't say so, and stay as they were)
+    if (/^a=fmtp:\d+ .*sprop-stereo=1/m.test(data.sdp?.sdp || '')) made.sdp = opusStereo(made.sdp);
+    await pc.setLocalDescription(made);
     const answer = pc.localDescription.toJSON();
     this.sock.signal(peer, { kind: 'answer', sdp: this.localOnly?.() ? localOnlySdp(answer) : answer });
   }
