@@ -54,7 +54,7 @@ export function renderOutput() {
   size.value = String(output.height);
   fps.disabled = size.disabled = !!progRec;
   const hint = $('#outHint');
-  if (hint) hint.textContent = progRec ? 'Fixed while Record program runs.' : `${output.height === 1080 ? 'Sharper, and more work for this computer.' : 'Light on this computer.'} 30 for most shows; 25 where TV is 25 (Europe); 29.97 to match broadcast video in North America.`;
+  if (hint) hint.textContent = progRec ? 'Fixed while Record program runs.' : `${output.height === 1080 ? 'Sharper, and about twice the work: for one or two cameras here, or a computer with its own graphics card. With three cameras and a screen, a laptop can fall behind and Record program skips frames.' : 'Smooth on most computers, with several cameras and a screen.'} 30 for most shows; 25 where TV is 25 (Europe); 29.97 to match broadcast video in North America.`;
 }
 $('#outFps')?.addEventListener('change', (e) => setOutput({ fps: Number(e.target.value) }));
 $('#outSize')?.addEventListener('change', (e) => setOutput({ height: Number(e.target.value) }));

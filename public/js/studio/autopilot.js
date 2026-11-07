@@ -383,6 +383,7 @@ function startProgramRecorder(tracks, saved) {
         canvas: program, audioTrack: tracks.audio[0], fps: output.fps, support, sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
         name: `${eventId}-${Math.round(Date.now())}.mp4`,
         onError: (e) => {
+          if (!cfr) return; // (failed while starting: the browser's recorder takes over, below)
           note(`Program recording stopped: the encoder failed (${e?.message || e}); what was recorded is saved`);
           toast('Record program stopped (the encoder failed): what was recorded is saved', 8000);
           rec.stopping = true;
@@ -392,6 +393,7 @@ function startProgramRecorder(tracks, saved) {
       });
       try {
         await r.start();
+        if (r.failed) throw r.failed;
         cfr = r;
         frameSinks.add(sink);
         rec.t0 = now(); // (the file's zero: its first frame is the next one drawn)
@@ -409,8 +411,11 @@ function startProgramRecorder(tracks, saved) {
 }
 // The encoder can't keep up (frames skipped): say so as it happens, once a minute at most, with
 // what else this computer is encoding (each of its cameras' and screens' own recordings).
+// At 1080p it says so on screen too, once: the size is what to change (720p was smooth with three
+// cameras, a screen and a phone where 1080p on the same laptop skipped frames), and it can't change
+// while Record program runs.
 function watchEncoder(r) {
-  let last = 0, said = 0;
+  let last = 0, said = 0, shown = false;
   const t = setInterval(() => {
     if (r.stopping || r.failed) return clearInterval(t);
     const n = r.dropped - last;
@@ -419,6 +424,10 @@ function watchEncoder(r) {
     said = Date.now();
     const others = [...live.values()].filter((l) => l.local && l.recorder).map((l) => l.name);
     note(`The program recording is skipping frames (${n} in the last 5 s): this computer is too busy to encode it all${others.length ? `. Also recording here: ${others.join(', ')}` : ''}`);
+    if (!shown && program.height * program.width >= 1920 * 1080 * 0.9 && !KIOSK) {
+      shown = true;
+      toast('Record program is skipping frames: this computer can’t keep up at 1080p. After this recording, set Output to 720p.', 12000);
+    }
   }, 5000);
 }
 if (!EDIT_ONLY) setTimeout(() => tidyProgramRecordings(), 20_000); // (yesterday's recordings, from this browser's file storage)

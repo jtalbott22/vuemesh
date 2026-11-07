@@ -202,9 +202,7 @@ wrap.querySelector('[data-close]').onclick = () => wrap.close();
 $('#wrapPatreon').href = BRAND.patreon;
 export function showWrap(published = false) {
   const url = `${location.origin}/watch?e=${eventId}`;
-  $('#wrapText').textContent = published
-    ? 'Your film is published. Everyone who shot it can watch it, and their credits are on the page.'
-    : 'Your film is saved to this device. Send it to everyone who shot it — their credits are in the studio.';
+  $('#wrapText').textContent = published ? 'Your film is published.' : 'Your film is saved to this device.';
   $('#wrapWatch').href = url;
   $('#wrapShare').hidden = !published;
   $('#wrapWatch').hidden = !published;

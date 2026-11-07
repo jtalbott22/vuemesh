@@ -48,10 +48,12 @@ export class ProgramRecorder {
    * @param {number} [o.sampleRate]  the sound's rate (the sound engine's), if the track doesn't say
    * @param {AudioContext} [o.ctx]  with o.audioNode: take the sound on the sound thread (nothing dropped)
    * @param {AudioNode} [o.audioNode]  the program's sound, in o.ctx
+   * @param {number} [o.bitrate]  video bits a second (default: 10 Mbit/s at 1080p and above, else 6)
+   * @param {'hardware'|'software'} [o.prefer]  which encoder to try first (default: the graphics card's)
    * @param {(e:Error)=>void} [o.onError]  the encoder failed: stop() still saves what was recorded
    */
   constructor(o) {
-    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, onError: o.onError || (() => {}) });
+    Object.assign(this, { canvas: o.canvas, audioTrack: o.audioTrack, fps: o.fps, support: o.support, name: o.name, sampleRate: o.sampleRate, ctx: o.ctx, audioNode: o.audioNode, bitrate: o.bitrate, prefer: o.prefer, onError: o.onError || (() => {}) });
     this.fixes = { dropped: 0, added: 0, gapMs: 0, overMs: 0 }; // (the sound kept with the picture: ms taken out, put in, silence for gaps, and sound past the recording's time left out)
     this.clamped = 0; // frames not written: more were asked for than the recording's time has room for
     this.W = o.canvas.width;
@@ -111,13 +113,14 @@ export class ProgramRecorder {
       },
       error: fail,
     });
-    const bitrate = this.H >= 1080 ? 10_000_000 : 6_000_000;
+    const bitrate = this.bitrate || (this.H >= 1080 ? 10_000_000 : 6_000_000);
     // Live, the encoder has to keep up with the show, not make the best file it can: the graphics
     // card's encoder if there is one (it costs the computer almost nothing), and real-time mode
     // (a software encoder takes its quicker settings). An offline render keeps the defaults.
     const base = { ...this.support.video.cfg, width: this.W, height: this.H, framerate: this.fps, bitrate };
     let vcfg = null;
-    for (const extra of [{ hardwareAcceleration: 'prefer-hardware', latencyMode: 'realtime' }, { latencyMode: 'realtime' }, {}]) {
+    const first = this.prefer === 'software' ? [{ hardwareAcceleration: 'prefer-software', latencyMode: 'realtime' }] : [];
+    for (const extra of [...first, { hardwareAcceleration: 'prefer-hardware', latencyMode: 'realtime' }, { latencyMode: 'realtime' }, {}]) {
       const c = { ...base, ...extra };
       if ((await VideoEncoder.isConfigSupported(c).catch(() => ({})))?.supported) {
         vcfg = c;
@@ -376,7 +379,13 @@ export class ProgramRecorder {
       if (enc?.state === 'configured') await enc.flush().catch(() => {});
       try { enc?.close(); } catch {}
     }
-    this.muxer.finalize();
+    // (a recording that never got going, or has nothing in it: its file is let go, not left open)
+    try {
+      this.muxer.finalize();
+    } catch (e) {
+      await this.writable?.abort().catch(() => {});
+      throw e;
+    }
     await this.writable.close();
     return this.handle.getFile();
   }
