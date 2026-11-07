@@ -8,7 +8,7 @@ import * as S from '/js/sequence.js';
 import * as idb from '/js/idb.js';
 import { QUICK_TAGS } from '/js/media.js';
 import {
-  $, EDIT_ONLY, FRAME, blobs, clips, cut, editCh, ev, eventId, fitMonitors, mode, note, player,
+  $, EDIT_ONLY, FRAME, blobs, cardHead, clips, cut, editCh, ev, eventId, fitMonitors, mode, note, player,
   program, rawBlobs, selectedItem, seq, thumbs,
 } from './core.js';
 import {
@@ -40,28 +40,57 @@ export function setLeftTab(t) {
   $('#mediaTab').setAttribute('aria-selected', String(t === 'media'));
   $('#multi').hidden = t === 'media' && mode === 'edit';
   $('#mediaPanel').hidden = !(t === 'media' && mode === 'edit');
-  $('#srcHead').textContent = mode === 'edit' && t === 'media' ? 'Media' : 'Sources';
+  $('#srcHead').textContent = mode === 'edit' ? (t === 'media' ? 'Media' : 'Angles') : 'Sources';
   if (t === 'media') renderMedia();
   renderMediaInsp();
 }
 $('#anglesTab').onclick = () => setLeftTab('angles');
 $('#mediaTab').onclick = () => setLeftTab('media');
 
+// The Edit page has a viewer for each monitor (#srcView, #progView), side by side like an editing
+// suite's Source and Program; the one you last clicked has the keys (Space, J K L, I, O, , and .),
+// as the active panel does in Premiere. A narrow window shows one at a time, their headers as tabs.
+const viewers = document.querySelector('.viewers');
+export let dual = false;
 export function setMonTab(t) {
   monTab = t;
   $('#progTab').setAttribute('aria-selected', String(t === 'program'));
   $('#srcTab').setAttribute('aria-selected', String(t === 'source'));
-  $('#progFrame').hidden = t === 'source';
-  $('#srcFrame').hidden = t !== 'source';
-  $('#srcBar').hidden = t !== 'source' || mode !== 'edit';
+  if (viewers) {
+    $('#srcView')?.classList.toggle('on', t === 'source');
+    $('#progView')?.classList.toggle('on', t !== 'source');
+    const has = !!srcMon.clip;
+    $('#srcFrame').hidden = !has;
+    $('#srcBar').hidden = !has;
+    if ($('#srcEmpty')) $('#srcEmpty').hidden = has;
+    fitMonitors();
+  } else {
+    $('#progFrame').hidden = t === 'source';
+    $('#srcFrame').hidden = t !== 'source';
+    $('#srcBar').hidden = t !== 'source' || mode !== 'edit';
+  }
   if (t === 'source') player.pause();
   else srcMon.v.pause();
 }
 $('#progTab').onclick = () => setMonTab('program');
 $('#srcTab').onclick = () => setMonTab('source');
+if (viewers) {
+  new ResizeObserver(() => {
+    const d = viewers.clientWidth >= 700;
+    if (d === dual) return;
+    dual = d;
+    document.body.classList.toggle('dual', d);
+    requestAnimationFrame(fitMonitors);
+  }).observe(viewers);
+  // clicking in a viewer (its picture, bar or buttons) gives it the keys; so does the timeline, to Program
+  $('#srcView')?.addEventListener('pointerdown', () => monTab !== 'source' && srcMon.clip && setMonTab('source'), true);
+  $('#progView')?.addEventListener('pointerdown', () => monTab !== 'program' && setMonTab('program'), true);
+  $('#timeline')?.addEventListener('pointerdown', () => monTab !== 'program' && setMonTab('program'), true);
+}
 
 const fmtMB = (b) => (b >= 1e9 ? (b / 1073741824).toFixed(2) + ' GB' : b >= 10 * 1048576 ? Math.round(b / 1048576) + ' MB' : (b / 1048576).toFixed(1) + ' MB');
-export const clipTitle = (c) => (c.kind === 'audio' ? `Mic · ${c.name}` : `${angleNo(c.id) || '?'} ${c.name}`);
+// (a recording with no angle, as the Program as aired, is just its name: it read "? Program (as aired)")
+export const clipTitle = (c) => (c.kind === 'audio' ? `Mic · ${c.name}` : angleNo(c.id) ? `${angleNo(c.id)} ${c.name}` : c.name);
 export const fmtClock = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
 function mediaItems() {
@@ -181,38 +210,56 @@ export function loadSource(clipId, range) {
   srcMon.v.src = blobs.get(c.id);
   srcMon.v.addEventListener('loadedmetadata', () => (srcMon.v.currentTime = srcMon.in / 1000), { once: true });
   $('#srcLabel').textContent = `SOURCE · ${clipTitle(c)}`;
+  if ($('#srcName')) $('#srcName').textContent = clipTitle(c);
   setMonTab('source');
   renderSrcBar();
 }
 
 const srcG = $('#srcCanvas').getContext('2d');
+let srcDrawn = '';
 (function drawSource() {
-  if (monTab === 'source' && mode === 'edit') {
+  // (drawn while it shows: always beside the Program on the Edit page, else when it's the monitor up)
+  if (mode === 'edit' && (monTab === 'source' || dual)) {
     const cv = $('#srcCanvas');
     if (cv.width !== program.width || cv.height !== program.height) {
       cv.width = program.width;
       cv.height = program.height;
       fitMonitors();
+      srcDrawn = '';
     }
-    srcG.fillStyle = '#000';
-    srcG.fillRect(0, 0, cv.width, cv.height);
     const c = srcMon.clip;
     const ms = srcMon.v.currentTime * 1000;
-    if (c && c.kind === 'audio') {
-      srcG.fillStyle = '#6fd39a';
-      srcG.font = '700 42px Archivo, system-ui, sans-serif';
-      srcG.textAlign = 'center';
-      srcG.fillText(clipTitle(c), cv.width / 2, cv.height / 2);
-    } else if (c && srcMon.v.readyState >= 2) {
-      drawFramed(srcG, srcMon.v, cv.width, cv.height, 'fit', null, orientAt(c, ms)?.rect || null);
+    // a paused clip is drawn once, not every frame
+    const key = c ? `${c.id}|${ms}|${srcMon.v.readyState}|${cv.width}x${cv.height}` : 'none';
+    if (!srcMon.v.paused || key !== srcDrawn) {
+      srcDrawn = key;
+      srcG.fillStyle = '#000';
+      srcG.fillRect(0, 0, cv.width, cv.height);
+      if (c && c.kind === 'audio') {
+        srcG.fillStyle = '#6fd39a';
+        srcG.font = '700 42px Archivo, system-ui, sans-serif';
+        srcG.textAlign = 'center';
+        srcG.fillText(clipTitle(c), cv.width / 2, cv.height / 2);
+      } else if (c && srcMon.v.readyState >= 2) {
+        drawFramed(srcG, srcMon.v, cv.width, cv.height, 'fit', null, orientAt(c, ms)?.rect || null);
+      }
     }
     if (c) {
       if (!srcMon.v.paused && ms >= srcMon.out) srcMon.v.pause();
-      $('#srcTc').textContent = fmtDur(ms);
+      const tc = fmtDur(ms);
+      if ($('#srcTc').textContent !== tc) $('#srcTc').textContent = tc;
       const pct = (x) => (c.dur ? (x / c.dur) * 100 : 0);
       $('#srcHeadBar').style.left = pct(ms) + '%';
       $('#srcScrub').setAttribute('aria-valuenow', String(Math.round(pct(ms))));
-      $('#srcPlay').textContent = srcMon.v.paused ? 'Play' : 'Pause';
+      const btn = $('#srcPlay'), playing = !srcMon.v.paused;
+      if (btn.dataset.playing !== String(playing)) {
+        btn.dataset.playing = String(playing);
+        // (the Edit page's button is an icon; the old one said it)
+        if (btn.querySelector('use')) {
+          btn.querySelector('use').setAttribute('href', playing ? '#i-pause' : '#i-play');
+          btn.setAttribute('aria-label', playing ? 'Pause the source' : 'Play the source');
+        } else btn.textContent = playing ? 'Pause' : 'Play';
+      }
     }
   }
   requestAnimationFrame(drawSource);
@@ -380,20 +427,23 @@ function tagEditor(tags, onChange) {
 
 export function renderMediaInsp() {
   const box = $('#mediaInsp');
-  const show = mode === 'edit' && mediaSel && (leftTab === 'media' || monTab === 'source');
+  const show = mode === 'edit' && mediaSel && (leftTab === 'media' || monTab === 'source' || (dual && !!srcMon.clip));
   box.hidden = !show;
+  cardHead(box);
   if (!show) return;
+  const gone = () => ((box.hidden = true), cardHead(box));
   const changed = () => { renderMedia(); };
   if (mediaSel.kind === 'clip') {
     const c = clipOf(mediaSel.id);
-    if (!c) return (box.hidden = true);
+    if (!c) return gone();
     const m = media.meta(c.id);
     const r = media.range(c);
     const shapes = (c.orient || []).map((o) => o.upright);
     const turns = Math.max(0, shapes.length - 1);
     const qa = c.qa?.length ? Math.round((c.qa.reduce((s, q) => s + (q[1] ?? 0), 0) / c.qa.length) * 100) : null;
     const uses = seq.tracks.reduce((n, tr) => n + tr.items.filter((it) => it.src === c.id).length, 0);
-    box.innerHTML = `<h2>Recording</h2><div class="sel"><div class="kv">
+    cardHead(box, 'Recording', clipTitle(c));
+    box.innerHTML = `<div class="sel"><div class="kv">
       <span>From</span><b>${esc(clipTitle(c))}</b>
       <span>Recorded</span><span>${fmtClock(c.t0)}</span>
       <span>Sync</span><span>${esc(syncLabel(c))}</span>
@@ -438,9 +488,10 @@ export function renderMediaInsp() {
     box.querySelector('#mDelete').onclick = () => deleteRecording(c.id);
   } else if (mediaSel.kind === 'subclip') {
     const sc = media.subclips.find((x) => x.id === mediaSel.id);
-    if (!sc) return (box.hidden = true);
+    if (!sc) return gone();
     const c = clipOf(sc.src);
-    box.innerHTML = `<h2>Subclip</h2><div class="sel">
+    cardHead(box, 'Subclip', sc.name);
+    box.innerHTML = `<div class="sel">
       <label for="scName">Name</label><input type="text" id="scName" value="${esc(sc.name)}">
       <div class="kv" style="margin-top:8px"><span>From</span><span>${esc(clipTitle(c))}</span><span>Range</span><span class="tc">${fmtDur(sc.in)} – ${fmtDur(sc.out)}</span><span>Length</span><span class="tc">${fmtDur(sc.out - sc.in)}</span></div>
       <div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" id="scUpdate" title="Set this subclip to the Source monitor's In and Out">Update from In/Out</button></div>
@@ -467,9 +518,10 @@ export function renderMediaInsp() {
     };
   } else {
     const mo = media.moments.find((x) => x.id === mediaSel.id);
-    if (!mo) return (box.hidden = true);
+    if (!mo) return gone();
     const rolling = videoClips().filter((c) => mo.t >= c.t0 && mo.t < c.t0 + c.dur);
-    box.innerHTML = `<h2>Moment</h2><div class="sel">
+    cardHead(box, 'Moment', mo.label || fmtClock(mo.t));
+    box.innerHTML = `<div class="sel">
       <label for="moName">Name</label><input type="text" id="moName" value="${esc(mo.label)}">
       <div class="kv" style="margin-top:8px"><span>When</span><span>${fmtClock(mo.t)}</span><span>Rolling</span><span>${rolling.map((c) => esc(c.name)).join(', ') || 'no cameras'}</span></div>
       <button type="button" id="moClips" class="primary" style="width:100%" ${rolling.length ? '' : 'disabled'}>Make clips from every angle</button>

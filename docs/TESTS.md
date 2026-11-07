@@ -41,7 +41,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_director.py` | AI director: cuts away from a shaky shot with a reason, tally, override, break slate, local-only |
 | `test/e2e_render.py` | renderer: lying encoder, corrupted clip, iPhone rotation flag (needs ffmpeg) |
 | `test/e2e_camera_pro.py` | phone: lenses, separate mic, zoom in the recording, focus, lock, overlays, meter, full screen |
-| `test/e2e_media.py` | media manager: moments, tags, stars, Source monitor, subclips, insert/overwrite, export, trim, delete |
+| `test/e2e_media.py` | media manager: moments, tags, stars, the Source viewer beside the Program, subclips, insert/overwrite, export, trim, delete |
 | `test/e2e_controlroom.py` | full screen control room: switcher bus, meter bridge, AFV / ON / OFF, breakaway |
 | `test/e2e_crew.py` | director messages, replies, rundown cues, output shape, pause, leave and rejoin |
 | `test/e2e_layout.py` | Live and Edit rooms, Program out window, resizable panels, transforms (needs ffmpeg) |
@@ -103,7 +103,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_display.py` | TV screens at `/tv`: pairing with Accept, the program, Remove, full screen, Browse, PiP, the beacon on the studio's clock |
 | `test/e2e_remote.py` | the phone remote: pairing code, cut, auto director, break, black, Record program; wrong and reused codes turned away |
 | `test/e2e_remotejoin.py` | the remote saved to a home screen: its own manifest, pairing by scanning with its own camera, the next show with just the show's code, straight back into the last show, another show when that studio is closed; unknown phones still need Add a phone |
-| `test/e2e_showlog.py` | the show log every second, Monitor's panel, a microphone dropping out (alerts here and on the remote, Turn on), Save show log, earlier sessions kept |
+| `test/e2e_showlog.py` | the show log every second, Monitor's panel, a microphone dropping out (alerts under Notifications, not on the remote; Turn on), Save show log, earlier sessions kept |
 | `test/e2e_twomics.py` | one interface, two microphones: a two-sided input split (each strip hears and records only its side), Enter in Rename saves, a reload brings it back split, One microphone, removing both |
 | `test/e2e_output.py` | Output settings, the program's rate on animation frames and on the worker clock, Record program's MP4 checked with ffprobe (exact rate, not fragmented, sound as long as picture) (needs ffmpeg) |
 | `test/e2e_sync.py` | one timeline: stand-in cameras 120 ms apart jump on a cut; the sync check (a clap) measures them; after it a cut doesn't jump; sound waits with the pictures; cameras stay on air with no animation frames |

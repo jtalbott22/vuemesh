@@ -104,12 +104,17 @@ with sync_playwright() as p:
 
     # (during "clap now", where neither camera's shade is about to go round: well clear of that jump)
     host.evaluate(f"setTimeout(() => {{ const m = performance.now() % {PERIOD}; window.__clap(({PERIOD} * 1.5 - m + {PERIOD}) % {PERIOD}); }}, 3600)")
+    # (what it says over the program, in its own box: the countdown, "clap now", then what it found)
+    host.evaluate("""() => { window.__said = []; const b = document.querySelector('#syncSay');
+      new MutationObserver(() => { if (!b.hidden && b.textContent !== window.__said.at(-1)) window.__said.push(b.textContent); }).observe(b, { childList: true, characterData: true, subtree: true, attributes: true }); }""")
     res = host.evaluate('vmSyncCheck()')
     sync = host.evaluate('vmSync()')
     lat = {c['name']: c['latency'] for c in sync['cams']}
     diff = lat['Back camera'] - lat['Desk camera']
     clap = host.evaluate('window.__clapAt')
     assert res and all('ms' in r for r in res) and abs(diff - SLOW) < 45, (res, lat, 'clap at', round(clap), sync['check'])
+    said = host.evaluate('window.__said')
+    assert any('Listening' in s for s in said) and any('clap now' in s for s in said) and said[-1].startswith('✓'), said
     step(f"the sync check (a clap): {', '.join(res)}: the back camera {diff:.0f} ms slower; pictures line up at {sync['P']} ms")
 
     a1, b1 = behind('Desk camera'), behind('Back camera')

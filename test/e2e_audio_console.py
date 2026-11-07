@@ -116,7 +116,7 @@ with sync_playwright() as p:
 
     # ---- the audio console, in Edit
     with ctx.expect_page() as pop:
-        ed.click('section[data-mode="edit"] [data-console]')
+        ed.click('#cardMix [data-console]')
     con = pop.value; watch(con, 'console')
     con.wait_for_selector('.ch[data-strip]', timeout=5000)
     tracks = ed.evaluate(f"{SEQ}.tracks.filter(t => t.kind === 'audio').map(t => t.name)")

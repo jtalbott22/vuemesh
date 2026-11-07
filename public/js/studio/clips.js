@@ -238,7 +238,7 @@ export function labelOf(it) {
   if (c.kind === 'audio') return { text: `Mic · ${c.name}`, color: '#6fd39a' };
   const shape = shapeOf(it);
   const inset = isInset(it);
-  return { text: `${angleNo(c.id)} ${c.name}${inset ? ' · PiP' : ''}${it.speed && it.speed !== 1 ? ` · ${Math.round(it.speed * 100)}%` : ''}`, color: color(c.id), shape, pip: inset, mismatch: !!shape && !inset && shape !== orientation && it.fit !== 'fit' };
+  return { text: `${angleNo(c.id) ? angleNo(c.id) + ' ' : ''}${c.name}${inset ? ' · PiP' : ''}${it.speed && it.speed !== 1 ? ` · ${Math.round(it.speed * 100)}%` : ''}`, color: color(c.id), shape, pip: inset, mismatch: !!shape && !inset && shape !== orientation && it.fit !== 'fit' };
 }
 
 export async function saveClipFields(id, fields) {

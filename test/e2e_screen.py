@@ -2,7 +2,7 @@
 # browser's own picker): the screen is a source like a camera, with its sound (a tile, on
 # air, a mixer strip, recorded on air); "This computer's sound" is a microphone source. They
 # aren't brought back next time (sharing asks each time). The computer's sound stays stereo
-# in the mixer (two meters, each side its own), with a Mono switch and a balance.
+# in the mixer (two meters, each side its own), with a Mono switch; its balance is in the audio console.
 # Run: node dev/server.mjs &  then  python3 test/e2e_screen.py
 import os, time
 from playwright.sync_api import sync_playwright
@@ -64,12 +64,21 @@ with sync_playwright() as p:
     time.sleep(0.5); l, r = host.evaluate(peaks)
     assert l > r + 10 and r > 30, (l, r)
     step(f'its strip is stereo: two meters, each side its own (L {l:.0f}%, R {r:.0f}%)')
-    host.fill(f'{strip} input[data-pan]', '-100'); host.dispatch_event(f'{strip} input[data-pan]', 'input'); time.sleep(0.8)
+    # (no balance on the mixer dock: it's in the audio console, beside the EQ)
+    assert host.locator(f'{strip} input[type=range]').count() == 1, 'the dock strip has only its fader'
+    sid = host.get_attribute(strip, 'data-strip')
+    with ctx.expect_page() as pop:
+        host.evaluate("[...document.querySelectorAll('[data-console]')].find(b => b.offsetParent).click()")
+    con = pop.value
+    cbal = f'.ch[data-strip="{sid}"] input[data-k="pan"]'
+    con.wait_for_selector(cbal, timeout=10000)
+    con.evaluate("(s) => { const i = document.querySelector(s); i.value = '-100'; i.dispatchEvent(new Event('input', { bubbles: true })); }", cbal); time.sleep(0.8)
     l2, r2 = host.evaluate(peaks)
     assert l2 > 50 and r2 < 5, (l2, r2)
-    host.dblclick(f'{strip} input[data-pan]'); time.sleep(0.8)
-    assert host.input_value(f'{strip} input[data-pan]') == '0'
-    step(f'balance hard left takes the right side away (L {l2:.0f}%, R {r2:.0f}%); double-click centres it')
+    con.dblclick(cbal); time.sleep(0.8)
+    assert con.input_value(cbal) == '0'
+    con.close()
+    step(f'no balance on the dock; the audio console\'s BAL hard left takes the right side away (L {l2:.0f}%, R {r2:.0f}%); double-click centres it')
     host.click(f'{strip} [data-mono]'); time.sleep(0.8)
     assert host.get_attribute(f'{strip} [data-mono]', 'aria-pressed') == 'true' and len(host.evaluate(peaks)) == 1
     host.click(f'{strip} [data-mono]'); time.sleep(0.8)

@@ -5,7 +5,7 @@ import { toast, esc, fmtDur, announce } from '/js/vm.js';
 import * as S from '/js/sequence.js';
 import { TOOLS } from '/js/timeline.js';
 import {
-  $, FRAME, eventId, fitMonitors, help, isHost, live, mode, note, player, selectedItem, seq,
+  $, EDIT_ONLY, FRAME, eventId, fitMonitors, help, isHost, live, mode, note, player, selectedItem, seq,
   setSelectedItem, timeline,
 } from './core.js';
 import {
@@ -38,7 +38,7 @@ let editMeters = null;
 const pmState = [{ v: 0, at: 0 }, { v: 0, at: 0 }];
 function setMeters(on) {
   $('#pMeters').hidden = !on;
-  document.querySelector('.monitor')?.classList.toggle('withmeters', on);
+  $('#pMeters').closest('.monitor')?.classList.toggle('withmeters', on);
   $('#meterTgl').setAttribute('aria-pressed', String(on));
   $('#meterTgl').setAttribute('aria-label', on ? 'Hide program sound meters' : 'Show program sound meters');
   localStorage.setItem('vm_pmeters', on ? '1' : '0');
@@ -223,7 +223,7 @@ $('#togRight')?.addEventListener('click', () => {
 window.addEventListener('resize', applyLayout);
 // The inspector's cards: which are open is kept on this computer (all open the first time).
 // Close all folds them; open the ones you use and they stay that way.
-const CARDS_KEY = 'vm_cards';
+const CARDS_KEY = EDIT_ONLY ? 'vm_cards_edit' : 'vm_cards'; // (Edit has cards of its own)
 const cards = () => [...document.querySelectorAll('.insp details.card')];
 try {
   const open = JSON.parse(localStorage.getItem(CARDS_KEY) || 'null');
@@ -245,19 +245,26 @@ if ($('#cardsFold') && !cards().some((d) => d.open)) $('#cardsFold').textContent
 
 // ------------------------------------------------------------- transport ----
 
+const setText = (el, v) => el && el.textContent !== v && (el.textContent = v);
 player.on('tick', (t, ended) => {
   if (mode !== 'edit') return;
-  $('#clock').textContent = fmtDur(t);
-  $('#ptc').textContent = fmtDur(t);
+  const tc = fmtDur(t);
+  setText($('#clock'), tc);
+  setText($('#ptc'), tc);
+  setText($('#tlTc'), tc);
   timeline.movePlayhead(t);
   const playing = player.playing;
-  $('#playBtn').textContent = playing ? '❚❚' : '▶';
-  $('#playBtn').setAttribute('aria-label', playing ? (player.rate > 1 ? `Pause (${player.rate}× speed)` : 'Pause') : 'Play');
+  const pb = $('#playBtn'), use = pb.querySelector('use');
+  if (use) use.setAttribute('href', playing ? '#i-pause' : '#i-play'); // (the Edit page's button is an icon)
+  else pb.textContent = playing ? '❚❚' : '▶';
+  pb.setAttribute('aria-label', playing ? (player.rate > 1 ? `Pause (${player.rate}× speed)` : 'Pause') : 'Play');
   if (playing) timeline.keepVisible(t);
   if (ended && exporting) exporting.stop();
   const prog = S.itemAt(S.program(seq), t);
   const c = prog && clipOf(prog.src);
   $('#progLabel').textContent = c ? `PROGRAM · ${angleNo(c.id)} ${c.name}` : 'PROGRAM';
+  setText($('#progName'), c ? `${angleNo(c.id) || ''} ${c.name}`.trim() : prog ? labelText(prog) : 'Nothing on the Program track here');
+  renderProgBar(t);
   document.querySelectorAll('.tile[data-angle]').forEach((tile) => {
     const n = +tile.dataset.angle;
     tile.classList.toggle('live', !!c && angleOfCid(c.cid) === n);
@@ -265,10 +272,67 @@ player.on('tick', (t, ended) => {
   });
 });
 
+const labelText = (it) => (it.type === 'title' ? `Title: ${it.text || ''}` : it.type === 'slate' ? 'Break slate' : it.type === 'image' ? 'Image' : 'Program');
+/** The Program viewer's bar: where the playhead is in the whole edit, and the In to Out range Export renders. */
+export function renderProgBar(t = player.t) {
+  const bar = $('#pScrub');
+  if (!bar) return;
+  const end = Math.max(player.duration() || 0, S.end(seq), 1);
+  const pct = (x) => Math.max(0, Math.min(100, (x / end) * 100));
+  $('#pHeadBar').style.left = pct(t) + '%';
+  bar.setAttribute('aria-valuenow', String(Math.round(pct(t))));
+  const r = seq.range, rb = $('#pRangeBar');
+  rb.hidden = !r;
+  if (r) Object.assign(rb.style, { left: pct(r.in) + '%', width: Math.max(0.3, pct(r.out) - pct(r.in)) + '%' });
+  setText($('#pRange'), r ? `In ${fmtDur(r.in)} · Out ${fmtDur(r.out)} · ${fmtDur(r.out - r.in)}` : '');
+  setText($('#progDur'), fmtDur(S.end(seq)));
+}
+$('#pScrub')?.addEventListener('pointerdown', (e) => {
+  const bar = $('#pScrub'), box = bar.getBoundingClientRect();
+  const at = (x) => player.seek(Math.max(0, Math.min(1, (x - box.left) / box.width)) * Math.max(player.duration() || 0, S.end(seq)));
+  player.pause();
+  at(e.clientX);
+  bar.setPointerCapture(e.pointerId);
+  const mv = (m) => at(m.clientX);
+  const up = () => (bar.removeEventListener('pointermove', mv), bar.removeEventListener('pointerup', up));
+  bar.addEventListener('pointermove', mv);
+  bar.addEventListener('pointerup', up);
+});
+
 $('#playBtn').onclick = () => {
   player.rate = 1;
   player.toggle();
 };
+// ---- the viewers' transport buttons (the same as their keys) ----
+function stepProgram(frames) {
+  player.pause();
+  player.seek(player.t + frames * FRAME);
+}
+function toEdit(dir) {
+  const pts = S.editPoints(seq);
+  const t = player.t;
+  const to = dir < 0 ? [...pts].reverse().find((p) => p < t - 1) : pts.find((p) => p > t + 1);
+  if (to != null) player.seek(to);
+}
+function stepSource(frames) {
+  srcMon.v.pause();
+  srcSeek(srcMon.v.currentTime * 1000 + frames * FRAME);
+}
+$('#pStart')?.addEventListener('click', () => player.seek(0));
+$('#pEnd')?.addEventListener('click', () => player.seek(player.duration()));
+$('#pBack')?.addEventListener('click', (e) => stepProgram(e.shiftKey ? -5 : -1));
+$('#pFwd')?.addEventListener('click', (e) => stepProgram(e.shiftKey ? 5 : 1));
+$('#pPrev')?.addEventListener('click', () => toEdit(-1));
+$('#pNext')?.addEventListener('click', () => toEdit(1));
+$('#pIn')?.addEventListener('click', () => setRange('in'));
+$('#pOut')?.addEventListener('click', () => setRange('out'));
+$('#srcStart')?.addEventListener('click', () => srcSeek(srcMon.in));
+$('#srcEnd')?.addEventListener('click', () => srcSeek(srcMon.out));
+$('#srcBack')?.addEventListener('click', (e) => stepSource(e.shiftKey ? -5 : -1));
+$('#srcFwd')?.addEventListener('click', (e) => stepSource(e.shiftKey ? 5 : 1));
+$('#zoomIn')?.addEventListener('click', () => zoomBy(1.4));
+$('#zoomOut')?.addEventListener('click', () => zoomBy(1 / 1.4));
+$('#exportTop')?.addEventListener('click', () => $('#renderBtn').click());
 $('#zoom').oninput = (e) => {
   timeline.px = +e.target.value;
   renderTimeline();
@@ -386,10 +450,7 @@ document.addEventListener('keydown', (e) => {
     }
   } else if (k === 'arrowup' || k === 'arrowdown') {
     e.preventDefault();
-    const pts = S.editPoints(seq);
-    const t = player.t;
-    const to = k === 'arrowup' ? [...pts].reverse().find((p) => p < t - 1) : pts.find((p) => p > t + 1);
-    if (to != null) player.seek(to);
+    toEdit(k === 'arrowup' ? -1 : 1);
   } else if (k === 'home') player.seek(0);
   else if (k === 'end') player.seek(player.duration());
   else if (k === 's') toggleSnap();
@@ -413,10 +474,11 @@ document.addEventListener('keydown', (e) => {
 
 // ---- tool palette ----------------------------------------------------------------------------
 export function renderTools(active = timeline.tool) {
+  const icons = !!document.querySelector('#i-select'); // (the Edit page draws them as icons, as an editing suite's tool palette)
   $('#toolBtns').innerHTML = Object.entries(TOOLS)
-    .map(([id, t]) => `<button type="button" data-tool="${id}" aria-pressed="${id === active}" title="${t.name} (${t.key.toUpperCase()})" aria-keyshortcuts="${t.key.toUpperCase()}">${t.name.split(' ')[0]} <kbd>${t.key.toUpperCase()}</kbd></button>`)
+    .map(([id, t]) => `<button type="button" ${icons ? 'class="icon" ' : ''}data-tool="${id}" aria-pressed="${id === active}" title="${t.name} (${t.key.toUpperCase()})" aria-label="${t.name}" aria-keyshortcuts="${t.key.toUpperCase()}">${icons ? `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>` : `${t.name.split(' ')[0]} <kbd>${t.key.toUpperCase()}</kbd>`}</button>`)
     .join('');
-  $('#toolHelp').textContent = {
+  const say = {
     select: 'Drag to move, drag edges to trim.',
     ripple: 'Drag an edge: trims and closes the gap on every track.',
     roll: 'Drag a cut point: moves it between the two clips.',
@@ -425,6 +487,8 @@ export function renderTools(active = timeline.tool) {
     slide: 'Drag a clip between its neighbours; they trim to fit.',
     hand: 'Drag to scroll the timeline.',
   }[active];
+  if (icons) $('#toolHelp').innerHTML = `<b>${esc(TOOLS[active].name)}</b> · ${esc(say)}`;
+  else $('#toolHelp').textContent = say;
 }
 $('#toolBtns').addEventListener('click', (e) => {
   const b = e.target.closest('[data-tool]');
