@@ -152,9 +152,6 @@ kbd {
 .patreon { color: var(--text-2); }
 .patreon a { color: var(--text); font-weight: 600; }
 
-.betabar { background: var(--amber); color: #3b2500; font-size: .85rem; padding: .45em 1em; text-align: center; padding-top: calc(.45em + env(safe-area-inset-top, 0px)); }
-.betabar a { color: #3b2500; font-weight: 700; }
-.betabar.compact { font-size: .75rem; padding: .25em .8em; padding-top: calc(.25em + env(safe-area-inset-top, 0px)); }
 .agree { display: flex; gap: .6em; align-items: flex-start; font-weight: 500; font-size: .92rem; margin: 0 0 1rem; }
 .agree input { width: 20px; height: 20px; margin-top: .15em; flex: none; }
 

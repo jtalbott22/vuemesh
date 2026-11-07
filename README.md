@@ -11,7 +11,6 @@
 
 <p align="center">
   <a href="https://vuemesh.com"><img alt="Live at vuemesh.com" src="https://img.shields.io/badge/live-vuemesh.com-e8372c?style=flat-square"></a>
-  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-f5a623?style=flat-square">
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
   <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
   <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
@@ -304,8 +303,8 @@ flowchart LR
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
 | **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). |
 | **Admin** (`/admin`) | For you and your team: every event, rename, list/unlist, change expiry, delete films and events. |
-| **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off during the beta. |
-| **Terms** (`/terms`) | Beta Terms of Use. Hosts and guests agree before creating or joining. |
+| **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
+| **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |
 | **Landing** (`/`) | Live multi-angle demo, a globe and board of public events, and start an event (landscape or portrait, optionally listed on the globe). |
 | **Sponsors** (`/sponsors`) | Where sponsors can appear and the house rules. Contact goes to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
 | **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL. All scale to zero. |
@@ -585,7 +584,7 @@ began. Footage and live-cut hours come from studios on 0.25 or later.
 
 ## Known limits
 
-VUEMesh is in beta. These are the limits known today, and what has and hasn't been tested on real hardware.
+These are the limits known today, and what has and hasn't been tested on real hardware.
 
 <details>
 <summary><b>Show the known limits</b></summary>

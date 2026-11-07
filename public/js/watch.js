@@ -1,7 +1,6 @@
-import { $, api, esc, toast, eventIdFromUrl, verifyStatement, thumbprint, themeButton, betaBanner } from '/js/vm.js';
+import { $, api, esc, toast, eventIdFromUrl, verifyStatement, thumbprint, themeButton } from '/js/vm.js';
 import { BRAND, FEATURES } from '/js/brand.js';
 
-betaBanner();
 
 themeButton($('#themeBtn'));
 $('#patreonLink').href = BRAND.patreon;
@@ -21,7 +20,7 @@ async function init() {
     $('#film').hidden = true;
     $('#waiting').hidden = false;
     $('#waiting').textContent = !FEATURES.publish
-      ? 'During the beta, films aren’t hosted online. Ask the host for the file.'
+      ? 'Films aren’t hosted online yet. Ask the host for the file.'
       : ev.live
         ? 'This event is happening now. The film appears here once the host publishes it.'
         : 'Nothing published yet. Check back after the event.';

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.14 — the home page sells the whole studio; no beta, no "free"
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **No "Beta · experimental software, no warranty" strip** across the top of the home page, the tour, the partners page, the watch page and the camera, and no **BETA** pill in the studio's and Edit's top bar. The Terms stay linked from the home page and the camera's join form, and are still agreed to when a show is created or joined ("VUEMesh comes with no warranty", where it said "is beta software with no warranty").
+- **No "beta" or "free" in what VUEMesh says about itself:** the share picture for links (`og.png`: "Switch · Mix · Record · Stream" where it said "Free in beta", and the whole studio in its line), the home page's description for search and link previews, the partners page, What's new's title and the watch page. The Terms of Use are as they were.
+- **The kiosk opens again:** 0.61.12's message box and the stream key's Show button weren't in the kiosk's list of the studio's controls it lacks, so the kiosk stopped while starting (as the Edit window did, fixed in 0.61.13). A test now checks that Edit and the kiosk have, or stand in for, every control the studio wires up as it loads.
+- **The home page leads with the studio, not the phones.** Its opening line is a complete production studio in one browser tab: USB cameras and an audio interface, any screen (yours or a presenter's laptop), your own clips and ads, and phones when you want more angles.
+- **The setups diagram has the whole architecture:** two new setups come first, **Solo desk** (two USB webcams, an audio interface, your own screen, your intro and ads; out to a second screen, a live stream, a video call as its camera, and every source recorded) and **Talk or meeting** (the presenter's laptop over `/share`, a webcam on the speaker, the lectern mic, a phone on the audience, a video package; out to a projector with the speaker in the corner, an online audience, and the recording). Phones are the **Event** setup, with sponsor spots through every break. A shared screen and a clip are sources of their own in it.
+- **Any device, any job** has **Shares its screen** (a laptop or desktop) and a **USB audio interface** row (stereo, or each input its own).
+- **Then make it a real control room** has two more: **Clips, ads and packages**, and **Breaks your way** (six slates, your message and tone, sponsors through every break, or your own clip). **Then add your sources** replaces "Then the cameras show up", and the beacon is **Phones join with one scan**.
+
 ## 0.61.13 — the Edit window opens again; a screen in Camera control and the audio console
 **Deploy:** `./aws/deploy.sh` (site only).
 

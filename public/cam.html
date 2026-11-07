@@ -213,7 +213,6 @@
   .sheet select, .sheet input[type=range] { width: 100%; }
   .sheet .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
   .sheet .toggles label { margin: 0; font-weight: 500; }
-  body.fs .betabar { display: none; }
 
   /* On the camera, messages sit up top, away from the record button. */
   .toast { top: calc(68px + var(--stack-h, 0px) + env(safe-area-inset-top, 0px)); bottom: auto; } /* just below the top notices */
@@ -403,7 +402,7 @@
       <label><input type="radio" name="role" value="mic"> Microphone <span>Set this phone down near the people talking. It records the sound for the whole event.</span></label>
     </fieldset>
     <div class="terms" id="terms"></div>
-    <label class="agree"><input type="checkbox" id="agreeGuest" required> <span>I agree to the event terms above and the <a href="/terms" target="_blank">VUEMesh Terms of Use</a>. VUEMesh is beta software with no warranty.</span></label>
+    <label class="agree"><input type="checkbox" id="agreeGuest" required> <span>I agree to the event terms above and the <a href="/terms" target="_blank">VUEMesh Terms of Use</a>. VUEMesh comes with no warranty.</span></label>
     <button class="primary" type="submit">Accept and open camera</button>
   </form>
 </section>
