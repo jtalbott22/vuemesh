@@ -69,6 +69,7 @@ export const DEFAULTS = {
   badFor: 700,     // ...for this long gets cut away from
   margin: 0.12,    // a better shot must beat the current one by this much...
   betterFor: 1500, // ...steadily, for this long (scores are noisy; no twitchy cuts)
+  goodAbove: 0.75, // a shot this good is fine on air: it isn't cut away from just because another is better
   breakBelow: 0.2, // if nothing is above this, go to the break slate
 };
 
@@ -110,14 +111,23 @@ export class Director {
       .filter((s) => s.id !== this.current)
       .map((s) => ({ ...s, adj: s.score + variety(s.id) }))
       .sort((a, b) => b.adj - a.adj);
-    const best = ranked[0];
+    let best = ranked[0];
     const held = now - this.since;
+    // For variety: any good shot (or one about as good as what's on air), the one off air longest
+    // first. Not just one that scores as well: a phone that measures itself near-perfect would
+    // otherwise hold the air for good against cameras and screens that score a little lower.
+    const offFor = (id) => now - (this.lastOn.get(id) ?? -Infinity);
+    const fresh = ranked
+      .filter((s) => s.score >= o.goodAbove || s.score >= curScore - 0.05)
+      .sort((a, b) => offFor(b.id) - offFor(a.id) || b.score - a.score)[0];
     let reason = null;
     if (!cur) reason = best ? 'Starting on the best shot' : null;
     else if (best && this.badSince !== null && now - this.badSince >= o.badFor && best.score > curScore) {
       reason = `Cut away: on-air camera is ${whatsWrong(cur.parts, cur.upright, output, cur.fixed) || 'struggling'}`;
-    } else if (best && held >= o.maxHold && best.score >= curScore - 0.05) reason = 'Changing angle for variety';
-    else if (best && held >= o.minHold && best.adj > curScore + o.margin) {
+    } else if (fresh && held >= o.maxHold) {
+      best = fresh;
+      reason = 'Changing angle for variety';
+    } else if (best && held >= o.minHold && curScore < o.goodAbove && best.adj > curScore + o.margin) {
       if (this.better?.id !== best.id) this.better = { id: best.id, since: now };
       if (now - this.better.since >= o.betterFor) {
         // say what's wrong when the shot on air has gone bad, not just that another is better

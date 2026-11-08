@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.62.8 — the auto director changes angle around every camera, not just the phone
+**Deploy:** `./aws/deploy.sh` (site only).
+
+With a phone, a shared screen and this computer's webcam, the auto director cut to the phone and stayed there. A phone rates its own shot (steady, level, well lit) and on a stand it rates itself near-perfect; a screen and this computer's own camera don't rate themselves, and were counted as middling (0.5). The director only changed angle for variety to a shot within a whisker of the one on air, so nothing ever qualified.
+
+- **A source that never rates its shot counts as a good one,** not a middling one: this computer's cameras and shared screens don't shake. A phone whose ratings stop coming is still middling until they're back.
+- **Changing angle for variety goes to any good shot,** whichever has been off air longest, after the longest hold (12 s). Before, it had to score about as well as the one on air.
+- **A good shot isn't pulled off air early because another rates higher.** "A better shot is available" now only replaces a shot that's middling or worse.
+
+**Tests:** `sequence.test.mjs` checks that a phone rating itself perfect, a screen and a webcam all get the air within a minute, the two not yet seen first, and that a good screen shot holds its full time.
+
 ## 0.62.7 — the program's sound on an iPhone plays like a music app's: screen locked, other apps, CarPlay, Now Playing
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -92,7 +92,10 @@ export function directorTick() {
   // (on autopilot, a camera that's just arrived waits to be welcomed: preview, then on air with its name)
   const sources = camOrder().filter((peer) => !live.get(peer).paused && (!ap?.on || ap.seen.has(peer) || peer === liveActive)).map((peer) => {
     const l = live.get(peer);
-    return { id: peer, score: scoreOfLive(l) ?? 0.5, parts: l.qa?.parts, upright: l.qa?.upright, fixed: !!l.qa?.fixed };
+    // (nothing measured, ever: this computer's own camera, or a shared screen. Neither shakes, so
+    // it's taken as a good shot, not a middling one the phones always beat. A phone whose
+    // reports have stopped coming is middling until they're back.)
+    return { id: peer, score: scoreOfLive(l) ?? (l.qa ? 0.5 : 0.8), parts: l.qa?.parts, upright: l.qa?.upright, fixed: !!l.qa?.fixed };
   });
   if (!sources.length) return;
   const r = director.step(Date.now(), sources, orientation);

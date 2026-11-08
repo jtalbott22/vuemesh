@@ -164,6 +164,27 @@ ok('director: minimum hold, quick escape from a bad shot with a reason, break wh
   ok('director: a better shot has to stay better for 1.5 s (no twitchy cuts on noisy scores)');
 }
 
+// a phone that rates itself near-perfect doesn't keep the air from good-enough cameras and
+// screens: after the longest hold, the angle changes, to whichever has been off air longest
+{
+  const d3 = new Director();
+  const srcs = [{ id: 'phone', score: 1 }, { id: 'screen', score: 0.8 }, { id: 'webcam', score: 0.8 }];
+  d3.set('phone', 0);
+  const aired = ['phone'];
+  for (let t = 0; t <= 60000; t += 300) {
+    const r3 = d3.step(t, srcs, 'landscape');
+    if (r3.cut) aired.push(r3.cut);
+  }
+  assert.ok(aired.length >= 5, `cuts in a minute: ${aired.join(' ')}`);
+  for (const id of ['phone', 'screen', 'webcam']) assert.ok(aired.includes(id), `${id} got air: ${aired.join(' ')}`);
+  assert.deepEqual(aired.slice(1, 3).sort(), ['screen', 'webcam'], 'the two not seen yet go first');
+  // and a good shot isn't pulled off early because the phone scores higher
+  const d4 = new Director();
+  d4.set('screen', 0);
+  for (let t = 0; t < 11500; t += 300) assert.equal(d4.step(t, srcs, 'landscape').cut, undefined, `held the good screen shot at ${t}`);
+  ok(`director: a near-perfect phone doesn't hog the air; the angle changes around everyone (${aired.join(' ')})`);
+}
+
 // planning a whole cut from recorded quality
 const cuts = planCuts([
   { id: 'A', t0: 0, dur: 20000, scoreAt: (t) => ({ score: t > 6000 && t < 9000 ? 0.1 : 0.9, upright: 'landscape', parts: { steady: t > 6000 && t < 9000 ? 0.1 : 1 } }) },
