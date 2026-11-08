@@ -375,4 +375,28 @@ ok('events expire after 30 days for the API and signaling');
   ok('growth: a day corrected (7,161,743 → 1,743 s), its original kept as was_footage_sec (still the original after a second correction)');
 }
 
+// a local show's address: registered by a host, its certificate check put in the DNS only by its owner
+{
+  const txts = new Map();
+  const lanDeps = { ...deps, lanDns: { setTxt: async (n, v) => txts.set(n, v), clearTxt: async (n) => txts.delete(n) }, lanDomain: 'lan.example.com' };
+  const lc = (method, path, body, headers = {}) => api({ method, path, body, headers, query: {} }, lanDeps);
+  const ev = (await call('POST', '/events', { title: 'Barn dance' })).body;
+  const token = 'a-secret-that-is-long-enough';
+  assert.equal((await call('POST', `/events/${ev.id}/lan`, { slug: 'abcdefgh23', token }, { 'x-host-key': ev.hostKey })).status, 503, 'off unless the server has a zone');
+  assert.equal((await lc('POST', `/events/${ev.id}/lan`, { slug: 'abcdefgh23', token })).status, 403, 'a host only');
+  assert.equal((await lc('POST', `/events/${ev.id}/lan`, { slug: 'AB', token }, { 'x-host-key': ev.hostKey })).status, 400);
+  const reg = await lc('POST', `/events/${ev.id}/lan`, { slug: 'abcdefgh23', token }, { 'x-host-key': ev.hostKey });
+  assert.equal(reg.body.name, 'abcdefgh23.lan.example.com');
+  assert.equal((await lc('POST', `/events/${ev.id}/lan`, { slug: 'abcdefgh23', token }, { 'x-host-key': ev.hostKey })).status, 200, 'the same owner again (a renewal)');
+  assert.equal((await lc('POST', `/events/${ev.id}/lan`, { slug: 'abcdefgh23', token: 'somebody-else-entirely' }, { 'x-host-key': ev.hostKey })).status, 409, 'not someone else');
+  const value = 'x'.repeat(43);
+  assert.equal((await lc('PUT', '/lan/abcdefgh23/txt', { token: 'wrong-token-wrong-token', value })).status, 403);
+  assert.equal((await lc('PUT', '/lan/abcdefgh23/txt', { token, value: 'not a check; rm -rf' })).status, 400);
+  assert.equal((await lc('PUT', '/lan/abcdefgh23/txt', { token, value })).status, 200);
+  assert.equal(txts.get('_acme-challenge.abcdefgh23.lan.example.com'), value);
+  assert.equal((await lc('DELETE', '/lan/abcdefgh23/txt', { token })).status, 200);
+  assert.equal(txts.size, 0);
+  ok("a local show's address: a host registers it once (its owner again for a renewal), and only its owner puts its certificate check in the DNS, and takes it out");
+}
+
 console.log('\nAll core tests passed.');

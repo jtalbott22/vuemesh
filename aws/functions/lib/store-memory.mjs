@@ -5,6 +5,7 @@ export function memoryStore() {
   const conns = new Map(); // connId -> {eventId, ...info}
   const stats = new Map(); // day -> counts (kept)
   const snaps = [];
+  const lans = new Map(); // slug -> a local show's address and its owner
   const clone = (o) => (o ? JSON.parse(JSON.stringify(o)) : null);
   return {
     async getEvent(id) { return clone(events.get(id)); },
@@ -68,6 +69,12 @@ export function memoryStore() {
       traffic.set(day, d);
     },
     async listTraffic(from, to) { return [...traffic.values()].filter((d) => d.day >= from && d.day <= to).sort((a, b) => a.day.localeCompare(b.day)).map(clone); },
+    async getLan(slug) { return clone(lans.get(slug) || null); },
+    async putLanIfAbsent(rec) {
+      if (lans.has(rec.slug)) return false;
+      lans.set(rec.slug, clone(rec));
+      return true;
+    },
     async markOnce(key) {
       if (seen.has(key)) return false;
       seen.add(key);

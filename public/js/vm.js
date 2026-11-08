@@ -275,8 +275,8 @@ export function toast(msg, ms = 2600) {
  * @param {(peers:object[], you:string)=>void} [o.onPeers]
  * @param {(from:string, data:object, fromRole:string)=>void} [o.onSignal]
  */
-export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal }) {
-  const peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+/** @param o.url another server's address (this computer's local show, vuemesh-local.mjs) @param o.peer this one's id, the same on both */
+export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal, url = WS, peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16) }) {
   let ws;
   let closed = false;
   let delay = 1000;
@@ -320,7 +320,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   const open = () => {
     const q = new URLSearchParams({ e: eventId, role, peer, name, cid });
     if (hostKey) q.set('k', hostKey);
-    ws = new WebSocket(`${WS}?${q}`);
+    ws = new WebSocket(`${url}?${q}`);
     ws.onopen = () => {
       delay = 1000;
       self.connected = true;
@@ -353,6 +353,40 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   };
   open();
   return self;
+}
+
+/**
+ * One studio, two servers: the cloud's, and this computer's own on its hotspot (vuemesh-local.mjs).
+ * A phone is on one or the other; what the studio says to it goes where it is.
+ */
+export function joinSockets(main) {
+  const extra = [];
+  const all = () => [main, ...extra];
+  return {
+    get peer() { return main.peer; },
+    get connected() { return all().some((s) => s.connected); },
+    get cloud() { return main.connected; },
+    get local() { return extra.some((s) => s.connected); },
+    get peers() {
+      const seen = new Set(), out = [];
+      for (const s of all()) for (const p of s.peers) if (!seen.has(p.peer)) (seen.add(p.peer), out.push(p));
+      return out;
+    },
+    signal(to, data) {
+      const s = all().find((x) => x.connected && x.peers.some((p) => p.peer === to));
+      if (s) return s.signal(to, data);
+      for (const x of all()) x.signal(to, data);
+    },
+    send(obj) { for (const s of all()) s.send(obj); },
+    setRecording(rec) { for (const s of all()) s.setRecording(rec); },
+    close() { for (const s of all()) s.close(); },
+    add(s) { extra.push(s); },
+    remove(s) {
+      const i = extra.indexOf(s);
+      if (i >= 0) extra.splice(i, 1);
+      s.close();
+    },
+  };
 }
 
 // --- signatures (verified on the host laptop, no server needed) ---------------------

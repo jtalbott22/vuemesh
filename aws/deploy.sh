@@ -28,6 +28,8 @@ if [ -n "${DOMAIN:-}" ]; then
   fi
   PARAMS+=("DomainName=$DOMAIN" "CertificateArn=$CERT_ARN")
 fi
+# Local shows' addresses and certificates (vuemesh-local.mjs): the domain's Route 53 zone
+if [ -n "${LAN_ZONE:-}" ]; then PARAMS+=("LanZoneId=$LAN_ZONE"); fi
 
 echo "==> Building and deploying the backend stack ($STACK in $REGION)"
 sam build --template template.yaml
@@ -45,6 +47,17 @@ SITE_DIR="$(mktemp -d)"
 cp -R ../public/. "$SITE_DIR/"
 cp ../CHANGELOG.md "$SITE_DIR/changelog.md" # (the site's What's new page reads it: public/changelog.html)
 echo "window.VM_CONFIG = { api: '$API', ws: '$WS' };" > "$SITE_DIR/config.js"
+# For the local show helper (public/relay/vuemesh-local.mjs): the server's own code, and the list
+# of the app's files it keeps a copy of (not the big landing-page films)
+mkdir -p "$SITE_DIR/relay/lib"
+cp functions/lib/core.mjs functions/lib/common.mjs functions/lib/store-memory.mjs "$SITE_DIR/relay/lib/"
+node -e '
+  const fs = require("fs"), path = require("path"), root = process.argv[1], out = [];
+  const walk = (d) => { for (const n of fs.readdirSync(d)) { const f = path.join(d, n), r = path.relative(root, f).split(path.sep).join("/");
+    if (fs.statSync(f).isDirectory()) { if (!["films", "relay"].includes(r)) walk(f); }
+    else if (!/\.(mp4|webm|mov)$/i.test(n) && fs.statSync(f).size < 5e6 && r !== "config.js") out.push(r); } };
+  walk(root); fs.writeFileSync(path.join(root, "app-files.json"), JSON.stringify({ files: out.sort() }));
+' "$SITE_DIR"
 # Assets: short cache. Published films live under films/ and are never touched.
 aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" --delete \
   --exclude "films/*" --exclude "*.html" --exclude "config.js" --exclude "sw.js" \

@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.66.0 — a show on the studio computer's own Wi-Fi
+**Deploy:** `LAN_ZONE=<the domain's Route 53 zone> ./aws/deploy.sh` (backend and site: a new API route, and permission to change records in that one zone). It builds on 0.65.0.
+
+The studio computer can now be the show's Wi-Fi and its server, so a show needs no router and no internet. Phones join by scanning two codes, and nothing is installed on them.
+
+- **The local show helper,** `public/relay/vuemesh-local.mjs`, runs on the studio computer: `sudo node vuemesh-local.mjs` on Linux, or `node vuemesh-local.mjs` in an administrator PowerShell on Windows. It needs Node.js only. While it runs it:
+  - **starts the hotspot**, with NetworkManager on Linux or Mobile Hotspot on Windows;
+  - **answers for the show's address,** `https://<name>.lan.vuemesh.com`, on that Wi-Fi, with a **real certificate**. It gets the certificate from Let's Encrypt the first time it's online and keeps it. Phones trust it like any website, so no warnings and no profiles to install;
+  - **serves the app and the joining** at that address, with the same server code as the cloud. A phone that has **never** opened VUEMesh joins with no internet;
+  - **shows the welcome page** a guest network shows. When a phone checks whether it's online, it gets "You're on the show's Wi-Fi" with the show's address and a Done button, and after Done its checks pass.
+- **The studio joins it,** beside the cloud: phones on the hotspot join through the helper, and phones on the internet through the cloud, into the same show. **Join by QR** now opens with **On this computer's own Wi-Fi**. It finds the helper, with a **Start the hotspot** button, and shows two codes, the Wi-Fi's (a phone's camera app joins it) and the show's address. Swapping QR codes is still there below it. A green **HOTSPOT** badge shows while it's running. The studio only looks for the helper by itself once it has found it once, so a browser never asks about this computer's network for nothing.
+- **The certificate's check:** the API registers a show address for a host (`POST /events/:id/lan`, once; its secret renews it). Only that address's owner can place the record Let's Encrypt checks and remove it after (`PUT`/`DELETE /lan/:name/txt`), only in the domain's zone and only that record.
+- **The deploy** publishes the server's own code (`relay/lib/`) and a list of the app's files (`app-files.json`) for the helper to keep copies of.
+- **Limits:**
+  - Windows' hotspot takes up to 8 devices, and can want a network connection of some kind to start (an Ethernet cable is enough).
+  - Whether Windows lets the helper answer for addresses on its hotspot is still to be tried on a real machine.
+  - A Mac can't make a Wi-Fi hotspot on its own.
+  - On Linux a hotspot usually runs on 2.4 GHz, and takes the computer off the Wi-Fi it was on.
+
+**Tests:** `e2e_localshow.py` starts the helper on test ports, with the dev certificate and the hotspot as a dry run:
+- the studio finds it, gives it the show, joins it and starts the hotspot, and both codes read back right;
+- a phone opens the show's address and joins with its camera, then goes on air;
+- with the cloud gone, another phone joins too;
+- a phone's "am I online?" check gets the welcome page, and after Done the answer Apple and Android expect;
+- the helper answers for the show's address;
+- another site's page is refused.
+
+`local.test.mjs` checks the address answers, the hotspot commands for Linux and Windows (and the Mac's refusal), the Wi-Fi code's escaping, and the certificate request (openssl reads it and checks its signature). `core.test.mjs` covers the show address's registration and its check record.
+
+**Not yet tried for real:** getting a certificate from Let's Encrypt (that needs the backend deployed with `LAN_ZONE`; `--staging` is there for a first try), and a real hotspot with real phones.
+
 ## 0.65.0 — join a show with no internet, by QR code
 **Deploy:** `./aws/deploy.sh` (site only; it builds on 0.64.0). The deploy now sends `sw.js` uncached, like the pages.
 
