@@ -60,7 +60,7 @@ const SOLO_ID = 'SOLO';
 const MOTION_ASKS = IS_PHONE && !!(window.DeviceMotionEvent?.requestPermission || window.DeviceOrientationEvent?.requestPermission);
 const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(msg), { name: 'TimeoutError' })), ms))]);
 async function guidedSetup(lastErr) {
-  const first = !prefs.setupDone, view = $('#setupView');
+  const view = $('#setupView');
   const steps = ['perm', ...(role === 'cam' && MOTION_ASKS && prefs.motion !== 'off' ? ['motion'] : [])];
   const show = (step) => {
     view.querySelectorAll('[data-step]').forEach((c) => (c.hidden = c.dataset.step !== step));
@@ -694,7 +694,6 @@ function connectMesh() {
       else await idb.remove('outbox', eventId, clip.id);
       outbox.delete(clip.id);
       renderLibrary();
-      lastBlob = { blob: clip.blob, name: clip.id };
       renderOutbox();
       toast('Clip delivered to the host');
     },
@@ -1717,7 +1716,6 @@ $('#syncPill').onclick = syncNow;
 
 let recorder = null;
 let current = null;
-let lastBlob = null;
 
 function pickMime() {
   const options = [
@@ -2028,21 +2026,18 @@ class ClipUpload {
     const keepHere = ev?.solo || uploadsOff();
     await idb.put('outbox', { eventId, id: this.id, blob, meta, status: keepHere ? 'saved' : 'waiting', createdAt: Date.now() }).catch(() => {});
     if (keepHere && !ev?.solo) {
-      lastBlob = { blob, name: this.id };
       renderLibrary();
       toast('Saved on this phone (this show keeps clips on the phones)');
       return;
     }
     if (ev?.solo) {
       // On your own: nothing to send; it's saved on this device, in My events.
-      lastBlob = { blob, name: this.id };
       renderLibrary();
       toast('Saved to My events');
       return;
     }
     const clip = { id: this.id, blob, meta, sent: 0 };
     outbox.set(clip.id, clip);
-    lastBlob = { blob, name: clip.id };
     renderOutbox();
     link.enqueue(clip);
   }
@@ -3120,26 +3115,6 @@ function setupCameraControls() {
   document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fs', !!document.fullscreenElement || document.body.classList.contains('immersive')));
 }
 
-// Full screen: Android and iPad can; iPhone browsers can't, so offer the home-screen app.
-async function toggleCamFullscreen() {
-  const el = document.documentElement;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (document.fullscreenElement || document.webkitFullscreenElement) {
-    await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-    document.body.classList.remove('fs', 'immersive');
-    return;
-  }
-  try {
-    if (!req) throw new Error('unsupported');
-    await req.call(el, { navigationUI: 'hide' });
-    document.body.classList.add('fs');
-  } catch {
-    document.body.classList.toggle('immersive');
-    document.body.classList.toggle('fs', document.body.classList.contains('immersive'));
-    if (document.body.classList.contains('immersive')) toast('For true full screen on iPhone: Share → Add to Home Screen, then open VUEMesh from there', 6000);
-  }
-}
-
 // ------------------------------------------------------------- my footage ----
 // Everything this device shot, at this event and others: watch it, see whether the host
 // got it, send it again, save it, delete it. Plus the director's messages, the rundown,
@@ -3254,7 +3229,7 @@ $('#keepCopies').onchange = (e) => {
   prefs.keepCopies = e.target.checked;
   savePrefs();
 };
-for (const [tab, panel] of [['#tabClips', '#libClips'], ['#tabShow', '#libShow']]) {
+for (const tab of ['#tabClips', '#tabShow']) {
   $(tab).onclick = () => {
     $('#tabClips').setAttribute('aria-selected', String(tab === '#tabClips'));
     $('#tabShow').setAttribute('aria-selected', String(tab === '#tabShow'));

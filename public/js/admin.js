@@ -137,7 +137,7 @@ const METRICS = [
 ];
 const DAY_MS = 86400000;
 const dayStr = (ms) => new Date(ms).toISOString().slice(0, 10);
-let growthDays = [], growthAll = [];
+let growthAll = [];
 $('#gMetric').innerHTML = METRICS.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('');
 
 async function loadGrowth() {
@@ -179,7 +179,6 @@ function summary() {
 function renderGrowth() {
   renderFixes();
   const S = summary(), p = S.period;
-  growthDays = S.days;
   const chg = (c) => (c == null ? '' : `<i class="${c >= 0 ? 'up' : 'down'}">${c >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(c * 100))}%</i>`);
   const tile = (k, label) => `<div class="kpi"><b>${fmt(S.totals[k], k)}${chg(S.change[k])}</b><span>${esc(label)}</span></div>`;
   $('#gKpis').innerHTML = [

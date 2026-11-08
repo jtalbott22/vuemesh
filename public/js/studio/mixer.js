@@ -213,7 +213,7 @@ export function mixAttach(peer) {
   // A microphone phone just arrived: cameras nobody has set yet go quiet.
   if (l.role === 'mic') {
     let quieted = 0;
-    for (const [p2, l2] of live) {
+    for (const l2 of live.values()) {
       if (l2.role === 'mic' || !l2.cid || mixSaved()[l2.cid]?.touched) continue;
       if (mixState(l2.cid, 'cam').mode !== 'off') quieted++;
     }

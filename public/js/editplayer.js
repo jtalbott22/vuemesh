@@ -4,7 +4,7 @@
 
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
 import { composeFrame, limiter } from '/js/compose.js';
-import { audioItems, end, FRAME, micCover, dissolveOf, heldBefore } from '/js/sequence.js';
+import { audioItems, end, micCover, dissolveOf, heldBefore } from '/js/sequence.js';
 
 const PREROLL = 1500; // start loading the next item this long before it appears
 

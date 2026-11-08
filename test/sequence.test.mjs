@@ -347,7 +347,7 @@ import { sliceRange, extractRange, collapseGaps, videoGaps, newSequence as ns3, 
 console.log('All range tests passed.');
 
 // ---------------------------------------------------------------- speed
-import { setSpeed, srcAt, rate, splitAt as split4, sliceRange as slice4, rippleTrim as rtrim4, newSequence as ns4, program as pg4 } from '../public/js/sequence.js';
+import { setSpeed, srcAt, rate, splitAt as split4, sliceRange as slice4, newSequence as ns4, program as pg4 } from '../public/js/sequence.js';
 {
   const mk = () => { const s = ns4(); pg4(s).items = [{ id: 'a', type: 'clip', src: 'A', start: 0, dur: 4000, in: 1000 }, { id: 'b', type: 'clip', src: 'B', start: 10000, dur: 2000, in: 0 }]; return s; };
   const s1 = mk();

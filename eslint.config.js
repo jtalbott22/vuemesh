@@ -3,7 +3,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['public/vendor/**', '.wrangler/**', 'node_modules/**', '.aws-sam/**', '.venv/**', 'apple-tv/**', 'media/**'] },
+  { ignores: ['public/vendor/**', '.wrangler/**', 'node_modules/**', '**/.aws-sam/**', '.venv/**', 'apple-tv/**', 'media/**'] },
   js.configs.recommended,
   {
     // the site: browser ES modules, plus the classic scripts the pages load first
@@ -30,7 +30,7 @@ export default [
   },
   {
     rules: {
-      'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
+      'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
       'no-empty': ['warn', { allowEmptyCatch: true }],
     },
   },

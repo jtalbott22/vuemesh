@@ -32,7 +32,7 @@ function keep(k) {
   localStorage.setItem(LAST, eventId);
   localStorage.setItem(KEYS, JSON.stringify([k, ...knownKeys().filter((x) => x !== k)].slice(0, 6)));
 }
-let sock = null, host = null, state = null, recSince = null, wanted = null, wake = null, lastState = 0;
+let sock = null, host = null, state = null, recSince = null, wanted = null, lastState = 0;
 const thumbs = new Map();
 
 function toast(text, ms = 3500) {
@@ -375,7 +375,7 @@ setInterval(() => {
 
 async function keepAwake() {
   try {
-    wake = await navigator.wakeLock?.request('screen');
+    await navigator.wakeLock?.request('screen');
   } catch {}
 }
 document.addEventListener('visibilitychange', () => {
