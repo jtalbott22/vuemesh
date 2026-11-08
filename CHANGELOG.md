@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.63.2 — the program box's × takes a tap on a phone held sideways
+**Deploy:** `./aws/deploy.sh` (site only).
+
+On an iPhone 17 Pro Max held sideways, tapping the × on the camera's program box moved the zoom instead. The zoom slider takes touches in a wide strip beside it (about 56 px to its left, and a little below it), and the × sat in the box's top-right corner, inside that strip.
+
+- **The × is on the box's top-left corner,** away from the zoom rail.
+- **Sideways, the box sits clear of the zoom slider's touch strip,** island side included. Where the two might still meet on some phone, the box is the one that takes the tap.
+
+**Tests:** `e2e_campgm.py` taps the box and its × at iPhone 17 Pro Max, 17 Pro and SE sizes, upright and sideways with the island's safe area: each tap lands on them, and the zoom's touch strip stays clear. On the old layout it fails at the 17 Pro Max held sideways.
+
 ## 0.63.1 — Edit has its Full screen button; a camera watching the program isn't "gone silent"
 **Deploy:** `./aws/deploy.sh` (site only).
 
