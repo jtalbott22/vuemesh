@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.63.3 — a dropped server connection doesn't take the show down
+**Deploy:** `./aws/deploy.sh` (the backend and the site: the signalling Lambda changed).
+
+A two-hour show lost every camera, the shared Mac screen, the TV and the phone remote at once, and none came back. Two hours to the second after the studio connected, AWS closed its server connection, as it does to every WebSocket at two hours. The studio was back in 2 seconds, but:
+
+- **The phones let go of links that were working.** Pictures and sound go straight from each device to the studio over the local network, not through the server. A device that saw the studio missing from the server's list for those 2 seconds closed its link anyway. Now a connected link stays. Only one that fails while the studio is away is let go. The same goes for TVs, the phone remote's program, the camera's program box, and the studio's side when a phone's own server connection drops.
+- **The phones couldn't get back in.** The phones answered the reconnected studio before AWS had finished connecting it. The server took the failed delivery for a dead connection and took the studio off its list. The studio believed it was connected while no phone could reach it, and each phone waited for an answer that never came. Now:
+  - The server leaves a connection under 15 seconds old on the list.
+  - A connection the server has no record of is told to connect again.
+  - A device that hears nothing back from the server after connecting connects again.
+  - A phone that gets no answer to its offer in 10 seconds asks again.
+- **A phone remote whose own connection drops says who it is again** when it's back. The studio forgets it meanwhile.
+
+A phone that really leaves still goes from the studio at once.
+
+**Tests:** `e2e_serverblip.py` drops the studio's server connection with two cameras, a camera's program box and a TV running: every link stays the same throughout. On the old code all of them drop. It then drops a phone's connections, loses a phone's offer (it's back after its 10-second retry), and has a phone leave (gone in a moment). `core.test.mjs` checks the server keeps a brand-new connection that missed a message, takes off an older one, sends `rejoin` to a connection it has no record of, and delivers to the newest connection of a peer.
+
 ## 0.63.2 — the program box's × takes a tap on a phone held sideways
 **Deploy:** `./aws/deploy.sh` (site only).
 

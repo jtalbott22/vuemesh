@@ -273,11 +273,13 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   let closed = false;
   let delay = 1000;
   let pingTimer;
+  let heardTimer;
   let status = null;
   const self = {
     peer,
     peers: [],
     connected: false,
+    opens: 0, // (how many times it has connected: a page that must say who it is again after each)
     send(obj) {
       if (ws?.readyState === 1) ws.send(JSON.stringify(obj));
     },
@@ -291,8 +293,21 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     close() {
       closed = true;
       bgClear(pingTimer);
+      bgClear(heardTimer);
+      ws?.close();
+      globalThis.vmSockets = globalThis.vmSockets.filter((s) => s !== self);
+    },
+    /** Tests: as if the server dropped this connection (AWS cuts every one at two hours); it comes back. */
+    blip() {
       ws?.close();
     },
+  };
+  (globalThis.vmSockets ||= []).push(self); // (tests: every server connection on the page, to drop one)
+  // Connected, but the server doesn't answer: it has no record of this connection (an older server
+  // took it for gone), so nobody can reach it. Connect again rather than sit there unreachable.
+  const expectAnswer = () => {
+    bgClear(heardTimer);
+    heardTimer = bgTimeout(() => ws?.readyState === 1 && ws.close(), 10000);
   };
   const open = () => {
     const q = new URLSearchParams({ e: eventId, role, peer, name, cid });
@@ -301,7 +316,9 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     ws.onopen = () => {
       delay = 1000;
       self.connected = true;
+      self.opens++;
       self.send({ action: 'hello' });
+      expectAnswer();
       if (status !== null) self.send({ action: 'status', rec: status });
       bgClear(pingTimer);
       pingTimer = bgInterval(() => self.send({ action: 'ping' }), 4 * 60 * 1000); // API Gateway idles out at 10 min
@@ -309,7 +326,9 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     ws.onmessage = (e) => {
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
+      if (msg.type === 'rejoin') return ws.close(); // (the server lost this connection: connect again)
       if (msg.type === 'peers') {
+        bgClear(heardTimer);
         self.peers = msg.peers;
         onPeers?.(msg.peers, msg.you);
       } else if (msg.type === 'signal') {
@@ -319,6 +338,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     ws.onclose = () => {
       self.connected = false;
       bgClear(pingTimer);
+      bgClear(heardTimer);
       // (on the worker clock: a hidden studio reconnects at once, not a minute later, so a TV finds it)
       if (!closed) bgTimeout(open, (delay = Math.min(delay * 2, 15000)));
     };

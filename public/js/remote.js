@@ -48,6 +48,7 @@ const say = (text, err) => {
 };
 const send = (data) => host && sock?.signal(host, { remote: data });
 
+let opens = 0; // (the socket's connections seen: each new one says who it is)
 function connect() {
   if (sock) return;
   noStudio(); // (until the studio's there)
@@ -59,7 +60,10 @@ function connect() {
       const h = peers.find((p) => p.role === 'host')?.peer || null;
       $('#conn').className = 'dot' + (h ? ' on' : '');
       $('#conn').setAttribute('aria-label', h ? 'Connected to the studio' : 'The studio is not open');
-      if (h !== host) {
+      // (this phone's own server connection came back: the studio let it go meanwhile, so say who it is again)
+      const back = sock.opens !== opens;
+      opens = sock.opens;
+      if (h !== host || (h && back)) {
         host = h;
         if (!host) {
           $('#onAir').textContent = 'Waiting for the studio…';
@@ -375,6 +379,7 @@ function pair() {
     // (another show: its own signalling)
     sock.close();
     sock = host = null;
+    opens = 0;
     key = null;
     state = null;
   }

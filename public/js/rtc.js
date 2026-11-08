@@ -114,6 +114,8 @@ export async function sealClip(blob, { eventId, clipId, termsHash, signingKey, s
 
 // ---------------------------------------------------------------- phone side --
 
+const ANSWER_MS = 10000; // (how long a phone waits for the studio to answer before asking again)
+
 export class CamLink {
   /**
    * @param {object} o
@@ -137,6 +139,10 @@ export class CamLink {
     if (this.left) return;
     const host = peers.find((p) => p.role === 'host');
     if (!host) {
+      // The studio's server connection dropped for a moment (it reconnects, and AWS cuts every
+      // connection at two hours). The picture and sound go straight to the studio, not through the
+      // server, so a link that's still connected stays; if it fails while the studio's away, retry() lets it go.
+      if (this.pc?.connectionState === 'connected') return;
       if (this.host) this.close();
       this.host = null;
       this.onState('no-host');
@@ -151,6 +157,7 @@ export class CamLink {
 
   close() {
     clearInterval(this.qTimer);
+    clearTimeout(this.answerTimer);
     try { this.dc?.close(); } catch {}
     try { this.pc?.close(); } catch {}
     this.pc = null;
@@ -220,14 +227,28 @@ export class CamLink {
         this.startQuality(pc);
         if (this.paused) this.setPaused(true);
       }
-      if (s === 'failed') setTimeout(() => pc === this.pc && this.connect(), 2000);
-      if (s === 'disconnected') setTimeout(() => pc === this.pc && pc.connectionState === 'disconnected' && this.connect(), 6000);
+      if (s === 'failed') setTimeout(() => pc === this.pc && this.retry(), 2000);
+      if (s === 'disconnected') setTimeout(() => pc === this.pc && pc.connectionState === 'disconnected' && this.retry(), 6000);
     };
     const offer = await pc.createOffer();
     // (a shared screen's sound is stereo: say so; the studio answers that it takes it)
     if (this.screen) offer.sdp = opusStereo(offer.sdp);
     await pc.setLocalDescription(offer);
+    if (pc !== this.pc) return;
     this.sock.signal(this.host, { kind: 'offer', sdp: pc.localDescription.toJSON() });
+    // (no answer: the offer was lost on the way, say while the studio was reconnecting. Ask again,
+    // rather than wait for an answer that never comes)
+    clearTimeout(this.answerTimer);
+    this.answerTimer = setTimeout(() => pc === this.pc && !this.remoteSet && this.retry(), ANSWER_MS);
+  }
+
+  /** The link failed (or was never answered): connect again if the studio's here, else wait for it. */
+  retry() {
+    if (this.left) return;
+    if (this.host && this.sock.peers?.some((p) => p.peer === this.host)) return this.connect();
+    this.close();
+    this.host = null;
+    this.onState('no-host');
   }
 
   /** Send a small live message to the host (dropped if the link isn't up). */
@@ -512,15 +533,36 @@ export class HostHub {
   }
 
   syncPeers(peers) {
-    for (const peer of [...this.links.keys()]) {
-      if (!peers.some((p) => p.peer === peer)) this.drop(peer);
+    for (const [peer, l] of [...this.links]) {
+      if (peers.some((p) => p.peer === peer)) continue;
+      // A phone's server connection can drop for a moment (it reconnects; AWS cuts each one at two
+      // hours) while its picture and sound still come straight here: a link that's still connected
+      // stays, and goes once it isn't (or its phone closes it) while the phone's still not back.
+      if (l.pc.connectionState === 'connected' && l.ctl?.readyState !== 'closed') this.watchAway(peer, l);
+      else this.drop(peer);
     }
+  }
+
+  /** @returns whether this phone is on the server's list (its server connection is up) */
+  listed(peer) {
+    return !!this.sock.peers?.some((p) => p.peer === peer);
+  }
+
+  watchAway(peer, l) {
+    if (l.away) return;
+    l.away = setInterval(() => {
+      if (this.links.get(peer) !== l || this.listed(peer)) {
+        clearInterval(l.away);
+        l.away = null;
+      } else if (l.pc.connectionState !== 'connected' || l.ctl?.readyState === 'closed') this.drop(peer);
+    }, 2000);
   }
 
   /** @param why 'reconnect' when the phone is replacing its own link (it's coming straight back) */
   drop(peer, why) {
     const l = this.links.get(peer);
     if (!l) return;
+    clearInterval(l.away);
     try { l.pc.close(); } catch {}
     this.links.delete(peer);
     this.onLiveEnd(peer, why);
@@ -563,6 +605,8 @@ export class HostHub {
     pc.ondatachannel = (e) => {
       if (e.channel.label === 'ctl') {
         link.ctl = e.channel;
+        // (the phone closed its link, and it isn't on the server's list: it has gone, not reconnecting)
+        e.channel.onclose = () => current() && !this.listed(peer) && this.drop(peer);
         e.channel.onmessage = (m) => {
           try { this.onPhoneMessage?.(peer, JSON.parse(m.data)); } catch {}
         };

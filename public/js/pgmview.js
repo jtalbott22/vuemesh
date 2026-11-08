@@ -26,6 +26,9 @@ export class ProgramView {
       onPeers: (peers) => {
         const h = peers.find((p) => p.role === 'host')?.peer || null;
         if (h === this.host) return;
+        // (the studio's server connection dropped a moment: the program comes straight from it, so a
+        // link that's still connected stays; tick() asks again if it goes)
+        if (!h && this.linked) return;
         this.drop();
         this.host = h;
         if (h) this.hello();
