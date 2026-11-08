@@ -1,7 +1,7 @@
 // Studio, part 1 of 26: shared state, the page helpers, constants.
 // The parts load in order (see ../studio.js); this one loads every library first, as the single file did.
 import {
-  $ as $q, api, hostKey, rememberEvent, meshSocket, toast, esc, eventIdFromUrl, myEvents, themeButton,
+  $ as $q, api, hostKey, rememberEvent, meshSocket, joinSockets, toast, esc, eventIdFromUrl, myEvents, themeButton,
   announce, helpDialog, diag,
 } from '/js/vm.js';
 import { bitrateHints } from '/js/quality.js';
@@ -242,6 +242,8 @@ export function setSeq(v) { return (seq = v); }
 export let selectedItem = null;
 export function setSelectedItem(v) { return (selectedItem = v); }
 export let sock, hub;
+/** (url) → this computer's own server added to the studio's (vuemesh-local.mjs); set once the studio's connected */
+export let connectLocal = null;
 export const live = new Map();         // peer → { stream, name, cid, role, route, rec, tile, video, tele, stats }
 export let liveActive = null;
 export function setLiveActive(v) { return (liveActive = v); }
@@ -661,11 +663,8 @@ async function init() {
 
   if (isHost && !EDIT_ONLY) {
     // The host laptop is the hub: phones find it through the cloud, then connect directly.
-    sock = meshSocket({
-      eventId,
-      role: 'host',
-      hostKey: key,
-      onPeers: (peers) => {
+    // (who's here, from either server: the cloud's, and this computer's own when it's running one)
+    const onPeers = (peers) => {
         hub.syncPeers(peers);
         displayHub?.syncPeers(peers);
         for (const p of remoteHost?.bound.keys() || []) if (!peers.some((x) => x.peer === p)) remoteHost.gone(p);
@@ -684,12 +683,19 @@ async function init() {
         }
         setPresence(peers);
         renderLive();
-      },
-      // (a phone remote's messages are its own, not a camera's: they never reach the cameras' links)
-      // (a TV's messages, too: only the TV screens panel hears them)
-      // (and a phone measuring a TV's lag, from /tvcal: only the result, to the open Calibrate)
-      onSignal: (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : data?.tvcal ? onTvCal(data.tvcal) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role)),
-    });
+    };
+    // (a phone remote's messages are its own, not a camera's: they never reach the cameras' links)
+    // (a TV's messages, too: only the TV screens panel hears them)
+    // (and a phone measuring a TV's lag, from /tvcal: only the result, to the open Calibrate)
+    const onSignal = (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : data?.tvcal ? onTvCal(data.tvcal) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role));
+    sock = joinSockets(meshSocket({ eventId, role: 'host', hostKey: key, onPeers: () => onPeers(sock.peers), onSignal }));
+    // This computer's own server, on its hotspot (vuemesh-local.mjs): its phones join the show there,
+    // beside those that come through the cloud. The same id on both, so a phone finds the studio either way.
+    connectLocal = (url) => {
+      const s = meshSocket({ eventId, role: 'host', hostKey: key, url, peer: sock.peer, onPeers: () => onPeers(sock.peers), onSignal });
+      sock.add(s);
+      return s;
+    };
     if (!KIOSK) startRemoteHost();
     if (!KIOSK) startDisplayHub();
     window.vmHub = () => hub; // (tests and diagnostics: the phones' links)
@@ -697,7 +703,7 @@ async function init() {
     // stop a reload, which would end every link with nothing to bring them back through.
     let offSince = null;
     setInterval(() => {
-      offSince = sock.connected ? null : offSince || Date.now();
+      offSince = sock.cloud ? null : offSince || Date.now(); // (the cloud: phones on this computer's hotspot still join, through it)
       const off = !!offSince && Date.now() - offSince > 5000;
       if ($('#offlineDot').hidden === !off) return;
       $('#offlineDot').hidden = !off;

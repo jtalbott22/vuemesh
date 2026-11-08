@@ -70,6 +70,18 @@ Everything expires 30 days after an event is created. The API treats an expired 
    ```
 3. Point DNS at CloudFront. The stack output `CloudFrontDomain` is the target. With Route 53, create an A record (Alias) to that distribution. At other registrars, use an ALIAS/ANAME record for the bare domain, or a CNAME for `www`.
 
+## Local shows' addresses (vuemesh-local.mjs)
+
+The local show helper (`public/relay/vuemesh-local.mjs`) runs a show on the studio computer's own Wi-Fi, at an https address like `abc123defg.lan.vuemesh.com`. Phones need nothing installed because that address has a real certificate from Let's Encrypt. To get one, the helper registers its name with the API (with a host key), and the API puts the record Let's Encrypt checks into the domain's DNS (only that record, only for that name's owner). Turn it on by giving the deploy the domain's Route 53 hosted zone:
+
+```bash
+LAN_ZONE=Z0123456789EXAMPLE DOMAIN=vuemesh.com CERT_ARN=... ./aws/deploy.sh
+```
+
+The API function then gets permission to change records in that one zone, and nothing else. Without `LAN_ZONE`, the helper still runs, but can't get a certificate. Let's Encrypt allows 50 new names a week for a domain; renewals don't count against that.
+
+The deploy also publishes the server's own code (`relay/lib/`) and a list of the app's files (`app-files.json`), which the helper keeps copies of for the shows it runs with no internet.
+
 ## Check it works
 
 1. Open the site URL on a laptop, start an event, open **the studio** (keep it on the laptop) and **the beacon** (a second screen on the same laptop is ideal, so live cuts and clips share one clock).

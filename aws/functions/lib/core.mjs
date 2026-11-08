@@ -42,6 +42,7 @@ async function route(req, deps) {
   if (seg[0] === 'api') seg.shift();
   if (seg[0] === 'hit' && req.method === 'POST' && seg.length === 1) return hit(req, deps);   // (after the /api prefix is gone)
   if (seg[0] === 'admin') return admin(req, seg.slice(1), deps, now);
+  if (seg[0] === 'lan') return lan(req, seg.slice(1), deps, now);
   if (seg[0] !== 'events') throw new HttpError(404, 'Unknown endpoint');
   const m = req.method.toUpperCase();
 
@@ -110,6 +111,20 @@ async function route(req, deps) {
   if (!key || sha256hex(key) !== meta.hostKeyHash) throw new HttpError(403, 'Host key required');
 
   if (seg[2] === 'host' && m === 'GET') return { status: 200, body: { ok: true } };
+
+  // A local show's address (vuemesh-local.mjs on the studio's computer): <slug>.lan.vuemesh.com,
+  // registered by a host (once; its secret is what lets it renew), so that it can get a certificate.
+  if (seg[2] === 'lan' && m === 'POST') {
+    if (!deps.lanDns) throw new HttpError(503, "Local show addresses aren't set up on this server");
+    const slug = String(req.body?.slug || ''), token = String(req.body?.token || '');
+    if (!/^[a-z0-9]{8,20}$/.test(slug) || token.length < 20) throw new HttpError(400, 'A name (8-20 letters and digits) and a secret');
+    const rec = { slug, tokenHash: sha256hex(token), eventId: id, at: now };
+    if (!(await store.putLanIfAbsent(rec))) {
+      const had = await store.getLan(slug);
+      if (had?.tokenHash !== rec.tokenHash) throw new HttpError(409, 'That name is taken');
+    }
+    return { status: 200, body: { name: `${slug}.${deps.lanDomain || 'lan.vuemesh.com'}` } };
+  }
 
   // The host deletes the event now (a kiosk's "Delete show", or the host's own choice):
   // the event and any published film go; phones keep what they recorded.
@@ -472,6 +487,29 @@ async function broadcastPeers(eventId, deps, skipConn, toEveryone = false) {
       if (!ok && settled(c, now)) await deps.store.removeConn(eventId, c.connId);
     }),
   );
+}
+
+// ------------------------------------------------------------- local shows ---
+// Let's Encrypt checks a record in the name's DNS before it gives a certificate for it. Only the one
+// that registered the name (with its secret) can put that record in, and only that record.
+async function lan(req, seg, deps) {
+  if (!deps.lanDns) throw new HttpError(503, "Local show addresses aren't set up on this server");
+  const slug = String(seg[0] || '');
+  if (!/^[a-z0-9]{8,20}$/.test(slug) || seg[1] !== 'txt' || seg.length !== 2) throw new HttpError(404, 'Unknown endpoint');
+  const rec = await deps.store.getLan(slug);
+  if (!rec || rec.tokenHash !== sha256hex(String(req.body?.token || ''))) throw new HttpError(403, 'Not your name');
+  const record = `_acme-challenge.${slug}.${deps.lanDomain || 'lan.vuemesh.com'}`;
+  if (req.method === 'PUT') {
+    const value = String(req.body?.value || '');
+    if (!/^[A-Za-z0-9_-]{43}$/.test(value)) throw new HttpError(400, 'Not a certificate check');
+    await deps.lanDns.setTxt(record, value);
+    return { status: 200, body: { ok: true, record } };
+  }
+  if (req.method === 'DELETE') {
+    await deps.lanDns.clearTxt(record);
+    return { status: 200, body: { ok: true } };
+  }
+  throw new HttpError(405, 'PUT or DELETE');
 }
 
 // ------------------------------------------------------------------- admin ---

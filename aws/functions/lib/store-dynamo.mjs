@@ -198,6 +198,19 @@ export function dynamoStore(TableName) {
       return out;
     },
     /** True the first time a key is seen (it's forgotten after two days: the table's TTL). */
+    // a local show's address (vuemesh-local.mjs): who may put its certificate check in the DNS
+    async getLan(slug) {
+      return (await db.send(new GetCommand({ TableName, Key: { pk: `LAN#${slug}`, sk: 'L' } }))).Item || null;
+    },
+    async putLanIfAbsent(rec) {
+      try {
+        await db.send(new PutCommand({ TableName, Item: { pk: `LAN#${rec.slug}`, sk: 'L', ...rec }, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (e) {
+        if (e.name === 'ConditionalCheckFailedException') return false;
+        throw e;
+      }
+    },
     async markOnce(key) {
       try {
         await db.send(new PutCommand({ TableName, Item: { pk: 'SEEN', sk: key, ttl: Math.floor(Date.now() / 1000) + 2 * 86400 }, ConditionExpression: 'attribute_not_exists(pk)' }));

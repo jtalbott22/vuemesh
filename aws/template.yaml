@@ -31,9 +31,14 @@ Parameters:
     Default: 'false'
     AllowedValues: ['true', 'false']
     Description: Serve the public events map feed (off during the beta)
+  LanZoneId:
+    Type: String
+    Default: ''
+    Description: Route 53 hosted zone ID of the site's domain, for local shows' addresses (<name>.lan.<domain>) and their certificates (vuemesh-local.mjs). Blank turns that off.
 
 Conditions:
   HasDomain: !Not [!Equals [!Ref DomainName, '']]
+  HasLan: !Not [!Equals [!Ref LanZoneId, '']]
 
 Globals:
   Function:
@@ -193,8 +198,18 @@ Resources:
           ADMIN_KEY_HASHES: !Ref AdminKeyHashes
           GLOBE_ENABLED: !Ref GlobeEnabled
           PUBLISH_ENABLED: !Ref PublishEnabled
+          LAN_ZONE_ID: !Ref LanZoneId
+          LAN_DOMAIN: !If [HasDomain, !Sub 'lan.${DomainName}', 'lan.vuemesh.com']
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - !If
+          - HasLan
+          - Statement:
+              # only the certificate checks of local shows' addresses, in the site's own zone
+              - Effect: Allow
+                Action: [route53:ChangeResourceRecordSets, route53:ListResourceRecordSets]
+                Resource: !Sub 'arn:aws:route53:::hostedzone/${LanZoneId}'
+          - !Ref 'AWS::NoValue'
         - Statement:
             - Effect: Allow
               Action: [s3:PutObject, s3:DeleteObject]

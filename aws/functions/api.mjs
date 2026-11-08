@@ -1,6 +1,7 @@
 // Lambda: HTTP API (payload v2) → core.api
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Route53Client, ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand } from '@aws-sdk/client-route-53';
 import { api } from './lib/core.mjs';
 import { dynamoStore } from './lib/store-dynamo.mjs';
 
@@ -30,6 +31,19 @@ async function deleteFilms(Prefix) {
   return keys.length;
 }
 
+// Local shows' certificate checks: one TXT record each, in the site's zone (only when it's set up)
+const LAN_ZONE = process.env.LAN_ZONE_ID || '';
+const r53 = LAN_ZONE ? new Route53Client({}) : null;
+const txt = (Action, Name, values) => r53.send(new ChangeResourceRecordSetsCommand({ HostedZoneId: LAN_ZONE, ChangeBatch: { Changes: [{ Action, ResourceRecordSet: { Name, Type: 'TXT', TTL: 30, ResourceRecords: values } }] } }));
+const lanDns = r53 && {
+  setTxt: (name, value) => txt('UPSERT', name, [{ Value: `"${value}"` }]),
+  async clearTxt(name) {
+    const r = await r53.send(new ListResourceRecordSetsCommand({ HostedZoneId: LAN_ZONE, StartRecordName: name, StartRecordType: 'TXT', MaxItems: '1' }));
+    const rs = r.ResourceRecordSets?.[0];
+    if (rs && rs.Type === 'TXT' && rs.Name.replace(/\.$/, '') === name) await txt('DELETE', name, rs.ResourceRecords);
+  },
+};
+
 const presign = (Key, ContentType) =>
   getSignedUrl(s3, new PutObjectCommand({ Bucket: process.env.BUCKET, Key, ContentType }), { expiresIn: 3600 });
 
@@ -50,7 +64,7 @@ export async function handler(event) {
   try { body = body ? JSON.parse(body) : undefined; } catch { body = undefined; }
   const res = await api(
     { method: event.requestContext.http.method, path: event.rawPath, query: event.queryStringParameters || {}, headers: event.headers || {}, body, ip: event.requestContext.http.sourceIp || '' },
-    { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms },
+    { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN },
   );
   return { statusCode: res.status, headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(res.body) };
 }

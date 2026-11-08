@@ -18,7 +18,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 
 | File | Covers |
 | --- | --- |
-| `test/core.test.mjs` | cloud core: events, discovery, signaling, admin, expiry, switches, growth |
+| `test/core.test.mjs` | cloud core: events, discovery, signaling, admin, expiry, switches, growth, local shows' addresses |
 | `test/sequence.test.mjs` | edit operations (ripple, roll, slip, slide, slicing) and the AI director |
 | `test/quality.test.mjs` | live picture quality hints |
 | `test/imports.test.mjs` | every import across the front end is exported by its module |
@@ -26,6 +26,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/docsync.test.mjs` | one version in `package.json`, `APP_VERSION` and the newest `CHANGELOG.md` heading; every version renders on What's new without raw markdown; every file the README links to exists |
 | `test/framesync.test.mjs` | one timeline: a camera's quickest delivery, the picture delay (up at once, down between shows), each camera's frame of a moment, a stalled camera held, the clap in sound and picture |
 | `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
+| `test/local.test.mjs` | the local show helper: its address answers (the show's name, IPv6 none, others passed on), the hotspot's commands on Linux and Windows (and why not on a Mac), the Wi-Fi code's escaping, its certificate request checked by openssl, only VUEMesh's pages let in |
 | `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged; nothing arriving or sending silence; what to try for an interface here), the mixer's watch putting back a sound that stopped reaching it, the summary, chunks put back together |
 | `test/devmatch.test.mjs` | finding a saved camera or microphone again: by its id, name or USB id, or (renamed by its maker's driver) the one on the other driver; never another device (twins, two Focusrites, a laptop's two inputs) |
 
@@ -115,4 +116,5 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_serverblip.py` | a server connection drops (AWS's two-hour cut): the studio's drop keeps both cameras, a camera's program box and a TV on the same links; a phone's own drop keeps its camera in the studio; an offer lost on the way is asked again after 10 s; a phone that leaves still goes at once |
 | `test/e2e_offline.py` | a show with no server (own dev server on 8796, taken offline and back): cut and tally, the phone remote's buttons and program, a camera's program box, the TV's standby, a stuck camera reconnected over its own link, a clip coming over, still connected after 15 s, the studio's OFFLINE badge and leave warning; back online a new phone joins; a studio opened with no API opens the event it last saw |
 | `test/e2e_qrjoin.py` | joining with no internet (own dev server on 8797, pages too taken offline): a phone that opened VUEMesh before opens the show from its kept copy and shows its QR code; the studio's Join by QR answers; both QR images read back; the phone gets the show over the new link, joins and goes on air; a camera whose link went gets Reconnect by QR and comes back; the internet back, both stay |
+| `test/e2e_localshow.py` | a show on the studio computer's own Wi-Fi (vuemesh-local.mjs on test ports, dev certificate, hotspot as a dry run): the studio finds the helper, gives it the show, joins it and starts the hotspot; the Wi-Fi's and the show's codes read back; phones open the show's address and join through the helper, one with the cloud gone; the welcome page and, after Done, the answers phones expect; its address answers; other sites refused |
 | `test/e2e_pip.py` | another computer shares its screen from /share; a camera stays live in the corner over a screen (tally, sound, the remote), P turns it off and on; the inspector's cards fold and are remembered |

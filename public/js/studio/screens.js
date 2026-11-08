@@ -8,7 +8,7 @@ import { DisplayHub } from '/js/display-hub.js';
 import * as S from '/js/sequence.js';
 import { whatsWrong } from '/js/director.js';
 import {
-  $, black, clips, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, live, liveActive, log, note,
+  $, black, clips, connectLocal, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, key, live, liveActive, log, note,
   orientation, pressTwice, rawBlobs, seq, sock, thumbs,
 } from './core.js';
 import { angleOfCid, audioClips, output } from './clips.js';
@@ -489,6 +489,7 @@ async function qjHandle(text) {
 }
 function openQrJoin() {
   if (!isHost) return;
+  localCheck(true);
   $('#qjCode').textContent = eventId;
   const srcs = qjSources();
   $('#qjSrc').innerHTML = srcs.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
@@ -500,6 +501,7 @@ function openQrJoin() {
   $('#qrJoinDlg').showModal();
 }
 $('#qrJoinBtn')?.addEventListener('click', openQrJoin);
+$('#localDot')?.addEventListener('click', openQrJoin);
 $('#offlineDot')?.addEventListener('click', openQrJoin);
 $('#qjSrc')?.addEventListener('change', (e) => qjUse(e.target.value));
 $('#qjCancel')?.addEventListener('click', () => $('#qrJoinDlg').close());
@@ -511,3 +513,90 @@ $('#qrJoinDlg')?.addEventListener('close', () => {
   $('#qjVideo').srcObject = null;
 });
 window.vmQrJoin = { open: openQrJoin, read: (text) => qjHandle(text), answer: () => qj.answer }; // (tests: a code as a camera would read it)
+
+// --------------------------------------------------- the show on this computer's own Wi-Fi --
+// The local show helper (public/relay/vuemesh-local.mjs), run on this computer, makes its Wi-Fi a
+// hotspot and serves the app and the joining on it, at the show's own https address. The studio
+// tells it the show (and its key, so it can let the studio in as the host), and joins it as a second
+// server: phones on the hotspot join there. Two QR codes for them: the Wi-Fi, then the show.
+const localUrl = () => localStorage.getItem('vm_local') || 'http://localhost:8936';
+const local = { st: null, sock: null, shown: false, busy: false };
+async function localFetch(path, body) {
+  const r = await fetch(localUrl() + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) } : { signal: AbortSignal.timeout(2000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || `The helper said ${r.status}`), { st: j });
+  return j;
+}
+/** Is the helper there? Then the show's on it, and the studio connected to it. @param say  redraw the dialog */
+async function localCheck(say = false) {
+  if (!isHost || local.busy) return;
+  local.busy = true;
+  try {
+    let st = await localFetch('/status').catch(() => null);
+    if (st && !st.shows?.some((x) => x.id === eventId)) st = await localFetch('/event', { ev, hostKey: key }).catch(() => st);
+    if (st) localStorage.setItem('vm_local_seen', '1');
+    if (st && !local.sock && connectLocal) {
+      local.sock = connectLocal(localUrl().replace(/^http/, 'ws') + '/ws');
+      note(`This computer's local show helper is running: phones on its Wi-Fi join the show at ${st.url}`);
+    }
+    local.st = st;
+  } finally {
+    local.busy = false;
+  }
+  if (say || $('#qrJoinDlg')?.open) renderLocal();
+}
+function renderLocal() {
+  const st = local.st, say = $('#qjLocalSay');
+  if (!say) return;
+  $('#qjHotspot').hidden = !st?.hotspot?.can;
+  $('#qjLocalCodes').hidden = true;
+  if (!st) {
+    say.innerHTML = `Run the show on this computer's own Wi-Fi, with no router and no internet: download the <a href="/relay/vuemesh-local.mjs" download>local show helper</a> and run it, on Linux with <code>sudo node vuemesh-local.mjs</code>, on Windows with <code>node vuemesh-local.mjs</code> in a PowerShell opened as administrator. Once online, the first time.`;
+    return;
+  }
+  const show = st.shows?.find((x) => x.id === eventId);
+  const h = st.hotspot || {};
+  $('#qjHotspot').textContent = h.on ? 'Stop the hotspot' : 'Start the hotspot';
+  $('#qjHotspot').title = h.on ? '' : "This computer's Wi-Fi becomes the show's (it leaves the network it's on now)";
+  const certSay = st.https ? '' : st.cert === 'getting' ? ' Getting its certificate (a minute or so)…' : st.cert === 'error' ? ` No certificate yet: ${st.certError || 'it needs the internet once'}.` : ' Its certificate comes once it’s online.';
+  say.textContent = `The helper is running.${h.on ? ` Hotspot on: “${h.ssid}”.` : h.can ? ' Start the hotspot, and phones join its Wi-Fi.' : ` No hotspot here (${h.why || 'not on this computer'}): phones join this computer's network as it is.`}${certSay}`;
+  if (!st.https || !show) return;
+  $('#qjLocalCodes').hidden = false;
+  $('#qjWifiFig').hidden = !h.on;
+  if (h.on) {
+    drawQR($('#qjWifiQr'), h.qr, { size: 220, ecl: 'M' });
+    $('#qjSsid').textContent = h.ssid;
+    $('#qjPass').textContent = `password ${h.pass}`;
+  }
+  drawQR($('#qjShowQr'), show.link, { size: 220, ecl: 'M' });
+  $('#qjShowLink').textContent = show.link;
+}
+$('#qjLocalCheck')?.addEventListener('click', () => localCheck(true));
+$('#qjHotspot')?.addEventListener('click', async () => {
+  const on = !local.st?.hotspot?.on;
+  $('#qjHotspot').disabled = true;
+  $('#qjLocalSay').textContent = on ? 'Starting the hotspot…' : 'Stopping the hotspot…';
+  try {
+    local.st = await localFetch('/hotspot', { on });
+    note(on ? `Hotspot on: “${local.st.hotspot.ssid}”` : 'Hotspot off');
+  } catch (e) {
+    local.st = e.st?.local ? e.st : local.st;
+    toast(e.message, 8000);
+  } finally {
+    $('#qjHotspot').disabled = false;
+    renderLocal();
+  }
+});
+// (the helper may be running already: the studio joins it straight away, so its phones get in. Only
+// on a computer that has used it: else the browser could ask about this computer's network for nothing)
+// (isHost is known once the studio has opened, after this runs: so it's asked each time)
+if (!EDIT_ONLY) {
+  const seen = () => !!localStorage.getItem('vm_local_seen');
+  let n = 0;
+  setInterval(() => {
+    if (!isHost) return;
+    if ($('#localDot')) $('#localDot').hidden = !sock?.local;
+    if ((n++ === 1 || n % 3 === 0) && !local.sock && !document.hidden && seen() && connectLocal) localCheck();
+  }, 2000);
+}
+window.vmLocalShow = () => ({ st: local.st, connected: !!sock?.local }); // (tests)
