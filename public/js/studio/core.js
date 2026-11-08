@@ -701,7 +701,7 @@ async function init() {
       const off = !!offSince && Date.now() - offSince > 5000;
       if ($('#offlineDot').hidden === !off) return;
       $('#offlineDot').hidden = !off;
-      if (off) toast('No internet: the show carries on over this network. Phones already in stay; new ones can join once it’s back. Don’t reload this page.', 8000);
+      if (off) toast('No internet: the show carries on over this network. Phones already in stay; a new one joins with Join by QR. Don’t reload this page.', 8000);
       else toast('Back online', 3000);
     }, 1000);
     window.addEventListener('beforeunload', (e) => {
@@ -714,11 +714,12 @@ async function init() {
       termsHash: ev.termsHash,
       sock,
       onLive: (peer, stream, role) => {
-        const info = sock.peers.find((p) => p.peer === peer) || {};
+        const info = sock.peers.find((p) => p.peer === peer) || hub.known.get(peer) || {}; // (or one that joined by QR code)
         const prev = live.get(peer) || {};
         const back = returning.get(peer);
         returning.delete(peer);
         live.set(peer, { ...prev, stream, role: role || info.role || 'cam', name: titleFor(info.cid) || info.name || 'Guest', phoneName: info.name || 'Guest', cid: info.cid, rec: info.rec, route: prev.route || 'connecting', joinedAt: prev.joinedAt || back?.joinedAt || Date.now() });
+        setPresence();
         if (KIOSK) for (const ms of [800, 3000, 9000]) setTimeout(() => hub?.message(peer, { t: 'uploads', on: false }), ms); // (phones keep their clips; again in case the link wasn't ready)
         if (typeof isBlocked === 'function' && isBlocked(info.cid)) {
           hub?.message(peer, { t: 'kick', block: true });
@@ -749,6 +750,7 @@ async function init() {
       },
       onLiveEnd: (peer, why) => {
         const l = live.get(peer);
+        queueMicrotask(() => setPresence());
         if (l) note(why === 'reconnect' ? `${l.name} is reconnecting` : `${l.name} disconnected`);
         if (l && why === 'reconnect') returning.set(peer, { joinedAt: l.joinedAt });
         leavingPeers.delete(peer);
@@ -864,7 +866,9 @@ async function init() {
   } else setMode('live');
 }
 
-function setPresence(peers) {
+function setPresence(peers = sock?.peers || []) {
+  // (and phones that joined by QR code, with no server, while they're here)
+  peers = [...peers, ...[...(hub?.known.values() || [])].filter((k) => hub.links.has(k.peer) && !peers.some((p) => p.peer === k.peer))];
   const cams = peers.filter((p) => p.role === 'cam');
   const mics = peers.filter((p) => p.role === 'mic');
   const rec = cams.filter((p) => p.rec).length + mics.filter((p) => p.rec).length;

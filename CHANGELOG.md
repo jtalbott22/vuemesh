@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.65.0 — join a show with no internet, by QR code
+**Deploy:** `./aws/deploy.sh` (site only; it builds on 0.64.0). The deploy now sends `sw.js` uncached, like the pages.
+
+A phone normally finds the studio through the server. With no internet there's no server, and a browser can't be one. Now the phone and the studio swap two QR codes instead:
+
+1. **The phone shows its code.** On a phone that has opened VUEMesh before, the show opens with no internet, and the page says "No internet: join with the studio" with a QR code.
+2. **The studio reads it.** **Join by QR** in the studio's top bar (or a click on the OFFLINE badge) shows what one of its cameras sees. The code can be read by this computer's camera or by any camera already in the show, so you can hold the phone up to Rosa's phone. The studio then shows its answer.
+3. **The phone scans the answer** ("Next: scan the studio's code"). The two now have a small link straight between them. Over it the studio tells the phone which show this is (title, terms), the phone joins as usual (name, terms, camera), and its usual link (picture, sound, clips) is set up over that small one. Several phones can join one after another; the dialog is ready for the next.
+
+- **A camera whose link has really gone, with no internet,** gets **"Can't reach the studio · Reconnect by QR"** after 8 seconds and comes back the same way, without a reload.
+- **The app is kept on the device.** A small service worker (`sw.js`) keeps copies of the app's own pages and files. Online, everything still comes from the network as before and the copies are refreshed. With no network, the copies are used. It never keeps the API, films or uploads. Only a phone that has opened VUEMesh at least once can open it offline; a phone that never has needs the internet that first time.
+- **Codes are small:** about 120–200 characters (an address on the Wi-Fi, two passwords and a certificate fingerprint). Each answer names the phone's code, so a phone takes only its own.
+- Phones that joined this way count in the studio's phone count and show their names.
+
+**Tests:** `e2e_qrjoin.py` takes everything offline (pages, API and signalling: the dev server's `/_dev/offline` switch has a `pages=1` now). Ana's phone, which opened VUEMesh once before, opens the show from its kept copy and shows its code, and the studio's Join by QR answers. Both QR images read back to their codes. Ana gets the show's details over the new link, joins with her camera, and goes on air. Rosa's link is then dropped: she gets "Reconnect by QR" and comes back. With the internet back, both stay.
+
 ## 0.64.0 — a show carries on with no internet
 **Deploy:** `./aws/deploy.sh` (site only; it builds on 0.63.3, which changed the backend).
 
