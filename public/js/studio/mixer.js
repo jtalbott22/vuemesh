@@ -7,8 +7,7 @@ import { eqChain, balance, channelFixer } from '/js/audiofx.js';
 import {
   $, dbToGain, EDIT_ONLY, ev, eventId, gainToDb, live, liveActive, mode, note, player, seq,
 } from './core.js';
-import { angleCids, angleOfCid } from './clips.js';
-import { camOrder, micPeers } from './live.js';
+import { camOrder, liveNo, micPeers, peerOfNo } from './live.js';
 import { bindConsole, consoleSync } from './ccu.js';
 import { consoleFrame } from './console-draw.js';
 import { fitDock, mixRows, setMixRows } from './stream.js';
@@ -295,10 +294,9 @@ export function setStripMode(id, role, mode) {
 
 /** Shift + number: step that camera's sound through AFV → ON → OFF (a "breakaway"). */
 export function cycleCameraAudio(n) {
-  const cid = angleCids[n - 1];
-  const peer = [...live.keys()].find((p) => live.get(p).cid === cid);
-  if (!peer) return toast(`Camera ${n} isn't connected`);
-  const l = live.get(peer);
+  const peer = peerOfNo(n);
+  if (!peer || live.get(peer).role === 'mic') return toast(`No camera on ${n}`);
+  const l = live.get(peer), cid = l.cid;
   const cur = mixState(cid, l.role).mode;
   const next = MODES[(MODES.indexOf(cur) + 1) % MODES.length];
   setStripMode(cid, l.role, next);
@@ -379,7 +377,7 @@ function mixerRows() {
       const st = mix.strips.get(peer);
       if (!st) continue;
       const id = l.cid || peer;
-      const n = l.role === 'mic' ? null : angleOfCid(l.cid);
+      const n = l.role === 'mic' ? null : liveNo(peer);
       rows.push({ id, peer, role: l.role, name: l.role === 'mic' ? `Mic · ${l.name}` : `${n} ${l.name}`, meter: () => st.meter, meters: () => st.meters, st: mixState(id, l.role), live: true, open: () => st.open });
     }
     if (reel.some((r) => r.type.startsWith('video/'))) rows.push({ id: 'media', role: 'media', name: 'Clips', meter: () => mix.media.meter, meters: () => mix.media.meters, st: mixState('media', 'media'), live: true, open: () => mix.media?.open });
@@ -407,9 +405,9 @@ function routeLine(r, compact = false) {
     parts.push(lab('Sound from', `<select data-sndfrom="${esc(r.peer)}" aria-label="${esc(r.name)}: sound from" title="Where this camera's sound comes from">${mics.map((m) => `<option value="${esc(m.id)}"${m.id === l.micId ? ' selected' : ''}>${esc(pre + m.label)}</option>`).join('')}<option value=""${!l.micId ? ' selected' : ''}>${pre}none</option></select>`));
   }
   if (r.st.mode === 'afv') {
-    const cams = camOrder().filter((p) => p !== r.peer).map((p) => live.get(p));
+    const cams = camOrder().filter((p) => p !== r.peer).map((p) => ({ ...live.get(p), no: liveNo(p) }));
     const pre = compact ? 'With: ' : '';
-    if (cams.length) parts.push(lab('Follows', `<select data-follow="${esc(r.id)}" data-role="${esc(r.role)}" aria-label="${esc(r.name)}: AFV follows" title="AFV: heard while this is on air">${`<option value="">${pre}${l.role === 'mic' ? 'itself' : 'its own picture'}</option>`}${cams.map((x) => `<option value="${esc(x.cid)}"${x.cid === r.st.follow ? ' selected' : ''}>${esc(`${pre}${angleOfCid(x.cid)} ${x.name}`)}</option>`).join('')}</select>`));
+    if (cams.length) parts.push(lab('Follows', `<select data-follow="${esc(r.id)}" data-role="${esc(r.role)}" aria-label="${esc(r.name)}: AFV follows" title="AFV: heard while this is on air">${`<option value="">${pre}${l.role === 'mic' ? 'itself' : 'its own picture'}</option>`}${cams.map((x) => `<option value="${esc(x.cid)}"${x.cid === r.st.follow ? ' selected' : ''}>${esc(`${pre}${x.no} ${x.name}`)}</option>`).join('')}</select>`));
   }
   return parts.length ? (compact ? `<div class="vroute">${parts.join('')}</div>` : `<span class="route">${parts.join('')}</span>`) : '';
 }

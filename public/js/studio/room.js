@@ -6,8 +6,7 @@ import { MediaLibrary } from '/js/media.js';
 import {
   $, clips, eventId, hub, isHost, live, LIVE_DELAY, liveActive, mode, note, orientation, pressTwice,
 } from './core.js';
-import { angleOfCid } from './clips.js';
-import { camOrder, cutLive, fitTile } from './live.js';
+import { camOrder, cutLive, fitTile, liveNo } from './live.js';
 import { scoreOfLive } from './usage.js';
 import { MODE_LABEL, mixState, renderMixer } from './mixer.js';
 import { onBreak } from './graphics.js';
@@ -49,7 +48,7 @@ export function renderBus() {
   $('#bus').innerHTML = cams.length
     ? cams.map((peer) => {
         const l = live.get(peer);
-        const n = angleOfCid(l.cid) || '?';
+        const n = liveNo(peer) || '?';
         const sc = scoreOfLive(l);
         return `<button type="button" class="busbtn${peer === liveActive && !onBreak() ? ' live' : ''}${sc != null && sc < 0.35 ? ' bad' : ''}" data-bus="${peer}" aria-pressed="${peer === liveActive && !onBreak()}" aria-label="Cut to camera ${n}, ${esc(l.name)}">
           <b>${n}</b><small>${esc(l.name)}</small><span class="aud" data-aud="${esc(l.cid || peer)}"></span></button>`;

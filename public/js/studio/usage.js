@@ -4,8 +4,7 @@ import './live.js';
 import { api, toast, diag } from '/js/vm.js';
 import { shotScore, whatsWrong } from '/js/director.js';
 import { KIOSK, clips, eventId, hub, isHost, key, live, mode, note, orientation, player } from './core.js';
-import { angleOfCid } from './clips.js';
-import { fitTile, picHealth, preBuf } from './live.js';
+import { fitTile, liveNo, picHealth, preBuf } from './live.js';
 import { mix, mixAttach } from './mixer.js';
 import { progRec } from './switcher.js';
 import { bgInterval } from '/js/bgclock.js';
@@ -192,7 +191,7 @@ export function freshPlayer(peer, why) {
   v.addEventListener('loadeddata', swap, { once: true });
   setTimeout(swap, 3000);
   v.play().catch(() => {});
-  note(`Camera ${angleOfCid(l.cid) || '?'} (${l.name}): ${why}, so it got a fresh picture`);
+  note(`Camera ${liveNo(peer) || '?'} (${l.name}): ${why}, so it got a fresh picture`);
 }
 
 /** Ask one phone to rebuild its link. Automatic ones are spaced out and give up after three in five minutes. */
@@ -201,7 +200,7 @@ export function reconnectPhone(peer, why, auto = false) {
   if (!l || !hub) return;
   const h = healthOf(peer);
   const t = Date.now();
-  const n = angleOfCid(l.cid) || '?';
+  const n = liveNo(peer) || '?';
   h.reconnects = h.reconnects.filter((x) => t - x < 300000);
   if (auto) {
     if (h.reconnects.length && t - h.reconnects[h.reconnects.length - 1] < 45000) return;

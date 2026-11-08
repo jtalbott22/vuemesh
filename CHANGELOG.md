@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.5 — Live numbers 1–9, no sound alerts for screens, a TV asking under Notifications
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Live numbers stay within reach of the keys.** Each device that ever joined a show kept its own number for good, so in a show used again and again they climbed: with four sources in, a Mac's camera was 10, which no key can press. And since microphones were numbered after every camera number, none of them had a key at all. Now, in Live, each source in the show holds the **lowest number free** when it came in, and keeps it while it stays. One that leaves frees its number for the next, and one that comes back gets its own again if it's free (kept across a reload of the studio). Cameras, screens and microphones share them, so a microphone is just the next number. The 1–9 keys, Shift + number, the tiles, the bus, the mixer, PIP, the CCU, the AFV Follows list and the show log's "camera 3" all use these. **Edit** keeps its own angle numbers, one per device for good, since its clips are filed by them.
+- **No sound alerts for a shared screen.** A screen, from this computer or another one over `/share`, and This computer's sound, are silent whenever nothing on them plays (slides, a desktop). They raised "it has gone silent" every time they went on air (25 times in one show), and a silent screen alone in the mix raised "The program has no sound". Neither is raised for them now, nor "its sound stopped", nor "left the show while its sound was in the program". Microphones and cameras are watched as before.
+- **A TV asking to show the program is under Notifications.** It was only in TV screens, in the inspector. Now it's also at the top of Notifications (the bell, which turns red), with **Accept** and **Decline**. While the studio is hidden, the computer's own notification says so too, when alerts are allowed, as for sound alerts.
+
+- **A TV or a camera watching the program whose link closed while its mode was changing** no longer throws an error in the studio ("Cannot read properties of null"). It showed up in about 1 run in 7 of `e2e_media`.
+
+**Tests:** `e2e_livenumbers` (new): in a show whose devices already had numbers up to 9, three phones are 1, 2 and 3. One leaves, and the next to join takes its number. The keys cut to them, a reload keeps the numbers, and a TV asking turns the bell red and is let in with Accept there. `showlog.test.mjs`: a screen going silent, losing its sound or leaving raises nothing. The full suite passed apart from `e2e_soundcontrol` once (it passed on a re-run) and `e2e_media` (the race above, fixed; six clean runs after).
+
 ## 0.66.4 — a studio whose server connection dies quietly comes back by itself
 **Deploy:** `./aws/deploy.sh` (backend and site: the server answers a studio's check; the Route 53 zone given for 0.66.0 is kept, so there's no need to give it again). It deploys the backend before the site, so the studio's new check only meets a server that answers it.
 

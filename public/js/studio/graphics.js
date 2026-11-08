@@ -10,8 +10,8 @@ import {
   $, EDIT_ONLY, LIVE_DELAY, STALL_MS, black, cut, ev, eventId, isHost, lastLive, live, liveActive,
   mode, note, orientation, player, setLiveActive,
 } from './core.js';
-import { addClip, angleOfCid, saveCut, snapshot } from './clips.js';
-import { camOrder, cutLive, isMic, loudestMic, micPeers, renderLive, renderSpecials } from './live.js';
+import { addClip, saveCut, snapshot } from './clips.js';
+import { camOrder, cutLive, isMic, liveNo, loudestMic, micPeers, renderLive, renderSpecials } from './live.js';
 import { director, directorBreak, setDirectorBreak, syncTally } from './onair.js';
 import { mix, mixFollowCut, mixGates, mixInit, mixState, renderMixer } from './mixer.js';
 import { localRecFollow } from './sources.js';
@@ -410,7 +410,7 @@ export function stopMedia(returnToCamera = false) {
   }
   if (returnToCamera && liveActive && live.has(liveActive)) {
     director.set(liveActive, Date.now());
-    note(`Clip finished: back to camera ${angleOfCid(live.get(liveActive).cid)}`);
+    note(`Clip finished: back to camera ${liveNo(liveActive)}`);
     announce('Back to camera');
   }
   mixGates();

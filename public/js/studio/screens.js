@@ -11,8 +11,8 @@ import {
   $, black, clips, connectLocal, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, key, live, liveActive, log, note,
   orientation, pressTwice, rawBlobs, seq, sock, thumbs,
 } from './core.js';
-import { angleOfCid, audioClips, output } from './clips.js';
-import { camOrder, cutLive, micPeers } from './live.js';
+import { audioClips, output } from './clips.js';
+import { camOrder, cutLive, liveNo, micPeers } from './live.js';
 import { scoreOfLive } from './usage.js';
 import { autoOn, directorBreak, setAuto } from './onair.js';
 import { mix, mixState, MODE_LABEL, MODES, setStripGain, setStripMode } from './mixer.js';
@@ -25,7 +25,7 @@ import { recByHand } from './autopilot.js';
 import { incoming, monitorLight, outgoing, sentLog, setMonitorSeenAt } from './phones.js';
 import { clipTitle, deleteRecording } from './library.js';
 import { exporting, rendering } from './export.js';
-import { showLogBrief } from './showlog.js';
+import { renderNotifs, showLogBrief } from './showlog.js';
 import { pipAir, pipSettings, setPip } from './pip.js';
 
 // ---------------------------------------------------------------- monitor ----
@@ -139,7 +139,7 @@ function remoteMix() {
     const l = live.get(peer), st = mix.strips.get(peer);
     if (!l || !st) continue;
     const id = l.cid || peer, ms = mixState(id, l.role);
-    rows.push({ id, role: l.role, name: l.role === 'mic' ? l.name : `${angleOfCid(l.cid) || ''} ${l.name}`.trim(), mode: ms.mode, db: gainToDb(ms.gain ?? 1), open: !!st.open, level: meterDb(st.meter) });
+    rows.push({ id, role: l.role, name: l.role === 'mic' ? l.name : `${liveNo(peer) || ''} ${l.name}`.trim(), mode: ms.mode, db: gainToDb(ms.gain ?? 1), open: !!st.open, level: meterDb(st.meter) });
   }
   return { rows, program: Math.max(meterDb(mix.meterL), meterDb(mix.meterR)) };
 }
@@ -265,7 +265,7 @@ const watchable = (l) => l && l.role !== 'mic' && !l.local && !l.screen && !!l.c
 /** The cameras that can watch the program now: the first watchMax, by camera number (then who joined first). */
 function watchers() {
   return [...live.entries()].filter(([, l]) => watchable(l))
-    .sort(([, a], [, b]) => (angleOfCid(a.cid) || 99) - (angleOfCid(b.cid) || 99) || (a.joinedAt || 0) - (b.joinedAt || 0))
+    .sort(([pa, a], [pb, b]) => (liveNo(pa) || 99) - (liveNo(pb) || 99) || (a.joinedAt || 0) - (b.joinedAt || 0))
     .slice(0, watchMax).map(([peer]) => peer);
 }
 /** Tell one camera whether it can watch the program (its key, or none), when that changes. Again until its link is up. */
@@ -308,7 +308,7 @@ export function startDisplayHub() {
     title: () => $('#title')?.textContent || ev?.title || '',
     send: (peer, data) => sock?.signal(peer, data),
     program: programForTv,
-    changed: renderTvs,
+    changed: () => (renderTvs(), renderNotifs()), // (an asking TV is under Notifications too)
     note,
     localOnly: () => !!$('#localOnly')?.checked,
     // Browse: the recordings on this computer, newest first

@@ -384,7 +384,7 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 
 | Keys | Studio |
 | --- | --- |
-| 1–9 | Cut to a camera (live) or angle (edit) — the same phone either way |
+| 1–9 | Live: cut to the source with that number on its tile (each source in the show holds the lowest number free when it came in, and gets its own back when it returns, if it's free; cameras, screens and microphones share them). Edit: cut to that angle (one number per device for good, so the clips stay filed under it) |
 | A, B, R, M, T | Live: auto director, break slate, record the program, mark a moment, lower third |
 | X, Shift + X | Live: fade to black, cut to black (press again to come back up) |
 | Click a source | Live: cut to that camera, or put a clip on air |

@@ -285,15 +285,17 @@ export class DisplayHub {
 
   /** The program's picture goes to a TV showing it, full screen or in its corner (PIP); its sound only full screen. */
   async applyTracks(l) {
-    if (!l?.pc) return;
+    const pc = l?.pc;
+    if (!pc) return;
     const k = this.keys.get(l.key) || {}, mode = k.mode || 'program';
     const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' && !k.cam }; // (a phone remote too: its sound starts off there, so it can't echo into the room until someone turns it on; a camera never)
-    for (const tr of l.pc.getTransceivers()) {
+    for (const tr of pc.getTransceivers()) {
       const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
       if (!kind) continue;
       await tr.sender.replaceTrack(want[kind] ? l.tracks.find((t) => t.kind === kind) || null : null).catch(() => {});
+      if (l.pc !== pc) return; // (the link closed or was replaced meanwhile: nothing more to set on this one)
     }
-    if (k.cam && l.pc.connectionState === 'connected') await this.tune(l.pc, l); // (its box or full screen: the size it's sent)
+    if (k.cam && pc.connectionState === 'connected') await this.tune(pc, l); // (its box or full screen: the size it's sent)
   }
 
   /** What a TV says on its ctl channel. */
