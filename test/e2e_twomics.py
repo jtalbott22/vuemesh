@@ -62,14 +62,18 @@ with sync_playwright() as p:
     host.click('#addLocal'); host.wait_for_selector('#localDlg[open]')
     if host.is_visible('#localAllow'): host.click('#localAllow')
     host.wait_for_selector('#localList [data-add="mic"]', timeout=10000)
+    # (its As: Two mono tracks can be chosen here, up front; it starts on Stereo, one microphone)
+    sel = host.eval_on_selector('#localList select[data-as]', 's => ({ v: s.value, opts: [...s.options].map(o => o.textContent) })')
+    assert sel['v'] == 'stereo' and any('Two mono tracks' in o for o in sel['opts']), sel
     host.click('#localList [data-add="mic"] >> nth=0'); host.wait_for_selector('button.mic[data-peer^="local-mic"]', timeout=10000)
     host.click('#localDlg form button')
     one = host.evaluate(MICS)
     assert len(one) == 1, one
     whole = host.evaluate(f"vmMedia().find(x => x.peer === '{one[0]}').name")
     hint = ' '.join(host.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)'))
-    assert 'Two microphones' in hint, hint
-    step(f'a two-sided input added as one microphone ("{whole}"); the studio says: "...{hint.split(". ")[-1]}"')
+    # (chosen in As, so no tip to right-click for Two microphones: the choice was just there)
+    assert 'is in the show (recording)' in hint and 'Right-click' not in hint, hint
+    step(f'a two-sided input added as one microphone ("{whole}"), As offering {sel["opts"]}; the studio says: "{hint.strip()}"')
 
     host.click(f'button.mic[data-peer="{one[0]}"]', button='right')
     host.click('text=Two microphones')

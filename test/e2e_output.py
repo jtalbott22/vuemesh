@@ -62,7 +62,11 @@ with sync_playwright() as p:
         assert host.is_disabled('#outFps') and host.is_disabled('#outSize'), 'fixed while recording'
         if pause_sound:   # (the sound engine stops for a moment, as a device change can make it)
             time.sleep(secs / 2 - 1)
-            host.evaluate('vmEngine().suspend()'); time.sleep(1.5); host.evaluate('vmEngine().resume()')
+            # (held stopped the whole 1.5 s: the studio wakes a stopped engine every 2 s by itself,
+            # which could otherwise cut the stop short to a few hundred ms)
+            host.evaluate('(() => { const c = vmEngine(); c.__resume = c.resume; c.resume = () => Promise.resolve(); return c.suspend(); })()')
+            time.sleep(1.5)
+            host.evaluate('(() => { const c = vmEngine(); c.resume = c.__resume; delete c.__resume; return c.resume(); })()')
             time.sleep(secs / 2 - 0.5)
             rec_stats.append(host.evaluate('vmShowLog().rows.filter(r => r.rs).at(-1).rs'))
         else:
