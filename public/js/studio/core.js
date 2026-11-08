@@ -43,7 +43,7 @@ import {
 import { renderTimeline, select } from './edit.js';
 import { deleteMarker, markerMenu, moveMarker, renameMarker, renderTools, timeOfAbs } from './transport.js';
 import { deleteRecording } from './library.js';
-import { camLeft, displayHub, rebalanceWatch, onTvCal, pushMonitor, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
+import { camLeft, displayHub, rebalanceWatch, onTvCal, pushMonitor, pushPgmFrame, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
 import { bgInterval } from '/js/bgclock.js';
 
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
@@ -866,6 +866,7 @@ async function init() {
     });
     setInterval(updateNetwork, 2000);
     bgInterval(pushMonitor, 2000);
+    bgInterval(pushPgmFrame, 250);
   }
   if (EDIT_ONLY) {
     document.title = `${ev.title} \u2014 edit`;

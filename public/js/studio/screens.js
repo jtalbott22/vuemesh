@@ -9,7 +9,7 @@ import * as S from '/js/sequence.js';
 import { whatsWrong } from '/js/director.js';
 import {
   $, black, clips, connectLocal, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, key, live, liveActive, log, note,
-  orientation, pressTwice, rawBlobs, seq, sock, thumbs,
+  orientation, pressTwice, program, rawBlobs, seq, sock, thumbs,
 } from './core.js';
 import { audioClips, output } from './clips.js';
 import { camOrder, cutLive, liveNo, micPeers } from './live.js';
@@ -37,11 +37,32 @@ const monitorChannel = 'BroadcastChannel' in window ? new BroadcastChannel('vuem
 if (monitorChannel) monitorChannel.onmessage = (e) => {
   // Monitor deletes a recording (it asked there): from this computer and the editor
   if (e.data?.type === 'delete' && e.data.id && isHost && !EDIT_ONLY) return void deleteRecording(e.data.id, { confirmed: true });
+  // a Monitor that's on screen wants the program's small picture (it asks again every 2 s)
+  if (e.data?.type === 'pgmWant') return void (pgmWantAt = Date.now());
   if (e.data?.type === 'seen') {
     setMonitorSeenAt(Date.now());
     monitorLight();
   }
 };
+// The program's small picture, for the Monitor's top bar: a still a few times a second, only
+// while a Monitor on screen asks for it: a 384-wide JPEG, encoded off the page's own thread;
+// no video encoder and nothing on the network, so it costs next to nothing.
+let pgmWantAt = 0, pgmBusy = false, pgmCanvas = null;
+export async function pushPgmFrame() {
+  if (!monitorChannel || pgmBusy || Date.now() - pgmWantAt > 5000 || !program?.width) return;
+  const s = Math.min(1, 384 / Math.max(program.width, program.height));
+  const w = Math.round(program.width * s), h = Math.round(program.height * s);
+  if (typeof OffscreenCanvas !== 'function') return;
+  if (!pgmCanvas || pgmCanvas.width !== w || pgmCanvas.height !== h) pgmCanvas = new OffscreenCanvas(w, h);
+  pgmBusy = true;
+  try {
+    pgmCanvas.getContext('2d').drawImage(program, 0, 0, w, h);
+    const blob = await pgmCanvas.convertToBlob({ type: 'image/jpeg', quality: 0.6 });
+    monitorChannel.postMessage({ type: 'pgm', blob, w, h });
+  } catch {} finally {
+    pgmBusy = false;
+  }
+}
 window.vmStreamOut = () => streamOut; // (diagnostics and tests: the stream out, while live)
 export async function pushMonitor() {
   if (!monitorChannel || !hub) return;

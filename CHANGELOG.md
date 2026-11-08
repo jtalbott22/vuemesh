@@ -10,6 +10,16 @@ A show on a busy laptop (four sources, the program encoded on the processor, two
 
 **Tests:** `splice.test.mjs` (new): a millisecond put in or taken out of a 2048-sample block of a tone (110 Hz to 3 kHz) never jumps more than twice the tone's own step from one sample to the next. With 0.66.9 one put in jumped 0.625 at 110 Hz, against the tone's own 0.014. The length changes by exactly 48 samples, and the sound either side of the join is the block as it was.
 
+## 0.66.8 — the Monitor shows the program's picture
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.7.
+
+The Monitor's summary didn't fit in one row on a wide screen (seven figures, then one alone underneath), and the Program figure cut a camera's name short ("Josh M…").
+- **Now:** the summary starts with a small picture of the program, as Program out shows it, with what's on (or Break, Black, Standby) named under it, a red edge while a camera is on air, and AUTO while the auto director cuts. The other figures sit beside it in two rows (three on a narrower screen), so it all fits. On a phone, the picture is on top.
+- **What it costs:** the studio sends a 384-wide still 4 times a second over the same in-browser channel the Monitor already uses, and only while a Monitor is on screen and asking for it (every 2 s; it stops within 5 s of the Monitor going into the background or closing). It's a JPEG made off the page's own thread. There's no video encoder and nothing goes on the network. A live video like Program out's would need the Monitor to be opened by the studio, as Program out is, and the Monitor is a separate tab.
+- **Shorter labels:** "Phones needing attention" is "Needing attention". The stream's figures say "Stream" and "Encoder asked for", with the details on hover.
+
+**Tests:** `e2e_admin_monitor` checks the program picture arrives and the page doesn't scroll sideways.
+
 ## 0.66.7 — a camera in a background tab keeps sending
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.6.
 
