@@ -6,7 +6,7 @@
 # (nothing sent), only so many cameras get it (4 to start with, lowest numbers first), and a camera
 # that leaves loses it.
 # Run: node dev/server.mjs &  then  python3 test/e2e_campgm.py
-import os
+import os, time
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')
@@ -51,6 +51,25 @@ with sync_playwright() as p:
     assert box['x'] > shutter['x'] + shutter['width'] and box['y'] + box['height'] > shutter['y'], (box, shutter)
     assert box['x'] + box['width'] <= 390 and box['y'] + box['height'] <= 844
     step(f"off air, Dev's camera shows the program in a {box['width']:.0f}x{box['height']:.0f} box right of the record button ({w}x{h}, no sound)")
+
+    # the box and its ×, at iPhone sizes upright and sideways (the island's safe area too): a tap there
+    # lands on them, never on the zoom slider's wide touch pad
+    HIT = """(() => { const hit = (el) => { const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+      return document.elementFromPoint(x, y)?.closest('#' + el.id) === el; };
+      const pad = document.querySelector('#zoomPad').getBoundingClientRect(), x = document.querySelector('#pgmHide').getBoundingClientRect();
+      const apart = x.right + 10 < pad.left || x.left - 10 > pad.right || x.bottom + 10 < pad.top || x.top - 10 > pad.bottom;
+      const b = document.querySelector('#pgmBox').getBoundingClientRect();
+      return { hide: hit(document.querySelector('#pgmHide')), open: hit(document.querySelector('#pgmOpen')), apart, inside: b.right <= innerWidth && b.bottom <= innerHeight }; })()"""
+    sizes = [('iPhone 17 Pro Max', 440, 956), ('iPhone 17 Pro', 402, 874), ('iPhone SE', 375, 667)]
+    for name, w, h in sizes:
+        for (vw, vh, sr) in [(w, h, '0px'), (h, w, '59px')]:
+            dev.set_viewport_size({'width': vw, 'height': vh})
+            dev.evaluate(f"document.documentElement.style.setProperty('--sr', '{sr}')"); time.sleep(0.4)
+            r = dev.evaluate(HIT)
+            assert all(r.values()), (name, vw, vh, r)
+    dev.evaluate("document.documentElement.style.removeProperty('--sr')")
+    dev.set_viewport_size({'width': 390, 'height': 844}); time.sleep(0.3)
+    step('the box and its × take a tap at iPhone 17 Pro Max, 17 Pro and SE sizes, upright and sideways (island side too), clear of the zoom slider')
 
     rosa.wait_for_function("vmPgm().key && !vmPgm().box && vmPgm().wanted === 'idle'", timeout=10000)
     links = host.evaluate(CAMLINKS)
