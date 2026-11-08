@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.66.4 — a studio whose server connection dies quietly comes back by itself
-**Deploy:** `LAN_ZONE=<vuemesh.com's Route 53 zone> ./aws/deploy.sh`, as for 0.66.0 (backend and site: the server answers a studio's check). It deploys the backend before the site, so the studio's new check only meets a server that answers it.
+**Deploy:** `./aws/deploy.sh` (backend and site: the server answers a studio's check; the Route 53 zone given for 0.66.0 is kept, so there's no need to give it again). It deploys the backend before the site, so the studio's new check only meets a server that answers it.
 
 In a show, a phone that joined waited at "Host not here yet" for about 20 s, until Local network only was switched off and on. The show log and the server's records show why:
 - The studio's server connection had died quietly between 97 s and 180 s into the show. The server had taken it for gone, so a phone asking who's here got no studio. The studio never heard it close: its own status said connected, and the cameras already in (straight to the studio, not through the server) carried on.
@@ -32,14 +32,14 @@ Now:
 - `e2e_output`: the test stops the sound engine for 1.5 s to check the gap is filled with silence, but the studio wakes a stopped engine every 2 s by itself, and that cut the stop to about 260 ms (filled correctly, but under the test's 700 ms). The test now holds the engine stopped for the whole 1.5 s, and the gap filled is about 1,480 ms.
 
 ## 0.66.1 — the local show helper finds the API
-**Deploy:** `LAN_ZONE=<vuemesh.com's Route 53 zone> ./aws/deploy.sh` (the site, for the helper people download; with `LAN_ZONE`, the backend gets what certificates need).
+**Deploy:** `./aws/deploy.sh` (the site, for the helper people download; the backend keeps the Route 53 zone given once for 0.66.0, see `aws/README.md`).
 
 The local show helper (`vuemesh-local.mjs`) asked for its certificate at `vuemesh.com/api`, but the site's API isn't there (it answers 403). The pages find the API through the site's `config.js`, which names its own address. Now the helper reads `config.js` the same way, or takes `--api <url>`.
 
 **Tests:** `local.test.mjs` reads the API's address from a `config.js` like the live one, from one with a path, and from one with none. Run against the live site, it finds the API.
 
 ## 0.66.0 — a show on the studio computer's own Wi-Fi
-**Deploy:** `LAN_ZONE=<the domain's Route 53 zone> ./aws/deploy.sh` (backend and site: a new API route, and permission to change records in that one zone). It builds on 0.65.0.
+**Deploy:** `LAN_ZONE=<the domain's Route 53 zone> ./aws/deploy.sh`, once (backend and site: a new API route, and permission to change records in that one zone). The stack keeps the zone, so later deploys are plain `./aws/deploy.sh`. It builds on 0.65.0.
 
 The studio computer can now be the show's Wi-Fi and its server, so a show needs no router and no internet. Phones join by scanning two codes, and nothing is installed on them.
 

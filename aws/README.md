@@ -80,6 +80,13 @@ LAN_ZONE=Z0123456789EXAMPLE DOMAIN=vuemesh.com CERT_ARN=... ./aws/deploy.sh
 
 The API function then gets permission to change records in that one zone, and nothing else. Without `LAN_ZONE`, the helper still runs, but can't get a certificate. Let's Encrypt allows 50 new names a week for a domain; renewals don't count against that.
 
+`LAN_ZONE` is needed **once**. The stack keeps it, and a later `./aws/deploy.sh` without it leaves it as it is, as with `DOMAIN` and `CERT_ARN` (the deploy only sends those when they're set). `GLOBE` and `PUBLISH` are different: the deploy sends them every time, so they go back to `false` unless you set them. To find the zone, or check what the stack has:
+
+```bash
+aws route53 list-hosted-zones --query "HostedZones[?Name=='vuemesh.com.'].Id" --output text
+aws cloudformation describe-stacks --stack-name vuemesh --region us-east-2 --query "Stacks[0].Parameters[?ParameterKey=='LanZoneId'].ParameterValue" --output text
+```
+
 The deploy also publishes the server's own code (`relay/lib/`) and a list of the app's files (`app-files.json`), which the helper keeps copies of for the shows it runs with no internet.
 
 ## Check it works
