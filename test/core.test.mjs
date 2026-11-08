@@ -93,7 +93,10 @@ await sig('$disconnect', 'm1');
 assert.equal(last('h1', 'peers').peers.length, 3, 'host sees everyone');
 await sig('$default', 'c1', { body: JSON.stringify({ action: 'hello' }) });
 assert.equal(last('c1', 'peers').you, 'CAM1');
-ok('connect, host key check, presence');
+assert.equal(last('c1', 'peers').pong, true, 'the first list says this server answers a ping');
+await sig('$default', 'h1', { body: JSON.stringify({ action: 'ping' }) });
+assert.ok(last('h1', 'pong'), 'a ping is answered, so a studio can tell a connection that has quietly died');
+ok('connect, host key check, presence, pings answered');
 
 await sig('$default', 'c1', { body: JSON.stringify({ action: 'signal', to: 'HOST', data: { kind: 'offer', sdp: 'x' } }) });
 assert.deepEqual(last('h1', 'signal'), { type: 'signal', from: 'CAM1', fromRole: 'cam', data: { kind: 'offer', sdp: 'x' } });

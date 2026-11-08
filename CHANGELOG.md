@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.66.4 — a studio whose server connection dies quietly comes back by itself
+**Deploy:** `LAN_ZONE=<vuemesh.com's Route 53 zone> ./aws/deploy.sh`, as for 0.66.0 (backend and site: the server answers a studio's check). It deploys the backend before the site, so the studio's new check only meets a server that answers it.
+
+In a show, a phone that joined waited at "Host not here yet" for about 20 s, until Local network only was switched off and on. The show log and the server's records show why:
+- The studio's server connection had died quietly between 97 s and 180 s into the show. The server had taken it for gone, so a phone asking who's here got no studio. The studio never heard it close: its own status said connected, and the cameras already in (straight to the studio, not through the server) carried on.
+- The studio only spoke to the server every 4 minutes, and didn't check for an answer. Switching Local network only sent the phones a restart through the server, which found the connection dead. The studio connected again 2 s later, the server told the phone the studio was there, and it joined that second. Local network only itself had nothing to do with it: the phone joined after it was back on.
+
+Now:
+- **The studio checks its server connection every 30 s,** and the server answers each check. With no answer in 10 s, it lets that connection go and connects again at once, so a quietly dead one costs at most about 40 s, with nothing to press. Phones, TVs and the rest stay at every 4 minutes.
+- **An older server isn't taken for dead:** the studio only waits for an answer once the server has said it gives one. (The local show helper keeps the copy of the server it fetched first, which doesn't.) That server still gets the check every 30 s, and if it has lost the studio it says so, as before.
+
+**Tests:** `e2e_hostsilent` (new): the dev server takes the studio's connection for gone while the studio's side stays open (`/_dev/silence`), and a phone joining meanwhile waits at "Host not here yet". The studio connects again by itself and the phone joins 41 s after the drop. With 0.66.3's studio it was still waiting 50 s later. `core.test.mjs`: the server's first list says it answers, and a ping gets one. The server-connection suites (`e2e_serverblip`, `e2e_rejoin`, `e2e_leave_rejoin`, `e2e_phonerobust`, `e2e_offline`, `e2e_qrjoin`, `e2e_local`, `e2e_localshow`, `e2e_display`, `e2e_tvremote`, `e2e_remote`, `e2e_remotejoin`, `e2e_crew`, `e2e_kiosk`) pass.
+
 ## 0.66.3 — a Mac's screen reaches a wired Windows studio
 **Deploy:** `./aws/deploy.sh` (site only).
 

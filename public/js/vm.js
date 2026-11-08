@@ -315,7 +315,26 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   // took it for gone), so nobody can reach it. Connect again rather than sit there unreachable.
   const expectAnswer = () => {
     bgClear(heardTimer);
-    heardTimer = bgTimeout(() => ws?.readyState === 1 && ws.close(), 10000);
+    heardTimer = bgTimeout(() => ws?.readyState === 1 && abandon(), 10000);
+  };
+  // (let it go now and connect again: on a connection that has died on the way, close() waits for an
+  // answer that won't come, and a reconnect after it could be a minute off)
+  const abandon = () => {
+    const old = ws;
+    old.onopen = old.onmessage = old.onclose = null;
+    try { old.close(); } catch {}
+    lost();
+  };
+  // A studio checks its connection every 30 s, not only every 4 minutes: one that has quietly died (a
+  // network blip, and this side never heard it close) leaves the server with no studio, and phones
+  // joining meanwhile wait at "Host not here yet". The server answers each ping (one that says so,
+  // in its first list: the local show helper may keep an older copy that doesn't), and no answer in
+  // 10 s means connect again. Anything else stays at 4 minutes (API Gateway idles out at 10).
+  const PING_MS = role === 'host' ? 30 * 1000 : 4 * 60 * 1000;
+  let answers = false;
+  const ping = () => {
+    self.send({ action: 'ping' });
+    if (answers && ws?.readyState === 1) expectAnswer();
   };
   const open = () => {
     const q = new URLSearchParams({ e: eventId, role, peer, name, cid });
@@ -329,28 +348,30 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
       expectAnswer();
       if (status !== null) self.send({ action: 'status', rec: status });
       bgClear(pingTimer);
-      pingTimer = bgInterval(() => self.send({ action: 'ping' }), 4 * 60 * 1000); // API Gateway idles out at 10 min
+      pingTimer = bgInterval(ping, PING_MS);
     };
     ws.onmessage = (e) => {
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'rejoin') return ws.close(); // (the server lost this connection: connect again)
+      bgClear(heardTimer); // (anything from the server: it knows this connection)
       if (msg.type === 'peers') {
-        bgClear(heardTimer);
+        if (msg.pong) answers = true;
         self.peers = msg.peers;
         onPeers?.(msg.peers, msg.you);
       } else if (msg.type === 'signal') {
         onSignal?.(msg.from, msg.data, msg.fromRole);
       }
     };
-    ws.onclose = () => {
-      self.connected = false;
-      bgClear(pingTimer);
-      bgClear(heardTimer);
-      // (on the worker clock: a hidden studio reconnects at once, not a minute later, so a TV finds it)
-      if (!closed) bgTimeout(open, (delay = Math.min(delay * 2, 15000)));
-    };
+    ws.onclose = lost;
   };
+  function lost() {
+    self.connected = false;
+    bgClear(pingTimer);
+    bgClear(heardTimer);
+    // (on the worker clock: a hidden studio reconnects at once, not a minute later, so a TV finds it)
+    if (!closed) bgTimeout(open, (delay = Math.min(delay * 2, 15000)));
+  }
   open();
   return self;
 }
