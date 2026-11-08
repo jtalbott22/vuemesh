@@ -245,6 +245,9 @@ export let sock, hub;
 /** (url) → this computer's own server added to the studio's (vuemesh-local.mjs); set once the studio's connected */
 export let connectLocal = null;
 export const live = new Map();         // peer → { stream, name, cid, role, route, rec, tile, video, tele, stats }
+/** A phone remote's own camera (remotecam.js: its id ends 'rmc'): a live camera like any, but the remote has
+ *  Program out already (no program screen for it) and records nothing (no part of the live cut owed to it). */
+export const isRemoteCam = (l) => /rmc$/.test(l?.cid || '');
 export let liveActive = null;
 export function setLiveActive(v) { return (liveActive = v); }
 export let lastLive = null;

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.66.11 — the phone remote's own camera
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.9 (the remote held sideways) and 0.66.10.
+
+The phone running the show couldn't be one of its cameras. That needed a second phone, or leaving the remote for the camera page and losing Program out and the buttons.
+- **Now:** after the cameras on the remote, **+ This phone**. A tap (the phone asks for its camera and microphone the first time), and it joins the show as a camera of its own, named after the remote ("Remote camera", or "Josh's iPhone camera"). In a second or two its picture is among the others', with THIS PHONE on it and an amber edge, and a tap on it cuts to it, the same as any camera. The remote stays as it was, upright or sideways, Program out and all.
+- **Under the cameras,** while it's in: its own live picture (to frame the shot; the front camera as a mirror), ON AIR or Up next, **Mic on/off**, and **Remove**. Its lenses are one row of buttons, named as a camera app has them (0.5×, 1×, 2×, Front). A tap changes lens, and the studio's picture changes over with it (a moment's blip on an iPhone, which runs one camera at a time). An iPhone's combined cameras ("Back Dual Wide", "Back Triple") are left off when it has plain ones.
+- **The program's sound is held off** on the phone while its microphone is live: played there, it would go straight back into the show. The Sound button says "Sound off: mic live". Mic off, or Remove, and Sound on comes back if it was on.
+- **Remove** takes a second tap while it's on air ("On air: tap again"). Gone, the studio would put up its break slate until the next cut.
+- **What it sends:** the camera's own picture, the whole frame, upright as the phone is held. The studio is told its shape, and again when the phone turns. The camera page's upright square, zoom, the look and the shot coach aren't on it.
+- **Live only:** the phone records no clip of its own (the camera page does, for Edit). It's in Record program like any camera.
+- **The studio** knows it's a remote's camera (by its id, as it knows a shared screen). It doesn't offer it a place watching the program, since the remote has Program out, and that place goes to another camera. It sends it no part of the live cut, and its leaving doesn't finish the part being recorded.
+- **Locked, or behind another app,** an iPhone stops the camera. Back on the remote, a camera it ended is opened again, the same lens. A reload of the remote takes it out of the show: + This phone puts it back.
+
+**Tests:** `e2e_remotecam` (new), with two fake cameras: + This phone joins the remote's camera to the show. The studio has its picture, and the remote shows it with THIS PHONE on it, its thumbnail from the studio, and its own picture under the cameras. The studio takes it as the whole frame, landscape, and offers it no program screen (with that left out, it was offered one). With Program out's sound on, it's held off while the mic is live, and let go with Mic off. A tap cuts to it: ON AIR on the remote and on its bar, live in the studio. The other lens changes the camera, and the studio's picture carries on, still on air. On air and recording, Remove asks for a second tap, then it's out of the show with no part of the live cut sent its way (with that left out, "Remote camera is leaving: sending them 1 part of the live cut first"). Added again, it's in once. `e2e_remote`, `e2e_remotelandscape`, `e2e_tvremote`, `e2e_remotejoin`, `e2e_campgm`, `e2e_offline`, `e2e_pip`, `e2e_cambg` and `e2e_remotescreenrec` pass.
+
 ## 0.66.10 — Record program's sound doesn't crackle on a busy computer
 **Deploy:** `./aws/deploy.sh` (site only). It changes only Record program's sound, and needs nothing from 0.66.8 or 0.66.9.
 

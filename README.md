@@ -157,7 +157,7 @@ every angle, already cut on the timeline and ready to re-cut.
 <td valign="top">
 
 ### 🧭 Running the show
-- **Phone remote:** pair a phone with a one-time code and cut, break, fade and record from anywhere in the room.
+- **Phone remote:** pair a phone with a one-time code and cut, break, fade and record from anywhere in the room, and add the phone's own camera to the show.
 - **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
 - **Show log:** frame rate, sound and alerts for each session, saved for later.
 - **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
@@ -498,6 +498,14 @@ the code. The phone then shows what's on air and whether the program is recordin
 by name with its tally (red on air, green in preview) and a small picture every few seconds,
 and can cut to a camera, turn the auto-director on and off, fade to black and up, take a break,
 and start and stop Record program (it asks before stopping).
+
+**+ This phone**, after the cameras, makes the phone running the show one of its cameras too. It
+joins as a camera of its own: its picture comes back among the others' (THIS PHONE on it), and a
+tap on it cuts to it. Under the cameras are its own live picture to frame the shot, its lenses
+(0.5×, 1×, 2×, Front: one tap each), its microphone, and Remove (a second tap while it's on air).
+It's live only: the phone records no clip of its own, as the camera page does for Edit. While its
+microphone is live, the program's sound is held off on the phone, or the program would go back
+into it. Keep the remote on screen while it's a camera: a locked phone stops its camera.
 
 The pairing gives that phone its own session key, which every command carries; nobody else in
 the show can control it (cameras can't, and the code is no use once used or expired). Paired

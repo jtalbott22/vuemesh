@@ -77,6 +77,33 @@
   .cams.sound .cam .tag { left: auto; right: 6px; }
   .cam .scr { position: absolute; bottom: 6px; right: 8px; font-size: 1rem; }
   .status .big { white-space: normal; line-height: 1.15; }
+  /* this phone's own camera: + This phone at the end of the cameras, and once it's in, its own
+     picture to frame with, its lenses, its microphone and Remove, under them */
+  .camadd { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px dashed #3b434f; background: #0b0c0f; border-radius: 8px; aspect-ratio: 16 / 9; }
+  .camadd b { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 1.05rem; }
+  .camadd .plus { position: absolute; inset: 0 0 1.6em; display: grid; place-items: center; font: 500 2.4rem/1 system-ui, sans-serif; color: var(--dim); }
+  .camadd .nopic { position: absolute; inset: 0 0 1.6em; display: grid; place-items: center; color: var(--dim); font-size: .85rem; }
+  .camadd.wait { opacity: .75; }
+  .cam .tag.me { background: var(--amber); color: #2b1d00; }
+  .cam.mine { border-color: var(--amber); }
+  .cam.mine.air { border-color: var(--tally); }
+  .mycam { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 8px; margin-top: 8px; }
+  .mycam.air { border-color: var(--tally); }
+  .mycam.pvw { border-color: var(--preview); }
+  .mycamtop { display: flex; align-items: center; gap: 8px; }
+  .mycam video { width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
+  .mycam video.mirror { transform: scaleX(-1); }
+  .mycaminfo { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
+  .mycaminfo b { font: 700 1.05rem 'Barlow Condensed', sans-serif; }
+  .mycaminfo span { color: var(--dim); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mycam.air .mycaminfo span { color: var(--tally); font-weight: 700; }
+  .mycam button.mini { width: auto; flex: none; min-height: 44px; padding: 4px 10px; font-size: 1rem; }
+  .mycam #myMicBtn[aria-pressed="true"] { background: var(--preview); color: #04120a; }
+  .mycam #myMicBtn[aria-pressed="false"] { background: var(--tally); color: #fff; }
+  .lenses { display: flex; gap: 6px; margin-top: 8px; }
+  .lenses:empty { display: none; }
+  .lenses button { flex: 1; min-height: 44px; padding: 4px 6px; font-size: 1.05rem; }
+  .sndbtn.held { opacity: .6; }
   .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   /* the mixer: each live channel, its sound mode, its level and how loud it is now */
   .mix { display: grid; gap: 8px; margin-top: 8px; }
@@ -201,6 +228,15 @@
     <div class="deck" id="deck">
       <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
       <p class="fine" id="noCams" hidden>No cameras yet.</p>
+      <div class="mycam" id="myCam" hidden role="group" aria-labelledby="myCamH">
+        <div class="mycamtop">
+          <video id="myCamVideo" muted playsinline autoplay aria-label="This phone's camera, as it's sending"></video>
+          <div class="mycaminfo"><b id="myCamH">This phone</b><span id="myCamSay" role="status">Starting…</span></div>
+          <button type="button" class="mini" id="myMicBtn" aria-pressed="true" hidden>Mic on</button>
+          <button type="button" class="mini" id="myCamOff">Remove</button>
+        </div>
+        <div class="lenses" id="lenses" role="group" aria-label="This phone's lens"></div>
+      </div>
       <h2 class="sub" id="soundH" hidden>Sound</h2>
       <div class="cams sound" id="sound" role="group" aria-labelledby="soundH" hidden></div>
       <h2 class="sub" id="clipsH" hidden>Clips</h2>

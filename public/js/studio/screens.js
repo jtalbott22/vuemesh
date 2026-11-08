@@ -9,7 +9,7 @@ import * as S from '/js/sequence.js';
 import { whatsWrong } from '/js/director.js';
 import {
   $, black, clips, connectLocal, EDIT_ONLY, ev, eventId, gainToDb, hub, isHost, key, live, liveActive, log, note,
-  orientation, pressTwice, program, rawBlobs, seq, sock, thumbs,
+  isRemoteCam, orientation, pressTwice, program, rawBlobs, seq, sock, thumbs,
 } from './core.js';
 import { audioClips, output } from './clips.js';
 import { camOrder, cutLive, liveNo, micPeers } from './live.js';
@@ -282,7 +282,7 @@ let watchMax = (() => {
   if (n !== null && Number.isFinite(+n)) return Math.max(0, Math.min(24, Math.round(+n)));
   return localStorage.getItem('vm_camwatch') === '0' ? 0 : WATCH_DEFAULT; // (it was on or off, before 0.63.0 shipped)
 })();
-const watchable = (l) => l && l.role !== 'mic' && !l.local && !l.screen && !!l.cid && !l.leaving;
+const watchable = (l) => l && l.role !== 'mic' && !l.local && !l.screen && !!l.cid && !l.leaving && !isRemoteCam(l);
 /** The cameras that can watch the program now: the first watchMax, by camera number (then who joined first). */
 function watchers() {
   return [...live.entries()].filter(([, l]) => watchable(l))

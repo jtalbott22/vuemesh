@@ -1,7 +1,7 @@
 {
   "name": "vuemesh",
   "private": true,
-  "version": "0.66.10",
+  "version": "0.66.11",
   "type": "module",
   "scripts": {
     "dev": "node dev/server.mjs",

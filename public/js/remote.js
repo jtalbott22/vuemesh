@@ -8,6 +8,7 @@
 import { ProgramView } from '/js/pgmview.js';
 import { ProgramSound } from '/js/progsound.js';
 import { decodeQR, meshSocket } from '/js/vm.js';
+import { RemoteCamera } from '/js/remotecam.js';
 
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
@@ -122,6 +123,7 @@ function onMessage(m) {
       $('#code').focus();
     }
   } else if (m.t === 'removed') {
+    rcam?.stop();
     pgm?.stop();
     pgm = null;
     psound.stop();
@@ -192,8 +194,11 @@ function showSound() {
   b.hidden = !pgmOn();
   b.setAttribute('aria-pressed', String(on));
   b.classList.toggle('wait', waiting);
-  b.querySelector('span').textContent = on ? 'Sound on' : waiting ? 'Tap for sound' : 'Sound off';
-  b.setAttribute('aria-label', on ? 'Program sound on: tap to mute' : 'Program sound off: tap to hear it');
+  const held = !!psound.held;
+  b.disabled = held;
+  b.classList.toggle('held', held);
+  b.querySelector('span').textContent = held ? 'Sound off: mic live' : on ? 'Sound on' : waiting ? 'Tap for sound' : 'Sound off';
+  b.setAttribute('aria-label', held ? "Program sound is off while this phone's microphone is in the show" : on ? 'Program sound on: tap to mute' : 'Program sound off: tap to hear it');
 }
 $('#sndBtn').onclick = () => psound.set(!psound.on);
 
@@ -335,13 +340,16 @@ function render() {
   $('#onAir').textContent = what;
   psound.setMeta(what.replace(/^On air · /, ''), state.title || 'VUEMesh');
   $('#status').className = 'status' + (!state.black && !state.brk && (air || snd || state.media) ? ' air' : '');
+  const mine = rcam?.peer, inShow = !!mine && state.cams.some((c) => c.peer === mine);
   setHtml($('#cams'), state.cams.map((c) => {
-    return `<button type="button" class="cam${c.onAir ? ' air' : c.preview ? ' pvw' : ''}" data-peer="${esc(c.peer)}" aria-label="Cut to ${esc(c.name)}${c.onAir ? ' (on air)' : ''}">
+    const me = c.peer === mine;
+    return `<button type="button" class="cam${c.onAir ? ' air' : c.preview ? ' pvw' : ''}${me ? ' mine' : ''}" data-peer="${esc(c.peer)}" aria-label="Cut to ${me ? "this phone's camera" : esc(c.name)}${c.onAir ? ' (on air)' : ''}">
       ${thumbs.has(c.peer) ? '<img alt="">' : '<span class="nopic">picture in a moment</span>'}
-      ${c.onAir ? '<span class="tag">ON AIR</span>' : c.inset ? '<span class="tag">IN CORNER</span>' : ''}${c.screen ? '<span class="scr" aria-hidden="true">🖥</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
-  }).join(''));
+      ${c.onAir ? '<span class="tag">ON AIR</span>' : c.inset ? '<span class="tag">IN CORNER</span>' : me ? '<span class="tag me">THIS PHONE</span>' : ''}${c.screen ? '<span class="scr" aria-hidden="true">🖥</span>' : ''}${c.rec ? '<span class="rdot" title="Recording"></span>' : ''}<b>${esc(c.name)}</b></button>`;
+  }).join('') + addTile(inShow));
   for (const img of $('#cams').querySelectorAll('.cam img')) setThumb(img, thumbs.get(img.closest('.cam').dataset.peer));
-  $('#noCams').hidden = state.cams.length > 0;
+  $('#noCams').hidden = state.cams.length > 0 || !!rcam?.on;
+  renderMyCam();
   // sound-only sources: cut to one and the program shows its sound picture
   const sound = state.sound || [];
   $('#soundH').hidden = $('#sound').hidden = !sound.length;
@@ -385,10 +393,95 @@ const act = (a, arg) => {
 };
 for (const id of ['#cams', '#sound']) {
   $(id).addEventListener('click', (e) => {
+    if (e.target.closest('.camadd[data-add]')) return addCamera();
     const b = e.target.closest('.cam');
     if (b) act('cut', b.dataset.peer);
   });
 }
+
+// ---- this phone's own camera ----------------------------------------------------------------
+// "+ This phone" at the end of the cameras: a tap, and the phone joins the show as a camera too
+// (remotecam.js), its picture among the others' with THIS PHONE on it, a tap on it to cut to it.
+// Under the cameras, its own picture (to frame the shot), its lenses, its microphone and Remove.
+// While its microphone is live, the program's sound is held off here (it would go back into it).
+let rcam = null;
+const camName = () => {
+  const n = (localStorage.getItem('vm_remote_name') || $('#name').value || '').trim();
+  return !n || n === 'Phone remote' ? 'Remote camera' : `${n} camera`.slice(0, 40);
+};
+function addTile(inShow) {
+  if (!rcam?.on) return `<button type="button" class="camadd" data-add aria-label="Add this phone's camera to the show"><span class="plus" aria-hidden="true">+</span><b>This phone</b></button>`;
+  if (inShow) return '';
+  const what = rcam.state === 'starting' ? 'Starting the camera…' : rcam.state === 'no-host' ? 'Waiting for the studio…' : 'Joining the show…';
+  return `<button type="button" class="camadd wait" disabled aria-label="This phone's camera: ${what}"><span class="nopic">${what}</span><b>This phone</b></button>`;
+}
+async function addCamera() {
+  if (!host && !pgm?.linked) return toast('The studio is not open');
+  if (rcam?.on) return;
+  rcam ||= new RemoteCamera({
+    eventId, name: camName(), video: $('#myCamVideo'),
+    onChange: () => (render(), renderMyCam()),
+    onEnded: (why) => toast(why, 5000),
+  });
+  rcam.eventId = eventId;
+  rcam.name = camName();
+  try {
+    await rcam.start();
+    navigator.vibrate?.(30);
+    toast("This phone's camera is in the show. Tap its picture to cut to it.");
+  } catch (e) {
+    toast(e?.name === 'NotAllowedError' ? 'Allow the camera for this page to add it (Settings > Safari > Camera on an iPhone)' : `The camera didn't open: ${e?.message || e}`, 6000);
+  }
+}
+let lensSig = '';
+function renderMyCam() {
+  const on = !!rcam?.on, bar = $('#myCam');
+  bar.hidden = !on;
+  psound.hold(on && !!rcam.mic && rcam.micOn);
+  showSound();
+  if (!on) return;
+  bar.classList.toggle('air', rcam.air);
+  bar.classList.toggle('pvw', !rcam.air && rcam.pvw);
+  $('#myCamSay').textContent = rcam.air ? 'ON AIR' : rcam.pvw ? 'Up next' : rcam.live ? 'In the show' : rcam.state === 'starting' ? 'Starting…' : rcam.state === 'no-host' ? 'Waiting for the studio…' : 'Joining…';
+  const sig = rcam.lenses.map((l) => l.deviceId).join('|');
+  if (sig !== lensSig) {
+    lensSig = sig;
+    // (one camera only: nothing to choose between)
+    $('#lenses').innerHTML = rcam.lenses.length > 1 ? rcam.lenses.map((l) => `<button type="button" data-lens="${esc(l.deviceId)}" aria-pressed="false" aria-label="${esc(l.label)}">${esc(l.short)}</button>`).join('') : '';
+  }
+  for (const b of $('#lenses').querySelectorAll('[data-lens]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.lens === rcam.kit?.deviceId));
+    b.disabled = !!rcam.switching;
+  }
+  const mic = $('#myMicBtn');
+  mic.hidden = !rcam.mic;
+  mic.setAttribute('aria-pressed', String(rcam.micOn));
+  mic.textContent = rcam.micOn ? 'Mic on' : 'Mic off';
+}
+$('#lenses').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lens]');
+  if (b && rcam) rcam.useLens(b.dataset.lens).catch(() => toast("That lens didn't open"));
+});
+$('#myMicBtn').onclick = () => rcam?.setMic(!rcam.micOn);
+// (on air, Remove takes a second tap: the studio would put up its break slate until the next cut)
+let offArmed = null;
+$('#myCamOff').onclick = () => {
+  if (rcam?.air && !offArmed) {
+    $('#myCamOff').textContent = 'On air: tap again';
+    offArmed = setTimeout(() => {
+      offArmed = null;
+      $('#myCamOff').textContent = 'Remove';
+    }, 3000);
+    navigator.vibrate?.(15);
+    return;
+  }
+  clearTimeout(offArmed);
+  offArmed = null;
+  $('#myCamOff').textContent = 'Remove';
+  rcam?.stop();
+  toast("This phone's camera left the show");
+};
+window.vmRemoteCam = () => rcam && { on: rcam.on, state: rcam.state, peer: rcam.peer, air: rcam.air, lens: rcam.kit?.deviceId || null, lenses: rcam.lenses.map((l) => l.short), mic: !!rcam.mic, micOn: rcam.micOn, held: !!psound.held, pgmOffered: !!rcam.pgmOffered, w: $('#myCamVideo').videoWidth, h: $('#myCamVideo').videoHeight }; // (tests)
 $('#clips').addEventListener('click', (e) => {
   const b = e.target.closest('[data-clip]');
   if (b) act('clip', b.dataset.clip);
@@ -443,7 +536,8 @@ function pair() {
   const was = eventId;
   eventId = ($('#show').value || eventId).toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (sock && was !== eventId) {
-    // (another show: its own signalling)
+    // (another show: its own signalling, and this phone's camera leaves the last one)
+    rcam?.stop();
     sock.close();
     sock = host = null;
     opens = 0;

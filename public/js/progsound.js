@@ -51,7 +51,7 @@ export class ProgramSound {
     el.addEventListener('pause', () => this.changed());
     el.addEventListener('playing', () => this.changed());
     // turned on before, and the browser wouldn't let it start: the first tap or key anywhere
-    const gesture = () => this.wanted && !this.on && this.track && this.start();
+    const gesture = () => this.wanted && !this.on && this.track && !this.held && this.start();
     for (const t of ['click', 'touchend', 'keydown']) document.addEventListener(t, gesture, true);
     const ms = navigator.mediaSession;
     if (ms) {
@@ -94,7 +94,7 @@ export class ProgramSound {
       return this.changed();
     }
     this.el.srcObject = new MediaStream([track]);
-    if (this.wanted) this.start(true);
+    if (this.wanted && !this.held) this.start(true);
     this.changed();
   }
 
@@ -110,7 +110,22 @@ export class ProgramSound {
     }
   }
 
+  /**
+   * Held off (true) while this phone's own microphone is live in the show (the remote's camera): the
+   * program played here would go straight back into it. Sound on is still remembered, and comes back
+   * when it's let go. Meanwhile neither a tap nor the sound arriving starts it.
+   */
+  hold(on) {
+    on = !!on;
+    if (on === !!this.held) return;
+    this.held = on;
+    if (on) this.el.pause();
+    else if (this.wanted && this.track) this.start(true);
+    this.changed();
+  }
+
   start(quiet) {
+    if (this.held) return this.changed();
     try {
       if (navigator.audioSession) navigator.audioSession.type = 'playback';
     } catch {}
