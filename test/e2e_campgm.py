@@ -6,7 +6,7 @@
 # (nothing sent), only so many cameras get it (4 to start with, lowest numbers first), and a camera
 # that leaves loses it.
 # Run: node dev/server.mjs &  then  python3 test/e2e_campgm.py
-import os, time
+import os
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 CHROME = os.environ.get('CHROME')
