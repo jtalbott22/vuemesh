@@ -429,7 +429,8 @@ export async function signal(evt, deps) {
   switch (msg.action) {
     case 'hello':
       await store.updateConn(eventId, conn, { seenAt: now });
-      await deps.post(conn, { type: 'peers', you: me.peer, peers: peerList(peers, now) });
+      // (pong: this server answers a ping, so a page can tell a connection that's gone quiet from one that's fine)
+      await deps.post(conn, { type: 'peers', you: me.peer, peers: peerList(peers, now), pong: true });
       if (me.role === 'host') await store.updateEvent(eventId, { hostSeenAt: now });
       break;
     case 'status':
@@ -450,6 +451,7 @@ export async function signal(evt, deps) {
     case 'ping':
       await store.updateConn(eventId, conn, { seenAt: now });
       if (me.role === 'host') await store.updateEvent(eventId, { hostSeenAt: now });
+      await deps.post(conn, { type: 'pong' });
       break;
     default:
       break;
@@ -457,7 +459,7 @@ export async function signal(evt, deps) {
   return { status: 200 };
 }
 
-// Connections ping every 4 minutes; API Gateway drops idle ones at 10. Anything
+// Connections ping every 4 minutes (a studio every 30 s); API Gateway drops idle ones at 10. Anything
 // quiet for longer than that is a ghost (a phone that vanished without a clean
 // disconnect) and is left out of the list.
 const STALE_MS = 11 * 60 * 1000;
