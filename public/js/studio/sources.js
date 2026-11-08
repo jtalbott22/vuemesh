@@ -819,7 +819,9 @@ function startLocalRec(peer) {
   if (l.screen && l.local && kind === 'video' && !l.recTrack) {
     const t = l.stream.getVideoTracks()[0]?.clone();
     if (t) {
-      t.applyConstraints({ width: { max: 1920 }, height: { max: 1080 }, frameRate: { max: 15 } }).catch(() => {});
+      // (the same rate as on air: Chrome reconfigures a shared screen's one capture for any of its
+      // tracks, so 15 here held the live screen at 15 as well)
+      t.applyConstraints({ width: { max: 1920 }, height: { max: 1080 }, frameRate: { max: screenFps() } }).catch(() => {});
       l.recTrack = t;
     }
   }
@@ -1015,18 +1017,26 @@ export function flushRecordings(why) {
 // graphics (Windows copies the desktop for it, and the browser converts it), and at 1080p and 30
 // beside three 1080p webcams the graphics were 75-90% busy and Record program skipped up to half
 // its frames; at 15, 60% busy and none skipped. 1080p at 15 is about what 720p at 30 costs.
+// A desktop-class computer (12 or more cores: a 24-core studio PC held Record program at 30 with
+// none dropped) keeps the output's frame rate at 1080p too.
+const strongComputer = () => (navigator.hardwareConcurrency || 0) >= 12;
 const screenMax = () => (output.height === 1080 ? { width: 1920, height: 1080 } : { width: 1280, height: 720 });
-const screenFps = () => (output.height === 1080 ? 15 : Math.min(30, Math.round(output.fps)));
+const screenFps = () => (output.height === 1080 && !strongComputer() ? 15 : Math.min(30, Math.round(output.fps)));
 const screenSize = () => ({ width: { max: screenMax().width }, height: { max: screenMax().height }, frameRate: { ideal: screenFps(), max: screenFps() } });
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', windowAudio: 'system', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
   }
   const n = Date.now().toString(36);
+  // (a screen with no sound: Chrome's picker has the sound switch off unless it's turned on, and the
+  // studio only noted it. Say how, so the next share has it)
+  if (!soundOnly && !stream.getAudioTracks().length) {
+    toast(myOs === 'mac' ? 'Shared without sound. For a video\'s sound on a Mac, share a Chrome tab and turn on Also share tab audio.' : 'Shared without sound. To bring its sound, share again: pick Entire screen and turn on Also share system audio.', 9000);
+  }
   if (soundOnly) {
     const a = stream.getAudioTracks()[0];
     stream.getVideoTracks().forEach((t) => t.stop());

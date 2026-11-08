@@ -2459,7 +2459,11 @@ function makeUpright() {
     return; // very old browser: record the camera as-is
   }
   const g = canvas.getContext('2d', { alpha: false });
-  const cs = canvas.captureStream(30);
+  // (no rate: a frame goes out each time the loop below draws one, which is each camera frame. With
+  // a rate, Safari captures on its own 30-a-second timer, which drifts against the camera's frames
+  // and skips about a third of them: an iPhone 17 Pro sent 18-20 a second on air, nothing else
+  // holding it back)
+  const cs = canvas.captureStream();
   $('#rotate').hidden = true; // the sensor-based coaching knows the real orientation; the old screen-shape guess goes
   upright = { S, canvas, g, stream: new MediaStream([...cs.getVideoTracks(), ...outAudioTracks()]), view: null, drawn: 0 };
   // The loop runs on the viewfinder's own frames. If those stop coming (it can happen after
