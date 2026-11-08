@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.2 — the kiosk without the offline badge's error
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **The kiosk no longer throws an error every second.** 0.64.0's OFFLINE badge is on the studio's page but not the kiosk's, and the check that shows it looked for it once a second, so the kiosk's console filled with "Cannot read properties of null". Nothing on screen was wrong. The kiosk now skips the badge and its notice: nobody is there to join phones by QR.
+
+**Tests:** four browser tests brought up to date with the app (they failed every time in a full run):
+- `e2e_kiosk` passes again with the fix above.
+- `e2e_screen`: since 100bd80, a shared screen's recording copy runs at the screen's on-air rate, because a slower copy slowed the live screen too. The test still expected at most 15 a second. It now expects 30 in its 720p-at-30 show.
+- `e2e_twomics`: since 0.61.8, a microphone added from + This computer has its **As** chosen there, Two mono tracks included, so the "Right-click it: Two microphones" tip no longer follows it. The test still waited for the tip. It now checks that **As** offers Two mono tracks and starts on Stereo, and that the tip doesn't repeat it.
+- `e2e_output`: the test stops the sound engine for 1.5 s to check the gap is filled with silence, but the studio wakes a stopped engine every 2 s by itself, and that cut the stop to about 260 ms (filled correctly, but under the test's 700 ms). The test now holds the engine stopped for the whole 1.5 s, and the gap filled is about 1,480 ms.
+
 ## 0.66.1 — the local show helper finds the API
 **Deploy:** `LAN_ZONE=<vuemesh.com's Route 53 zone> ./aws/deploy.sh` (the site, for the helper people download; with `LAN_ZONE`, the backend gets what certificates need).
 

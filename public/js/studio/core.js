@@ -705,8 +705,9 @@ async function init() {
     setInterval(() => {
       offSince = sock.cloud ? null : offSince || Date.now(); // (the cloud: phones on this computer's hotspot still join, through it)
       const off = !!offSince && Date.now() - offSince > 5000;
-      if ($('#offlineDot').hidden === !off) return;
-      $('#offlineDot').hidden = !off;
+      const dot = $('#offlineDot'); // (none on the kiosk: nobody there to join phones by QR)
+      if (!dot || dot.hidden === !off) return;
+      dot.hidden = !off;
       if (off) toast('No internet: the show carries on over this network. Phones already in stay; a new one joins with Join by QR. Don’t reload this page.', 8000);
       else toast('Back online', 3000);
     }, 1000);
