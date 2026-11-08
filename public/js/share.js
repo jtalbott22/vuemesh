@@ -118,6 +118,7 @@ async function start(e) {
     const id = await identity();
     cid = (await thumbprint(id.jwk)).slice(0, 13) + 'scr'; // (its own: a screen isn't this computer's camera)
   }
+  await revealAddress();
   showStream();
   show('liveView');
   $('#sendSay').after($('#modeBox')); // (the choice comes along: it can change while sharing)
@@ -128,6 +129,24 @@ async function start(e) {
     link.rejoin();
     link.setPeers(sock.peers);
   }
+}
+
+/**
+ * Let the browser give the studio this computer's real address. Without camera or microphone
+ * permission a browser hides it behind a random name.local, which the studio has to look up over
+ * multicast, and multicast often doesn't cross from Wi-Fi to a wired studio computer. Then the
+ * studio never sends first, its firewall drops what comes in, and the screen stays black (with
+ * Local network only on there's no other way in). A shared screen gives no such permission; a
+ * microphone one does, so it's asked once and let go at once: nothing from it is kept or sent.
+ */
+async function revealAddress() {
+  try {
+    if ((await navigator.permissions?.query({ name: 'microphone' }))?.state === 'granted') return;
+  } catch {}
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach((t) => t.stop());
+  } catch {} // (said no: it may still connect, through the router)
 }
 
 function showStream() {
