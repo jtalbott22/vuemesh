@@ -22,4 +22,4 @@ export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.63.3';
+export const APP_VERSION = '0.64.0';

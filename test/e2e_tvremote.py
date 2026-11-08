@@ -85,8 +85,11 @@ with sync_playwright() as p:
     tvs = host.inner_text('#tvList')
     assert 'Program out' not in tvs and 'Hall TV' in tvs, tvs
     rem.click('#pgmTgl')
-    assert rem.is_hidden('#pgmBox') and rem.evaluate('vmProgramView()') is None
+    # (turned off, its link stays, sent nothing: the remote's buttons go on it, with no server needed)
+    host.wait_for_function("[...vmDisplayHub().keys.values()].find((k) => k.remote)?.mode === 'idle'", timeout=10000)
+    assert rem.is_hidden('#pgmBox') and rem.evaluate('vmProgramView().linked')
     rem.click('#pgmTgl')
+    host.wait_for_function("[...vmDisplayHub().keys.values()].find((k) => k.remote)?.mode === 'program'", timeout=10000)
     rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().shown > 5", timeout=30000)
     step(f"the phone remote shows Program out above its cameras ({pv['w']}x{pv['h']}, {pv['shown']} frames so far), let in without Accept and not listed as a TV; it can be turned off and on")
 

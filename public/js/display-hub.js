@@ -299,6 +299,12 @@ export class DisplayHub {
   /** What a TV says on its ctl channel. */
   onCtl(peer, l, m) {
     if (m.t === 'ping') return this.ctl(peer, { t: 'pong', seq: m.seq, at: m.at, now: now() }); // (the TV learns this computer's clock from these)
+    // a phone remote's buttons and the studio's answers, on its Program out link: the remote keeps
+    // working with no server once it's in (its own key is still checked, as it is over the server)
+    if (m.t === 'remote' && this.keys.get(l.key)?.remote && m.from) {
+      const from = String(m.from);
+      return this.onRemote?.(from, m.m, { send: (d) => this.links.get(peer) === l && this.ctl(peer, { t: 'remote', d }), up: () => this.links.get(peer) === l && l.ctl?.readyState === 'open' });
+    }
     if (m.t === 'state') {
       l.state = { status: m.status, mode: m.mode, detail: m.detail };
       return this.changed?.();
@@ -371,8 +377,12 @@ export class DisplayHub {
   ctl(peer, obj) {
     const c = this.links.get(peer)?.ctl;
     if (c?.readyState === 'open') {
-      try { c.send(JSON.stringify(obj)); } catch {}
+      try {
+        c.send(JSON.stringify(obj));
+        return true;
+      } catch {}
     }
+    return false;
   }
 
   sendMode(peer) {
@@ -451,8 +461,10 @@ export class DisplayHub {
     // A TV that stopped pinging for 20 s is gone (asleep, unplugged); its key stays. Unless its link
     // is still connected (the connection itself checks the other end is there, every few seconds):
     // a phone playing the sound with its screen locked pings late, and its sound mustn't stop.
+    // Nor one that's only disconnected: the Wi-Fi blinked, and it comes back by itself (with no server
+    // there'd be no joining again); a link that really went fails within about 30 s.
     const now = Date.now();
-    for (const [peer, l] of [...this.links]) if (l.ctl && now - l.lastSeen > 20000 && l.pc?.connectionState !== 'connected') this.close(peer, true);
+    for (const [peer, l] of [...this.links]) if (l.ctl && now - l.lastSeen > 20000 && !['connected', 'disconnected'].includes(l.pc?.connectionState)) this.close(peer, true);
   }
 
   /** What each connected TV is being sent (for Monitor's Transfers): rate, codec, size, route. */
