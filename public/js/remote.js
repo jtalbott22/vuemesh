@@ -46,7 +46,12 @@ const say = (text, err) => {
   $('#pairSay').textContent = text;
   $('#pairSay').className = 'say' + (err ? ' err' : '');
 };
-const send = (data) => host && sock?.signal(host, { remote: data });
+// (straight to the studio on this phone's Program out link when it's up, so the remote keeps working
+// with no server once it's in; else through the server)
+const send = (data) => {
+  if (pgm?.tell({ t: 'remote', from: sock?.peer, m: data })) return;
+  if (host) sock?.signal(host, { remote: data });
+};
 
 let opens = 0; // (the socket's connections seen: each new one says who it is)
 function connect() {
@@ -57,7 +62,9 @@ function connect() {
     role: 'remote',
     name: ($('#name').value || 'Phone remote').slice(0, 40),
     onPeers: (peers) => {
-      const h = peers.find((p) => p.role === 'host')?.peer || null;
+      // (the studio's server connection dropped a moment, or the server's gone: its own link to this
+      // phone still works, so it's still here)
+      const h = peers.find((p) => p.role === 'host')?.peer || (pgm?.linked ? host : null);
       $('#conn').className = 'dot' + (h ? ' on' : '');
       $('#conn').setAttribute('aria-label', h ? 'Connected to the studio' : 'The studio is not open');
       // (this phone's own server connection came back: the studio let it go meanwhile, so say who it is again)
@@ -149,22 +156,27 @@ function startProgram(tvKey) {
   $('#pgmTgl').setAttribute('aria-pressed', String(pgmOn()));
   $('#pgmBox').hidden = !pgmOn();
   showSound();
-  if (!pgmOn() || pgm?.key === tvKey) return;
+  if (pgm?.key === tvKey) return;
   pgm?.stop();
-  pgm = new ProgramView({ eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t) });
+  pgm = new ProgramView({
+    eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t),
+    onCtl: (m) => m.t === 'remote' && onMessage(m.d?.remote),
+  });
+  // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
+  pgm.want(pgmOn() ? 'program' : 'idle');
 }
 $('#pgmTgl').onclick = () => {
   const on = !pgmOn();
   localStorage.setItem('vm_remote_pgm', on ? '1' : '0');
-  if (!on) {
-    pgm?.stop();
-    pgm = null;
-    psound.stop();
-  }
+  if (!on) psound.stop();
+  pgm?.want(on ? 'program' : 'idle');
+  // (on again, on the same link: its sound is the same track, given back to the player)
+  const snd = on && pgm?.pc?.getReceivers().find((r) => r.track?.kind === 'audio')?.track;
+  if (snd) psound.setTrack(snd);
   $('#pgmTgl').setAttribute('aria-pressed', String(on));
   $('#pgmBox').hidden = !on;
   showSound();
-  if (on && pgmKey) startProgram(pgmKey);
+  if (on && pgmKey && !pgm) startProgram(pgmKey);
 };
 
 // The program's sound, with the picture: off to start with (a phone in the studio's room would
@@ -356,7 +368,7 @@ $('#recBtn').onclick = () => {
 // seconds the remote checks in (which binds it again), and if nothing has come for twelve, it asks
 // for everything: a camera that joined meanwhile shows up without a reload.
 setInterval(() => {
-  if (!key || !host) return;
+  if (!key || (!host && !pgm?.linked)) return;
   if (Date.now() - lastState > 12000) send({ t: 'resume', key });
   else send({ t: 'vis', key, on: !document.hidden });
 }, 5000);

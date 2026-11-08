@@ -38,10 +38,14 @@ export class RemoteHost {
     // (what goes to each phone, counted for the Monitor: state and the cameras' pictures)
     const send = o.send;
     this.sent = new Map(); // peer → bytes
+    this.direct = new Map(); // peer → { send, up } its Program out link, when it's talking over that
     this.send = (peer, data) => {
       try {
         this.sent.set(peer, (this.sent.get(peer) || 0) + JSON.stringify(data).length);
       } catch {}
+      // (straight over the remote's own link when it's up: no server needed; else through the server)
+      const d = this.direct.get(peer);
+      if (d?.up() && d.send(data)) return true;
       return send(peer, data);
     };
     this.store = 'vm_remotes'; // (every show on this computer; each show's own list before 0.61.1)
@@ -118,8 +122,15 @@ export class RemoteHost {
     this.changed?.();
   }
 
+  /** Is this remote talking over its own link right now? */
+  directUp(peer) {
+    return !!this.direct.get(peer)?.up();
+  }
+
   /** A phone left the show (its connection went). */
   gone(peer) {
+    if (this.directUp(peer)) return; // (only its server connection went: it's still here, on its own link)
+    this.direct.delete(peer);
     this.sent.delete(peer);
     if (this.bound.delete(peer)) this.changed?.();
   }

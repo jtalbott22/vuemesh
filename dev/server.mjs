@@ -74,6 +74,8 @@ async function deleteFilms(prefix) {
   return files.length;
 }
 const sockets = new Map();
+// (tests: as if the internet went: every connection dropped, and nothing reaches the server, until it's back)
+let offline = false;
 const TYPES = { '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.webp': 'image/webp' };
 
 const post = async (connId, data) => {
@@ -86,6 +88,13 @@ const post = async (connId, data) => {
 const handler = async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const cdn = `http://${req.headers.host}`;
+  if (url.pathname === '/_dev/offline') {
+    offline = url.searchParams.get('on') === '1';
+    if (offline) for (const ws of sockets.values()) ws.terminate();
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    return res.end(offline ? 'offline' : 'online');
+  }
+  if (offline && url.pathname.startsWith('/api/')) return req.socket.destroy();
   try {
     if (url.pathname === '/config.js') {
       res.writeHead(200, { 'content-type': 'text/javascript' });
@@ -146,7 +155,7 @@ const server = http.createServer(handler);
 const wss = new WebSocketServer({ noServer: true });
 const onUpgrade = async (req, socket, head) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname !== '/ws') return socket.destroy();
+  if (url.pathname !== '/ws' || offline) return socket.destroy();
   const connectionId = randomUUID();
   const r = await signal({ route: '$connect', connectionId, query: Object.fromEntries(url.searchParams) }, { store, post });
   if (r.status !== 200) {

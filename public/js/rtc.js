@@ -162,10 +162,58 @@ export class CamLink {
     try { this.pc?.close(); } catch {}
     this.pc = null;
     this.dc = null;
+    this.retireOld();
   }
 
-  async connect() {
+  /** The link being replaced (kept while its replacement is arranged over it): closed now. */
+  retireOld() {
+    const o = this.old;
+    this.old = null;
+    if (!o) return;
+    try { o.pc.close(); } catch {}
+  }
+
+  /** The replacement didn't come up, and the old link still works: carry on with that. */
+  fallBack() {
+    const o = this.old;
+    if (!o || o.pc.connectionState !== 'connected' || o.dc.readyState !== 'open') return false;
+    this.old = null;
+    clearTimeout(this.answerTimer);
+    try { this.pc?.close(); } catch {}
+    Object.assign(this, { pc: o.pc, dc: o.dc, ctl: o.ctl, remoteSet: true, pendingIce: [] });
+    this.startQuality(o.pc);
+    this.onState(this.route || 'lan');
+    return true;
+  }
+
+  /** The studio asked for a fresh link (a stuck picture, a network setting changed). */
+  restart() {
+    if (this.old || Date.now() - (this.restartAt || 0) < 5000) return; // (asked both ways at once: once is enough)
+    this.restartAt = Date.now();
+    this.connect({ over: true });
+  }
+
+  /** A handshake message to the studio: over the old link while it's being replaced (no server needed), else through the server. */
+  sig(data) {
+    const via = this.old?.dc;
+    if (via?.readyState === 'open') {
+      try {
+        via.send(JSON.stringify({ t: 'sig', d: data }));
+        return;
+      } catch {}
+    }
+    this.sock.signal(this.host, data);
+  }
+
+  /** @param {{over?: boolean}} o  over: arrange the new link over the one that's working, keeping it until the new one's up */
+  async connect(o = {}) {
+    const keep = o.over && this.pc?.connectionState === 'connected' && this.dc?.readyState === 'open' ? { pc: this.pc, dc: this.dc, ctl: this.ctl } : null;
+    if (keep) {
+      clearInterval(this.qTimer);
+      this.pc = this.dc = null;
+    }
     this.close();
+    this.old = keep;
     this.onState('connecting');
     const pc = new RTCPeerConnection({ iceServers: ICE });
     this.pc = pc;
@@ -214,28 +262,31 @@ export class CamLink {
       if (typeof e.data !== 'string') return this.onHostBinary?.(e.data); // a file from the host
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
+      if (m.t === 'sig') return this.onSignal(this.host, m.d); // (a new link being arranged over this one)
+      if (m.t === 'restart') return this.restart();
       if (m.t === 'ack') this.acks.get(m.id)?.(m);
       else this.onHostMessage?.(m); // director messages, rundown, cues, output shape
     };
     this.dc = dc;
-    pc.onicecandidate = (e) => e.candidate && this.sock.signal(this.host, { kind: 'ice', c: e.candidate.toJSON() });
+    pc.onicecandidate = (e) => e.candidate && this.sig({ kind: 'ice', c: e.candidate.toJSON() });
     pc.onconnectionstatechange = async () => {
       if (pc !== this.pc) return;
       const s = pc.connectionState;
       if (s === 'connected') {
+        this.retireOld(); // (the new link is up: the one it replaced can go)
         this.onState(await routeOf(pc));
         this.startQuality(pc);
         if (this.paused) this.setPaused(true);
       }
-      if (s === 'failed') setTimeout(() => pc === this.pc && this.retry(), 2000);
-      if (s === 'disconnected') setTimeout(() => pc === this.pc && pc.connectionState === 'disconnected' && this.retry(), 6000);
+      if (s === 'failed') setTimeout(() => pc === this.pc && this.retry('failed'), 2000);
+      if (s === 'disconnected') setTimeout(() => pc === this.pc && pc.connectionState === 'disconnected' && this.retry('disconnected'), 6000);
     };
     const offer = await pc.createOffer();
     // (a shared screen's sound is stereo: say so; the studio answers that it takes it)
     if (this.screen) offer.sdp = opusStereo(offer.sdp);
     await pc.setLocalDescription(offer);
     if (pc !== this.pc) return;
-    this.sock.signal(this.host, { kind: 'offer', sdp: pc.localDescription.toJSON() });
+    this.sig({ kind: 'offer', sdp: pc.localDescription.toJSON() });
     // (no answer: the offer was lost on the way, say while the studio was reconnecting. Ask again,
     // rather than wait for an answer that never comes)
     clearTimeout(this.answerTimer);
@@ -243,9 +294,13 @@ export class CamLink {
   }
 
   /** The link failed (or was never answered): connect again if the studio's here, else wait for it. */
-  retry() {
+  retry(why) {
     if (this.left) return;
-    if (this.host && this.sock.peers?.some((p) => p.peer === this.host)) return this.connect();
+    if (this.fallBack()) return; // (a replacement that didn't come up: the old link carries on)
+    // With no server there's nothing to connect again through. A link that's only disconnected
+    // usually comes back by itself once the Wi-Fi does (within about 30 s): let it.
+    if (why === 'disconnected' && !this.sock.connected) return;
+    if (this.sock.connected && this.host && this.sock.peers?.some((p) => p.peer === this.host)) return this.connect();
     this.close();
     this.host = null;
     this.onState('no-host');
@@ -260,7 +315,7 @@ export class CamLink {
 
   async onSignal(from, data) {
     if (from !== this.host || !this.pc) return;
-    if (data.kind === 'restart') return this.connect();
+    if (data.kind === 'restart') return this.restart();
     if (data.kind === 'answer') {
       // (start near a good picture, not at a few hundred kbit/s; the tier then sets the ceiling)
       const sdp = data.sdp && typeof data.sdp.sdp === 'string' ? { type: data.sdp.type, sdp: bitrateHints(data.sdp.sdp, { start: 2500, min: 250, max: 8000 }) } : data.sdp;
@@ -564,14 +619,16 @@ export class HostHub {
     if (!l) return;
     clearInterval(l.away);
     try { l.pc.close(); } catch {}
+    try { l.prev?.pc.close(); } catch {}
     this.links.delete(peer);
     this.onLiveEnd(peer, why);
   }
 
-  async onSignal(from, data, fromRole) {
+  /** @param via the phone's old link, when the new one is being arranged over it (no server needed) */
+  async onSignal(from, data, fromRole, via) {
     if (fromRole !== 'cam' && fromRole !== 'mic') return;
     fromRoleOf.set(from, fromRole);
-    if (data.kind === 'offer') return this.accept(from, data);
+    if (data.kind === 'offer') return this.accept(from, data, via);
     const l = this.links.get(from);
     if (!l || data.kind !== 'ice' || !data.c) return;
     if (this.localOnly?.() && !isHostCandidate(data.c)) return; // only local-network paths
@@ -579,28 +636,55 @@ export class HostHub {
     else l.pendingIce.push(data.c);
   }
 
-  async accept(peer, data) {
-    this.drop(peer, 'reconnect');
+  async accept(peer, data, via) {
+    // Arranged over the phone's old link, which still works: that one carries on (its picture in the
+    // show) until the new one's up, and the handshake goes over it. Otherwise it goes now.
+    const was = this.links.get(peer);
+    const prev = via && was?.dc === via && was.pc.connectionState === 'connected' ? was : null;
+    if (prev) clearInterval(prev.away);
+    else this.drop(peer, 'reconnect');
     const pc = new RTCPeerConnection({ iceServers: ICE });
-    const link = { pc, pendingIce: [], remoteSet: false, stream: null };
+    const link = { pc, pendingIce: [], remoteSet: false, stream: null, prev };
     this.links.set(peer, link);
+    const sig = (d) => {
+      const c = link.prev?.dc;
+      if (c?.readyState === 'open') {
+        try {
+          c.send(JSON.stringify({ t: 'sig', d }));
+          return;
+        } catch {}
+      }
+      this.sock.signal(peer, d);
+    };
+    // (the new link didn't come up: the old one is the phone's link again, as if nothing happened)
+    const restore = () => {
+      if (!current() || !link.prev) return false;
+      this.links.set(peer, link.prev);
+      link.prev = null;
+      try { pc.close(); } catch {}
+      return true;
+    };
+    if (prev) setTimeout(() => pc.connectionState !== 'connected' && restore(), 20000);
     // Every change to what this phone sends reaches the studio: the first track starts it
     // (onLive), and a track arriving later (sound after picture, say), ending, or swapped
     // calls onTracks, so the studio never keeps playing or listening to something stale.
     const current = () => this.links.get(peer) === link;
-    const changed = () => current() && link.stream && this.onTracks?.(peer, link.stream);
+    const changed = () => current() && !link.prev && link.stream && this.onTracks?.(peer, link.stream);
+    const announce = (stream) => {
+      link.stream = stream;
+      link.announced = true;
+      stream.addEventListener?.('addtrack', changed);
+      stream.addEventListener?.('removetrack', changed);
+      this.onLive(peer, stream, fromRoleOf.get(peer));
+    };
     pc.ontrack = (e) => {
       const stream = e.streams[0] || (link.stream ||= new MediaStream());
       if (!e.streams[0]) stream.addTrack(e.track);
       e.track.addEventListener('ended', changed);
       e.track.addEventListener('unmute', changed);
-      if (link.stream !== stream || !link.announced) {
-        link.stream = stream;
-        link.announced = true;
-        stream.addEventListener?.('addtrack', changed);
-        stream.addEventListener?.('removetrack', changed);
-        this.onLive(peer, stream, fromRoleOf.get(peer));
-      } else changed();
+      if (link.prev) link.stream = stream; // (shown once the new link is up: the old one's picture carries on till then)
+      else if (link.stream !== stream || !link.announced) announce(stream);
+      else changed();
     };
     pc.ondatachannel = (e) => {
       if (e.channel.label === 'ctl') {
@@ -615,15 +699,23 @@ export class HostHub {
     pc.onicecandidate = (e) => {
       if (!e.candidate) return;
       if (this.localOnly?.() && !isHostCandidate(e.candidate)) return;
-      this.sock.signal(peer, { kind: 'ice', c: e.candidate.toJSON() });
+      sig({ kind: 'ice', c: e.candidate.toJSON() });
     };
     pc.onconnectionstatechange = async () => {
       if (this.links.get(peer)?.pc !== pc) return;
+      if (pc.connectionState === 'connected' && link.prev) {
+        // the new link is up: the old one goes, and the show takes the new picture (as a reconnect)
+        const old = link.prev;
+        link.prev = null;
+        try { old.pc.close(); } catch {}
+        this.onLiveEnd(peer, 'reconnect');
+        if (link.stream) announce(link.stream);
+      }
       if (pc.connectionState === 'connected') {
         this.onRoute(peer, await routeOf(pc));
         setTimeout(async () => this.links.get(peer)?.pc === pc && this.onRoute(peer, await routeOf(pc)), 3000); // the chosen path can change after a moment
       }
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') this.drop(peer);
+      if ((pc.connectionState === 'failed' || pc.connectionState === 'closed') && !restore()) this.drop(peer);
     };
     await pc.setRemoteDescription(this.localOnly?.() ? localOnlySdp(data.sdp) : data.sdp);
     link.remoteSet = true;
@@ -634,12 +726,13 @@ export class HostHub {
     if (/^a=fmtp:\d+ .*sprop-stereo=1/m.test(data.sdp?.sdp || '')) made.sdp = opusStereo(made.sdp);
     await pc.setLocalDescription(made);
     const answer = pc.localDescription.toJSON();
-    this.sock.signal(peer, { kind: 'answer', sdp: this.localOnly?.() ? localOnlySdp(answer) : answer });
+    sig({ kind: 'answer', sdp: this.localOnly?.() ? localOnlySdp(answer) : answer });
   }
 
   /** Send a small live message to one phone (tally light, say). */
   send(peer, obj) {
-    const ctl = this.links.get(peer)?.ctl;
+    const l = this.links.get(peer);
+    const ctl = l?.ctl?.readyState === 'open' ? l.ctl : l?.prev?.ctl; // (while a new link's arranged, the old one)
     if (ctl?.readyState === 'open') {
       try { ctl.send(JSON.stringify(obj)); } catch {}
     }
@@ -648,6 +741,9 @@ export class HostHub {
   /** Ask one phone to rebuild its link (a picture that's stuck). False if it isn't connected. */
   restart(peer) {
     if (!this.links.has(peer)) return false;
+    // (over its own link, so it's arranged over that one with no server needed; through the server
+    // too, for a phone on an older page: one that has both does it once)
+    this.message(peer, { t: 'restart' });
     this.sock.signal(peer, { kind: 'restart' });
     return true;
   }
@@ -670,7 +766,7 @@ export class HostHub {
 
   /** Ask every phone to reconnect (after the network setup changes). */
   restartAll() {
-    for (const peer of this.links.keys()) this.sock.signal(peer, { kind: 'restart' });
+    for (const peer of this.links.keys()) this.restart(peer);
   }
 
   /** Network numbers for one phone's connection, for the monitor. */
@@ -771,7 +867,8 @@ export class HostHub {
 
   /** A message to one phone that must arrive (director messages, rundown, cues). */
   message(peer, obj) {
-    const dc = this.links.get(peer)?.dc;
+    const l = this.links.get(peer);
+    const dc = l?.dc?.readyState === 'open' ? l.dc : l?.prev?.dc; // (while a new link's arranged, the old one)
     if (dc?.readyState === 'open') {
       try {
         dc.send(JSON.stringify(obj));
@@ -801,6 +898,8 @@ export class HostHub {
           this.onTelemetry?.(peer, m);
           return;
         }
+        // a new link being arranged over this one (no server needed)
+        if (m.t === 'sig') return this.onSignal(peer, m.d || {}, fromRoleOf.get(peer), dc);
         if (m.t === 'file-ack') {
           this.links.get(peer)?.fileAcks?.get(m.id)?.(m.ok !== false, m.why);
           return;

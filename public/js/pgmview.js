@@ -92,6 +92,12 @@ export class ProgramView {
     this.ctl.onopen = () => {
       this.say('');
       if (this.wanted) this.want(this.wanted.mode, this.wanted.big);
+      this.onOpen?.();
+    };
+    this.ctl.onmessage = (e) => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      this.onCtl?.(m);
     };
     const stream = new MediaStream();
     pc.ontrack = (e) => {
@@ -112,6 +118,16 @@ export class ProgramView {
     try {
       this.ctl.send(JSON.stringify({ t: 'want', mode, big: !!big }));
     } catch {}
+  }
+  /** Send something on the link (false if it isn't up). */
+  tell(obj) {
+    if (this.ctl?.readyState !== 'open') return false;
+    try {
+      this.ctl.send(JSON.stringify(obj));
+      return true;
+    } catch {
+      return false;
+    }
   }
   get linked() {
     return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';

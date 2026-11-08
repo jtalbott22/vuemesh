@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.64.0 — a show carries on with no internet
+**Deploy:** `./aws/deploy.sh` (site only; it builds on 0.63.3, which changed the backend).
+
+Pictures, sound and clips always went straight over the local network, but some things still went through the server during a show. With no internet, they stopped. Now everything already in the show carries on over the local network:
+
+- **The phone remote works with no server.** Its buttons, and what the studio sends back (what's on air, the cameras' pictures), used to go through the server, so offline it stopped working. Now they go on the remote's own link to the studio (the one its Program out comes on), and through the server only before that's up. Turning Program out off keeps that link and has the studio send nothing over it, where it used to close it.
+- **A camera reconnects over its own link.** When the studio reconnects a camera whose picture is stuck (or after a network setting changes), the new link is set up over the old one. The old one keeps the camera's picture in the show until the new one's up, and if the new one doesn't come up, the old one carries on. It used to drop the camera first and go through the server, so offline the camera was lost.
+- **A Wi-Fi blink doesn't drop anyone.** With no server to reconnect through, a phone waits for its link to come back by itself (it usually does within 30 seconds) instead of giving up after 6. A TV whose link blinks is kept too.
+- **The studio says it's offline:** "OFFLINE · THIS NETWORK ONLY" beside the phone count, with a note of what that means. It asks before you leave or reload while offline, since that would end every link with nothing to bring them back through.
+- **The studio opens with no internet,** using the event as this computer last saw it, with its host controls.
+
+Still needing the internet: a phone, TV or remote joining for the first time, and one coming back after its link has really gone (more than about 30 seconds without the network, a reload, or the studio reloaded). Joining with no internet is the next part.
+
+**Tests:** `e2e_offline.py` runs a show with two cameras, a camera's program box, a TV and a phone remote, then takes the server offline (the dev server's new `/_dev/offline` switch: every connection dropped, nothing gets through). It then checks a cut reaching the phones' tally, the remote's on-air display, a cut from its button and its program turned off and on, the TV's standby, a stuck camera reconnected, a clip coming over, all still connected 15 seconds later, and the studio asking before leaving. It brings the server back: the badge goes and a new phone joins. Last, a studio opened with no API. With the old remote code it fails at the remote's first button offline; with the old camera links, at the reconnect. `e2e_tvremote.py` now checks that a remote's Program out turned off stays connected, with the studio sending it nothing.
+
 ## 0.63.3 — a dropped server connection doesn't take the show down
 **Deploy:** `./aws/deploy.sh` (the backend and the site: the signalling Lambda changed).
 

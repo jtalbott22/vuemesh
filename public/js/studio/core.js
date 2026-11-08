@@ -620,7 +620,18 @@ async function init() {
   $('#watchBtn').href = `/watch?e=${eventId}`;
   $('#monitorBtn').href = `/monitor?e=${eventId}`;
   $('#watchBtn').hidden = !FEATURES.publish;
-  ev = await api(`events/${eventId}`);
+  // (with no internet, the event as it was last opened on this computer: the show runs on this network)
+  let offlineStart = false;
+  ev = await api(`events/${eventId}`).then((e) => {
+    try { localStorage.setItem('vm_ev_' + eventId, JSON.stringify(e)); } catch {}
+    return e;
+  }).catch((e) => {
+    let kept = null;
+    try { kept = e.status ? null : JSON.parse(localStorage.getItem('vm_ev_' + eventId) || 'null'); } catch {}
+    if (!kept) throw e;
+    offlineStart = true;
+    return kept;
+  });
   document.title = `${ev.title} — studio`;
   $('#title').textContent = ev.title;
   renderMoments();
@@ -629,6 +640,10 @@ async function init() {
       await api(`events/${eventId}/host`, { host: key });
       isHost = true;
     } catch {}
+    if (offlineStart) {
+      isHost = true; // (this computer has the event's key: checked again once the server's back)
+      note('Opened with no internet: running on this network only');
+    }
   }
   $('#viewOnly').hidden = isHost;
   if (!isHost) document.querySelectorAll('.bar button:not([role=tab]):not(#helpBtn):not(#themeBtn), .insp button, .transport button').forEach((b) => (b.disabled = true));
@@ -677,6 +692,23 @@ async function init() {
     });
     if (!KIOSK) startRemoteHost();
     if (!KIOSK) startDisplayHub();
+    window.vmHub = () => hub; // (tests and diagnostics: the phones' links)
+    // No server (the internet's gone): everyone already in carries on over this network. Say so, and
+    // stop a reload, which would end every link with nothing to bring them back through.
+    let offSince = null;
+    setInterval(() => {
+      offSince = sock.connected ? null : offSince || Date.now();
+      const off = !!offSince && Date.now() - offSince > 5000;
+      if ($('#offlineDot').hidden === !off) return;
+      $('#offlineDot').hidden = !off;
+      if (off) toast('No internet: the show carries on over this network. Phones already in stay; new ones can join once it’s back. Don’t reload this page.', 8000);
+      else toast('Back online', 3000);
+    }, 1000);
+    window.addEventListener('beforeunload', (e) => {
+      if (sock.connected || !(hub?.links.size || displayHub?.links.size)) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
     hub = new HostHub({
       eventId,
       termsHash: ev.termsHash,

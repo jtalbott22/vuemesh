@@ -316,6 +316,12 @@ export function startDisplayHub() {
     thumb: (id) => thumbs.get(id) || null,
     fps: () => output.fps,
     camOk: (cid) => watchers().some((peer) => live.get(peer)?.cid === cid),
+    // a phone remote talking over its Program out link (no server needed)
+    onRemote: (from, m, via) => {
+      if (!remoteHost || !m || typeof m !== 'object') return;
+      remoteHost.direct.set(from, via);
+      remoteHost.onMessage(from, { remote: m });
+    },
   });
   window.vmDisplayHub = () => displayHub; // (diagnostics and tests)
   const code = $('#tvEventCode');
