@@ -4,7 +4,8 @@
 #  - a camera's Sound from: its sound from another microphone (or none), kept for that camera
 #    when it's added again;
 #  - AFV follows a camera you choose: a microphone heard only while that camera is on air;
-#  - this computer's cameras at 720p (lighter on USB), at once;
+#  - this computer's cameras at the output's size or 720p (lighter on USB): a free one at once,
+#    the one on air when it's cut away from;
 #  - the phone remote's mixer: each channel's level as it is, and its mode and fader from the phone.
 # Run: node dev/server.mjs &  then  python3 test/e2e_soundcontrol.py
 import os, time
@@ -74,20 +75,29 @@ with sync_playwright() as p:
     assert off == 0 and on == 1, (off, on)
     step(f'AFV follows "{label}": the microphone is out of the mix with the other camera on air, in with that one')
 
-    # 3b. this computer's cameras follow the output's size, or 720p (lighter on USB), at once
+    # 3b. this computer's cameras follow the output's size, or 720p (lighter on USB): a free one at
+    # once, the one on air when it's cut away from (a camera changes size by being opened again)
     hs = lambda: host.evaluate("[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).map(v => v.srcObject.getVideoTracks()[0].getSettings().height)")
-    all_at = lambda h: f"[...document.querySelectorAll('.tile video')].filter(v => v.closest('.tile').dataset.peer.startsWith('local-cam')).every(v => v.srcObject.getVideoTracks()[0].getSettings().height === {h})"
+    h_of = lambda peer: f"document.querySelector('.tile[data-peer=\"{peer}\"] video')?.srcObject?.getVideoTracks()[0]?.getSettings().height"
+    def wait_at(peer, h): host.wait_for_function(f"{h_of(peer)} === {h}", timeout=8000)
+    def stays(peer, h):
+        time.sleep(2); got = host.evaluate(h_of(peer)); assert got == h, (peer, got, h)
+    on_air, free = target, elsewhere
     before = hs()
     host.select_option('#outSize', '1080')
-    host.wait_for_function(all_at(1080), timeout=8000)
+    wait_at(free, 1080); stays(on_air, 720)
+    host.click(f'.tile[data-peer="{free}"]'); on_air, free = free, on_air
+    wait_at(free, 1080)
     at1080 = hs()
     host.select_option('#camSize', '720')
-    host.wait_for_function(all_at(720), timeout=8000)
+    wait_at(free, 720); stays(on_air, 1080)
+    host.click(f'.tile[data-peer="{free}"]'); on_air, free = free, on_air
+    wait_at(free, 720)
     host.select_option('#camSize', 'auto')
-    host.wait_for_function(all_at(1080), timeout=8000)
+    wait_at(free, 1080); stays(on_air, 720)
     host.select_option('#outSize', '720')
-    host.wait_for_function(all_at(720), timeout=8000)
-    step(f"this computer's cameras follow the output: {before} → output 1080p {at1080} → 720p chosen, lighter on USB → as the output again (1080p) → output 720p, at once")
+    wait_at(free, 720); wait_at(on_air, 720)
+    step(f"this computer's cameras follow the output: {before} → output 1080p {at1080} → 720p chosen, lighter on USB → as the output again (1080p) → output 720p; a free camera at once, the one on air when it's cut away from")
 
     # 4. the phone remote's mixer: a channel's mode and level from the phone
     host.click('#remoteAdd')
