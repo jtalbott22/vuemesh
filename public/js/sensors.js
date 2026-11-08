@@ -161,8 +161,8 @@ export class Sensors {
 
   panRate() {
     if (this.heading.length < 2) return null;
-    const [t0, h0] = this.heading[0];
-    const [t1, h1] = this.heading[this.heading.length - 1];
+    const [t0] = this.heading[0];
+    const [t1] = this.heading[this.heading.length - 1];
     let travel = 0;
     for (let i = 1; i < this.heading.length; i++) travel += Math.abs(diff(this.heading[i][1], this.heading[i - 1][1]));
     return t1 > t0 ? (travel / (t1 - t0)) * 1000 : null;

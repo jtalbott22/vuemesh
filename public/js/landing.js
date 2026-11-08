@@ -1,4 +1,4 @@
-import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally, hostKey } from '/js/vm.js';
+import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally } from '/js/vm.js';
 import * as idb from '/js/idb.js';
 import { makeZip, ZIP_LIMIT } from '/js/zip.js';
 import { EventGlobe, km } from '/js/globe.js';
