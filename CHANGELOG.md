@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.66.1 — the local show helper finds the API
+**Deploy:** `LAN_ZONE=<vuemesh.com's Route 53 zone> ./aws/deploy.sh` (the site, for the helper people download; with `LAN_ZONE`, the backend gets what certificates need).
+
+The local show helper (`vuemesh-local.mjs`) asked for its certificate at `vuemesh.com/api`, but the site's API isn't there (it answers 403). The pages find the API through the site's `config.js`, which names its own address. Now the helper reads `config.js` the same way, or takes `--api <url>`.
+
+**Tests:** `local.test.mjs` reads the API's address from a `config.js` like the live one, from one with a path, and from one with none. Run against the live site, it finds the API.
+
 ## 0.66.0 — a show on the studio computer's own Wi-Fi
 **Deploy:** `LAN_ZONE=<the domain's Route 53 zone> ./aws/deploy.sh` (backend and site: a new API route, and permission to change records in that one zone). It builds on 0.65.0.
 

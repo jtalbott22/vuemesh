@@ -58,6 +58,11 @@ else {
   ok('its certificate request: openssl reads it, its signature checks, the name in it and as its DNS name');
 }
 
+assert.equal(L.apiFrom("window.VM_CONFIG = { api: 'https://e70xllzagg.execute-api.us-east-2.amazonaws.com', ws: 'wss://x/prod' };"), 'https://e70xllzagg.execute-api.us-east-2.amazonaws.com');
+assert.equal(L.apiFrom("window.VM_CONFIG = { api: '/api', ws: 'ws://localhost/ws' };", 'http://localhost:8790'), 'http://localhost:8790/api', 'a path: on the site');
+assert.equal(L.apiFrom('window.VM_CONFIG = {};'), null);
+ok("the API's address, from the site's config.js (as the pages find it), not under the site's own");
+
 assert.ok(L.okOrigin('https://vuemesh.com') && L.okOrigin('http://localhost:8790') && !L.okOrigin('https://evil.example'));
 ok("only VUEMesh's own pages (and this computer) talk to it");
 console.log('\nAll local show tests passed.');
