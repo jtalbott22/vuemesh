@@ -30,6 +30,7 @@
 //   --dns-own           answer addresses itself on --dns (Windows; Linux uses the hotspot's own)
 //   --dry-run           say what it would run to start the hotspot, and don't
 //   --staging           Let's Encrypt's test certificates (for trying this out)
+//   --api <url>         the API's address (else the one the site's config.js names)
 //   --origins a,b       other studio addresses allowed to talk to it
 
 import http from 'node:http';
@@ -50,7 +51,26 @@ const arg = (name, dflt) => {
 };
 const flag = (name) => process.argv.includes('--' + name);
 const SITE_URL = (arg('site-url', process.env.VUEMESH_SITE || 'https://vuemesh.com')).replace(/\/$/, '');
-const API_URL = (arg('api', process.env.VUEMESH_API || `${SITE_URL}/api`)).replace(/\/$/, '');
+// The site's API isn't under the site's address: its config.js says where it is, as it does for the pages.
+/** The API's address from a config.js (window.VM_CONFIG = { api: '…', … }), made absolute against the site's; null if it has none. */
+export function apiFrom(configJs, site = SITE_URL) {
+  const m = /\bapi\s*:\s*(['"])([^'"]+)\1/.exec(String(configJs || ''));
+  if (!m) return null;
+  try {
+    return new URL(m[2], site + '/').href.replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+let apiAt = arg('api', process.env.VUEMESH_API || '').replace(/\/$/, '');
+async function apiUrl() {
+  if (apiAt) return apiAt;
+  const r = await fetch(`${SITE_URL}/config.js`, { signal: AbortSignal.timeout(8000) });
+  if (!r.ok) throw new Error(`Couldn't read ${SITE_URL}/config.js (${r.status}) to find the API`);
+  apiAt = apiFrom(await r.text());
+  if (!apiAt) throw new Error(`${SITE_URL}/config.js doesn't say where the API is`);
+  return apiAt;
+}
 const HOME = arg('home', process.env.VUEMESH_LOCAL_HOME || join(os.homedir(), '.vuemesh-local'));
 const CTRL_PORT = Number(arg('port', 8936));
 const HTTPS_PORT = Number(arg('https', 443));
@@ -446,7 +466,7 @@ async function acmeCert(eventId, hostKey) {
     return { r, data };
   };
   const ours = async (method, path, body) => {
-    const r = await fetch(`${API_URL}${path}`, { method, headers: { 'content-type': 'application/json', ...(hostKey ? { 'x-host-key': hostKey } : {}) }, body: JSON.stringify(body) });
+    const r = await fetch(`${await apiUrl()}${path}`, { method, headers: { 'content-type': 'application/json', ...(hostKey ? { 'x-host-key': hostKey } : {}) }, body: JSON.stringify(body) });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(`VUEMesh: ${data.error || r.status}`);
     return data;
