@@ -9,6 +9,7 @@ import { baseScore, hintFor } from '/js/director.js';
 import { CameraKit, QUALITY, preferredCamera } from '/js/camctl.js';
 import { withRotation } from '/js/mp4rot.js';
 import { channelFixer } from '/js/audiofx.js';
+import { ProgramView } from '/js/pgmview.js';
 
 // Phone or computer? Computers usually have no gyro or compass and a webcam that can't
 // be turned, so they get different coaching and wording. (iPads report as Macs; touch tells.)
@@ -20,6 +21,7 @@ import * as idb from '/js/idb.js';
 let eventId = eventIdFromUrl();
 let ev, me, ident, socket, link;
 let role = 'cam';
+const pgm = { key: null, view: null, watching: false, ready: false, wanted: null, call: null, timer: null }; // (watching the program: see setProgramKey)
 
 // ---------------------------------------------------------------- entry ----
 
@@ -650,6 +652,7 @@ function connectMesh() {
         if ($('#pvwTag').hidden === on) announce(on ? "You're in preview: up next" : 'Out of preview');
         $('#pvwTag').hidden = !on;
         liveTier.pvw = on;
+        if (pgm.watching) callBack(on ? "You're up next: the director has you in preview" : null);
         link.setTier?.(liveTier.air ? 'program' : on ? 'preview' : 'idle');
         return;
       }
@@ -659,8 +662,8 @@ function connectMesh() {
         link.setTier?.(liveTier.air ? 'program' : liveTier.pvw ? 'preview' : 'idle');
         if (m.on) $('#pvwTag').hidden = true;
         if (role === 'mic') return micTally(!!m.on);
-        setTally(!!m.on && !paused);
-        onAirRecording(!!m.on && !paused, !!m.rec);
+        setTally(!!m.on && !paused && !pgm.watching);
+        onAirRecording(!!m.on && !paused && !pgm.watching, !!m.rec);
       }
     },
     onHostMessage,
@@ -718,7 +721,9 @@ const LIVE = ['lan', 'nat', 'cellular', 'internet', 'relay', 'unknown'];
 function renderOutbox() {
   const pill = $('#upPill');
   const waiting = [...outbox.values()];
-  const label = paused
+  const label = pgm.watching
+    ? 'Watching the program · the host can’t see or hear you'
+    : paused
     ? 'Paused · the host can’t see or hear you'
     : studioHold ? 'Recording only · the studio is full. Your clips still go to the host.'
     : { lan: 'Connected to host on local Wi-Fi', nat: 'Connected to host (same network, through the router)', cellular: 'Connected over mobile data — join the venue Wi-Fi', internet: 'Connected to host over the internet', relay: 'Connected to host', unknown: 'Connected to host', connecting: 'Finding the host…', 'no-host': 'Host not here yet — keep shooting', left: 'Not connected', solo: 'On your own · clips are saved to My events' }[linkState];
@@ -732,7 +737,7 @@ function renderOutbox() {
     sticky = LIVE.includes(linkState); // keep progress visible while it's moving
   } else text = label;
   const dot = $('#linkDot');
-  dot.className = 'ldot ' + (paused ? 'paused' : LIVE.includes(linkState) ? 'live' : linkState === 'left' ? 'off' : 'wait');
+  dot.className = 'ldot ' + (paused || pgm.watching ? 'paused' : LIVE.includes(linkState) ? 'live' : linkState === 'left' ? 'off' : 'wait');
   renderLeftText();
   $('#lsState').textContent = label;
   if (!pill) return;
@@ -765,9 +770,9 @@ $('#cue').onclick = () => $('#camTitle').click();
 // Not sending a live picture: because you paused, or because the studio is full (record only).
 let studioHold = false;
 function applyPause() {
-  const off = paused || studioHold;
-  link?.setPaused(off);
-  $('#pausedTag').hidden = !off;
+  const off = paused || studioHold || pgm.watching;
+  link?.setPaused(off, pgm.watching ? 'watch' : '');
+  $('#pausedTag').hidden = !off || pgm.watching; // (watching: the program's own screen says so)
   $('#pausedTag').textContent = studioHold && !paused ? 'RECORDING ONLY · studio full' : "PAUSED · host can't see you";
   if (off) setTally(false);
   renderOutbox();
@@ -815,6 +820,7 @@ async function leaveEvent() {
   if (!kicked) await waitForCut();
   link?.leave();
   socket?.close();
+  setProgramKey(null);
   stopScanning?.();
   setTally(false);
   for (const t of [...(stream?.getTracks() || []), kit.track, micTrack]) t?.stop?.();
@@ -1153,6 +1159,8 @@ function onHostMessage(m) {
   if (m.t === 'roll') return void (recorder && rollRecording());
   if (m.t === 'watch') return showWatch(m.url ? m : null);
   if (m.t === 'camctl') return onCamCtl(m);
+  if (m.t === 'pgm') return setProgramKey(m.key || null);
+  if (m.t === 'callback') return callBack('The director wants you back on camera');
   if (m.t === 'file-begin' || m.t === 'file-end') return onHostFile(m);
   if (m.t === 'file-offer') return answerFileOffer(m);
   if (m.t === 'owed') return owedWait?.(m.n || 0);
@@ -1271,6 +1279,121 @@ $('#flip').onclick = async () => {
   const want = cams.find((c) => c.deviceId === prefs.cams?.[side]) || preferredCamera(cams, side);
   await switchCamera(want ? want.deviceId : null, facing);
 };
+
+// ---- watching the program ----------------------------------------------------------------
+// The studio gives each camera a screen key ('pgm', or none if it's turned that off), and the
+// program shows, small and silent, beside the record button whenever this camera isn't on air.
+// Tap it to watch full screen: this camera's live picture pauses (the studio sees WATCHING, not
+// just PAUSED) until Back to camera. Recording carries on as it was. The director's messages
+// still come up over it, and the director can call them back (clicking their camera), or put
+// them in preview: the program's screen says so and the phone buzzes. Its own link, as a TV's
+// (pgmview.js, display-hub.js); the picture only, never the sound: the phone is in the room,
+// recording, and the program's sound would go straight back into its microphone.
+function setProgramKey(key) {
+  if (role !== 'cam' || ev?.solo) key = null;
+  if (key === pgm.key) return pgmUi();
+  pgm.view?.stop();
+  Object.assign(pgm, { key, view: null, ready: false, wanted: null });
+  if (key) pgm.view = new ProgramView({ eventId, key, name: me.name, label: `${me.name || 'Camera'} (camera, watching the program)`, model: 'camera', sound: false, video: $('#pgmVideo') });
+  pgmUi();
+}
+function pgmUi() {
+  const cam = $('#camView'), can = !!pgm.view && cam.classList.contains('on');
+  if (!can && pgm.watching) stopWatching(true);
+  const off = can && !cam.classList.contains('onair') && !pgm.watching;
+  const box = off && !prefs.pgmTucked;
+  $('#pgmBox').hidden = !box || !pgm.ready; // (once there's a picture in it)
+  $('#pgmTab').hidden = !(off && prefs.pgmTucked);
+  // what the studio sends: nothing while it can't be seen (on air, tucked away, in the background)
+  const want = !can || document.hidden ? 'idle' : pgm.watching ? 'big' : box ? 'small' : 'idle';
+  if (want !== pgm.wanted) {
+    pgm.wanted = want;
+    pgm.view?.want(want === 'idle' ? 'idle' : 'program', want === 'big');
+  }
+}
+function startWatching() {
+  if (!pgm.view || pgm.watching || $('#camView').classList.contains('onair')) return;
+  pgm.watching = true;
+  pgm.call = null;
+  const big = $('#pgmBig');
+  big.srcObject = $('#pgmVideo').srcObject;
+  big.play().catch(() => {});
+  $('#pgmWatch').hidden = false;
+  $('#camView').classList.add('watching');
+  renderWatch();
+  clearInterval(pgm.timer);
+  pgm.timer = setInterval(renderWatch, 1000); // (a recording that stops while watching: the line follows)
+  applyPause();
+  pgmUi();
+  announce('Watching the program. Your live picture is paused.');
+  $('#pgmBack').focus();
+}
+function stopWatching(quiet = false) {
+  if (!pgm.watching) return;
+  pgm.watching = false;
+  pgm.call = null;
+  clearInterval(pgm.timer);
+  $('#pgmWatch').hidden = true;
+  $('#pgmWatch').classList.remove('called');
+  $('#pgmBig').srcObject = null;
+  $('#camView').classList.remove('watching');
+  applyPause();
+  pgmUi();
+  if (!quiet) announce(paused ? 'Back to camera. Your feed is still paused.' : 'Back to camera: the director can see you again');
+}
+function renderWatch() {
+  $('#pgmWatchSub').textContent = `Your live picture is paused: the director can't see you.${recorder ? ' Still recording.' : ''}`;
+  $('#pgmCall').hidden = !pgm.call;
+  $('#pgmCall').textContent = pgm.call || '';
+  $('#pgmWatch').classList.toggle('called', !!pgm.call);
+}
+/** The director wants this camera back (called back, or put in preview); null: not any more. */
+function callBack(text) {
+  if (!pgm.watching || pgm.call === text) return;
+  pgm.call = text;
+  renderWatch();
+  if (!text) return;
+  navigator.vibrate?.([120, 80, 120]);
+  announce(text);
+}
+$('#pgmOpen').onclick = startWatching;
+$('#pgmBack').onclick = () => stopWatching();
+$('#pgmHide').onclick = () => {
+  prefs.pgmTucked = true;
+  savePrefs();
+  pgmUi();
+  $('#pgmTab').focus();
+};
+$('#pgmTab').onclick = () => {
+  prefs.pgmTucked = false;
+  savePrefs();
+  pgmUi();
+};
+{
+  const v = $('#pgmVideo');
+  const sized = () => {
+    if (!v.videoWidth || !v.videoHeight) return;
+    $('#pgmBox').style.setProperty('--ar', `${v.videoWidth} / ${v.videoHeight}`);
+    $('#pgmBox').classList.toggle('tall', v.videoHeight > v.videoWidth);
+  };
+  v.addEventListener('resize', sized);
+  v.addEventListener('loadedmetadata', () => {
+    sized();
+    if (pgm.watching && $('#pgmBig').srcObject !== v.srcObject) {
+      // (its link came back: a new stream)
+      $('#pgmBig').srcObject = v.srcObject;
+      $('#pgmBig').play().catch(() => {});
+    }
+  });
+  v.addEventListener('loadeddata', () => {
+    if (pgm.ready) return;
+    pgm.ready = true;
+    pgmUi();
+  });
+}
+document.addEventListener('visibilitychange', pgmUi);
+document.addEventListener('keydown', (e) => e.key === 'Escape' && pgm.watching && !e.target.closest('dialog[open]') && stopWatching());
+window.vmPgm = () => ({ key: !!pgm.key, linked: !!pgm.view?.linked, ready: pgm.ready, watching: pgm.watching, wanted: pgm.wanted, call: pgm.call, box: !$('#pgmBox').hidden, tab: !$('#pgmTab').hidden }); // (tests and diagnostics)
 
 // ------------------------------------------------------------ optical sync --
 // offset = beacon clock − this phone's clock. Every sample underestimates it by
@@ -2322,6 +2445,7 @@ function setTally(on) {
   $('#tally').hidden = !on;
   if (on) announce('Your camera is on air');
   feedBtnUi();
+  pgmUi(); // (on air, the program's box steps aside)
 }
 
 // ----------------------------------------------------- camera-operator controls ----

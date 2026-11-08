@@ -364,9 +364,11 @@ export class CamLink {
   /**
    * Pause or resume sending the live picture and sound. The link stays up, so clips
    * still deliver and messages still arrive; the host just can't see or hear you.
+   * @param why 'watch': paused to watch the program (the studio shows WATCHING)
    */
-  async setPaused(on) {
+  async setPaused(on, why = this.pauseWhy || '') {
     this.paused = on;
+    this.pauseWhy = on ? why : '';
     const stream = this.stream();
     for (const sender of this.pc?.getSenders() || []) {
       try {
@@ -380,8 +382,9 @@ export class CamLink {
         }
       } catch {}
     }
-    this.control({ t: 'paused', on });
-    this.say({ t: 'paused', on });
+    const m = { t: 'paused', on, ...(this.pauseWhy === 'watch' ? { watching: true } : {}) };
+    this.control(m);
+    this.say(m);
   }
 
   /** Leave the event: stop connecting until rejoin(). Clips stay queued on the phone. */

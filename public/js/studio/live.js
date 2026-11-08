@@ -5,7 +5,7 @@ import { toast, now, announce } from '/js/vm.js';
 import { drawSlate } from '/js/compose.js';
 import * as S from '/js/sequence.js';
 import {
-  $, KIOSK, LIVE_DELAY, black, clips, cut, fit, isHost, live, liveActive, mode, note, player, seq,
+  $, KIOSK, LIVE_DELAY, black, clips, cut, fit, hub, isHost, live, liveActive, mode, note, player, seq,
   setLastLive, setLiveActive,
 } from './core.js';
 import { angleCids, angleOfCid, rebuild, saveCut, snapshot } from './clips.js';
@@ -114,8 +114,13 @@ export function renderLive() {
     l.tile.style.display = '';
     l.tile.classList.toggle('paused', !!l.paused);
     let pz = l.tile.querySelector('.pz');
-    if (l.paused && !pz) l.tile.insertAdjacentHTML('beforeend', '<span class="pz">PAUSED</span>');
+    if (l.paused && !pz) l.tile.insertAdjacentHTML('beforeend', '<span class="pz"></span>');
     else if (!l.paused) pz?.remove();
+    pz = l.tile.querySelector('.pz');
+    if (pz && pz.dataset.w !== String(!!l.watching)) {
+      pz.dataset.w = String(!!l.watching);
+      pz.innerHTML = l.watching ? 'WATCHING<small>click to call back</small>' : 'PAUSED'; // (watching the program, full screen on the phone)
+    }
     if (isHost && !l.local && !l.screen) dmRow(peer, l, i);
     else dmRemove(peer); // (another computer's screen: no messages; its share page has nowhere to show them)
     l.tile.querySelector('.n').textContent = angleOfCid(l.cid) || i + 1;
@@ -303,10 +308,21 @@ export function micTileOpts(peer) {
   return { an, spec: an, state: st, name: live.get(peer)?.name || '' };
 }
 
+/** Ask a camera that's watching the program (full screen on the phone, its picture paused) to come back to its camera. */
+export function callBack(peer) {
+  const l = live.get(peer);
+  if (!l?.watching) return false;
+  const ok = !!hub?.message(peer, { t: 'callback' });
+  note(`Asked ${l.name} back to their camera`);
+  toast(ok ? `Asked ${l.name} back to their camera` : `Couldn't reach ${l.name} right now`);
+  return ok;
+}
+
 export function cutLive(peer, autoReason, opts = {}) {
   if (!isHost) return;
   const l = live.get(peer);
   if (!l) return;
+  if (l.watching && !autoReason) return void callBack(peer); // (wanted on air: they're asked back first)
   if (l.overflow) return toast(`${l.name} is recording only (the live pictures are full). Swap them in first.`);
   if (l.paused) return toast(`${l.name} has paused their camera`);
   lastOnAir.set(peer, Date.now());

@@ -8,7 +8,7 @@ import { $, FRAME, isHost, live, mode, note, player, seq } from './core.js';
 import {
   angleCids, angleNo, angleOfCid, clipForAngle, clipOf, commit, labelOf, saveSeq, snapshot, videoClips,
 } from './clips.js';
-import { camOrder, cutLive } from './live.js';
+import { callBack, camOrder, cutLive } from './live.js';
 import { freshPlayer, reconnectPhone } from './usage.js';
 import { askRemove, canSplit, joinLocalMic, removeLocalSource, renameLocal, renameSource, setLocalManualRec, splitLocalMic } from './sources.js';
 import { openCcu } from './ccu.js';
@@ -276,6 +276,7 @@ $('#multi').addEventListener('contextmenu', (e) => {
   e.preventDefault();
   const n = angleOfCid(l.cid);
   openMenu(e.clientX, e.clientY, [
+    ...(l.watching ? [{ label: 'Call back to camera', action: () => callBack(peer) }, { sep: true }] : []),
     { label: 'Cut to this camera', kbd: n ? String(n) : '', action: () => cutLive(peer) },
     { label: 'Put in preview', action: () => setPreview(peer) },
     { sep: true },

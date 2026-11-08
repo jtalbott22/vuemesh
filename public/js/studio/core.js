@@ -43,7 +43,7 @@ import {
 import { renderTimeline, select } from './edit.js';
 import { deleteMarker, markerMenu, moveMarker, renameMarker, renderTools, timeOfAbs } from './transport.js';
 import { deleteRecording } from './library.js';
-import { displayHub, onTvCal, pushMonitor, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
+import { camLeft, displayHub, rebalanceWatch, onTvCal, pushMonitor, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
 import { bgInterval } from '/js/bgclock.js';
 
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
@@ -704,6 +704,7 @@ async function init() {
           note(`${info.name || 'A phone'} joined recording only: the live pictures are full`);
         }
         welcomePhone(peer);
+        rebalanceWatch(); // (it may watch the program in a box beside its record button)
         presenceOn(info.cid);
         checkCrowd();
         setTimeout(sendProgramParts, 1500); // anything they missed while away
@@ -724,6 +725,7 @@ async function init() {
         if (l?.recorder) stopLocalRec(peer); // (another computer's screen, recorded here: what it recorded is kept)
         mixDetach(peer);
         live.delete(peer);
+        if (why !== 'reconnect') camLeft(l?.cid); // (its program screen goes too)
         if (liveActive === peer) {
           lastLive = peer;
           liveActive = null;
@@ -766,6 +768,7 @@ async function init() {
         // another computer's screen (from /share): a screen, like one shared here
         if (t.screen && !l.screen) {
           l.screen = true;
+          rebalanceWatch(); // (a screen doesn't watch the program: its place goes to a camera)
           note(`${l.name} is another computer's screen${l.stream?.getAudioTracks().length ? ', with its sound (stereo)' : ''}`);
           renderLive();
           localRecFollow(); // (it's recorded here while it's on air: it records nothing itself)
@@ -796,10 +799,12 @@ async function init() {
           return;
         }
         if (m.t === 'paused') {
-          if (!!m.on === !!l.paused) return;
+          const watching = !!m.on && !!m.watching; // (paused to watch the program, full screen on the phone)
+          if (!!m.on === !!l.paused && watching === !!l.watching) return;
           l.paused = !!m.on;
-          note(`${l.name} ${l.paused ? 'paused their camera' : 'is live again'}`);
-          if (l.paused) toast(`${l.name} paused their camera`);
+          l.watching = watching;
+          note(`${l.name} ${watching ? 'is watching the program (their camera is paused)' : l.paused ? 'paused their camera' : 'is live again'}`);
+          if (l.paused) toast(watching ? `${l.name} is watching the program. Click their camera to call them back.` : `${l.name} paused their camera`);
           if (l.paused && peer === liveActive && autoOn) director.set(null, Date.now());
           renderLive();
           return;

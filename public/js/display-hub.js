@@ -20,6 +20,13 @@
 //            by the TV's own display lag, so phones synced to it line up with this computer.
 //            PIP as in browse
 //   idle     the event card
+//
+// A camera in the show can watch the program too (a small box beside its record button; tap it
+// and it's full screen while its own live picture pauses). Its screen is let in without Accept,
+// as a phone remote's is: the studio hands each camera its own key over the camera's link, and
+// it's good only while that camera is in the show. Its picture is small (a quarter size, 15
+// frames a second) until it's watching full screen (half size), and it never gets the sound:
+// the phone is in the room, recording, and the program's sound would go back into its microphone.
 
 import { ICE, now } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
@@ -33,6 +40,8 @@ const newKey = () => {
 };
 const PROGRAM_KBPS = 6000; // 1080p30 program on the local network
 const REMOTE_KBPS = 1200; // the phone remote's Program out: half size, enough to see the cut
+// a camera watching the program: the box beside its record button, or full screen
+const CAM_BOX = { kbps: 350, scale: 4, fps: 15 }, CAM_BIG = { kbps: 1200, scale: 2 };
 export const DISPLAY_MODES = ['program', 'browse', 'beacon', 'idle'];
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
 const FILE_CHUNK = 64 * 1024, FILE_HIGH = 4 * 1024 * 1024;
@@ -42,7 +51,8 @@ export class DisplayHub {
    * @param o.eventId
    * @param o.title () → the event's name, for the TV's screen
    * @param o.send (peer, data) → the studio's signal to one connection
-   * @param o.program () → MediaStreamTrack[] for one TV: the program picture (a copy) and its sound
+   * @param o.program ({ sound }) → MediaStreamTrack[] for one TV: the program picture (a copy) and, with sound, its sound
+   * @param o.camOk? (cid) → is the camera with this contributor id in the show, and may it watch the program?
    * @param o.changed () → the list changed (redraw TV screens)
    * @param o.note (text) → a line in the studio's event log
    * @param o.localOnly? () → true: keep only local-network candidates
@@ -56,7 +66,7 @@ export class DisplayHub {
     this.store = `vm_displays_${o.eventId}`;
     this.keys = new Map(); // key → { name, model, mode, at }
     try {
-      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: DISPLAY_MODES.includes(r.mode) ? r.mode : 'program', pip: !!r.pip, lag: Number.isFinite(r.lag) ? r.lag : null, at: r.at, ...(r.remote ? { remote: r.remote } : {}) });
+      for (const r of JSON.parse(localStorage.getItem(this.store) || '[]')) this.keys.set(r.key, { name: r.name, model: r.model, mode: DISPLAY_MODES.includes(r.mode) ? r.mode : 'program', pip: !!r.pip, lag: Number.isFinite(r.lag) ? r.lag : null, at: r.at, ...(r.remote ? { remote: r.remote } : {}), ...(r.cam ? { cam: r.cam } : {}) });
     } catch {}
     this.waiting = new Map(); // peer → { name, model, at }
     this.links = new Map(); // peer → { key, pc, ctl, state, tracks, pendingIce, remoteSet, lastSeen }
@@ -106,6 +116,20 @@ export class DisplayHub {
     for (const [key, k] of [...this.keys]) if (k.remote === remoteKey) this.remove(key);
   }
 
+  /** A camera in the show, watching the program: its own key, let in without Accept (it's in the show already). Same key for the same camera. */
+  trustCam(cid, name) {
+    if (!cid) return null;
+    for (const [key, k] of this.keys) if (k.cam === cid) return key;
+    const key = newKey();
+    this.keys.set(key, { name: `${name || 'Camera'} (watching the program)`, model: 'camera', mode: 'idle', pip: false, lag: null, at: Date.now(), cam: cid });
+    this.save();
+    return key;
+  }
+  /** That camera left the show (or every camera, with no cid: watching was turned off): its screen goes. */
+  untrustCam(cid) {
+    for (const [key, k] of [...this.keys]) if (k.cam && (!cid || k.cam === cid)) this.remove(key);
+  }
+
   /** Forget a TV: it stops showing the program at once and has to be let in again. */
   remove(key) {
     if (!this.keys.delete(key)) return;
@@ -152,6 +176,8 @@ export class DisplayHub {
       const name = String(m.name || 'TV').slice(0, 40), model = String(m.model || '').slice(0, 40);
       if (m.key && this.keys.has(m.key)) {
         const k = this.keys.get(m.key);
+        // (a camera's key works only while that camera is in the show)
+        if (k.cam && !this.camOk?.(k.cam)) return this.reply(peer, { t: 'reject', code: 'not_in_show', message: 'This camera isn’t in the show right now.' });
         k.name = name;
         k.model = model;
         k.at = Date.now();
@@ -214,7 +240,7 @@ export class DisplayHub {
     l.remoteSet = true;
     for (const c of l.pendingIce.splice(0)) await pc.addIceCandidate(c).catch(() => {});
     // The TV asked to receive a picture and sound: those transceivers send from here.
-    l.tracks = this.program?.() || [];
+    l.tracks = this.program?.({ sound: !this.keys.get(l.key)?.cam }) || [];
     for (const tr of pc.getTransceivers()) {
       const kind = tr.receiver.track?.kind;
       tr.direction = 'sendonly';
@@ -233,19 +259,21 @@ export class DisplayHub {
     this.changed?.();
   }
 
-  /** The picture's limits for one TV: its bitrate (lowered when it falls behind), the program's frame rate, and half size for a phone remote. */
+  /** The picture's limits for one TV: its bitrate (lowered when it falls behind), the program's frame rate, and half size for a phone remote. A camera's: small in its box, half size full screen. */
   async tune(pc, l) {
-    const remote = !!this.keys.get(l?.key)?.remote;
+    const k = this.keys.get(l?.key) || {}, remote = !!k.remote;
     const fps = Math.round(this.fps?.() || 30);
-    l && (l.q ||= tvLink(remote ? REMOTE_KBPS : PROGRAM_KBPS));
-    for (const s of pc.getSenders()) {
-      if (s.track?.kind !== 'video') continue;
+    const cam = k.cam ? (l?.big ? CAM_BIG : CAM_BOX) : null;
+    l && !cam && (l.q ||= tvLink(remote ? REMOTE_KBPS : PROGRAM_KBPS));
+    // (by its transceiver: a camera's sender has no track while it isn't showing the program)
+    for (const s of pc.getTransceivers().filter((tr) => (tr.sender.track || tr.receiver.track)?.kind === 'video').map((tr) => tr.sender)) {
       try {
         const p = s.getParameters();
         p.encodings = p.encodings?.length ? p.encodings : [{}];
-        p.encodings[0].maxBitrate = (l?.q?.cap || PROGRAM_KBPS) * 1000;
-        p.encodings[0].maxFramerate = fps;
-        if (remote) p.encodings[0].scaleResolutionDownBy = 2;
+        p.encodings[0].maxBitrate = (cam?.kbps || l?.q?.cap || PROGRAM_KBPS) * 1000;
+        p.encodings[0].maxFramerate = Math.min(fps, cam?.fps || fps);
+        if (cam) p.encodings[0].scaleResolutionDownBy = cam.scale;
+        else if (remote) p.encodings[0].scaleResolutionDownBy = 2;
         await s.setParameters(p);
       } catch {}
     }
@@ -259,12 +287,13 @@ export class DisplayHub {
   async applyTracks(l) {
     if (!l?.pc) return;
     const k = this.keys.get(l.key) || {}, mode = k.mode || 'program';
-    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' }; // (a phone remote too: its sound starts off there, so it can't echo into the room until someone turns it on)
+    const want = { video: mode === 'program' || (k.pip && (mode === 'browse' || mode === 'beacon')), audio: mode === 'program' && !k.cam }; // (a phone remote too: its sound starts off there, so it can't echo into the room until someone turns it on; a camera never)
     for (const tr of l.pc.getTransceivers()) {
       const kind = tr.sender.track?.kind || tr.receiver.track?.kind;
       if (!kind) continue;
       await tr.sender.replaceTrack(want[kind] ? l.tracks.find((t) => t.kind === kind) || null : null).catch(() => {});
     }
+    if (k.cam && l.pc.connectionState === 'connected') await this.tune(l.pc, l); // (its box or full screen: the size it's sent)
   }
 
   /** What a TV says on its ctl channel. */
@@ -274,12 +303,18 @@ export class DisplayHub {
       l.state = { status: m.status, mode: m.mode, detail: m.detail };
       return this.changed?.();
     }
+    // a camera: showing its box (program), full screen (big), or neither (idle: on air, tucked away, in the background)
+    if (m.t === 'want' && this.keys.get(l.key)?.cam) {
+      l.big = m.mode === 'program' && !!m.big;
+      return this.setMode(l.key, m.mode === 'program' ? 'program' : 'idle', false);
+    }
     // the TV asked for a mode, or PIP, from its own remote
     if (m.t === 'want') return this.setMode(l.key, DISPLAY_MODES.includes(m.mode) ? m.mode : this.modeOf(l), m.pip);
     // what the TV is getting, every few seconds: lower its bitrate if it's falling behind (tvquality.js)
     if (m.t === 'quality') {
       const q = { fps: num(m.fps), secs: num(m.secs) || 5, freezes: num(m.freezes) || 0, freezeMs: num(m.freezeMs) || 0, dropped: num(m.dropped) || 0, lost: num(m.lost) || 0, w: num(m.w), h: num(m.h), at: Date.now() };
       l.rx = q;
+      if (this.keys.get(l.key)?.cam) return; // (a camera's picture is small already: nothing to lower)
       l.q ||= tvLink(this.keys.get(l.key)?.remote ? REMOTE_KBPS : PROGRAM_KBPS);
       // (judged against what's being sent it, not the program's rate: a slow camera isn't the TV's fault)
       const r = adapt(l.q, q, l.sentFps || this.fps?.() || 30);
@@ -380,7 +415,7 @@ export class DisplayHub {
     for (const [, l] of this.links) {
       if (!l.pc) continue;
       for (const t of l.tracks) t.stop?.();
-      l.tracks = this.program?.() || [];
+      l.tracks = this.program?.({ sound: !this.keys.get(l.key)?.cam }) || [];
       await this.applyTracks(l);
     }
   }
@@ -425,7 +460,7 @@ export class DisplayHub {
     const out = [];
     for (const [, l] of this.links) {
       if (!l.pc) continue;
-      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, remote: !!this.keys.get(l.key)?.remote, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null, cap: l.q?.cap || null, rx: l.rx && Date.now() - l.rx.at < 15000 ? { fps: l.rx.fps, freezes: l.rx.freezes, dropped: l.rx.dropped, lost: l.rx.lost, w: l.rx.w, h: l.rx.h } : null };
+      const r = { name: this.keys.get(l.key)?.name || 'TV', mode: this.modeOf(l), pip: !!this.keys.get(l.key)?.pip, remote: !!this.keys.get(l.key)?.remote, cam: !!this.keys.get(l.key)?.cam, big: !!l.big, sending: l.sending?.id || null, status: l.pc.connectionState, kbps: null, codec: null, w: null, h: null, fps: null, lim: null, route: null, cap: l.q?.cap || null, rx: l.rx && Date.now() - l.rx.at < 15000 ? { fps: l.rx.fps, freezes: l.rx.freezes, dropped: l.rx.dropped, lost: l.rx.lost, w: l.rx.w, h: l.rx.h } : null };
       try {
         const st = await l.pc.getStats(), now = performance.now();
         let bytes = 0;
@@ -456,7 +491,7 @@ export class DisplayHub {
   list() {
     const out = [];
     for (const [key, k] of this.keys) {
-      if (k.remote) continue; // (a phone remote's Program out isn't a TV screen)
+      if (k.remote || k.cam) continue; // (a phone remote's Program out isn't a TV screen, nor a camera watching)
       const link = [...this.links.values()].find((l) => l.key === key);
       out.push({ key, name: k.name, model: k.model, mode: k.mode || 'program', pip: !!k.pip, lag: k.lag ?? null, connected: link?.pc?.connectionState === 'connected', status: link ? link.state?.status || 'joining' : 'away', detail: link?.state?.detail || '' });
     }

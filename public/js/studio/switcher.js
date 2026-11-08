@@ -9,7 +9,7 @@ import {
   program,
 } from './core.js';
 import { angleOfCid, output } from './clips.js';
-import { cutLive, drawSourcePreviews, isMic, micKey, micTileOpts, renderLive } from './live.js';
+import { callBack, cutLive, drawSourcePreviews, isMic, micKey, micTileOpts, renderLive } from './live.js';
 import { directorTick, syncTally } from './onair.js';
 import { mix, mixGates, mixInit } from './mixer.js';
 import {
@@ -158,6 +158,7 @@ export const airCovered = () => !!mediaOn || onBreak() || black.target === 1;
 const inPreview = () => !!(pvw || pvwClip || pvwSpecial);
 export const reelOf = (id) => reel.find((x) => x.id === id);
 export function takeSource(peer) {
+  if (live.get(peer)?.watching) return void callBack(peer); // (watching the program on the phone: asked back first)
   if (tapMode === 'preview' && (peer !== liveActive || airCovered())) setPreview(peer);
   else cutLive(peer);
 }
