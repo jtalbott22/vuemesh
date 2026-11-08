@@ -23,9 +23,10 @@ with sync_playwright() as p:
     mon.goto(f"{BASE}/monitor?e={ev['id']}")
     cam = b.new_context(permissions=['camera', 'microphone']).new_page(); watch(cam, 'cam')
     cam.goto(f"{BASE}/cam?e={ev['id']}"); cam.fill('#name', 'Rosa'); cam.check('#agreeGuest'); cam.click('#joinForm button[type=submit]')
-    mon.wait_for_function("document.querySelector('#peers table') && document.querySelector('#peers').textContent.includes('Rosa')", timeout=25000)
-    mon.wait_for_function("[...document.querySelectorAll('#peers td.num')].some(td => td.textContent.includes('ms'))", timeout=15000)
-    row = ' | '.join(mon.eval_on_selector_all('#peers tbody tr:first-child > *', 'els => els.map(e => e.textContent.trim())')[:11])
+    # (each source is a card: its name, then what it's doing as Round trip, Sending, Camera… pairs)
+    mon.wait_for_function("[...document.querySelectorAll('#peers .src .nm')].some(n => n.textContent.includes('Rosa'))", timeout=25000)
+    mon.wait_for_function("[...document.querySelectorAll('#peers .src dl > div')].some(d => d.querySelector('dt').textContent === 'Round trip' && /\\d+ ms/.test(d.querySelector('dd').textContent))", timeout=15000)
+    row = mon.eval_on_selector('#peers .src', "c => [c.querySelector('.nm').textContent, ...[...c.querySelectorAll('dl > div')].map(d => d.querySelector('dt').textContent + ' ' + d.querySelector('dd').textContent.trim())].join(' | ')")
     step('monitor shows the phone live: ' + row)
     mon.screenshot(path='/tmp/v05-monitor.png', full_page=True)
 
