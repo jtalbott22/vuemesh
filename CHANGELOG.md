@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.66.7 — a camera in a background tab keeps sending
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.6.
+
+A camera page on a Mac stopped sending its picture whenever its Chrome tab wasn't the one showing, for example while the same Mac shared its screen from another tab. The director's picture froze until the tab was back.
+- **Why:** the picture the camera page sends isn't the camera's own. It's an upright square drawn from it frame by frame, turned for a phone held sideways, with digital zoom and the look. That drawing runs on the camera's frames as the page shows them, and Chrome stops those in a background tab. The camera page's own keep-alive also waited for the tab to be back. Its recording was fine: that comes straight from the camera.
+- **Now:** while the tab is hidden, the page sends the camera's own picture instead, and tells the studio it's the whole frame. The browser keeps sending that in the background. This happens when nothing needs turning, as with a computer's camera, or a phone held as its picture is. Zoom and the look aren't applied meanwhile. When the tab is back, the square comes back.
+
+**Tests:** `e2e_cambg` (new): a computer's camera page whose tab goes into the background (headless Chromium never hides a tab, so the test does what Chrome does: the page says it's hidden, and its frame callbacks stop). With 0.66.6 the studio got 0 frames in 3 s. Now it gets about 20 a second, the camera's own 960x540, and the 540x540 square is back with the tab. `e2e_camera_pro`, `e2e_campgm`, `e2e_orientation`, `e2e_phonerobust`, `e2e_rejoin`, `e2e_leave_rejoin`, `e2e_serverblip` and `e2e_vcam` pass.
+
 ## 0.66.6 — the remote's Program out keeps playing after Stop recording
 **Deploy:** `./aws/deploy.sh` (site only).
 
