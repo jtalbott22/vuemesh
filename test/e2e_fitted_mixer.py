@@ -31,8 +31,9 @@ with sync_playwright() as p:
     host.wait_for_function("document.querySelector('.tile[data-peer] video')?.readyState >= 2", timeout=45000); time.sleep(1)
     dock = host.evaluate("document.querySelector('.dock').getBoundingClientRect().height")
     strip = host.evaluate("document.querySelector('#bridge .vstrip').getBoundingClientRect().bottom - document.querySelector('.dock').getBoundingClientRect().bottom")
-    assert dock < 120 and abs(strip) < 30, (dock, strip)
-    host.locator('.dock').evaluate("d => d.previousElementSibling") if False else None
+    # (fits: shorter than the 146 px it was dragged to, and the strips end at its foot, its padding
+    # apart. A strip is a row taller since 0.61.8, with its mode buttons, so not a fixed height)
+    assert dock < 146 and -12 <= strip <= 0, (dock, strip)
     step(f'the Live mixer fits its strips (even though it was dragged to 146 px before): {dock:.0f}px tall, no empty space below them')
     D = "(() => { const d = document.querySelector('.dock'); return [Math.round(d.getBoundingClientRect().height), d.classList.contains('horiz')]; })()"
     sp = host.locator('#splitD').bounding_box(); x, y = sp['x'] + sp['width'] / 2, sp['y'] + sp['height'] / 2
