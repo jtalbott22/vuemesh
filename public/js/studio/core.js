@@ -24,10 +24,10 @@ import { FEATURES } from '/js/brand.js';
 import * as idb from '/js/idb.js';
 import '/js/media.js';
 import {
-  addClip, angleOfCid, appendLiveSoon, clipOf, commit, labelOf, loadCut, loadSeq, noteAngle, rebuild,
-  renderOutput, setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
+  addClip, appendLiveSoon, clipOf, commit, labelOf, loadCut, loadSeq, noteAngle, rebuild, renderOutput,
+  setFit, setMode, setOrientation, snapshot, undoStack, viewOf,
 } from './clips.js';
-import { camOrder, fitTile, renderLive } from './live.js';
+import { camOrder, fitTile, liveNo, renderLive } from './live.js';
 import { renderQuality } from './usage.js';
 import { autoOn, director, updateNetwork } from './onair.js';
 import { mixAttach, mixDetach, renderMixer } from './mixer.js';
@@ -753,7 +753,7 @@ async function init() {
         renderMixer();
         const l = live.get(peer);
         note(back ? `${l.name} reconnected` : `${l.name} joined as ${l.role === 'mic' ? 'a microphone' : 'a camera'}`);
-        announce(l.role === 'mic' ? `${l.name} joined as a microphone` : `${l.name} is live as camera ${angleOfCid(l.cid)}`);
+        announce(l.role === 'mic' ? `${l.name} joined as a microphone` : `${l.name} is live as camera ${liveNo(peer)}`);
       },
       onLiveEnd: (peer, why) => {
         const l = live.get(peer);

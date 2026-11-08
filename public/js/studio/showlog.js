@@ -251,7 +251,8 @@ const seen = new Set(); // alerts looked at in Notifications (until they clear a
 let earlier = []; // cleared alerts, newest first: { text, at, until }
 const raisedAt = new Map(); // alert key → when it was raised
 function watchSound(row) {
-  const expect = row.s.some((x) => x.open) && row.air !== 'Black' && row.air !== 'Break';
+  // (a shared screen's sound in the mix doesn't mean there should be sound: it's silent while nothing on it plays)
+  const expect = row.s.some((x) => x.open && x.k !== 'screen') && row.air !== 'Black' && row.air !== 'Break';
   const t = Date.now();
   const r = soundWatch.update(t, { program: { db: row.pk, expect }, sources: row.s });
   for (const a of r.raised) {
@@ -290,25 +291,36 @@ export function soundOn(peer) {
 }
 const hms = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 const notifOpen = () => !!$('#notifPop')?.matches(':popover-open');
-function renderNotifs() {
+// TVs asking to show the program (the TV page, the Apple TV app): here too, with Accept, as well as
+// in TV screens, so one isn't missed. They count on the bell until let in or turned away.
+const tvsAsking = () => displayHub?.list().waiting || [];
+const tvAsked = new Set(); // (asking TVs already told about while the studio was hidden)
+export function renderNotifs() {
   const btn = $('#notifBtn'), count = $('#notifCount'), list = $('#notifList');
   if (!btn) return;
   // (the program first: it's the one that matters most)
   const now = [...soundAlerts].sort((a, b) => (b.kind === 'program-silent') - (a.kind === 'program-silent'));
-  if (notifOpen()) for (const a of now) seen.add(a.key);
-  const fresh = now.filter((a) => !seen.has(a.key)).length;
-  count.hidden = !now.length;
-  count.textContent = String(now.length);
+  const tvs = tvsAsking();
+  for (const w of tvs) if (!tvAsked.has(w.peer)) (tvAsked.add(w.peer), notifyTv(w));
+  for (const peer of [...tvAsked]) if (!tvs.some((w) => w.peer === peer)) tvAsked.delete(peer);
+  const keys = [...tvs.map((w) => `tv:${w.peer}`), ...now.map((a) => a.key)];
+  if (notifOpen()) for (const k of keys) seen.add(k);
+  const fresh = keys.filter((k) => !seen.has(k)).length, n = keys.length;
+  count.hidden = !n;
+  count.textContent = String(n);
   count.classList.toggle('new', fresh > 0);
-  btn.setAttribute('aria-label', now.length ? `Notifications: ${now.length} sound alert${now.length === 1 ? '' : 's'}${fresh ? ', new' : ''}` : 'Notifications');
-  btn.title = now.length ? `Notifications: ${now.map((a) => a.text).join(' · ')}` : 'Notifications';
+  const what = [tvs.length ? `${tvs.length} TV${tvs.length === 1 ? '' : 's'} asking` : '', now.length ? `${now.length} sound alert${now.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+  btn.setAttribute('aria-label', n ? `Notifications: ${what}${fresh ? ', new' : ''}` : 'Notifications');
+  btn.title = n ? `Notifications: ${[...tvs.map((w) => `${w.name} wants to show the program`), ...now.map((a) => a.text)].join(' · ')}` : 'Notifications';
   $('#notifClear').hidden = !earlier.length;
   if (!notifOpen()) return; // (drawn when it opens)
   const backups = now.length ? backupMics().slice(0, 3) : [];
-  list.innerHTML = (now.length
-    ? `<h3>Now</h3><ul>${now.map((a) => `<li class="now"><span class="nico" aria-hidden="true">⚠</span><span>${esc(a.text)}</span><small>Since ${esc(hms(raisedAt.get(a.key) || a.since || Date.now()))}</small></li>`).join('')}</ul>`
+  const tvItems = tvs.map((w) => `<li class="now tvask"><span class="nico" aria-hidden="true">▣</span><span>${esc(w.name)} wants to show the program</span><small>Since ${esc(hms(w.at))}</small><div class="nacts"><button type="button" data-tv-accept="${esc(w.peer)}">Accept</button><button type="button" data-tv-decline="${esc(w.peer)}">Decline</button></div></li>`).join('');
+  const soundItems = now.map((a) => `<li class="now"><span class="nico" aria-hidden="true">⚠</span><span>${esc(a.text)}</span><small>Since ${esc(hms(raisedAt.get(a.key) || a.since || Date.now()))}</small></li>`).join('');
+  list.innerHTML = (n
+    ? `<h3>Now</h3><ul>${tvItems}${soundItems}</ul>`
       + (backups.length ? `<div class="nacts"><span>Sound from another source:</span>${backups.map((b) => `<button type="button" data-sound-on="${esc(b.peer)}">Turn on ${esc(b.name)}</button>`).join('')}</div>` : '')
-    : '<p class="nempty">Nothing needs you right now. If a microphone or the program goes silent, it shows here.</p>')
+    : '<p class="nempty">Nothing needs you right now. If a microphone or the program goes silent, or a TV asks to show the program, it shows here.</p>')
     + (earlier.length ? `<h3>Earlier</h3><ul>${earlier.map((e) => `<li class="was"><span class="nico" aria-hidden="true">✓</span><span>${esc(e.text)}</span><small>${esc(hms(e.at))} to ${esc(hms(e.until))}</small></li>`).join('')}</ul>` : '');
 }
 $('#notifPop')?.addEventListener('beforetoggle', (e) => {
@@ -322,7 +334,10 @@ $('#notifPop')?.addEventListener('beforetoggle', (e) => {
 });
 $('#notifPop')?.addEventListener('toggle', (e) => e.newState === 'open' && renderNotifs());
 $('#notifList')?.addEventListener('click', (e) => {
-  const on = e.target.closest('[data-sound-on]')?.dataset.soundOn;
+  const b = e.target.closest('button');
+  if (b?.dataset.tvAccept) return displayHub?.accept(b.dataset.tvAccept); // (its changed() draws this again)
+  if (b?.dataset.tvDecline) return displayHub?.decline(b.dataset.tvDecline);
+  const on = b?.dataset.soundOn;
   if (!on) return;
   const err = soundOn(on);
   if (err) toast(err);
@@ -332,12 +347,23 @@ $('#notifClear')?.addEventListener('click', () => {
   earlier = [];
   renderNotifs();
 });
-window.vmNotifs = () => ({ now: soundAlerts.map((a) => a.text), earlier: earlier.map((e) => e.text), badge: $('#notifCount')?.hidden ? 0 : +$('#notifCount').textContent, fresh: !!$('#notifCount')?.classList.contains('new') }); // (tests and diagnostics)
+window.vmNotifs = () => ({ tvs: tvsAsking().map((w) => w.name), now: soundAlerts.map((a) => a.text), earlier: earlier.map((e) => e.text), badge: $('#notifCount')?.hidden ? 0 : +$('#notifCount').textContent, fresh: !!$('#notifCount')?.classList.contains('new') }); // (tests and diagnostics)
 function notify(a) {
   // on this computer while the studio is hidden (behind a slideshow): the system's own alert
   if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     const n = new Notification(a.kind === 'program-silent' ? 'VUEMesh: the program has no sound' : `VUEMesh: ${a.n || 'a source'} has no sound`, { body: a.text, tag: `vm-sound-${a.key}`, requireInteraction: true });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch {}
+}
+function notifyTv(w) {
+  // (as a sound alert is: the system's own, while the studio is hidden; clicking it brings the studio back)
+  if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('VUEMesh: a TV is asking to show the program', { body: `${w.name}: Accept it under Notifications (the bell) or TV screens.`, tag: `vm-tv-${w.peer}`, requireInteraction: true });
     n.onclick = () => {
       window.focus();
       n.close();

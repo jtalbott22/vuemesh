@@ -269,8 +269,9 @@ export class SoundWatch {
     };
     for (const s of sources) {
       if (s.a === 'live') this.hadSound.add(s.id);
-      // paused by its person (Pause feed, or watching the program on the phone): its silence is no alert
-      if (s.pz) continue;
+      // paused by its person (Pause feed, or watching the program on the phone): its silence is no alert.
+      // Nor a shared screen's: it's silent whenever nothing on it plays (slides, a desktop), which is most of the time
+      if (s.pz || s.k === 'screen') continue;
       const had = this.hadSound.has(s.id), hint = hintFor(s);
       check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)${hint}` });
       check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device${hint}` });
@@ -289,7 +290,7 @@ export class SoundWatch {
     // so that losing the only microphone isn't silence with nothing said. It clears when the
     // program has sound again, or the source comes back.
     const now = new Map(sources.map((x) => [x.id, x]));
-    for (const [id, was] of this.before) if (!now.has(id) && was.open && this.hadSound.has(id)) {
+    for (const [id, was] of this.before) if (!now.has(id) && was.open && was.k !== 'screen' && this.hadSound.has(id)) {
       const key = `gone:${id}`;
       if (this.gone.has(key)) continue;
       this.gone.set(key, { key, since: t, kind: 'source-gone', id, n: was.n, text: `${was.n} left the show while its sound was in the program (unplugged, or the device stopped)${hintFor(was)}` });

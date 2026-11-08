@@ -8,8 +8,8 @@ import {
   $, EDIT_ONLY, KIOSK, black, ev, fit, fitMonitors, isHost, live, liveActive, mode, player, progOutPeers,
   program,
 } from './core.js';
-import { angleOfCid, output } from './clips.js';
-import { callBack, cutLive, drawSourcePreviews, isMic, micKey, micTileOpts, renderLive } from './live.js';
+import { output } from './clips.js';
+import { callBack, cutLive, drawSourcePreviews, isMic, liveNo, micKey, micTileOpts, renderLive } from './live.js';
 import { directorTick, syncTally } from './onair.js';
 import { mix, mixGates, mixInit } from './mixer.js';
 import {
@@ -61,7 +61,7 @@ function drawLiveFrame() {
     pg.fillRect(0, 0, W, H);
     // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
     drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fitFor(live.get(liveActive)), null, live.get(liveActive).view?.rect || null);
-    label = `ON AIR · ${angleOfCid(live.get(liveActive).cid)} ${live.get(liveActive).name}`;
+    label = `ON AIR · ${liveNo(liveActive)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
     label = live.size ? 'STANDBY · click a source' : 'STANDBY · waiting for phones';
@@ -419,7 +419,7 @@ export function renderSwitcher() {
   document.querySelectorAll('#switcher [data-tap]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tap === tapMode)));
   const l = live.get(pvw), r = reelOf(pvwClip);
   syncTwoUp();
-  $('#pvwLabel').textContent = pvwSpecial ? `PREVIEW · ${pvwSpecial === 'black' ? 'BLACK' : 'BREAK'}` : r ? `PREVIEW · CLIP ${r.name} · cued` : l ? `PREVIEW · ${isMic(pvw) ? `MIC ${micKey(pvw) || ''}` : angleOfCid(l.cid)} ${l.name}` : 'PREVIEW';
+  $('#pvwLabel').textContent = pvwSpecial ? `PREVIEW · ${pvwSpecial === 'black' ? 'BLACK' : 'BREAK'}` : r ? `PREVIEW · CLIP ${r.name} · cued` : l ? `PREVIEW · ${isMic(pvw) ? `MIC ${micKey(pvw) || ''}` : liveNo(pvw)} ${l.name}` : 'PREVIEW';
   renderBar();
 }
 // Tap: Preview: the preview monitor beside the program, as a switcher has, rather than a box in the

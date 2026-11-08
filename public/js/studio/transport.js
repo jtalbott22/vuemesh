@@ -11,7 +11,7 @@ import {
 import {
   angleCids, angleNo, angleOfCid, clipForAngle, clipOf, commit, redo, setMode, snapshot, undo,
 } from './clips.js';
-import { camOrder, fitTile, micKey, micPeers } from './live.js';
+import { fitTile, peerOfNo } from './live.js';
 import { autoOn, setAuto } from './onair.js';
 import { cycleCameraAudio, mix, mixInit, stereoMeters } from './mixer.js';
 import { fitDock, peakOf, setStyleIfChanged } from './stream.js';
@@ -370,10 +370,9 @@ document.addEventListener('keydown', (e) => {
   }
   if (/^[1-9]$/.test(k)) {
     if (mode === 'live') {
-      const cid = angleCids[+k - 1];
-      const peer = camOrder().find((p) => live.get(p).cid === cid) || micPeers().find((p) => micKey(p) === +k);
+      const peer = peerOfNo(+k);
       if (peer) takeSource(peer);
-      else toast(cid ? `Camera ${k} isn't connected` : `Nothing on ${k}`);
+      else toast(`Nothing on ${k}`);
     } else {
       const c = clipForAngle(+k, player.t);
       if (c) cutTo(c.id);

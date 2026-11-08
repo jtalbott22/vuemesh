@@ -38,6 +38,18 @@ const at = (s) => T0 + s * 1000;
   ok("sound watch: a camera paused by its person (or watching the program) isn't \"gone silent\"; back live and silent, it is");
 }
 {
+  // a shared screen (here, or another computer's over /share) is silent whenever nothing on it plays
+  const w = new SoundWatch();
+  const screen = (db, a = 'live') => ({ id: 's', n: 'Josh Mac', k: 'screen', open: 1, a, db });
+  let r;
+  for (let s = 0; s <= 12; s++) r = w.update(at(s), { program: { db: -20, expect: true }, sources: [screen(-99)] });
+  assert.equal(r.active.length, 0, 'a silent screen raises nothing');
+  r = w.update(at(13), { program: { db: -20, expect: true }, sources: [screen(-99, 'ended')] });
+  r = w.update(at(14), { program: { db: -20, expect: true }, sources: [] });
+  assert.equal(r.active.length, 0, 'nor its sound stopping, nor the screen going while its sound was in the mix');
+  ok('sound watch: a shared screen going silent, losing its sound or leaving raises nothing');
+}
+{
   const w = new SoundWatch();
   // muted in the mixer (not open): its device stopping is no alert, and nor is the program's silence if nothing is open
   let r = w.update(at(0), { program: { db: -99, expect: false }, sources: [{ id: 'a', n: 'A', open: false, a: 'live', db: -20 }] });
@@ -79,9 +91,9 @@ const at = (s) => T0 + s * 1000;
   // isn't taken as "sending silence" (a phone's keeps arriving, as silence, when its network drops)
   assert.equal(run({ loc: false }).ended, 'Scarlett: its sound stopped (the device let go of it)');
   assert.equal(run({ loc: false, dv: 1000 }).silent, 'Scarlett: it has gone silent');
-  // a shared screen's or this computer's sound: no device, cable or drive to check
-  assert.equal(run({ k: 'screen', dv: 1000 }).silent, 'Scarlett: it has gone silent');
-  assert.equal(run({ k: 'screen', dv: 0 }).silent, 'Scarlett: it has gone silent');
+  // a shared screen's or this computer's sound: silent whenever nothing on it plays, so no alert at all
+  assert.equal(run({ k: 'screen', dv: 1000 }).silent, undefined);
+  assert.equal(run({ k: 'screen', dv: 0 }).silent, undefined);
   // the show log keeps all of an alert's advice, after a long device name (it was cut at 300)
   const log = new ShowLog();
   const long = 'Analogue 1 + 2 (Focusrite USB Audio) · Input 1 left the show while its sound was in the program (unplugged, or the device stopped)' + run({ dv: 0, usb: true }).silent.slice('Scarlett: no sound is arriving from the device'.length);

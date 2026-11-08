@@ -10,8 +10,7 @@ import './picsync.js';
 import { drawFramed } from '/js/compose.js';
 import { esc } from '/js/vm.js';
 import { $, hub, live, liveActive, mode, note } from './core.js';
-import { angleOfCid } from './clips.js';
-import { camOrder, isMic } from './live.js';
+import { camOrder, isMic, liveNo } from './live.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { sw, swActive } from './switcher.js';
 import { mixGates } from './mixer.js';
@@ -165,7 +164,7 @@ function renderPipState() {
   if (!s) return;
   const l = live.get(tallied);
   s.textContent = !pip.on ? 'Off. Press P to turn it on.'
-    : l ? `In the corner now: ${angleOfCid(l.cid) || ''} ${l.name}`.replace(/\s+/g, ' ')
+    : l ? `In the corner now: ${liveNo(tallied) || ''} ${l.name}`.replace(/\s+/g, ' ')
       : pip.over === 'screens' ? 'Shows when a screen is on air (shared here, or from another computer at /share).' : 'Shows over the shot on air.';
   const b = $('#pipBtn');
   if (b) b.setAttribute('aria-pressed', String(pip.on));
@@ -177,7 +176,7 @@ export function renderPip() {
   const cams = [...live.keys()].filter(isCamera);
   $('#pipCam').innerHTML = `<option value="auto">The camera on air before it</option>${cams.map((p) => {
     const l = live.get(p), id = l.cid || p;
-    return `<option value="${esc(id)}"${id === pip.cam ? ' selected' : ''}>${esc(`${angleOfCid(l.cid) || ''} ${l.name}`.trim())}</option>`;
+    return `<option value="${esc(id)}"${id === pip.cam ? ' selected' : ''}>${esc(`${liveNo(p) || ''} ${l.name}`.trim())}</option>`;
   }).join('')}${pip.cam !== 'auto' && !cams.some((p) => (live.get(p).cid || p) === pip.cam) ? `<option value="${esc(pip.cam)}" selected>(the chosen camera, not here now)</option>` : ''}`;
   $('#pipCam').value = pip.cam;
   $('#pipCorner').innerHTML = Object.entries(CORNERS).map(([k, v]) => `<option value="${k}"${k === pip.corner ? ' selected' : ''}>${v}</option>`).join('');

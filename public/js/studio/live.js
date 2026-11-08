@@ -5,10 +5,10 @@ import { toast, now, announce } from '/js/vm.js';
 import { drawSlate } from '/js/compose.js';
 import * as S from '/js/sequence.js';
 import {
-  $, KIOSK, LIVE_DELAY, black, clips, cut, fit, hub, isHost, live, liveActive, mode, note, player, seq,
+  $, KIOSK, LIVE_DELAY, black, clips, cut, eventId, fit, hub, isHost, live, liveActive, mode, note, player, seq,
   setLastLive, setLiveActive,
 } from './core.js';
-import { angleCids, angleOfCid, rebuild, saveCut, snapshot } from './clips.js';
+import { rebuild, saveCut, snapshot } from './clips.js';
 import { renderQuality } from './usage.js';
 import { autoOn, director, manualUntil, setDirectorBreak, setManualUntil, syncTally } from './onair.js';
 import { mix, mixFollowCut, mixState } from './mixer.js';
@@ -24,15 +24,56 @@ import { renderTimeline } from './edit.js';
 
 // ---------------------------------------------------------------- live mode ---
 
-// cameras with a live picture (record-only overflow phones aren't shown live)
+// The sources' numbers in Live: on their tiles, the 1–9 keys, "camera 3" in the show log. Each
+// source in the show holds the lowest number free when it came in, and keeps it while it stays: one
+// that leaves frees its number for the next, and one that comes back gets its own again if it's
+// free (kept across a reload). Cameras, screens and microphones share them. Edit keeps its own
+// angle numbers, one per device for good (clips.js), since its clips are filed by them; in a show
+// used again and again those climbed past 9, which no key could reach (a fifth source was 10).
+const NOS_KEY = 'vm_liveno_' + eventId;
+let lastNo = {};
+try { lastNo = JSON.parse(localStorage.getItem(NOS_KEY) || '{}') || {}; } catch {}
+const nos = new Map(); // a source's id → its number, for the sources in the show now
+const noId = (peer) => live.get(peer)?.cid || peer;
+const numbered = (l) => !l.overflow; // (a record-only overflow phone isn't shown live: no number, until it is)
+function syncNos() {
+  const here = new Set();
+  const order = [...live].filter(([, l]) => numbered(l)).sort(([, a], [, b]) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  for (const [peer] of order) here.add(noId(peer));
+  for (const id of [...nos.keys()]) if (!here.has(id)) nos.delete(id);
+  const used = new Set(nos.values());
+  let changed = false;
+  for (const id of here) {
+    if (nos.has(id)) continue;
+    let n = lastNo[id];
+    if (!(n >= 1) || used.has(n)) for (n = 1; used.has(n); n++);
+    nos.set(id, n);
+    used.add(n);
+    if (lastNo[id] !== n) (lastNo[id] = n), (changed = true);
+  }
+  if (changed) try { localStorage.setItem(NOS_KEY, JSON.stringify(lastNo)); } catch {}
+}
+/** A source's number in Live (0: none, as for an overflow phone). */
+export function liveNo(peer) {
+  if (!live.has(peer)) return 0;
+  syncNos();
+  return nos.get(noId(peer)) || 0;
+}
+/** The source on a number key (1–9), or null. */
+export function peerOfNo(n) {
+  syncNos();
+  return [...live.keys()].find((p) => numbered(live.get(p)) && nos.get(noId(p)) === n) || null;
+}
+window.vmLiveNos = () => Object.fromEntries([...live.keys()].map((p) => [live.get(p).name, liveNo(p)])); // (tests)
+
+// cameras with a live picture (record-only overflow phones aren't shown live), by number
 export const camOrder = () => [...live.keys()].filter((p) => live.get(p).role !== 'mic' && !live.get(p).overflow)
-  .sort((a, b) => (angleOfCid(live.get(a).cid) || 99) - (angleOfCid(live.get(b).cid) || 99));
+  .sort((a, b) => (liveNo(a) || 99) - (liveNo(b) || 99));
 export const micPeers = () => [...live.keys()].filter((p) => live.get(p).role === 'mic');
-/** A microphone's number key: they come after the cameras' numbers (cameras 1–3, microphones 4, 5…). */
+/** A microphone's number key (0: none above 9). */
 export const micKey = (peer) => {
-  const i = micPeers().indexOf(peer);
-  const n = angleCids.length + i + 1;
-  return i < 0 || n > 9 ? 0 : n;
+  const n = live.get(peer)?.role === 'mic' ? liveNo(peer) : 0;
+  return n > 9 ? 0 : n;
 };
 export const isMic = (peer) => live.get(peer)?.role === 'mic';
 // How loud each microphone has been lately (smoothed over about half a second), from its
@@ -123,7 +164,7 @@ export function renderLive() {
     }
     if (isHost && !l.local && !l.screen) dmRow(peer, l, i);
     else dmRemove(peer); // (another computer's screen: no messages; its share page has nowhere to show them)
-    l.tile.querySelector('.n').textContent = angleOfCid(l.cid) || i + 1;
+    l.tile.querySelector('.n').textContent = liveNo(peer) || i + 1;
     l.tile.querySelector('.who').textContent = l.name;
     // a camera that hasn't synced with the beacon: its clips would be placed by its own clock
     let ns = l.tile.querySelector('.nosync');
@@ -140,7 +181,7 @@ export function renderLive() {
     l.tile.querySelector('.rec').hidden = !l.rec;
     l.tile.classList.toggle('live', peer === liveActive && !onBreak());
     l.tile.classList.toggle('pvw', peer === pvw);
-    l.tile.setAttribute('aria-label', `Camera ${angleOfCid(l.cid) || i + 1}, ${l.name}${peer === liveActive ? ', on air' : ''}${l.rec ? ', recording' : ''}`);
+    l.tile.setAttribute('aria-label', `Camera ${liveNo(peer) || i + 1}, ${l.name}${peer === liveActive ? ', on air' : ''}${l.rec ? ', recording' : ''}`);
   });
   // Microphones are live sources too: click one (or press its number) to put it on air, with
   // its sound on the program picture and the tally on the phone, like a camera.
@@ -352,8 +393,8 @@ export function cutLive(peer, autoReason, opts = {}) {
   syncTally();
   if (!autoReason && !opts.underBlack) blackHint();
   if (pvw === peer) setPvw(null);
-  note(`${opts.dissolve ? 'Dissolve' : autoReason ? 'Auto' : 'Cut'}: ${l.role === 'mic' ? `microphone ${micKey(peer) || ''}` : `camera ${angleOfCid(l.cid)}`} (${l.name})${autoReason ? ' — ' + autoReason : ''}`);
-  announce(`Cut to camera ${angleOfCid(l.cid)}, ${l.name}`);
+  note(`${opts.dissolve ? 'Dissolve' : autoReason ? 'Auto' : 'Cut'}: ${l.role === 'mic' ? 'microphone' : 'camera'} ${liveNo(peer)} (${l.name})${autoReason ? ' — ' + autoReason : ''}`);
+  announce(`Cut to ${l.role === 'mic' ? 'microphone' : 'camera'} ${liveNo(peer)}, ${l.name}`);
 }
 
 // Phones send a square picture with the shot somewhere inside it; size the tile's

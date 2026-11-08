@@ -4,8 +4,8 @@ import './sources.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { eqOf, EQ_BANDS } from '/js/audiofx.js';
 import { $, dbToGain, ev, eventId, gainToDb, hub, live, liveActive, mode, note, player } from './core.js';
-import { angleOfCid, saveSeq } from './clips.js';
-import { camOrder, cutLive } from './live.js';
+import { saveSeq } from './clips.js';
+import { camOrder, cutLive, liveNo } from './live.js';
 import {
   MODES, MODE_LABEL, applyStripFx, conSig, conWin, fmtPan, mixSave, mixState, openConsole, renderMixer,
   setConSig, setConWin, setStripMode, stripNodes, toggleStripMono,
@@ -94,7 +94,7 @@ window.addEventListener('pagehide', () => ccuWin?.close());
 const ccuCams = () => camOrder().filter((p) => live.get(p)?.video);
 const fmtEv = (v) => (v > 0 ? '+' : '') + (+v).toFixed(1);
 function ccuCard(peer) {
-  const l = live.get(peer), c = l.cam, n = angleOfCid(l.cid) || '';
+  const l = live.get(peer), c = l.cam, n = liveNo(peer) || '';
   const k = (key, label, v, min, max, step, shown, how, off) => `<label class="k"><span>${label}<br><small>${how}</small></span><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${v}" ${c && !off ? '' : 'disabled'} aria-label="${esc(l.name)}: ${label}"><output data-o="${key}">${shown}</output></label>`;
   return `<section class="cam${peer === liveActive ? ' air' : ''}" data-peer="${esc(peer)}" aria-label="${esc(l.name)}">
     <h3><span class="n">${n}</span>${esc(l.name)}<span class="tag">${peer === liveActive ? 'ON AIR' : 'READY'}</span></h3>

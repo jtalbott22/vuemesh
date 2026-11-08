@@ -5,10 +5,8 @@ import { toast, esc, announce } from '/js/vm.js';
 import { tfOf, TF_PRESETS } from '/js/compose.js';
 import * as S from '/js/sequence.js';
 import { $, FRAME, isHost, live, mode, note, player, seq } from './core.js';
-import {
-  angleCids, angleNo, angleOfCid, clipForAngle, clipOf, commit, labelOf, saveSeq, snapshot, videoClips,
-} from './clips.js';
-import { callBack, camOrder, cutLive } from './live.js';
+import { angleCids, angleNo, clipForAngle, clipOf, commit, labelOf, saveSeq, snapshot, videoClips } from './clips.js';
+import { callBack, camOrder, cutLive, liveNo } from './live.js';
 import { freshPlayer, reconnectPhone } from './usage.js';
 import { askRemove, canSplit, joinLocalMic, removeLocalSource, renameLocal, renameSource, setLocalManualRec, splitLocalMic } from './sources.js';
 import { openCcu } from './ccu.js';
@@ -274,10 +272,10 @@ $('#multi').addEventListener('contextmenu', (e) => {
   const peer = tile.dataset.peer, l = live.get(peer);
   if (!l) return;
   e.preventDefault();
-  const n = angleOfCid(l.cid);
+  const n = liveNo(peer);
   openMenu(e.clientX, e.clientY, [
     ...(l.watching ? [{ label: 'Call back to camera', action: () => callBack(peer) }, { sep: true }] : []),
-    { label: 'Cut to this camera', kbd: n ? String(n) : '', action: () => cutLive(peer) },
+    { label: 'Cut to this camera', kbd: n && n <= 9 ? String(n) : '', action: () => cutLive(peer) },
     { label: 'Put in preview', action: () => setPreview(peer) },
     { sep: true },
     { label: 'Camera control…', action: () => openCcu(peer) },
