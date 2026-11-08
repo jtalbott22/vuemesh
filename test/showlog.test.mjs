@@ -26,6 +26,18 @@ const at = (s) => T0 + s * 1000;
   ok('sound watch: a source that stops is raised at once, the silent program after 3 s, both clear when sound returns');
 }
 {
+  // a camera whose person paused it, or is watching the program on the phone, sends silence on purpose
+  const w = new SoundWatch();
+  const cam = (db, pz) => ({ id: 'p', n: '13 Pro X', k: 'cam', open: 1, a: 'live', db, ...(pz ? { pz: 1 } : {}) });
+  let r = w.update(at(0), { program: { db: -20, expect: true }, sources: [cam(-30)] });
+  for (let s = 1; s <= 12; s++) r = w.update(at(s), { program: { db: -20, expect: true }, sources: [cam(-99, true)] });
+  assert.equal(r.active.length, 0, r.active);
+  r = w.update(at(13), { program: { db: -20, expect: true }, sources: [cam(-30)] });
+  for (let s = 14; s <= 20; s++) r = w.update(at(s), { program: { db: -20, expect: true }, sources: [cam(-99)] });
+  assert.deepEqual(r.active.map((a) => a.kind), ['source-silent'], 'not paused, its silence is still raised');
+  ok("sound watch: a camera paused by its person (or watching the program) isn't \"gone silent\"; back live and silent, it is");
+}
+{
   const w = new SoundWatch();
   // muted in the mixer (not open): its device stopping is no alert, and nor is the program's silence if nothing is open
   let r = w.update(at(0), { program: { db: -99, expect: false }, sources: [{ id: 'a', n: 'A', open: false, a: 'live', db: -20 }] });

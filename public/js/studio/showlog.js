@@ -93,6 +93,7 @@ function sources() {
     const at = l.stream?.getAudioTracks().at(-1), vt = l.stream?.getVideoTracks().at(-1);
     const s = { id: peer, n: l.name || 'Source', k: kindOf(l), open: st?.open ? 1 : 0, a: soundOf(at) };
     if (l.local) s.loc = 1;
+    if (l.paused) s.pz = 1; // (its person paused it, or is watching the program: silent on purpose)
     if (l.local && at && !l.screen && usbBusy()) s.usb = 1; // (its sound and 1080p cameras on this computer's USB: see SoundWatch)
     if (srcPeak.has(peer)) s.db = dbOf(srcPeak.get(peer));
     if (at) {

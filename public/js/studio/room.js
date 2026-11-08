@@ -35,7 +35,7 @@ export async function toggleFullscreen() {
     // The browser said no (some don't allow it): use the layout anyway.
   }
   setFullscreenUi(on);
-  announce(on ? 'Full screen control room' : 'Left full screen');
+  announce(on ? (document.body.classList.contains('editpage') ? 'Full screen' : 'Full screen control room') : 'Left full screen');
 }
 $('#fsBtn').onclick = toggleFullscreen;
 document.addEventListener('fullscreenchange', () => {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.63.1 — Edit has its Full screen button; a camera watching the program isn't "gone silent"
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Edit has the Full screen button again,** as the studio has. It went with the live controls when Edit got its own window (0.62.0), though F still worked there, with no button to see or to come back out with. Edit stays laid out as it is, and Monitor and Help stay in its bar.
+- **A camera paused by its person isn't "gone silent".** A show log had the alert twice, each six seconds after a phone started watching the program: watching pauses its picture and sound, on purpose. Pause feed did the same. A paused camera's silence is no longer an alert; back live and silent, it is.
+
+**Tests:** `showlog.test.mjs` checks a paused camera's silence raises nothing and that it does once it's live; `e2e_editpage.py` goes into full screen and back with the button.
+
 ## 0.63.0 — camera people can watch the show
 **Deploy:** `./aws/deploy.sh` (site only).
 

@@ -30,6 +30,16 @@ with sync_playwright() as p:
     assert ed.is_hidden('#liveTab') and '— edit' in ed.title() and host.evaluate("document.body.dataset.mode") == 'live' and ed.evaluate("vmMedia().length") == 0
     step("Edit ↗ opened /edit beside the live studio: no phones of its own, no Live, and the studio stays live")
 
+    # full screen, as the studio has: the button (F too), Monitor and Help still there, the button takes it back out
+    assert ed.is_visible('#fsBtn')
+    ed.click('#fsBtn')
+    ed.wait_for_function("document.body.classList.contains('fs') && !!document.fullscreenElement", timeout=5000)
+    assert ed.inner_text('#fsBtn').startswith('Exit full screen') and ed.is_visible('#monitorBtn') and ed.is_visible('#helpBtn') and ed.is_visible('#timeline')
+    ed.click('#fsBtn')
+    ed.wait_for_function("!document.body.classList.contains('fs') && !document.fullscreenElement", timeout=5000)
+    assert ed.inner_text('#fsBtn').startswith('Full screen')
+    step('Edit has the Full screen button: in and out again, with Monitor, Help and the timeline still there')
+
     def take(sec):
         recprog(); time.sleep(sec); recprog()   # the director records a take
     take(8)

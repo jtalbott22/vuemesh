@@ -397,7 +397,7 @@
   .busbtn.live { background: var(--tally); color: #fff; }
   .busbtn.bad { box-shadow: inset 0 -3px 0 var(--amber); }
   /* The full screen control room keeps your theme (dark is black, light stays light). */
-  body.fs .bar #beaconBtn, body.fs .bar #monitorBtn, body.fs .bar #watchBtn, body.fs #helpBtn { display: none; }
+  body.fs .bar #beaconBtn, body.fs .bar #watchBtn { display: none; } /* (Edit's bar has room: Monitor and Help stay in full screen) */
   body.fs .bridge { display: flex; }
   body.fs[data-mode="live"] .bus { display: flex; }
 
@@ -597,7 +597,7 @@
   :root { --left: 270px; --right: 320px; }
 
   /* top bar: what editing needs (the live show's controls are in the studio's own window) */
-  .modes, .status, #beaconBtn, #fsBtn, #ccuBtn, #pgmFormat { display: none !important; }
+  .modes, .status, #beaconBtn, #ccuBtn, #pgmFormat { display: none !important; }
   .wsbadge { display: inline-flex; align-items: center; min-height: 26px; padding: 0 .85em; border-radius: 7px; background: var(--text); color: var(--bg); font-size: .78rem; font-weight: 700; }
   .bar #exportTop { gap: 6px; }
   .bar #exportTop .ic { width: 14px; height: 14px; }
