@@ -136,6 +136,9 @@ async function join(code) {
     onPeers: (peers) => {
       const h = peers.find((p) => p.role === 'host');
       if (!h) {
+        // (the studio's server connection dropped a moment; the program comes straight from the
+        // studio, so a link that's still connected stays. If it goes, the watchdog asks again.)
+        if (host && pc?.connectionState === 'connected') return;
         if (host) drop();
         host = null;
         return waiting('Waiting for the studio. Open the VUEMesh studio for this event.');

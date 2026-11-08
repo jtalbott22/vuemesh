@@ -127,6 +127,35 @@ assert.equal(last('c3', 'peers').peers.some((p) => p.peer === 'HOST2'), true, 'p
 open.delete('h2');
 ok('phones only hear about the host arriving or leaving');
 
+// AWS cuts every connection at two hours. The studio reconnects, the phones answer at once, and AWS
+// can't deliver to the new connection until its connecting has finished: that mustn't take it off
+// the list (it did, leaving a studio no phone could reach). An older one that fails is taken off,
+// and a connection the server has no record of is told to connect again.
+await connect('h3', { e: id, role: 'host', peer: 'HOST3', k: hostKey });
+open.delete('h3'); // (still connecting, as far as AWS is concerned)
+await sig('$default', 'c3', { body: JSON.stringify({ action: 'signal', to: 'HOST3', data: { kind: 'offer' } }) });
+open.add('h3');
+await sig('$default', 'h3', { body: JSON.stringify({ action: 'hello' }) });
+assert.equal(last('h3', 'peers')?.you, 'HOST3', 'a brand-new connection that missed a message stays on the list');
+assert.equal(last('h3', 'rejoin'), undefined);
+clock += 20000;
+open.delete('h3');
+await sig('$default', 'c3', { body: JSON.stringify({ action: 'signal', to: 'HOST3', data: { kind: 'offer' } }) });
+open.add('h3');
+await sig('$default', 'h3', { body: JSON.stringify({ action: 'ping' }) });
+assert.ok(last('h3', 'rejoin'), 'one the server took for gone is told to connect again');
+open.delete('h3');
+await connect('h4a', { e: id, role: 'host', peer: 'HOST4', k: hostKey });
+open.delete('h4a'); // (its old connection, gone without a word yet)
+clock += 20000;
+await connect('h4b', { e: id, role: 'host', peer: 'HOST4', k: hostKey });
+await sig('$default', 'c3', { body: JSON.stringify({ action: 'signal', to: 'HOST4', data: { kind: 'offer', n: 4 } }) });
+assert.equal(last('h4b', 'signal')?.data.n, 4, 'a message goes to the newest connection of that peer');
+open.delete('h4b');
+await sig('$disconnect', 'h4a');
+await sig('$disconnect', 'h4b');
+ok('a studio that just reconnected stays reachable; a lost one is told to connect again');
+
 // a TV (the display role): it joins like a phone, hears who's here, reaches only the host
 await connect('h3', { e: id, role: 'host', peer: 'HOST3', k: hostKey });
 await connect('tv1', { e: id, role: 'display', peer: 'TV1', name: 'Hall TV', cid: 'tvdev' });

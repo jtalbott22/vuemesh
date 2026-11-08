@@ -397,11 +397,19 @@ export async function signal(evt, deps) {
   } catch {
     return { status: 400 };
   }
+  // A connection this side has no record of (it was taken for gone) is told to connect again: else it
+  // would think it's here while nobody can reach it, and the phones would wait for it forever.
   const eventId = await store.getConnEvent(conn);
-  if (!eventId) return { status: 410 };
+  if (!eventId) {
+    await deps.post(conn, { type: 'rejoin' });
+    return { status: 410 };
+  }
   const peers = await store.listConns(eventId);
   const me = peers.find((p) => p.connId === conn);
-  if (!me) return { status: 410 };
+  if (!me) {
+    await deps.post(conn, { type: 'rejoin' });
+    return { status: 410 };
+  }
 
   switch (msg.action) {
     case 'hello':
@@ -416,11 +424,12 @@ export async function signal(evt, deps) {
     case 'signal': {
       // Relay a WebRTC message to one peer. Phones may only talk to hosts and
       // hosts may talk to anyone, so guests can't message each other.
-      const target = peers.find((p) => p.peer === msg.to);
+      // (the newest connection of that peer: one that just reconnected can sit beside its old one a moment)
+      const target = peers.filter((p) => p.peer === msg.to).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
       if (!target) break;
       if (me.role !== 'host' && target.role !== 'host') break;
       const ok = await deps.post(target.connId, { type: 'signal', from: me.peer, fromRole: me.role, data: msg.data });
-      if (!ok) await store.removeConn(eventId, target.connId);
+      if (!ok && settled(target, now)) await store.removeConn(eventId, target.connId);
       break;
     }
     case 'ping':
@@ -437,6 +446,12 @@ export async function signal(evt, deps) {
 // quiet for longer than that is a ghost (a phone that vanished without a clean
 // disconnect) and is left out of the list.
 const STALE_MS = 11 * 60 * 1000;
+// A message that can't be delivered usually means the connection is gone, and it's taken off the list.
+// Not a brand-new one: AWS won't deliver to a connection until its connecting has finished, and the
+// phones answer a studio that's just reconnected faster than that. Taking it off then left a studio
+// that thought it was connected, which no phone could reach (after AWS's two-hour cut, 0.63.3).
+const SETTLE_MS = 15 * 1000;
+const settled = (c, now) => now - (c.at || 0) > SETTLE_MS;
 function peerList(conns, now = Date.now()) {
   return conns.filter((c) => now - (c.seenAt || 0) < STALE_MS).map((c) => ({ peer: c.peer, role: c.role, name: c.name, cid: c.cid, rec: !!c.rec }));
 }
@@ -454,7 +469,7 @@ async function broadcastPeers(eventId, deps, skipConn, toEveryone = false) {
       if (c.connId === skipConn) return; // can't post during $connect; it says hello instead
       if (!toEveryone && c.role !== 'host' && c.role !== 'beacon' && c.role !== 'display') return;
       const ok = await deps.post(c.connId, { type: 'peers', you: c.peer, peers });
-      if (!ok) await deps.store.removeConn(eventId, c.connId);
+      if (!ok && settled(c, now)) await deps.store.removeConn(eventId, c.connId);
     }),
   );
 }
