@@ -1,5 +1,5 @@
 import {
-  $, api, now, identity, signStatement, decodeQR, parseTimecode,
+  $, api, now, identity, signStatement, decodeQR, drawQR, parseTimecode,
   meshSocket, wakeLock, toast, eventIdFromUrl, thumbprint, themeButton, helpDialog, announce, esc, rememberEvent, myEvents, fmtDur, diag, codecsOf, diagnosticsDialog,
 } from '/js/vm.js';
 import { TERMS_VERSION } from '/js/brand.js';
@@ -10,6 +10,7 @@ import { CameraKit, QUALITY, preferredCamera } from '/js/camctl.js';
 import { withRotation } from '/js/mp4rot.js';
 import { channelFixer } from '/js/audiofx.js';
 import { ProgramView } from '/js/pgmview.js';
+import { PhoneJoin } from '/js/qrjoin.js';
 
 // Phone or computer? Computers usually have no gyro or compass and a webcam that can't
 // be turned, so they get different coaching and wording. (iPads report as Macs; touch tells.)
@@ -378,7 +379,15 @@ async function boot() {
   // (a camera, and the signature that joins a show, need a secure address: over plain http on another
   // computer's address the browser has neither, and joining failed with a message about JavaScript)
   if (!window.isSecureContext) throw new Error(`This page needs a secure address (https://) to use the camera. It was opened at ${location.origin}: open the show's link that starts with https://.`);
-  ev = await api(`events/${eventId}`);
+  try {
+    ev = await api(`events/${eventId}`);
+  } catch (e) {
+    if (e.status) throw e; // (the server answered: no such show, say)
+    // No internet: join by swapping QR codes with the studio. Its answer brings the show's details,
+    // and a link to the studio that this phone's usual one is then arranged over (connectMesh).
+    pendingBoot = await qrJoin();
+    ev = pendingBoot.hello.ev;
+  }
   await keepEventsApart(ev);
   showFirstBox();
 
@@ -704,7 +713,132 @@ function connectMesh() {
     }
     renderOutbox();
   });
+  if (pendingBoot) {
+    link.useBoot(pendingBoot, pendingBoot.hello.host, { role, name: me.name, cid: me.contributorId });
+    pendingBoot = null;
+  }
 }
+
+// ---------------------------------------------------------------- join by QR ----
+// With no internet there's no server to find the studio through. This phone shows a QR code for a
+// camera at the studio to read, then scans the studio's answer: that makes a link straight to the
+// studio (qrjoin.js), and the usual one goes over it. Also to come back after the link's gone.
+let pendingBoot = null;
+let qjNow = null; // { code, read(text) } while it's showing (tests: the codes, as a camera would read them)
+function qrJoin() {
+  return new Promise((resolve, reject) => {
+    const j = new PhoneJoin(eventId);
+    let own = null, timer = null, done = false;
+    const view = $('#qrJoinView');
+    const stop = () => {
+      clearTimeout(timer);
+      own?.getTracks().forEach((t) => t.stop());
+      own = null;
+      $('#qjCam').srcObject = null;
+    };
+    const finish = (r, err) => {
+      if (done) return;
+      done = true;
+      stop();
+      view.hidden = true;
+      qjNow = null;
+      if (err) {
+        j.close();
+        reject(err);
+      } else resolve(r);
+    };
+    const read = async (text) => {
+      if (done || !text) return false;
+      $('#qjMsg').textContent = 'Found it. Connecting…';
+      try {
+        const r = await j.answer(text);
+        if (!r) {
+          $('#qjMsg').textContent = "That's not the studio's answer to this phone (another phone's?). Looking again…";
+          return false;
+        }
+        navigator.vibrate?.(30);
+        finish({ ...r, hello: r.hello });
+        return true;
+      } catch (e) {
+        $('#qjMsg').textContent = `${e.message}. Is this phone on the studio's Wi-Fi? Show the studio this phone's code again.`;
+        $('#qjScanStep').hidden = true;
+        $('#qjMineStep').hidden = false;
+        j.start().then(drawMine, () => {});
+        return false;
+      }
+    };
+    const drawMine = (code) => {
+      drawQR($('#qjMine'), code, { size: 600, ecl: 'L' });
+      qjNow = { code, read };
+    };
+    const scan = async () => {
+      $('#qjMineStep').hidden = true;
+      $('#qjScanStep').hidden = false;
+      $('#qjMsg').textContent = 'Looking for the studio’s code…';
+      const v = $('#qjCam');
+      let src = stream?.getVideoTracks().some((t) => t.readyState === 'live') ? stream : null; // (the camera, if it's open: no asking again)
+      if (!src) {
+        try {
+          src = own = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+        } catch (e) {
+          $('#qjMsg').textContent = e.name === 'NotAllowedError' ? 'Allow the camera to scan the studio’s code.' : `Couldn't open the camera: ${e.message}`;
+          return;
+        }
+      }
+      v.srcObject = src;
+      await v.play().catch(() => {});
+      const c = document.createElement('canvas');
+      const tick = async () => {
+        if (done || $('#qjScanStep').hidden) return;
+        if (v.videoWidth) {
+          c.width = v.videoWidth;
+          c.height = v.videoHeight;
+          c.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
+          const text = await decodeQR(c).catch(() => null);
+          if (text?.startsWith('VMJ1|') && (await read(text))) return;
+        }
+        timer = setTimeout(tick, 250);
+      };
+      tick();
+    };
+    $('#qjNext').onclick = scan;
+    $('#qjBack').onclick = () => {
+      clearTimeout(timer);
+      $('#qjScanStep').hidden = true;
+      $('#qjMineStep').hidden = false;
+    };
+    $('#qjCancel').onclick = () => finish(null, new Error('Not joined: there’s no internet, and the QR codes weren’t swapped'));
+    $('#qjScanStep').hidden = true;
+    $('#qjMineStep').hidden = false;
+    $('#qjErr').textContent = '';
+    view.hidden = false;
+    j.start().then(drawMine, (e) => ($('#qjErr').textContent = e.message));
+  });
+}
+window.vmQrJoinPhone = () => qjNow && { code: qjNow.code, read: qjNow.read }; // (tests)
+window.vmQrJoinPhoneRead = (text) => qjNow?.read(text); // (tests)
+
+// The link's gone and there's no internet to come back through: offer the QR codes.
+let qrRejoining = false;
+setInterval(() => {
+  const away = !!link && !!me && linkState === 'no-host' && !socket?.connected && !qrRejoining;
+  if (!away) qrRejoinSince = null;
+  else qrRejoinSince ||= Date.now();
+  $('#qrRejoinBtn').hidden = !(away && Date.now() - qrRejoinSince > 8000);
+}, 1000);
+let qrRejoinSince = null;
+$('#qrRejoinBtn').onclick = async () => {
+  qrRejoining = true;
+  $('#qrRejoinBtn').hidden = true;
+  try {
+    const r = await qrJoin();
+    link.useBoot(r, r.hello.host, { role, name: me.name, cid: me.contributorId });
+  } catch (e) {
+    toast(e.message, 5000);
+  } finally {
+    qrRejoining = false;
+  }
+};
 
 let linkState = 'no-host';
 const outbox = new Map(); // clips waiting to reach the host (also kept in IndexedDB)

@@ -1,7 +1,8 @@
 // Studio, part 23 of 26: the Monitor, the phone remote, TV screens.
 // Loads after export.js: that import comes first, so the parts run in order (see ../studio.js).
 import './export.js';
-import { toast, esc, now, drawQR } from '/js/vm.js';
+import { toast, esc, now, drawQR, decodeQR } from '/js/vm.js';
+import { studioAnswer, decode as decodeJoin } from '/js/qrjoin.js';
 import { RemoteHost } from '/js/remote-host.js';
 import { DisplayHub } from '/js/display-hub.js';
 import * as S from '/js/sequence.js';
@@ -405,3 +406,108 @@ export function onTvCal(m) {
   toast(`${k.name}: ${Math.round(lag)} ms lag. Its beacon is lined up with this screen.`, 5000);
   closeTvCal();
 }
+
+// ------------------------------------------------------------- join by QR --
+// A phone with no internet can't find the studio through the server. It shows a QR code instead
+// (qrjoin.js); a camera here reads it (this computer's, or any camera in the show), and the studio
+// shows its answer for the phone to scan. That makes a small link straight between the two, and the
+// phone's usual link is arranged over it.
+const qj = { stream: null, own: false, timer: null, busy: false, seen: new Set(), answer: null };
+function qjSources() {
+  const cams = camOrder().map((p) => [p, live.get(p)]).filter(([, l]) => l?.stream?.getVideoTracks().length && l.role !== 'mic');
+  return [['computer', "This computer's camera"], ...cams.map(([p, l]) => [p, `${l.local ? '' : 'Camera: '}${l.name}`])];
+}
+async function qjUse(src) {
+  if (qj.own) qj.stream?.getTracks().forEach((t) => t.stop());
+  qj.own = false;
+  qj.stream = null;
+  if (src === 'computer') {
+    try {
+      qj.stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+      qj.own = true;
+    } catch {
+      $('#qjSay').textContent = "This computer's camera isn't available: pick a camera in the show.";
+    }
+  } else qj.stream = live.get(src)?.stream ? new MediaStream(live.get(src).stream.getVideoTracks()) : null;
+  $('#qjVideo').srcObject = qj.stream;
+}
+function qjRead() {
+  $('#qjRead').hidden = false;
+  $('#qjShow').hidden = true;
+  $('#qjSay').textContent = 'Looking for the phone’s code…';
+  clearInterval(qj.timer);
+  const c = document.createElement('canvas');
+  qj.timer = setInterval(async () => {
+    const v = $('#qjVideo');
+    if (qj.busy || !v.videoWidth) return;
+    qj.busy = true;
+    try {
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
+      const text = await decodeQR(c).catch(() => null);
+      if (text) await qjHandle(text);
+    } finally {
+      qj.busy = false;
+    }
+  }, 300);
+}
+/** A code read (or, in tests, given): answer it and show the answer. */
+async function qjHandle(text) {
+  const c = decodeJoin(text);
+  if (!c) return false;
+  if (c.show !== eventId) {
+    $('#qjSay').textContent = `That phone is joining another show (${c.show}): open ${eventId} on it.`;
+    return false;
+  }
+  if (qj.seen.has(c.nonce)) return false; // (still in front of the camera: answered already)
+  qj.seen.add(c.nonce);
+  clearInterval(qj.timer);
+  const r = await studioAnswer(text, eventId);
+  if (!r) return false;
+  qj.answer = r.code;
+  $('#qjRead').hidden = true;
+  $('#qjShow').hidden = false;
+  drawQR($('#qjQr'), r.code, { size: 360, ecl: 'L' });
+  $('#qjSay2').textContent = 'Waiting for the phone to scan it…';
+  r.link.then(({ pc, dc }) => {
+    hub.adoptBoot(pc, dc);
+    // (which show this is, and the studio's id: the phone joins as it would through the server)
+    dc.send(JSON.stringify({ t: 'hello', show: eventId, host: sock.peer, ev }));
+    note('A phone joined by QR code (no server)');
+    $('#qjSay2').textContent = 'Connected: the phone is joining. Next phone?';
+    qj.answer = null;
+    setTimeout(() => $('#qrJoinDlg').open && qjRead(), 2500);
+  }, () => {
+    if ($('#qrJoinDlg').open && qj.answer === r.code) {
+      $('#qjSay2').textContent = 'The phone didn’t connect. Is it on this Wi-Fi? Try again.';
+      qj.answer = null;
+      setTimeout(() => $('#qrJoinDlg').open && qjRead(), 2500);
+    }
+  });
+  return true;
+}
+function openQrJoin() {
+  if (!isHost) return;
+  $('#qjCode').textContent = eventId;
+  const srcs = qjSources();
+  $('#qjSrc').innerHTML = srcs.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
+  // (a camera in the show first, if there's one: this computer's may be busy, or not there)
+  const first = srcs.find(([v]) => v !== 'computer')?.[0] || 'computer';
+  $('#qjSrc').value = first;
+  qjUse(first);
+  qjRead();
+  $('#qrJoinDlg').showModal();
+}
+$('#qrJoinBtn')?.addEventListener('click', openQrJoin);
+$('#offlineDot')?.addEventListener('click', openQrJoin);
+$('#qjSrc')?.addEventListener('change', (e) => qjUse(e.target.value));
+$('#qjCancel')?.addEventListener('click', () => $('#qrJoinDlg').close());
+$('#qrJoinDlg')?.addEventListener('close', () => {
+  clearInterval(qj.timer);
+  if (qj.own) qj.stream?.getTracks().forEach((t) => t.stop());
+  qj.stream = null;
+  qj.own = false;
+  $('#qjVideo').srcObject = null;
+});
+window.vmQrJoin = { open: openQrJoin, read: (text) => qjHandle(text), answer: () => qj.answer }; // (tests: a code as a camera would read it)

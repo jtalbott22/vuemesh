@@ -102,6 +102,8 @@
   .relaysteps .cmd { display: flex; gap: 4px; align-items: stretch; margin-top: 3px; }
   .relaysteps code { flex: 1; min-width: 0; font-family: var(--mono); font-size: .72rem; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; overflow-x: auto; white-space: nowrap; user-select: all; }
   .insp .relaysteps .cmd button { min-height: 0; padding: 0 .6em; font-size: .68rem; }
+  .qjdlg video { display: block; width: 100%; max-width: 360px; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; margin: 8px 0; object-fit: contain; }
+  .qjdlg select { margin-left: 6px; }
   .offlinedot { margin-left: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; color: #111; background: #f5b400; padding: .2em .6em; border-radius: 999px; cursor: help; }
   .streamdot { margin-left: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; color: #fff; background: var(--tally); padding: .2em .6em; border-radius: 999px; }
   .tile .nosync { position: absolute; right: 6px; bottom: 30px; font-size: .58rem; font-weight: 800; letter-spacing: .05em; background: var(--amber); color: #3b2500; padding: .05em .4em; border-radius: 3px; }
@@ -873,10 +875,11 @@
     <button type="button" role="tab" id="liveTab" aria-selected="true" aria-controls="program">Live</button>
     <button type="button" id="editTab" title="Edit opens in its own window, beside the live studio, and builds the edit as recordings land">Edit ↗</button>
   </div>
-  <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span><span class="offlinedot" id="offlineDot" hidden title="No server: everyone already in the show carries on, over this network. A new phone can't join, and one that drops out can't come back, until the internet's back. Don't reload this page meanwhile.">OFFLINE · THIS NETWORK ONLY</span></div>
+  <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span><span class="offlinedot" id="offlineDot" hidden title="No server: everyone already in the show carries on, over this network. A phone joins (or one that dropped out comes back) by swapping QR codes: click here, or Join by QR. Don't reload this page meanwhile.">OFFLINE · THIS NETWORK ONLY</span></div>
   <span class="spacer"></span>
   <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software">Program out ↗</button>
   <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">Beacon</a>
+  <button type="button" class="ghost" id="qrJoinBtn" title="A phone with no internet joins by swapping QR codes with the studio">Join by QR</button>
  <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen control room (F)">Full screen <kbd>F</kbd></button>
   <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
   <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
@@ -1245,6 +1248,21 @@
   <p class="fine" id="remoteLink"></p>
   <p class="fine" id="remoteLeft" aria-live="polite"></p>
   <div class="row" style="justify-content:flex-end"><button type="button" id="remoteCancel">Cancel</button></div>
+</dialog>
+<dialog id="qrJoinDlg" class="remotedlg qjdlg" aria-labelledby="qrJoinH">
+  <h2 id="qrJoinH">Join a phone with no internet</h2>
+  <div id="qjRead">
+    <p class="fine" style="margin-top:0">On the phone: open VUEMesh and this show (code <b id="qjCode"></b>). With no internet it shows a QR code: hold that up to a camera here.</p>
+    <label class="fine">Read it with <select id="qjSrc"></select></label>
+    <video id="qjVideo" muted playsinline autoplay></video>
+    <p class="fine" id="qjSay" aria-live="polite">Looking for the phone’s code…</p>
+  </div>
+  <div id="qjShow" hidden>
+    <p class="fine" style="margin-top:0">Now scan this with the phone (it says “Scan the studio’s code”).</p>
+    <canvas id="qjQr" width="360" height="360" aria-label="The studio's answer, for the phone to scan"></canvas>
+    <p class="fine" id="qjSay2" aria-live="polite"></p>
+  </div>
+  <div class="row" style="justify-content:flex-end"><button type="button" id="qjCancel">Close</button></div>
 </dialog>
 <dialog id="tvCalDlg" class="remotedlg" aria-labelledby="tvCalH">
   <h2 id="tvCalH">Calibrate <span id="tvCalName"></span></h2>

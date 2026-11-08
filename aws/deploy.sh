@@ -47,11 +47,11 @@ cp ../CHANGELOG.md "$SITE_DIR/changelog.md" # (the site's What's new page reads 
 echo "window.VM_CONFIG = { api: '$API', ws: '$WS' };" > "$SITE_DIR/config.js"
 # Assets: short cache. Published films live under films/ and are never touched.
 aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" --delete \
-  --exclude "films/*" --exclude "*.html" --exclude "config.js" \
+  --exclude "films/*" --exclude "*.html" --exclude "config.js" --exclude "sw.js" \
   --cache-control "public, max-age=300"
 # Pages and config: always revalidate.
 aws s3 sync "$SITE_DIR/" "s3://$BUCKET/" --region "$REGION" \
-  --exclude "*" --include "*.html" --include "config.js" \
+  --exclude "*" --include "*.html" --include "config.js" --include "sw.js" \
   --cache-control "no-cache"
 for m in manifest remote; do
   aws s3 cp "$SITE_DIR/$m.webmanifest" "s3://$BUCKET/$m.webmanifest" --region "$REGION" \

@@ -20,6 +20,14 @@ const WS = CFG.ws || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${locat
 // Public STUN only. No TURN: media stays on the local network, so there is no relay bill.
 export const ICE = CFG.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }];
 
+// The app kept on this device (sw.js): opened again with no internet, it still works, and can join
+// a show by QR code. (Online nothing changes: everything still comes from the network.)
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  // (the first time, this page and what it loaded came before the worker was there to keep them: it keeps them now)
+  navigator.serviceWorker.ready.then((r) => setTimeout(() => r.active?.postMessage({ t: 'keep', urls: [location.href, ...performance.getEntriesByType('resource').map((x) => x.name)] }), 2000)).catch(() => {});
+}
+
 // --- API ---------------------------------------------------------------------
 
 // ---- web traffic: one anonymous page view per page load (no cookies, nothing stored here).

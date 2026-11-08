@@ -193,16 +193,41 @@ export class CamLink {
     this.connect({ over: true });
   }
 
-  /** A handshake message to the studio: over the old link while it's being replaced (no server needed), else through the server. */
+  /** A handshake message to the studio: over the old link while it's being replaced, or the QR-made one (no server needed), else through the server. */
   sig(data) {
-    const via = this.old?.dc;
-    if (via?.readyState === 'open') {
+    for (const via of [this.old?.dc, this.boot]) {
+      if (via?.readyState !== 'open') continue;
       try {
         via.send(JSON.stringify({ t: 'sig', d: data }));
         return;
       } catch {}
     }
     this.sock.signal(this.host, data);
+  }
+
+  /**
+   * Joined by QR code, with no server (qrjoin.js): the usual link is arranged over that small one.
+   * @param {{pc: RTCPeerConnection, dc: RTCDataChannel}} boot  @param host the studio's id  @param who {role, name, cid}
+   */
+  useBoot(boot, host, who) {
+    this.closeBoot();
+    this.bootLink = boot;
+    this.boot = boot.dc;
+    this.host = host;
+    this.left = false;
+    boot.dc.onmessage = (e) => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m.t === 'sig') this.onSignal(this.host, m.d || {});
+    };
+    boot.dc.onclose = () => this.bootLink === boot && (this.boot = null);
+    boot.dc.send(JSON.stringify({ t: 'who', peer: this.sock.peer, role: who.role, name: who.name, cid: who.cid }));
+    this.connect();
+  }
+
+  closeBoot() {
+    try { this.bootLink?.pc.close(); } catch {}
+    this.bootLink = this.boot = null;
   }
 
   /** @param {{over?: boolean}} o  over: arrange the new link over the one that's working, keeping it until the new one's up */
@@ -274,6 +299,7 @@ export class CamLink {
       const s = pc.connectionState;
       if (s === 'connected') {
         this.retireOld(); // (the new link is up: the one it replaced can go)
+        if (this.bootLink) setTimeout(() => pc === this.pc && pc.connectionState === 'connected' && this.closeBoot(), 3000); // (and the QR-made one, its job done)
         this.onState(await routeOf(pc));
         this.startQuality(pc);
         if (this.paused) this.setPaused(true);
@@ -300,6 +326,7 @@ export class CamLink {
     // With no server there's nothing to connect again through. A link that's only disconnected
     // usually comes back by itself once the Wi-Fi does (within about 30 s): let it.
     if (why === 'disconnected' && !this.sock.connected) return;
+    if (this.boot?.readyState === 'open') return this.connect(); // (the QR-made link's still there: try again over it)
     if (this.sock.connected && this.host && this.sock.peers?.some((p) => p.peer === this.host)) return this.connect();
     this.close();
     this.host = null;
@@ -585,6 +612,28 @@ export class HostHub {
   constructor(o) {
     Object.assign(this, o);
     this.links = new Map();
+    this.known = new Map(); // peer → { peer, role, name, cid }: phones that joined by QR code (not on the server's list)
+    this.paths = new Map(); // peer → the channel of its QR-made link: the handshake's way while it lasts
+  }
+
+  /** A phone's QR-made link (qrjoin.js, no server): it says who it is, then arranges its usual link over it. */
+  adoptBoot(pc, dc) {
+    let peer = null;
+    dc.onmessage = (e) => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m.t === 'who' && m.peer) {
+        peer = String(m.peer).slice(0, 40);
+        const role = m.role === 'mic' ? 'mic' : 'cam';
+        this.known.set(peer, { peer, role, name: String(m.name || '').slice(0, 40), cid: String(m.cid || '').slice(0, 32), rec: false });
+        fromRoleOf.set(peer, role);
+        this.paths.set(peer, dc);
+      } else if (m.t === 'sig' && peer) this.onSignal(peer, m.d || {}, fromRoleOf.get(peer), dc);
+    };
+    dc.onclose = () => {
+      if (peer && this.paths.get(peer) === dc) this.paths.delete(peer);
+      try { pc.close(); } catch {}
+    };
   }
 
   syncPeers(peers) {
@@ -647,8 +696,8 @@ export class HostHub {
     const link = { pc, pendingIce: [], remoteSet: false, stream: null, prev };
     this.links.set(peer, link);
     const sig = (d) => {
-      const c = link.prev?.dc;
-      if (c?.readyState === 'open') {
+      const c = [link.prev?.dc, this.paths.get(peer)].find((x) => x?.readyState === 'open');
+      if (c) {
         try {
           c.send(JSON.stringify({ t: 'sig', d }));
           return;
