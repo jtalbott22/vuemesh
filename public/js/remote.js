@@ -177,6 +177,7 @@ $('#pgmTgl').onclick = () => {
   $('#pgmBox').hidden = !on;
   showSound();
   if (on && pgmKey && !pgm) startProgram(pgmKey);
+  if (on) pgm?.resume(); // (on again: its picture plays again, if anything had paused it)
 };
 
 // The program's sound, with the picture: off to start with (a phone in the studio's room would
@@ -325,7 +326,7 @@ function render() {
   $('#breakBtn').setAttribute('aria-pressed', String(!!state.brk));
   $('#breakBtn').textContent = state.brk ? 'End break' : 'Break';
   $('#recBtn').setAttribute('aria-pressed', String(!!state.rec));
-  $('#recBtn').textContent = state.rec ? 'Stop recording' : 'Record program';
+  if (!recArmed) $('#recBtn').textContent = state.rec ? 'Stop recording' : 'Record program';
   $('#pipBtn').hidden = !state.pip;
   $('#pipBtn').setAttribute('aria-pressed', String(!!state.pip?.on));
   $('#pipBtn').textContent = state.pip?.on ? `Corner camera${state.pip.now ? `: ${state.pip.now}` : ' on'}` : 'Camera in the corner';
@@ -358,8 +359,24 @@ $('#autoBtn').onclick = () => act('auto', !state?.auto);
 $('#pipBtn').onclick = () => act('pip', !state?.pip?.on);
 $('#blackBtn').onclick = () => act('black');
 $('#breakBtn').onclick = () => act('break');
+// Stopping asks for a second tap, not a confirm() box: on an iPhone that box pauses the page's
+// video, and Program out stayed frozen after it (its link fine, the picture still arriving).
+let recArmed = null;
+const disarmRec = () => {
+  clearTimeout(recArmed);
+  recArmed = null;
+  $('#recBtn').classList.remove('armed');
+  if (state) $('#recBtn').textContent = state.rec ? 'Stop recording' : 'Record program';
+};
 $('#recBtn').onclick = () => {
-  if (state?.rec && !confirm('Stop recording the program?')) return;
+  if (state?.rec && !recArmed) {
+    $('#recBtn').textContent = 'Tap again to stop';
+    $('#recBtn').classList.add('armed');
+    recArmed = setTimeout(disarmRec, 3000);
+    navigator.vibrate?.(15);
+    return;
+  }
+  disarmRec();
   act('rec', !state?.rec);
 };
 

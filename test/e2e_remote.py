@@ -67,10 +67,17 @@ with sync_playwright() as p:
     host.wait_for_function("document.querySelector('#recProgBtn').getAttribute('aria-pressed') === 'true'", timeout=15000)
     rem.wait_for_function("document.querySelector('#recBtn').textContent === 'Stop recording' && !document.querySelector('#recTime').hidden", timeout=10000)
     time.sleep(2)
-    rem.click('#recBtn')   # (asks first: accepted)
+    # (stopping asks for a second tap, not a confirm() box: on an iPhone that box paused Program out for good)
+    dialogs = []; rem.on('dialog', lambda d: dialogs.append(d.message))
+    rem.click('#recBtn')
+    rem.wait_for_function("document.querySelector('#recBtn').textContent === 'Tap again to stop'", timeout=3000)
+    time.sleep(0.5)
+    assert host.get_attribute('#recProgBtn', 'aria-pressed') == 'true', 'one tap does not stop it'
+    rem.click('#recBtn')
     host.wait_for_function("document.querySelector('#recProgBtn').getAttribute('aria-pressed') === 'false'", timeout=20000)
+    assert not dialogs, dialogs
     host.evaluate("document.querySelectorAll('dialog[open]').forEach(d => d.id !== 'remoteDlg' && d.close())")
-    step('Record program started from the remote (it shows the time recording), and stopped (after asking)')
+    step('Record program started from the remote (it shows the time recording), and stopped with a second tap (no confirm box)')
 
     # the used code can't be used again; a made-up key gets nothing; five wrong codes stop a pairing
     # (the studio is busy a moment finishing the program recording; let it)

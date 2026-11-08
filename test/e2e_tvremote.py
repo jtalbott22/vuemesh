@@ -92,6 +92,12 @@ with sync_playwright() as p:
     host.wait_for_function("[...vmDisplayHub().keys.values()].find((k) => k.remote)?.mode === 'program'", timeout=10000)
     rem.wait_for_function("vmProgramView() && vmProgramView().linked && vmProgramView().shown > 5", timeout=30000)
     step(f"the phone remote shows Program out above its cameras ({pv['w']}x{pv['h']}, {pv['shown']} frames so far), let in without Accept and not listed as a TV; it can be turned off and on")
+    # the phone pauses its picture (an iPhone does, for a confirm() box, a call, Siri), the link fine: it plays again by itself
+    rem.evaluate("document.querySelector('#pgm').pause()")
+    assert rem.evaluate("document.querySelector('#pgm').paused")
+    n0 = rem.evaluate('vmProgramView().shown'); t0 = time.time()
+    rem.wait_for_function(f"!document.querySelector('#pgm').paused && vmProgramView().shown > {n0} + 10", timeout=8000)
+    step(f'paused by the phone, with its link fine, Program out played again by itself in {time.time() - t0:.1f} s')
 
     # its sound: the program's, muted to start with; a tap turns it on, remembered; opened again, the first tap anywhere brings it back
     rem.wait_for_function("vmProgramView().sound", timeout=20000)
