@@ -28,7 +28,8 @@ if [ -n "${DOMAIN:-}" ]; then
   fi
   PARAMS+=("DomainName=$DOMAIN" "CertificateArn=$CERT_ARN")
 fi
-# Local shows' addresses and certificates (vuemesh-local.mjs): the domain's Route 53 zone
+# Local shows' addresses and certificates (vuemesh-local.mjs): the domain's Route 53 zone. Needed once:
+# like DOMAIN and CERT_ARN, it's only sent when set, and the stack keeps what it was given before.
 if [ -n "${LAN_ZONE:-}" ]; then PARAMS+=("LanZoneId=$LAN_ZONE"); fi
 
 echo "==> Building and deploying the backend stack ($STACK in $REGION)"
