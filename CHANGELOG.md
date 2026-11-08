@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.66.3 — a Mac's screen reaches a wired Windows studio
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Another computer's screen over `/share` no longer stays a black tile on a wired studio computer.** A shared screen gives the page no camera or microphone permission, so the browser hid the computer's address behind a random `name.local`. A studio computer on a cable couldn't look that name up (the lookup didn't cross from the Wi-Fi), never sent first, and its firewall dropped what came in. With Local network only on, a Mac's screen shared into a Windows studio stayed black. The share page now asks once for the microphone and lets it go at once (nothing is kept or sent), so the browser gives its real address, as a phone's camera page does.
+
+**Tests:** `e2e_sharequality`, `e2e_remotescreenrec`, `e2e_screen`, `e2e_screenfit` and `e2e_stillscreen` pass.
+
 ## 0.66.2 — the kiosk without the offline badge's error
 **Deploy:** `./aws/deploy.sh` (site only).
 
