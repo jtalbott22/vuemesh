@@ -1,11 +1,11 @@
 {
   "name": "vuemesh",
   "private": true,
-  "version": "0.66.7",
+  "version": "0.66.10",
   "type": "module",
   "scripts": {
     "dev": "node dev/server.mjs",
-    "test": "node test/core.test.mjs && node test/sequence.test.mjs && node test/quality.test.mjs && node test/imports.test.mjs && node test/config.test.mjs && node test/docsync.test.mjs && node test/showlog.test.mjs && node test/devmatch.test.mjs && node test/framesync.test.mjs && node test/tvquality.test.mjs && node test/local.test.mjs",
+    "test": "node test/core.test.mjs && node test/sequence.test.mjs && node test/quality.test.mjs && node test/imports.test.mjs && node test/config.test.mjs && node test/docsync.test.mjs && node test/showlog.test.mjs && node test/devmatch.test.mjs && node test/framesync.test.mjs && node test/tvquality.test.mjs && node test/local.test.mjs && node test/splice.test.mjs",
     "test:e2e": "python3 test/run_all.py",
     "lint": "eslint .",
     "relay": "node public/relay/vuemesh-relay.mjs"

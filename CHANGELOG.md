@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.66.10 — Record program's sound doesn't crackle on a busy computer
+**Deploy:** `./aws/deploy.sh` (site only). It changes only Record program's sound, and needs nothing from 0.66.8 or 0.66.9.
+
+A show on a busy laptop (four sources, the program encoded on the processor, two recordings here at once) made an MP4 whose music was choppy, though it sounded fine on the remote.
+- **Why:** Record program keeps its sound in step with the picture. When the sound engine's clock falls behind the page's (on a computer this busy, it does), it puts in a millisecond of the sound again, crossfaded, so the join can't be heard. The crossfade ran the wrong way: a jump back of a millisecond at its start and again at its end, two clicks each time. That show's log has 478 put in during 70 s, about 17 a second at first, nearly every block of sound. Taking a millisecond out, the other correction, was right. The remote hears the live mix, which never goes through this.
+- **Now:** the millisecond put in joins the sound smoothly at both ends, as one taken out does.
+- A recording already made keeps its clicks.
+
+**Tests:** `splice.test.mjs` (new): a millisecond put in or taken out of a 2048-sample block of a tone (110 Hz to 3 kHz) never jumps more than twice the tone's own step from one sample to the next. With 0.66.9 one put in jumped 0.625 at 110 Hz, against the tone's own 0.014. The length changes by exactly 48 samples, and the sound either side of the join is the block as it was.
+
 ## 0.66.7 — a camera in a background tab keeps sending
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.6.
 

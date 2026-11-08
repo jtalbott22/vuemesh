@@ -11,6 +11,7 @@
 // doesn't fill it. Nothing here is studio-specific: give it a canvas, a sound track, a rate.
 
 import { renderSupport, mp4Timescale } from '/js/render.js';
+import { cut, stretch } from '/js/splice.js';
 
 const DIR = 'program-recordings';
 const tapModules = new WeakMap(); // AudioContext → its tap module, loading
@@ -417,27 +418,4 @@ function toStereo(ad, ts) {
   data.set(L, 0);
   data.set(R, frames);
   return new AudioData({ format: 'f32-planar', sampleRate: ad.sampleRate, numberOfFrames: frames, numberOfChannels: 2, timestamp: ts, data });
-}
-
-/** A block with `k` samples taken out of its middle, crossfaded over k (a millisecond: unheard). */
-function cut(a, k) {
-  const at = Math.floor((a.length - 2 * k) / 2), out = new Float32Array(a.length - k);
-  out.set(a.subarray(0, at), 0);
-  for (let i = 0; i < k; i++) {
-    const w = i / k;
-    out[at + i] = a[at + i] * (1 - w) + a[at + k + i] * w;
-  }
-  out.set(a.subarray(at + 2 * k), at + k);
-  return out;
-}
-/** A block with `k` samples put into its middle (its own, again), crossfaded. */
-function stretch(a, k) {
-  const at = Math.floor((a.length - k) / 2), out = new Float32Array(a.length + k);
-  out.set(a.subarray(0, at + k), 0);
-  for (let i = 0; i < k; i++) {
-    const w = i / k;
-    out[at + k + i] = a[at + i] * (1 - w) + a[at + k + i] * w;
-  }
-  out.set(a.subarray(at + k), at + 2 * k);
-  return out;
 }

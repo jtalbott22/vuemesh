@@ -28,6 +28,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/tvquality.test.mjs` | a TV falling behind: its bitrate down (at most every 10 s, not below the floor), and back up when steady |
 | `test/local.test.mjs` | the local show helper: its address answers (the show's name, IPv6 none, others passed on), the hotspot's commands on Linux and Windows (and why not on a Mac), the Wi-Fi code's escaping, its certificate request checked by openssl, only VUEMesh's pages let in |
 | `test/showlog.test.mjs` | the show log: sound alerts (stopped, silent, unplugged; nothing arriving or sending silence; what to try for an interface here), the mixer's watch putting back a sound that stopped reaching it, the summary, chunks put back together |
+| `test/splice.test.mjs` | Record program's millisecond corrections to the sound: put in or taken out, the join doesn't click (110 Hz to 3 kHz), the length changes by exactly that, the sound either side is untouched |
 | `test/devmatch.test.mjs` | finding a saved camera or microphone again: by its id, name or USB id, or (renamed by its maker's driver) the one on the other driver; never another device (twins, two Focusrites, a laptop's two inputs) |
 
 ## End-to-end suites (browser)
