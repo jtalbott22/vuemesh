@@ -359,9 +359,9 @@ function ccuDrawCard(w, el, scopesDue) {
     if (l.paused && !pz) {
       pz = w.document.createElement('span');
       pz.className = 'pz';
-      pz.textContent = 'PAUSED';
       el.querySelector('[data-pic]').append(pz);
     } else if (!l.paused && pz) pz.remove();
+    if (pz && l.paused) pz.textContent = l.watching ? 'WATCHING THE PROGRAM' : 'PAUSED';
     if (scopesDue) {
       const m = measurePicture(l);
       for (const [sel, fn] of [['[data-h]', drawHistogram], ['[data-w]', drawWaveform]]) {

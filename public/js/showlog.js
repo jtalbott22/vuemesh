@@ -269,6 +269,8 @@ export class SoundWatch {
     };
     for (const s of sources) {
       if (s.a === 'live') this.hadSound.add(s.id);
+      // paused by its person (Pause feed, or watching the program on the phone): its silence is no alert
+      if (s.pz) continue;
       const had = this.hadSound.has(s.id), hint = hintFor(s);
       check(`ended:${s.id}`, s.open && had && (s.a === 'ended' || s.a === 'none'), 0, { kind: 'source-ended', id: s.id, n: s.n, text: `${s.n}: its sound stopped (the device let go of it)${hint}` });
       check(`muted:${s.id}`, s.open && s.a === 'muted', this.mutedAfterMs, { kind: 'source-muted', id: s.id, n: s.n, text: `${s.n}: no sound is coming from the device${hint}` });

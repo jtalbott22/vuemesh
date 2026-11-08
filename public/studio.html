@@ -675,7 +675,8 @@
   .dmlast.reply { color: var(--preview); font-weight: 700; }
   .dmrow .dmstat.reply { color: var(--preview); font-weight: 700; }
   .tile.paused video { filter: grayscale(1) brightness(.4); }
-  .tile .pz { position: absolute; inset: 0; display: grid; place-items: center; font-size: .75rem; font-weight: 800; letter-spacing: .08em; color: #fff; pointer-events: none; }
+  .tile .pz { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 2px; font-size: .75rem; font-weight: 800; letter-spacing: .08em; color: #fff; pointer-events: none; }
+  .tile .pz small { font-size: .62rem; font-weight: 600; letter-spacing: .02em; opacity: .85; }
   .tile .q { position: absolute; left: 6px; right: 6px; bottom: 22px; height: 4px; border-radius: 2px; background: #0008; overflow: hidden; }
   .tile .q i { display: block; height: 100%; width: 0; background: var(--preview); transition: width .3s; }
   .tile .q.bad i { background: var(--tally); }
@@ -1185,6 +1186,8 @@
       <p class="fine" style="margin:0 0 6px">Show the program on an Apple TV, or on any screen with a browser at <b>/tv</b>, on this network. The picture goes straight from this computer.</p>
       <ul class="remotes" id="tvList" aria-live="polite"></ul>
       <p class="fine" id="tvNone" style="margin:0 0 6px">No TVs yet. Open VUEMesh on the TV and enter <b id="tvEventCode"></b>; it shows up here to accept.</p>
+      <label class="row" style="gap:8px;align-items:center;margin:8px 0 4px;font-weight:600">Cameras watching the program: up to <input type="number" id="camsWatch" min="0" max="24" step="1" style="width:4.2em"></label>
+      <p class="fine" style="margin:0 0 6px">A small picture, no sound, beside each one's record button: camera 1 first, then 2, and so on (0: none). Each is a picture this computer sends. One watching full screen is paused here (WATCHING); click it to call them back.</p>
       </div>
     </details>
     <details class="card" id="cardNet" open data-mode="live">

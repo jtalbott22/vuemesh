@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.63.1 — Edit has its Full screen button; a camera watching the program isn't "gone silent"
+**Deploy:** `./aws/deploy.sh` (site only).
+
+- **Edit has the Full screen button again,** as the studio has. It went with the live controls when Edit got its own window (0.62.0), though F still worked there, with no button to see or to come back out with. Edit stays laid out as it is, and Monitor and Help stay in its bar.
+- **A camera paused by its person isn't "gone silent".** A show log had the alert twice, each six seconds after a phone started watching the program: watching pauses its picture and sound, on purpose. Pause feed did the same. A paused camera's silence is no longer an alert; back live and silent, it is.
+
+**Tests:** `showlog.test.mjs` checks a paused camera's silence raises nothing and that it does once it's live; `e2e_editpage.py` goes into full screen and back with the button.
+
+## 0.63.0 — camera people can watch the show
+**Deploy:** `./aws/deploy.sh` (site only).
+
+Off air, a camera person had no idea what the show looked like. Now every camera shows the program, small and silent, in a box to the right of the record button.
+
+- **The box shows whenever that camera isn't on air.** On air it steps aside, and the studio sends that phone nothing. No sound, ever: the phone is in the room, recording, and the program's sound would go straight back into its microphone.
+- **Tap the box to watch full screen.** That camera's live picture pauses (as Pause feed does) and the studio's tile says **WATCHING**. Recording carries on as it was. **Back to camera** and they're live again.
+- **The director can still reach them:** messages come up over the program, and clicking a watching camera in the studio (or right-click, **Call back to camera**) asks them back. The phone buzzes and says the director wants them, and it does the same if the director puts them in preview. Clicking doesn't cut to them: there's nothing to see until they're back.
+- **× tucks the box away** (a small Program button brings it back), remembered on that phone. Nothing is sent while it's tucked away.
+- **Up to 4 cameras to start with:** each is a picture the studio computer sends, so TV screens → *Cameras watching the program: up to* sets how many (0: none). Camera 1 gets it first, then 2, and so on; when one leaves, the next in line gets it.
+- **Light on the studio:** each one gets a quarter-size picture at 15 frames a second (about 0.35 Mbps), half size when watching full screen, on its own link as a TV's is. A camera's key works only while it's in the show; one that leaves loses it. Monitor lists each one under Transfers.
+
+**Tests:** `e2e_campgm.py`: the box off air, nothing on air, watching full screen and WATCHING in the studio, a message over it, called back by a click, back to camera, tucked away, up to 4 (at 1 only the lowest-numbered camera, at 0 none), and a camera that leaves (the next one moves up).
+
 ## 0.62.8 — the auto director changes angle around every camera, not just the phone
 **Deploy:** `./aws/deploy.sh` (site only).
 

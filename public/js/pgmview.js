@@ -4,12 +4,16 @@
 // size, with the program's sound (the remote starts it muted: see remote.js). It joins again by
 // itself, as a TV does (tv.js), and says what it's showing, only while it's on screen: a phone
 // that's locked or in the background shows nothing, and isn't falling behind.
+// A camera watching the program uses it too (cam.js), without the sound, asking for its box's
+// small picture, full screen, or nothing (want()).
 import { meshSocket, ICE } from '/js/vm.js';
 
 export class ProgramView {
-  /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js) */
+  /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js)
+   *  @param o.sound? false: picture only (a camera)  @param o.label? what the studio calls it  @param o.model? 'remote' | 'camera' */
   constructor(o) {
-    Object.assign(this, o);
+    Object.assign(this, { sound: true, label: `${o.name || 'Phone remote'} (Program out)`, model: 'remote' }, o);
+    this.wanted = null; // (a camera: { mode, big }, sent again whenever the link comes back)
     this.host = null;
     this.pc = null;
     this.ctl = null;
@@ -18,7 +22,7 @@ export class ProgramView {
     this.lastQ = null;
     this.say = (t) => this.onState?.(t);
     this.sock = meshSocket({
-      eventId: o.eventId, role: 'display', name: `${o.name || 'Phone remote'} (Program out)`, cid: 'pgm-' + Math.random().toString(36).slice(2, 10),
+      eventId: o.eventId, role: 'display', name: this.label, cid: 'pgm-' + Math.random().toString(36).slice(2, 10),
       onPeers: (peers) => {
         const h = peers.find((p) => p.role === 'host')?.peer || null;
         if (h === this.host) return;
@@ -66,7 +70,7 @@ export class ProgramView {
   hello() {
     this.lastTry = Date.now();
     this.say('Joining…');
-    this.signal({ display: { v: 1, t: 'hello', name: `${this.name || 'Phone remote'} (Program out)`, model: 'remote', appVersion: 'web', caps: ['program'], screen: { w: screen.width * devicePixelRatio, h: screen.height * devicePixelRatio }, key: this.key } });
+    this.signal({ display: { v: 1, t: 'hello', name: this.label, model: this.model, appVersion: 'web', caps: ['program'], screen: { w: screen.width * devicePixelRatio, h: screen.height * devicePixelRatio }, key: this.key } });
   }
   onDisplay(m) {
     if (m.t === 'paired') return this.offer();
@@ -80,9 +84,12 @@ export class ProgramView {
     this.drop();
     const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
     pc.addTransceiver('video', { direction: 'recvonly' });
-    pc.addTransceiver('audio', { direction: 'recvonly' });
+    if (this.sound) pc.addTransceiver('audio', { direction: 'recvonly' });
     this.ctl = pc.createDataChannel('ctl', { ordered: true });
-    this.ctl.onopen = () => this.say('');
+    this.ctl.onopen = () => {
+      this.say('');
+      if (this.wanted) this.want(this.wanted.mode, this.wanted.big);
+    };
     const stream = new MediaStream();
     pc.ontrack = (e) => {
       if (e.track.kind === 'audio' && this.onSound) return this.onSound(e.track);
@@ -94,6 +101,14 @@ export class ProgramView {
     pc.onconnectionstatechange = () => pc.connectionState === 'failed' && this.say("Can't reach the studio's picture on this network");
     await pc.setLocalDescription(await pc.createOffer());
     this.signal({ kind: 'offer', sdp: pc.localDescription.toJSON() });
+  }
+  /** What to send this screen: 'program' (big: full size, else small) or 'idle' (nothing). Kept, and sent again on every new link. */
+  want(mode, big = false) {
+    this.wanted = { mode, big: !!big };
+    if (this.ctl?.readyState !== 'open') return;
+    try {
+      this.ctl.send(JSON.stringify({ t: 'want', mode, big: !!big }));
+    } catch {}
   }
   get linked() {
     return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';

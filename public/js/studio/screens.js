@@ -241,11 +241,65 @@ $('#remoteList')?.addEventListener('click', (e) => {
 // remembered and comes back on its own. Its picture comes straight from this computer over the
 // local network; see display-hub.js.
 export let displayHub = null;
-function programForTv() {
+function programForTv({ sound: withSound = true } = {}) {
   const out = [programVideoTrack()];
-  const sound = mix.dest?.stream.getAudioTracks()[0];
+  const sound = withSound && mix.dest?.stream.getAudioTracks()[0];
   if (sound) out.push(sound.clone());
   return out;
+}
+
+// ---- cameras watching the program ----------------------------------------------------------
+// A camera in the show can get its own screen key over its link, so it can show the program in a
+// small box beside its record button (tap: full screen, its live picture paused while it watches).
+// Picture only, small: see display-hub.js. Each is a picture this computer encodes, so only so
+// many cameras get it (TV screens: up to 4 to start with; 0, none): the lowest camera numbers
+// first. When one leaves, the next in line gets it.
+const WATCH_DEFAULT = 4;
+let watchMax = (() => {
+  const n = localStorage.getItem('vm_camwatch_max');
+  if (n !== null && Number.isFinite(+n)) return Math.max(0, Math.min(24, Math.round(+n)));
+  return localStorage.getItem('vm_camwatch') === '0' ? 0 : WATCH_DEFAULT; // (it was on or off, before 0.63.0 shipped)
+})();
+const watchable = (l) => l && l.role !== 'mic' && !l.local && !l.screen && !!l.cid && !l.leaving;
+/** The cameras that can watch the program now: the first watchMax, by camera number (then who joined first). */
+function watchers() {
+  return [...live.entries()].filter(([, l]) => watchable(l))
+    .sort(([, a], [, b]) => (angleOfCid(a.cid) || 99) - (angleOfCid(b.cid) || 99) || (a.joinedAt || 0) - (b.joinedAt || 0))
+    .slice(0, watchMax).map(([peer]) => peer);
+}
+/** Tell one camera whether it can watch the program (its key, or none), when that changes. Again until its link is up. */
+function offerProgram(peer, tries = 0) {
+  const l = live.get(peer);
+  if (!l || l.role === 'mic' || l.local) return;
+  if (!l.cid || !displayHub) {
+    // (who it is can come a moment after its picture: then everyone's place is looked at again)
+    if (tries < 15) setTimeout(() => (live.get(peer)?.cid && displayHub ? rebalanceWatch() : offerProgram(peer, tries + 1)), 1000);
+    return;
+  }
+  const key = watchers().includes(peer) ? displayHub.trustCam(l.cid, l.name) : null;
+  if (!key) displayHub.untrustCam(l.cid);
+  if (l.pgmKey === key || l.screen) return;
+  if (hub?.message(peer, { t: 'pgm', key })) l.pgmKey = key;
+  else if (tries < 15) setTimeout(() => offerProgram(peer, tries + 1), 1000);
+}
+/** Which cameras can watch the program, for everyone (a camera joined or left, or the number changed). */
+export function rebalanceWatch() {
+  for (const [peer, l] of live) if (l.role !== 'mic' && !l.local) offerProgram(peer);
+}
+/** A camera left the show: its program screen goes with it, and the next camera in line may get it. */
+export function camLeft(cid) {
+  if (cid && ![...live.values()].some((l) => l.cid === cid)) displayHub?.untrustCam(cid);
+  rebalanceWatch();
+}
+if ($('#camsWatch')) {
+  $('#camsWatch').value = watchMax;
+  $('#camsWatch').onchange = (e) => {
+    watchMax = Math.max(0, Math.min(24, Math.round(+e.target.value || 0)));
+    e.target.value = watchMax;
+    localStorage.setItem('vm_camwatch_max', watchMax);
+    note(watchMax ? `Cameras watching the program: up to ${watchMax}` : 'Cameras can no longer watch the program');
+    rebalanceWatch();
+  };
 }
 export function startDisplayHub() {
   displayHub = new DisplayHub({
@@ -261,6 +315,7 @@ export function startDisplayHub() {
     blob: (id) => rawBlobs.get(id),
     thumb: (id) => thumbs.get(id) || null,
     fps: () => output.fps,
+    camOk: (cid) => watchers().some((peer) => live.get(peer)?.cid === cid),
   });
   window.vmDisplayHub = () => displayHub; // (diagnostics and tests)
   const code = $('#tvEventCode');
