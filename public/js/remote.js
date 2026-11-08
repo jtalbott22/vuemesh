@@ -125,6 +125,7 @@ function onMessage(m) {
     pgm?.stop();
     pgm = null;
     psound.stop();
+    fullProgram(false);
     $('#pgmBox').hidden = $('#pgmRow').hidden = true;
     key = null;
     localStorage.removeItem(keyStore(eventId));
@@ -173,6 +174,7 @@ $('#pgmTgl').onclick = () => {
   // (on again, on the same link: its sound is the same track, given back to the player)
   const snd = on && pgm?.pc?.getReceivers().find((r) => r.track?.kind === 'audio')?.track;
   if (snd) psound.setTrack(snd);
+  if (!on) fullProgram(false);
   $('#pgmTgl').setAttribute('aria-pressed', String(on));
   $('#pgmBox').hidden = !on;
   showSound();
@@ -194,6 +196,37 @@ function showSound() {
   b.setAttribute('aria-label', on ? 'Program sound on: tap to mute' : 'Program sound off: tap to hear it');
 }
 $('#sndBtn').onclick = () => psound.set(!psound.on);
+
+// Program out full screen, to just watch: a tap on it, and a tap anywhere to go back. It's the same
+// video made to fill the screen (nothing stops or reconnects). Where the browser can, the page goes
+// full screen too (an iPad, Android); an iPhone can't for a page, so there it fills the page.
+function fullProgram(on) {
+  const box = $('#pgmBox');
+  on = !!on && !box.hidden;
+  if (box.classList.contains('full') === on) return;
+  box.classList.toggle('full', on);
+  document.body.classList.toggle('pgmfull', on);
+  box.setAttribute('aria-pressed', String(on));
+  box.setAttribute('aria-label', on ? 'Program out, full screen: tap to go back to the remote' : "Program out: tap to watch it full screen");
+  if (on) {
+    const h = $('#fsHint');
+    h.style.animation = 'none';
+    void h.offsetWidth; // (the hint shows again each time)
+    h.style.animation = '';
+    document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+  } else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  pgm?.resume(); // (should anything have paused it)
+}
+$('#pgmBox').addEventListener('click', () => fullProgram(!$('#pgmBox').classList.contains('full')));
+$('#pgmBox').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fullProgram(!$('#pgmBox').classList.contains('full'));
+  } else if (e.key === 'Escape') fullProgram(false);
+});
+// (left the browser's full screen another way, a swipe or Esc: back to the remote too)
+document.addEventListener('fullscreenchange', () => !document.fullscreenElement && fullProgram(false));
+window.vmProgramFull = () => $('#pgmBox').classList.contains('full'); // (tests)
 window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
@@ -329,7 +362,12 @@ function render() {
   if (!recArmed) $('#recBtn').textContent = state.rec ? 'Stop recording' : 'Record program';
   $('#pipBtn').hidden = !state.pip;
   $('#pipBtn').setAttribute('aria-pressed', String(!!state.pip?.on));
-  $('#pipBtn').textContent = state.pip?.on ? `Corner camera${state.pip.now ? `: ${state.pip.now}` : ' on'}` : 'Camera in the corner';
+  // (its label: a long one upright, a short one sideways, with the camera in the corner under it. As one
+  // line, "Corner camera: Josh's iPhone" took three on a phone held sideways, and when a screen went
+  // on air the row of buttons grew and Program out shrank)
+  const pip = state.pip, now = pip?.on && pip.now;
+  setHtml($('#pipBtn'), `<span class="lg">${pip?.on ? `Corner camera${now ? '' : ' on'}` : 'Camera in the corner'}</span><span class="sh">${pip?.on ? 'Corner on' : 'Corner cam'}</span>${now ? `<small>${esc(now)}</small>` : ''}`);
+  $('#pipBtn').setAttribute('aria-label', pip?.on ? `Camera in the corner: on${now ? `, ${now}` : ''}` : 'Camera in the corner: off');
 }
 setInterval(() => {
   const t = $('#recTime');

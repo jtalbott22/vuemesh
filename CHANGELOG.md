@@ -10,6 +10,20 @@ A show on a busy laptop (four sources, the program encoded on the processor, two
 
 **Tests:** `splice.test.mjs` (new): a millisecond put in or taken out of a 2048-sample block of a tone (110 Hz to 3 kHz) never jumps more than twice the tone's own step from one sample to the next. With 0.66.9 one put in jumped 0.625 at 110 Hz, against the tone's own 0.014. The length changes by exactly 48 samples, and the sound either side of the join is the block as it was.
 
+## 0.66.9 — the phone remote held sideways, and Program out full screen
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.8.
+
+Held sideways, the phone remote was the upright page stretched wide: Program out filled the width, so the cameras and the buttons were a long scroll below it, and the sides ran under the Dynamic Island.
+- **Now:** turned sideways, a phone shows the whole show on one screen with no page to scroll. Program out is on the left, 16:9 and as big as the height allows, with what's on air, Program out and Sound above it. The quick actions (Auto-director, Fade to black, Break, Record program, the corner camera) sit in one row under it. The cameras, sounds, clips and the mixer are on the right, from top to bottom, and scroll on their own, at least two to a row. On an iPhone Pro Max that's a 505x284 Program out from the home screen (399x224 in Safari, with its bars). Nothing runs under the Dynamic Island or the home bar.
+- **Program out full screen:** a tap on Program out fills the screen with it (sideways or upright), to just watch. A tap anywhere goes back to the remote. It's the same picture made big, so it carries on playing with nothing to reconnect. "Tap to go back to the remote" shows for 2 s. Where the browser lets a page go full screen (an iPad, Android), it does. An iPhone doesn't let a page do that, so there it fills the page. A small corner mark on Program out says it can.
+- **A screen on air no longer shrinks Program out sideways.** With a screen on air, the corner button said "Corner camera: " and the camera's name, which took three lines on a phone held sideways, so the row of buttons grew and Program out got smaller. Now the buttons sideways are all one height whatever they say, and the corner button says "Corner on" with the camera under it in small type, cut short with "…" if it's long. Upright, it says "Corner camera" with the camera under it.
+- **No "Another show…" sideways** (nor the line above it), so the sources run to the bottom. It's still there upright, and a studio that isn't open brings up the show's code by itself.
+- **With Program out off,** what's on air and the actions go down the left, two to a row, and the sources get the rest.
+- **The toast** ("This phone is now a remote…") shows at the top when sideways, not over the actions.
+- Upright, the remote is otherwise as it was. An iPad isn't affected by the sideways layout (it's for screens under 560 high when sideways).
+
+**Tests:** `e2e_remotelandscape` (new): at 956x440, 956x380 and 667x375, nothing scrolls but the sources, which run to the bottom, Program out is 16:9 beside them, and the actions are one row of buttons 44 or more high under it. Taps on cameras, the microphone, Break and Fade to black work. Another computer's screen cut to, with a camera named "Joshua Talbott iPhone 17 Pro Max" in the corner: Program out and the buttons keep their size, and the corner button's label stays inside it. A tap on Program out fills the screen (782x440 sideways, 440x248 upright), over the buttons, still playing, and a tap goes back. Program out off puts the actions two to a row, and upright it's the old order. `e2e_remote`, `e2e_tvremote` and `e2e_pip` pass.
+
 ## 0.66.8 — the Monitor shows the program's picture
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.7.
 

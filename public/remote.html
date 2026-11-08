@@ -94,7 +94,78 @@
   .mixrow .modes button[aria-pressed="true"][data-mode="off"] { background: var(--tally); color: #fff; }
   .mixrow.prog { grid-template-columns: 1fr auto; }
   .fine { color: var(--dim); font-size: .85rem; }
+  #pipBtn .sh { display: none; }
+  #pipBtn small { display: block; font: 600 .8rem/1.15 system-ui, sans-serif; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .toast { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0) + 12px); background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+  /* A phone held sideways (an iPhone Pro Max is 956 x 440): the whole show on one screen, with no
+     page to scroll. Program out, as big as the height allows, with what's on air above it and the
+     quick actions in one row under it, on the left; the cameras, sounds, clips and the mixer on the
+     right, scrolling on their own. Clear of the Dynamic Island and the home bar on either side. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    body { padding: 0 max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 8px) max(12px, env(safe-area-inset-left, 0px)); }
+    header { padding: 6px 0 4px; flex: none; }
+    header h1 { font-size: 1.15rem; }
+    #pairView { max-width: 560px; margin: 6px auto 10px; }
+    .scanbox { width: min(100%, 64dvh); margin-inline: auto; }
+    /* (at the top: at the bottom it covered the quick actions) */
+    .toast { left: 50%; right: auto; top: 8px; bottom: auto; transform: translateX(-50%); width: min(480px, calc(100% - 24px)); }
+    body:has(> #ctlView:not([hidden])) { height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    /* (the left side's width: the picture's at the height left for it, so it fills it; the rest is the sources') */
+    #ctlView:not([hidden]) {
+      --lw: min(62%, max(340px, calc((100dvh - 150px) * 16 / 9)));
+      flex: 1; min-height: 0; display: grid; gap: 8px 10px;
+      grid-template-columns: minmax(0, 1fr) auto max(250px, calc(100% - var(--lw) - 10px));
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      grid-template-areas: "status pgmrow deck" "pgm pgm deck" "ctl ctl deck";
+    }
+    #ctlView .status { grid-area: status; margin: 0; padding: 6px 10px; min-height: 44px; min-width: 0; }
+    #ctlView .status .big { font-size: 1.2rem; white-space: nowrap; }
+    #ctlView .pgmrow { grid-area: pgmrow; margin: 0; gap: 6px; }
+    #ctlView .pgmtgl, #ctlView .sndbtn { flex: none; width: auto; min-height: 44px; padding: 4px 12px; font-size: 1rem; }
+    #ctlView .sndbtn svg { width: 20px; height: 20px; }
+    /* (the box is the space; the picture inside is 16:9 at the most that fits it) */
+    #ctlView .pgm { grid-area: pgm; container-type: size; display: grid; place-items: center; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; background: none; overflow: visible; min-height: 0; }
+    #ctlView .pgm video { grid-area: 1 / 1; width: min(100cqw, 100cqh * 16 / 9); height: auto; aspect-ratio: 16 / 9; border: 2px solid var(--tally); border-radius: 10px; background: #000; }
+    #ctlView .pgm .pgmsay { grid-area: 1 / 1; position: static; align-self: end; margin-bottom: 10px; }
+    #ctlView .deck { grid-area: deck; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6px; scrollbar-width: thin; }
+    /* (150 wide or more, and at least two to a row: a small phone's one column was all picture) */
+    #ctlView .deck .cams { grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 3px)), 1fr)); gap: 6px; }
+    #ctlView .deck h2.sub { margin: 10px 0 5px; }
+    #ctlView .cams.sound .cam { min-height: 48px; }
+    #ctlView .cams.sound .cam b { padding: 12px 10px 12px 44px; }
+    #ctlView .deck .mix { gap: 6px; }
+    /* the quick actions: one row, as many as there are */
+    #ctlView .ctl { grid-area: ctl; margin: 0; gap: 6px; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+    /* (all one height, whatever they say: a longer label never makes Program out smaller) */
+    #ctlView .ctl button { height: 52px; min-height: 0; padding: 4px 6px; font-size: 1.02rem; line-height: 1.05; overflow: hidden; }
+    #ctlView #pipBtn .lg { display: none; }
+    #ctlView #pipBtn .sh { display: inline; }
+    /* (no "Another show…" or its line: the sources run to the bottom. Upright has it, and a studio that
+       isn't open brings the show's code up by itself) */
+    #ctlView .foot { display: none; }
+    /* Program out turned off: what's on air and the actions down the left, the sources wider */
+    #ctlView:not([hidden]):has(> #pgmBox[hidden]) {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      grid-template-areas: "status deck" "pgmrow deck" "ctl deck" ". deck";
+    }
+    #ctlView:has(> #pgmBox[hidden]) .pgmtgl, #ctlView:has(> #pgmBox[hidden]) .sndbtn { flex: 1; }
+    #ctlView:has(> #pgmBox[hidden]) .ctl { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+    #ctlView:has(> #pgmBox[hidden]) .ctl button { min-height: 52px; }
+  }
+  /* Program out full screen: a tap on it, and a tap again to go back (the same picture, made big:
+     it carries on playing, nothing reconnects) */
+  .pgm { cursor: pointer; }
+  .pgm .fsico { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; padding: 4px; border-radius: 6px; background: #0009; color: #fff; opacity: .8; pointer-events: none; }
+  .pgm .fshint { display: none; }
+  #pgmBox.full { position: fixed; inset: 0; z-index: 50; margin: 0; border: 0; border-radius: 0; aspect-ratio: auto; background: #000; container-type: size; display: grid; place-items: center; }
+  #pgmBox.full video { grid-area: 1 / 1; width: min(100cqw, 100cqh * 16 / 9); height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 0; }
+  #pgmBox.full .fsico { display: none; }
+  #pgmBox.full .pgmsay { grid-area: 1 / 1; position: static; align-self: end; margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+  #pgmBox.full .fshint { display: block; position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #000b; color: #fff; font: 600 .95rem system-ui, sans-serif; padding: 8px 14px; border-radius: 999px; pointer-events: none; animation: fshint 2.6s ease forwards; }
+  @keyframes fshint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  body.pgmfull { overflow: hidden; }
+  .toast { z-index: 60; }
 </style>
 </head>
 <body>
@@ -117,22 +188,26 @@
 
   <section id="ctlView" hidden aria-label="The show">
     <div class="status" id="status"><span class="big" id="onAir">Waiting for the studio…</span><span class="rec" id="recTime" hidden></span></div>
-    <div class="pgm" id="pgmBox" hidden>
+    <div class="pgm" id="pgmBox" hidden role="button" tabindex="0" aria-pressed="false" aria-label="Program out: tap to watch it full screen">
       <video id="pgm" muted playsinline autoplay aria-label="Program out: what's on air"></video>
       <span class="pgmsay" id="pgmSay"></span>
+      <svg class="fsico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <span class="fshint" id="fsHint" aria-hidden="true">Tap to go back to the remote</span>
     </div>
     <div class="pgmrow" id="pgmRow" hidden>
       <button type="button" class="pgmtgl" id="pgmTgl" aria-pressed="true">Program out</button>
       <button type="button" class="sndbtn" id="sndBtn" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><g class="on"><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></g><g class="off"><path d="M17 9l5 6M22 9l-5 6"/></g></svg><span>Sound off</span></button>
     </div>
-    <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
-    <p class="fine" id="noCams" hidden>No cameras yet.</p>
-    <h2 class="sub" id="soundH" hidden>Sound</h2>
-    <div class="cams sound" id="sound" role="group" aria-labelledby="soundH" hidden></div>
-    <h2 class="sub" id="clipsH" hidden>Clips</h2>
-    <div class="cams sound" id="clips" role="group" aria-labelledby="clipsH" hidden></div>
-    <h2 class="sub" id="mixH" hidden>Mixer</h2>
-    <div class="mix" id="mix" role="group" aria-labelledby="mixH" hidden></div>
+    <div class="deck" id="deck">
+      <div class="cams" id="cams" role="group" aria-label="Cameras: tap one to cut to it"></div>
+      <p class="fine" id="noCams" hidden>No cameras yet.</p>
+      <h2 class="sub" id="soundH" hidden>Sound</h2>
+      <div class="cams sound" id="sound" role="group" aria-labelledby="soundH" hidden></div>
+      <h2 class="sub" id="clipsH" hidden>Clips</h2>
+      <div class="cams sound" id="clips" role="group" aria-labelledby="clipsH" hidden></div>
+      <h2 class="sub" id="mixH" hidden>Mixer</h2>
+      <div class="mix" id="mix" role="group" aria-labelledby="mixH" hidden></div>
+    </div>
     <div class="ctl">
       <button type="button" id="autoBtn" aria-pressed="false">Auto-director</button>
       <button type="button" id="blackBtn" aria-pressed="false">Fade to black</button>
@@ -140,8 +215,10 @@
       <button type="button" id="recBtn" class="rec" aria-pressed="false">Record program</button>
       <button type="button" id="pipBtn" aria-pressed="false" title="A camera in the corner over a screen">Camera in the corner</button>
     </div>
-    <p class="fine" style="margin-top:14px">Tap a camera, a sound or a clip to cut to it. This phone stays a remote until it's removed in the studio.</p>
-    <button type="button" class="linkbtn" id="changeShow">Another show…</button>
+    <div class="foot">
+      <p class="fine" style="margin-top:14px">Tap a camera, a sound or a clip to cut to it. This phone stays a remote until it's removed in the studio.</p>
+      <button type="button" class="linkbtn" id="changeShow">Another show…</button>
+    </div>
   </section>
 
   <div class="toast" id="toast" hidden role="status"></div>
