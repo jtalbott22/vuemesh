@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.66.6 — the remote's Program out keeps playing after Stop recording
+**Deploy:** `./aws/deploy.sh` (site only).
+
+In a test, the phone remote's Program out froze when recording was stopped from it, and stayed frozen, even with Program out turned off and on. The show log shows the studio still sending it 30 frames a second, and the phone still decoding about 30 a second, with its link connected the whole time. So the picture was arriving, but the video on the phone had stopped playing.
+- **What paused it:** Stop recording on the remote asked "Stop recording the program?" with the browser's own confirm box, the only one on the remote, so starting a recording was fine. An iPhone pauses a page's video while such a box is open. (That's the likely cause. A desktop browser doesn't do this, so it wasn't reproduced here.)
+- **Why it stayed paused:** nothing played it again. The link never dropped, so no new picture arrived to start it, and turning Program out off and on only tells the studio what to send.
+
+Now:
+- **Stop recording on the remote asks for a second tap.** The button says "Tap again to stop" for 3 s. There's no box.
+- **Program out plays again by itself** if anything pauses it while its link is fine: a box, a call, Siri. It checks every 3 s, when the page comes back on screen, and when Program out is turned on again. This applies to the remote and to cameras watching the program (their box and full screen).
+
+**Tests:** `e2e_tvremote`: the remote's Program out paused, with its link fine, plays again by itself (with 0.66.5 it was still paused 8 s later). `e2e_remote`: one tap of Stop recording doesn't stop it, the second does, and no box appears. `e2e_display`, `e2e_offline`, `e2e_remotejoin`, `e2e_remotescreenrec`, `e2e_campgm`, `e2e_media` and `e2e_serverblip` pass.
+
 ## 0.66.5 — Live numbers 1–9, no sound alerts for screens, a TV asking under Notifications
 **Deploy:** `./aws/deploy.sh` (site only).
 

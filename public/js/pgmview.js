@@ -52,8 +52,12 @@ export class ProgramView {
       v.requestVideoFrameCallback(each);
     }
     this.timer = setInterval(() => this.tick(), 3000);
-    // (back on screen: its count starts again, so the time it was away isn't reported as frozen)
-    this.onVis = () => (this.lastQ = null);
+    // (back on screen: its count starts again, so the time it was away isn't reported as frozen; and
+    // its picture plays again, if the phone paused it meanwhile)
+    this.onVis = () => {
+      this.lastQ = null;
+      if (!document.hidden) this.resume();
+    };
     document.addEventListener('visibilitychange', this.onVis);
     // (scrolled off screen, a phone stops drawing it, Safari pauses it if muted: not reported either)
     this.inView = true;
@@ -132,9 +136,20 @@ export class ProgramView {
   get linked() {
     return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';
   }
+  /**
+   * Its picture paused by the phone, with the link fine and the picture still arriving: play it again.
+   * An iPhone pauses a page's video for a confirm() box (the remote's Stop recording had one), a call
+   * or Siri, and nothing here started it again: the link never dropped, so no new track came to
+   * start it. Program out froze until the page was reloaded, while the studio still sent 30 a second.
+   */
+  resume() {
+    const v = this.video;
+    if (v.srcObject && v.paused && !document.hidden) v.play().catch(() => {});
+  }
   async tick() {
     // stay joined (the studio closes a screen it hasn't heard from in 20 s), and say what it's showing
     if (this.linked) {
+      this.resume();
       const now = performance.now();
       const msg = { t: 'ping', seq: 0, at: Date.now() };
       try {
