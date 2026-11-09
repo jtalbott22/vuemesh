@@ -152,6 +152,8 @@ function onMessage(m) {
 
 // Program out: what's on air, right above the cameras (its own link from the studio; off to save battery)
 let pgm = null, pgmKey = null;
+let micAsked = null; // the microphone's permission, as the phone last said (see tapUi)
+let autoRevealed = false; // (the phone's address given by itself, once: the microphone was allowed already)
 const pgmOn = () => localStorage.getItem('vm_remote_pgm') !== '0';
 function startProgram(tvKey) {
   pgmKey = tvKey;
@@ -163,10 +165,19 @@ function startProgram(tvKey) {
   pgm?.stop();
   pgm = new ProgramView({
     eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t),
+    onBlocked: () => tapUi(), // (this phone won't play it until it's touched: a tap anywhere starts it)
     onCtl: (m) => m.t === 'remote' && onMessage(m.d?.remote),
   });
   // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
   pgm.want(pgmOn() ? 'program' : 'idle');
+  // A direct link needs this page to have the camera or microphone, as the camera page and the share
+  // page always do: without, a phone hides its address and the studio can't reach it (pgmview.js
+  // reveal). So, joining a show, the remote asks once, as the camera page does when it joins: the
+  // phone's own question (none if it's allowed for the site already), then let go. Only where the
+  // picture hasn't come by itself within a second (a computer on the studio's network has no need,
+  // and no question is asked). Turned down, or a browser that only asks inside a tap: Tap to
+  // connect the picture.
+  setTimeout(() => pgm && !pgm.linked && !autoRevealed && !rcam?.on && ((autoRevealed = true), reveal()), 1000);
 }
 $('#pgmTgl').onclick = () => {
   const on = !pgmOn();
@@ -222,7 +233,39 @@ function fullProgram(on) {
   } else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   pgm?.resume(); // (should anything have paused it)
 }
-$('#pgmBox').addEventListener('click', () => fullProgram(!$('#pgmBox').classList.contains('full')));
+$('#pgmBox').addEventListener('click', (e) => {
+  if (e.target.closest('#pgmTap')) return; // (that tap only starts the picture: pgmview.js)
+  fullProgram(!$('#pgmBox').classList.contains('full'));
+});
+// The box's one button, when the picture needs the phone: to connect it (the phone's address, see
+// pgmview.js reveal), or to show it (a phone that won't play a video until it's touched).
+async function micState() {
+  try { micAsked = (await navigator.permissions?.query({ name: 'microphone' }))?.state || null; } catch {}
+}
+micState();
+function tapUi() {
+  const b = $('#pgmTap'), connect = !!pgm?.stuck && micAsked !== 'granted' && !(rcam?.on);
+  b.dataset.do = connect ? 'connect' : pgm?.blocked ? 'show' : '';
+  b.hidden = !b.dataset.do;
+  b.innerHTML = connect
+    ? `<b>Tap to connect the picture</b><small>${pgm.revealed ? 'Allow the camera or microphone when it asks: without, a browser hides this device from the studio, and the picture can’t reach it directly.' : 'It asks for the camera and microphone once, so the studio can reach this device directly. Nothing is recorded or sent until you add its camera.'}</small>`
+    : '<b>Tap to show the program</b>';
+}
+setInterval(tapUi, 1000);
+$('#pgmTap').onclick = () => ($('#pgmTap').dataset.do === 'connect' ? reveal() : pgm?.resume());
+async function reveal() {
+  $('#pgmTap').hidden = true;
+  // (the program's sound held and the phone set for recording while the microphone's asked for, as
+  // + This phone does: an iPhone won't open it on "playback"; then back as they were)
+  psound.hold(true);
+  try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch {}
+  const ok = await pgm?.reveal();
+  try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch {}
+  psound.hold(!!(rcam?.on && rcam.micOn));
+  if (ok) micAsked = 'granted'; // (Safari can still say "prompt" after a yes: it's for this page)
+  else await micState();
+  tapUi();
+}
 $('#pgmBox').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -232,7 +275,7 @@ $('#pgmBox').addEventListener('keydown', (e) => {
 // (left the browser's full screen another way, a swipe or Esc: back to the remote too)
 document.addEventListener('fullscreenchange', () => !document.fullscreenElement && fullProgram(false));
 window.vmProgramFull = () => $('#pgmBox').classList.contains('full'); // (tests)
-window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, blocked: pgm.blocked, tapShown: !$('#pgmTap').hidden, tapDoes: $('#pgmTap').dataset.do || '', stuck: pgm.stuck, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
 // seconds, the show's code can be changed (still listening, in case it's only opening late).

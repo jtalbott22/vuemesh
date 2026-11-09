@@ -164,7 +164,11 @@ export class DisplayHub {
     if (data.kind === 'offer') return this.answer(from, data);
     if (data.kind === 'restart') return this.close(from, true);
     if (data.kind === 'ice' && data.c) {
-      if (this.localOnly?.() && !/ typ host( |$)/.test(data.c.candidate || '')) return;
+      // (what addresses it gave: a phone whose page hasn't been allowed its camera or microphone
+      // gives only a made-up name.local for its own, which this computer has to find on the network)
+      const c = data.c.candidate || '';
+      if (/ typ host( |$)/.test(c)) (l.hosts ||= { local: 0, ip: 0 })[/\.local /.test(c) ? 'local' : 'ip']++;
+      if (this.localOnly?.() && !/ typ host( |$)/.test(c)) return;
       if (l.remoteSet) await l.pc.addIceCandidate(data.c).catch(() => {});
       else l.pendingIce.push(data.c);
     }
@@ -204,7 +208,27 @@ export class DisplayHub {
     const l = this.links.get(peer);
     this.teardown(l);
     const pc = new RTCPeerConnection({ iceServers: ICE });
-    Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' } });
+    Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' }, hosts: null });
+    // Not connected in 12 s: say so, once a link, and why if it looks like the hidden address. A phone
+    // remote's Program out hung at "connecting" for a whole show until the phone's camera was added
+    // (+ This phone), which gave the page the camera and the phone its real address.
+    // And whether anything from it reached this computer: the phone has this computer's address,
+    // and tries it. Nothing arriving means this computer (its firewall) or the network turned it
+    // away; let in, every phone would connect with no question asked on it.
+    setTimeout(async () => {
+      if (this.links.get(peer)?.pc !== pc || pc.connectionState === 'connected') return;
+      const name = this.keys.get(l.key)?.name || 'A TV', h = l.hosts;
+      let heard = false;
+      try {
+        (await pc.getStats()).forEach((r) => {
+          if ((r.type === 'candidate-pair' && (r.requestsReceived > 0 || r.responsesReceived > 0)) || (r.type === 'remote-candidate' && r.candidateType === 'prflx')) heard = true;
+        });
+      } catch {}
+      const nothing = heard ? '' : ` Nothing it sent reached this computer: its firewall may be turning it away (on Windows, allow Google Chrome on this network, and set the network as Private), and then every phone connects without being asked anything.`;
+      this.note?.(h?.local && !h.ip
+        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It connects once the page is allowed the camera or microphone${this.keys.get(l.key)?.remote ? ' (the remote asks for them when it joins; turned down, it offers Tap to connect the picture)' : ''}.${nothing}`
+        : `${name} hasn't connected in 12 s (${pc.connectionState}): check it's on the same network as this computer.${nothing}`);
+    }, 12_000);
     pc.ondatachannel = (e) => {
       if (e.channel.label === 'media') {
         // (recordings for Browse go out on this one: the TV opened it, reliable and in order)
@@ -319,6 +343,12 @@ export class DisplayHub {
     // the TV asked for a mode, or PIP, from its own remote
     if (m.t === 'want') return this.setMode(l.key, DISPLAY_MODES.includes(m.mode) ? m.mode : this.modeOf(l), m.pip);
     // what the TV is getting, every few seconds: lower its bitrate if it's falling behind (tvquality.js)
+    // (the phone has the picture but won't show it until it's touched: an iPhone in Low Power Mode)
+    if (m.t === 'blocked') {
+      const name = this.keys.get(l.key)?.name || 'A TV';
+      this.note?.(m.on ? `${name} has the picture but the phone won't show it until it's touched (an iPhone in Low Power Mode does this): a tap anywhere on it starts it` : `${name} is showing the picture now`);
+      return;
+    }
     if (m.t === 'quality') {
       const q = { fps: num(m.fps), secs: num(m.secs) || 5, freezes: num(m.freezes) || 0, freezeMs: num(m.freezeMs) || 0, dropped: num(m.dropped) || 0, lost: num(m.lost) || 0, w: num(m.w), h: num(m.h), at: Date.now() };
       l.rx = q;

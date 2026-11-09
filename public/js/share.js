@@ -273,6 +273,11 @@ function stopped(why) {
   stream = null;
   stopSoundWatch();
   link?.leave();
+  // (off the event's signalling too: left on it, the studio's and a TV's lists still had this
+  // computer, and a TV said "Joining: Josh's Mac" after it had gone. Share again joins afresh.)
+  sock?.close();
+  sock = link = null;
+  clearInterval(sendTimer);
   wakeLock(false);
   $('#stoppedWhy').textContent = why;
   show('stoppedView');

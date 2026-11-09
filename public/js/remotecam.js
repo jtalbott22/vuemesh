@@ -11,7 +11,7 @@
 //   that place for another camera).
 
 import { CamLink } from '/js/rtc.js';
-import { CameraKit, preferredCamera } from '/js/camctl.js';
+import { CameraKit, lensButtons, preferredCamera } from '/js/camctl.js';
 import { identity, meshSocket, thumbprint } from '/js/vm.js';
 
 const WHOLE = { x: 0, y: 0, w: 1, h: 1 };
@@ -22,8 +22,6 @@ const session = (type) => {
   } catch {}
 };
 const LIVE = ['lan', 'nat', 'cellular', 'internet', 'relay', 'unknown'];
-// (the lenses' order on the buttons: as a camera app has them, the front one last)
-const ORDER = { ultra: 0, wide: 1, multi: 2, tele: 3, other: 4, front: 5 };
 
 export class RemoteCamera {
   /**
@@ -70,14 +68,7 @@ export class RemoteCamera {
       await this.kit.open({ facing: 'environment' });
       // (the names come once the camera's allowed: then the plain 1× on the back, as a camera app opens,
       // if the phone gave another; an iPhone's "back" can be its combined triple camera)
-      // (an iPhone also lists its combined cameras, "Back Dual Wide" and "Back Triple": the phone picks a
-      // lens itself in those, so they're left off when it has plain ones to choose)
-      const all = (await this.kit.devices()).cams.sort((a, b) => ORDER[a.lens] - ORDER[b.lens]);
-      const plainOnes = all.filter((l) => l.lens !== 'multi');
-      const list = plainOnes.some((l) => l.side === 'back') ? plainOnes : all;
-      // (and one front camera, the plain selfie one: an iPhone 17 lists two, and "Front 2" said nothing)
-      const front = preferredCamera(list, 'front');
-      this.lenses = list.filter((l) => l.side !== 'front' || l === front);
+      this.lenses = lensButtons((await this.kit.devices()).cams);
       const plain = preferredCamera(this.lenses, 'back');
       if (plain && plain.deviceId !== this.kit.deviceId) await this.kit.open({ deviceId: plain.deviceId }).catch(() => {});
     } catch (e) {

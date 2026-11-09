@@ -44,6 +44,41 @@ export function preferredCamera(cams, side) {
   return plain.find((c) => /back camera|rear camera|back|rear/.test(l(c))) || plain[0] || pool.find((c) => lensOf(c.label) === 'multi') || pool[0];
 }
 const LENS_LABEL = { ultra: '0.5×', wide: '1×', tele: '2×', front: 'Front', multi: 'Auto', other: 'Cam' };
+// (the lenses' order on the buttons: as a camera app has them, the front one last)
+const LENS_ORDER = { ultra: 0, wide: 1, multi: 2, tele: 3, other: 4, front: 5 };
+/** A phone's cameras (enumerateDevices' videoinputs, in its order), each with its lens, side and short name. */
+export function labelCams(inputs) {
+  const cams = inputs.map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Camera ${i + 1}`, lens: lensOf(d.label) }));
+  // Short lens names for the zoom rail; fall back to numbers when names say nothing.
+  const counts = {};
+  for (const c of cams) c.side = c.lens === 'front' ? 'front' : 'back';
+  for (const c of cams) {
+    counts[c.lens] = (counts[c.lens] || 0) + 1;
+    const n = counts[c.lens];
+    // Android names cameras "camera2 0, facing back": the first back one is the main 1×;
+    // the others can't be told apart by name, so they're simply numbered.
+    c.short = n === 1 ? LENS_LABEL[c.lens] : c.lens === 'wide' ? `Cam ${n}` : `${LENS_LABEL[c.lens]} ${n}`;
+  }
+  return cams;
+}
+/**
+ * The remote's lens buttons, from a phone's cameras (devices(), in the order the phone lists them):
+ * each plain back lens as a camera app names it (0.5×, 1×, 2×), and one front camera, "Front".
+ * - An iPhone also lists its combined cameras, "Back Dual Wide" and "Back Triple": the phone picks a
+ *   lens itself in those, so they're left off when it has plain ones to choose.
+ * - An iPhone 17 lists two front cameras, and a second button, "Front 2", said nothing. The one kept
+ *   is the first the phone lists, the one it opens itself for a selfie. Keeping the shortest name, as
+ *   0.66.12 did, kept the second on an iPhone 17 Pro: its only front button said "Front 2", and the
+ *   usual selfie camera wasn't there to choose.
+ */
+export function lensButtons(cams) {
+  const all = [...cams].sort((a, b) => LENS_ORDER[a.lens] - LENS_ORDER[b.lens]);
+  const plainOnes = all.filter((l) => l.lens !== 'multi');
+  const list = plainOnes.some((l) => l.side === 'back') ? plainOnes : all;
+  const fronts = cams.filter((l) => l.side === 'front');
+  const front = fronts.find((l) => !/ultra|infrared/i.test(l.label)) || fronts[0];
+  return list.filter((l) => l.side !== 'front' || l.deviceId === front?.deviceId).map((l) => (l.side === 'front' ? { ...l, short: 'Front' } : l));
+}
 
 /**
  * Camera settings a camera will take: each number put inside the camera's range and on its own
@@ -85,19 +120,8 @@ export class CameraKit {
   /** Cameras and microphones, labelled the way a camera app would. */
   async devices() {
     const all = await navigator.mediaDevices.enumerateDevices();
-    const cams = all.filter((d) => d.kind === 'videoinput').map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Camera ${i + 1}`, lens: lensOf(d.label) }));
     const mics = all.filter((d) => d.kind === 'audioinput').map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Microphone ${i + 1}` }));
-    // Short lens names for the zoom rail; fall back to numbers when names say nothing.
-    const counts = {};
-    for (const c of cams) c.side = c.lens === 'front' ? 'front' : 'back';
-    for (const c of cams) {
-      counts[c.lens] = (counts[c.lens] || 0) + 1;
-      const n = counts[c.lens];
-      // Android names cameras "camera2 0, facing back": the first back one is the main 1×;
-      // the others can't be told apart by name, so they're simply numbered.
-      c.short = n === 1 ? LENS_LABEL[c.lens] : c.lens === 'wide' ? `Cam ${n}` : `${LENS_LABEL[c.lens]} ${n}`;
-    }
-    return { cams, mics };
+    return { cams: labelCams(all.filter((d) => d.kind === 'videoinput')), mics };
   }
 
   constraints() {

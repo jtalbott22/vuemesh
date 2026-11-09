@@ -10,7 +10,8 @@ import { meshSocket, ICE } from '/js/vm.js';
 
 export class ProgramView {
   /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js)
-   *  @param o.sound? false: picture only (a camera)  @param o.label? what the studio calls it  @param o.model? 'remote' | 'camera' */
+   *  @param o.sound? false: picture only (a camera)  @param o.label? what the studio calls it  @param o.model? 'remote' | 'camera'
+   *  @param o.onBlocked? (on) the phone won't show the picture until the page is touched (or now it does) */
   constructor(o) {
     Object.assign(this, { sound: true, label: `${o.name || 'Phone remote'} (Program out)`, model: 'remote' }, o);
     this.wanted = null; // (a camera: { mode, big }, sent again whenever the link comes back)
@@ -59,6 +60,19 @@ export class ProgramView {
       if (!document.hidden) this.resume();
     };
     document.addEventListener('visibilitychange', this.onVis);
+    // A phone that won't start a video by itself until the page is touched (an iPhone in Low Power
+    // Mode; some browsers until any tap): the link is up and the picture arriving, but nothing shows.
+    // Opened from the studio's code, a remote may never be tapped before someone taps + This phone,
+    // so Program out looked like it waited for that. Now the first touch anywhere starts it (inside
+    // that touch, which the phone allows), and until then onBlocked says so.
+    this.blocked = false;
+    this.onPlaying = () => this.setBlocked(false);
+    v.addEventListener('playing', this.onPlaying);
+    this.onTouch = () => {
+      if (!this.blocked || !v.srcObject) return;
+      v.play().then(() => this.setBlocked(false)).catch(() => {});
+    };
+    for (const t of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(t, this.onTouch, true);
     // (scrolled off screen, a phone stops drawing it, Safari pauses it if muted: not reported either)
     this.inView = true;
     this.seen = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => {
@@ -88,12 +102,14 @@ export class ProgramView {
   }
   async offer() {
     this.lastTry = Date.now();
+    this.tryingSince ||= Date.now(); // (since the first try, not this one: it asks again every 12 s)
     this.drop();
     const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
     pc.addTransceiver('video', { direction: 'recvonly' });
     if (this.sound) pc.addTransceiver('audio', { direction: 'recvonly' });
     this.ctl = pc.createDataChannel('ctl', { ordered: true });
     this.ctl.onopen = () => {
+      this.tryingSince = null;
       this.say('');
       if (this.wanted) this.want(this.wanted.mode, this.wanted.big);
       this.onOpen?.();
@@ -108,7 +124,7 @@ export class ProgramView {
       if (e.track.kind === 'audio' && this.onSound) return this.onSound(e.track);
       stream.addTrack(e.track);
       this.video.srcObject = stream;
-      this.video.play().catch(() => {});
+      this.play();
     };
     pc.onicecandidate = (e) => e.candidate && this.signal({ kind: 'ice', c: e.candidate.toJSON() });
     pc.onconnectionstatechange = () => pc.connectionState === 'failed' && this.say("Can't reach the studio's picture on this network");
@@ -133,6 +149,36 @@ export class ProgramView {
       return false;
     }
   }
+  /** Asked for the picture over 5 s ago and still not linked (see reveal). */
+  get stuck() {
+    return !!this.pc && !this.linked && !!this.tryingSince && Date.now() - this.tryingSince > 5000;
+  }
+  /**
+   * A phone hides its own address from a page that hasn't been allowed its camera or microphone
+   * (an iPhone always; Chrome too), giving a made-up name.local the studio has to find on the
+   * network, which from a Wi-Fi phone to a wired studio computer it usually can't. Then the picture
+   * never connects: the remote's Program out waited for its camera to be added, which allowed it.
+   * The camera and microphone asked for (the camera page asks the same when it joins), let go at
+   * once (nothing from them is kept or sent), and the picture asked for again, now with the phone's
+   * real address. (A page keeps that for as long as it's open.) A device without a camera: the
+   * microphone alone. @returns false if they were turned down (or need a tap first)
+   */
+  async reveal() {
+    let ok = false;
+    for (const ask of [{ audio: true, video: true }, { audio: true }, { video: true }]) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia(ask);
+        s.getTracks().forEach((t) => t.stop());
+        ok = true;
+        break;
+      } catch (e) {
+        if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') break; // (said no, or not without a tap: asked again on one)
+      }
+    }
+    this.revealed = true;
+    if (this.host) this.offer();
+    return ok;
+  }
   get linked() {
     return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';
   }
@@ -144,12 +190,27 @@ export class ProgramView {
    */
   resume() {
     const v = this.video;
-    if (v.srcObject && v.paused && !document.hidden) v.play().catch(() => {});
+    if (v.srcObject && v.paused && !document.hidden) this.play();
+  }
+  /** Play it; a phone that won't without a touch first: blocked, until one (see onTouch). */
+  play() {
+    this.video.play().then(() => this.setBlocked(false)).catch((e) => e?.name === 'NotAllowedError' && !document.hidden && this.setBlocked(true));
+  }
+  setBlocked(on) {
+    if (this.blocked === on) return;
+    this.blocked = on;
+    this.onBlocked?.(on);
+    this.sayBlocked();
+  }
+  /** (the studio's show log says so: the picture's arriving, the phone isn't showing it; once the link's up, if it wasn't) */
+  sayBlocked() {
+    if (this.blocked !== !!this.saidBlocked && this.tell({ t: 'blocked', on: this.blocked })) this.saidBlocked = this.blocked;
   }
   async tick() {
     // stay joined (the studio closes a screen it hasn't heard from in 20 s), and say what it's showing
     if (this.linked) {
       this.resume();
+      this.sayBlocked();
       const now = performance.now();
       const msg = { t: 'ping', seq: 0, at: Date.now() };
       try {
@@ -184,6 +245,7 @@ export class ProgramView {
   }
   drop() {
     this.lastQ = null;
+    this.saidBlocked = false; // (a new link is told again)
     try { this.ctl?.close(); } catch {}
     try { this.pc?.close(); } catch {}
     this.pc = null;
@@ -192,6 +254,8 @@ export class ProgramView {
   stop() {
     clearInterval(this.timer);
     document.removeEventListener('visibilitychange', this.onVis);
+    this.video.removeEventListener('playing', this.onPlaying);
+    for (const t of ['pointerdown', 'touchend', 'keydown']) document.removeEventListener(t, this.onTouch, true);
     this.seen?.disconnect();
     this.drop();
     this.sock.close();
