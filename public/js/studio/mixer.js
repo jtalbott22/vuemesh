@@ -162,7 +162,11 @@ export function mixAttach(peer) {
     st.fix.output.connect(st.mono); // a phone that only fills the left side still counts at full level
     mix.strips.set(peer, st);
   }
-  if (st.trackId !== at.id || !st.src || st.sideOf !== (l.side || null) || st.screen !== !!l.screen) {
+  // (a phone's or computer's sound track arrives muted, before any sound has come. Listened to then,
+  // Chrome could keep handing the mixer silence after the sound started: another computer's screen
+  // was silent its first 10 s, until the sound watch put it back. So it's listened to again once
+  // it unmutes, which calls this again through onTracks)
+  if (st.trackId !== at.id || !st.src || st.sideOf !== (l.side || null) || st.screen !== !!l.screen || (st.madeMuted && !at.muted)) {
     try { st.src?.disconnect(); } catch {}
     try { st.sideSplit?.disconnect(); } catch {}
     // Two sides of its own: this computer's sound, a screen (shared here, or another computer's
@@ -198,6 +202,8 @@ export function mixAttach(peer) {
     // it was added as stereo or mono (both sides as they are: see setMicAs)
     st.fix.reset(!!l.screen || (!l.side && (l.as === 'stereo' || l.as === 'mono')));
     st.trackId = at.id;
+    st.madeMuted = !!at.muted;
+    st.attachedAt = Date.now(); // (the sound watch acts sooner in its first 30 s: see mixerWatch)
     st.stream = l.stream;
     st.silentSince = 0;
     // Chrome only hands a phone's sound to the mixer while a media element is playing that

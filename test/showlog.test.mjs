@@ -287,10 +287,18 @@ const at = (s) => T0 + s * 1000;
   const again = run(w, 252, 270);
   assert.equal(again.length, 1, JSON.stringify(again));
   assert.ok(again[0][1] && again[0][0] - 252 >= 8 && again[0][0] - 252 <= 12, JSON.stringify(again));
+  // just listened to (a new link): silent from the start, it's put back 2 s on, not 8; after that
+  // as before (16 s). Listened to over 30 s ago: 8 s, as before
+  w = { attachedAt: at(0) };
+  const fresh = run(w, 0, 40);
+  assert.ok(fresh.length >= 2 && fresh[0][1] && fresh[0][0] >= 4 && fresh[0][0] <= 6 && fresh[1][0] - fresh[0][0] >= 16, JSON.stringify(fresh));
+  w = { attachedAt: at(-60) };
+  const old = run(w, 0, 12);
+  assert.ok(old.length === 1 && old[0][0] >= 8, JSON.stringify(old));
   // the look itself finding sound counts too (the show log not running: Edit, a context not started)
   w = {};
   for (let s = 0; s <= 60; s += 2) assert.equal(mixerWatch(w, at(s), true), null);
-  ok("the mixer's watch: sound with true silence between (a shared screen's) isn't put back every 12 s; one that stays silent is put back after 8, 16, 32 s, then once a minute, said once; said again after it comes back and stops");
+  ok("the mixer's watch: sound with true silence between (a shared screen's) isn't put back every 12 s; one that stays silent is put back after 8, 16, 32 s, then once a minute, said once; said again after it comes back and stops; a new link's silent sound is put back after 2 s");
 }
 
 // ---- a phone's sound as the studio plays it: hurried after a rush, made up where it didn't arrive ----

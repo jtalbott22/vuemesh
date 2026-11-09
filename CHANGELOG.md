@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.66.18 — sound from the start of a new link, and Quality first
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.17.
+
+From a show log with a Mac's screen, a Mac's camera and a phone, on a studio computer with power to spare.
+- **Sound dropped out at the start.** 10 s after another computer's screen joined, the log says "Josh Mac's sound had stopped reaching the mixer: reconnected it", and the same for the phone's camera (the night before, too). A phone's or computer's sound track arrives muted, before any sound has come, and the mixer listened to it then. Chrome can keep handing the mixer silence after that, until it's listened to again, which the sound watch did only after 8 s of nothing. Now the mixer listens again once the track unmutes, and in a new link's first 30 s the sound watch puts it back after 2 s, not 8. (The test's sound reaches the mixer either way, so the first part is the likely cause, not a proven one; the second makes the gap 4 s at worst.)
+- **Quality first** (under Output, off unless turned on, kept on this computer): for a studio computer with power to spare. Record program at 12 Mbit/s at 720p and 20 at 1080p (6 and 10), this computer's own cameras' recordings at 16 (8) and a screen's at 8 (3). The camera on air may send up to 15 Mbit/s on the local network, not 8: the phones and the Mac's screen reached about 6.5 of the 8. The studio says so with each on-air message (every 4 s, and at once when it's switched). It can't change while Record program runs, as the output's size can't.
+
+**Tests:** `showlog.test`: a new link's silent sound is put back after 2 s, after that as before; listened to over 30 s ago, 8 s. `e2e_sharequality`: the screen's sound reaches the mixer from the start; Quality first on, the screen on air may send 15000 kbit/s, off, 8000.
+
 ## 0.66.17 — the show log hears a phone's sound speeding up
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.16.
 

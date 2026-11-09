@@ -7,7 +7,7 @@ import {
   $, EDIT_ONLY, KIOSK, KIOSK_PAGE, LIVE_DELAY, black, clips, ev, eventId, hub, isHost, key, live,
   liveActive, mode, note, player, program, recMime,
 } from './core.js';
-import { addClip, output, renderOutput } from './clips.js';
+import { addClip, output, programBitrate, renderOutput } from './clips.js';
 import { camOrder, cutLive, renderLive } from './live.js';
 import { addUsage } from './usage.js';
 import { autoOn, manualUntil, recOnAirChanged, setAuto, setManualUntil, syncTally } from './onair.js';
@@ -362,7 +362,7 @@ function startProgramRecorder(tracks, saved) {
     saved(file);
   };
   const startBrowserRecorder = () => {
-    mr = new MediaRecorder(new MediaStream(tracks()), { mimeType: recMime(), videoBitsPerSecond: 6_000_000 });
+    mr = new MediaRecorder(new MediaStream(tracks()), { mimeType: recMime(), videoBitsPerSecond: programBitrate(program.height) });
     const chunks = [];
     mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     mr.onstop = () => saved(new Blob(chunks, { type: mr.mimeType }));
@@ -380,7 +380,7 @@ function startProgramRecorder(tracks, saved) {
     const support = await programRecorderSupport(program.width, program.height, output.fps);
     if (support && !asked) {
       const r = new ProgramRecorder({
-        canvas: program, audioTrack: tracks.audio[0], fps: output.fps, support, sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
+        canvas: program, audioTrack: tracks.audio[0], fps: output.fps, support, bitrate: programBitrate(program.height), sampleRate: player.ctx.sampleRate, ctx: player.ctx, audioNode: mix.out,
         name: `${eventId}-${Math.round(Date.now())}.mp4`,
         onError: (e) => {
           if (!cfr) return; // (failed while starting: the browser's recorder takes over, below)

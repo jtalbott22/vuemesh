@@ -6,7 +6,7 @@
 //     and signed-off on arrival
 // Nothing but the handshake touches the cloud.
 
-import { bitrateHints, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
+import { bitrateHints, LINK_MAX_KBPS, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
 import { ICE, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
 
 export const PART_SIZE = 8 * 1024 * 1024;
@@ -253,7 +253,7 @@ export class CamLink {
       // The live picture's quality follows what this camera is doing in the show (on air, in
       // preview, or neither; see quality.js); the phone keeps its full-quality recording regardless.
       if (track.kind === 'video') {
-        const [kbps, scale] = qualityFor(this.tier || 'idle', this.route || 'unknown');
+        const [kbps, scale] = qualityFor(this.tier || 'idle', this.route || 'unknown', this.first);
         init.sendEncodings = [{ maxBitrate: kbps * 1000, scaleResolutionDownBy: scale, maxFramerate: 30 }];
       }
       const tr = pc.addTransceiver(track, init);
@@ -276,7 +276,11 @@ export class CamLink {
     // so they never wait behind a clip transfer.
     const ctl = pc.createDataChannel('ctl', { ordered: false, maxRetransmits: 0 });
     ctl.onmessage = (e) => {
-      try { this.onControl?.(JSON.parse(e.data)); } catch {}
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      // (on air, the studio says whether it's on Quality first: the cap on air follows, see qualityFor)
+      if (m?.t === 'tally') this.setFirst(!!(m.on && m.first));
+      try { this.onControl?.(m); } catch {}
     };
     this.ctl = ctl;
     const dc = pc.createDataChannel('clips', { ordered: true });
@@ -348,7 +352,7 @@ export class CamLink {
     if (data.kind === 'restart') return this.restart();
     if (data.kind === 'answer') {
       // (start near a good picture, not at a few hundred kbit/s; the tier then sets the ceiling)
-      const sdp = data.sdp && typeof data.sdp.sdp === 'string' ? { type: data.sdp.type, sdp: bitrateHints(data.sdp.sdp, { start: 2500, min: 250, max: 8000 }) } : data.sdp;
+      const sdp = data.sdp && typeof data.sdp.sdp === 'string' ? { type: data.sdp.type, sdp: bitrateHints(data.sdp.sdp, { start: 2500, min: 250, max: LINK_MAX_KBPS }) } : data.sdp;
       await this.pc.setRemoteDescription(sdp);
       this.remoteSet = true;
       for (const c of this.pendingIce.splice(0)) await this.pc.addIceCandidate(c).catch(() => {});
@@ -367,8 +371,16 @@ export class CamLink {
     this.applyQuality();
   }
 
+  /** The studio's Quality first, while on air (see qualityFor). */
+  setFirst(first) {
+    if (first === !!this.first) return;
+    this.first = first;
+    this.ceiling = null;
+    this.applyQuality();
+  }
+
   target() {
-    return qualityFor(this.tier || 'idle', this.route || 'unknown');
+    return qualityFor(this.tier || 'idle', this.route || 'unknown', this.first);
   }
 
   async applyQuality() {

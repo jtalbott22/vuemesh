@@ -147,7 +147,7 @@ every angle, already cut on the timeline and ready to re-cut.
 <td valign="top">
 
 ### 📡 Output and distribution
-- **Record the program** to a file while the show runs, and **every source on its own** in full quality.
+- **Record the program** to a file while the show runs, and **every source on its own** in full quality. **Quality first** (under Output, for a powerful computer) about doubles both bitrates, and lets the camera on air send up to 15 Mbit/s on the local network.
 - **Stream out** over WHIP straight from the browser (Twitch, Restream, Cloudflare Stream), or to **RTMP** services (YouTube, Facebook, Kick, Vimeo) through a small local relay.
 - **Program out** window for a projector or OBS, and the program **as a webcam** in Zoom, Teams or Meet.
 - **TV screens:** `/tv` in any browser, or the **Apple TV app**, plays the live program from the studio over the LAN.
