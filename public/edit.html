@@ -159,6 +159,8 @@
   .splitter.v::after { width: 2px; height: 28px; }
   .splitter.h::after { height: 2px; width: 36px; }
   .splitter:hover, .splitter:focus-visible, .splitter.dragging { background: var(--preview); }
+  /* a finger: the divider is 6 px to look at and 28 px to take hold of */
+  @media (pointer: coarse) { .splitter.v::before { content: ""; position: absolute; top: 0; bottom: 0; left: -11px; right: -11px; } .splitter.h::before { content: ""; position: absolute; left: 0; right: 0; top: -11px; bottom: -11px; } }
   body > .timeline { height: var(--tl); max-height: none; }
   .panel { background: var(--surface); min-height: 0; overflow: auto; }
   .panel + .panel, .center + .panel { border-left: 1px solid var(--line); }
@@ -745,7 +747,7 @@
   /* a laptop: each side no wider than its share, so the viewers keep the middle (below about
      1300 px they take turns, their headers as tabs); the inspector stays at the right, as in an editing suite */
   @media (max-width: 1439px) {
-    .work { grid-template-columns: min(var(--left), max(170px, 18vw)) 6px minmax(0, 1fr) 6px min(var(--right), max(240px, 24vw)); grid-template-rows: minmax(0, 1fr); }
+    .work { grid-template-columns: var(--left) 6px minmax(0, 1fr) 6px min(var(--right), max(240px, 24vw)); grid-template-rows: minmax(0, 1fr); } /* (the media panel's share: see applyLayout) */
   }
   @media (max-width: 1100px) {
     .work > .sources { grid-column: 1; } .work > #splitL { grid-column: 2; } .work > .center { grid-column: 3; }
@@ -874,7 +876,7 @@
       <p class="fine" id="mediaEmpty" hidden></p>
     </div>
   </aside>
-  <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click to hide or show)" aria-controls="srcHead"></div>
+  <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click for its own width; drag it to the edge to hide it)" aria-controls="srcHead"></div>
 
   <section class="center" aria-label="Viewers">
     <div class="viewers" id="viewers">

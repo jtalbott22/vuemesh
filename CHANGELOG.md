@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.66.14 — the sources panel as wide as you like
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.13.
+
+The sources panel's divider went nowhere on a laptop. At 1280 or 1366 px the page held the panel to 22% of the window (282 or 301 px), whatever it was dragged to, so the pictures stayed small: hard to tell two cameras on the same stage apart. On a wide screen it went the other way: the panel could take 55% of the window and leave the program a third of its size.
+- **Now the divider drags it wider on any screen,** and the pictures grow with it: at 1366 x 768, 160 px wider takes a camera's picture from 136 to 216 px across. The panel still picks how many pictures go across to fit them all in, as large as they can be.
+- **The program keeps its share:** the panel stops where the program's column would go under 40% of the window (and 400 px), beside the inspector as wide as it is. That's 456 px at 1280, 508 at 1366, 552 at 1440 and 840 at 1920. The program is fitted again as you drag, and nothing scrolls sideways.
+- **It's kept** on this computer after a reload, as the other panels are. Until you drag it, a laptop shows the panel as it did before.
+- **Double-click the divider** to put it back to its own width (it used to hide the panel). **To hide it,** ◧ as before, or drag the divider to the left edge and it slides shut; ◧ (or dragging it back out) opens it as it was.
+- **By touch:** the dividers are 6 px to look at, and now a finger's width to take hold of on a touch screen. A drag follows the finger, one layout a frame.
+- Edit's media panel has the same divider and the same fix (it was held to 18% of the window).
+
+**Tests:** `e2e_srcwidth` (new): at 1366 x 768 with a camera in, a drag 160 px wider widens the panel 160 px, the camera's picture by 30% or more, and fits the program again, inside its monitor; dragged as far as it goes, it stops at its limit with the program's column 40% of the window; the width is the same after a reload; a double-click puts it back (kept too); → on the focused divider adds 20 px; dragged to the edge it shuts, ◧ opens it at the width it had, and it drags back out. At 1280 x 800 by touch (real touch events): 10 px off the divider still takes hold, and it drags out and back. At 1280, 1440, 1536, 1920 and 1024 wide, as wide as it goes: the pictures bigger, the program's share kept, nothing sideways. `e2e_layout`, `e2e_fitted_mixer`, `e2e_overflow`, `e2e_editpage`, `e2e_pvwtwoup` and `e2e_kiosk` pass.
+
 ## 0.66.13 — the time of day on the phone remote
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.12.
 

@@ -120,7 +120,9 @@ $('#progOutBtn').onclick = () => {
 
 // ---------------------------------------------------------------- layout ----
 // Panels are resizable: drag a divider (or focus it and use the arrow keys); double-click
-// a side divider to hide or show that panel, or the timeline/mixer divider to reset it.
+// the inspector's divider to hide or show it, the sources' divider to put it back to its own
+// width, or the timeline/mixer divider to reset it. Drag the sources' divider most of the way
+// to the left edge and the panel slides shut (◧ opens it again, or drag it back out).
 // Live and Edit each remember their own layout.
 const LAYOUT_DEFAULT = { live: { left: 360, right: 300, dock: 230 }, edit: { left: 270, right: 320, tl: 300 } };
 export const layout = (() => {
@@ -131,15 +133,46 @@ export const layout = (() => {
     return JSON.parse(JSON.stringify(LAYOUT_DEFAULT));
   }
 })();
-const saveLayout = () => localStorage.setItem('vm_layout', JSON.stringify(layout));
+const saveLayout = () => {
+  try {
+    localStorage.setItem('vm_layout', JSON.stringify(layout));
+  } catch {
+    /* (a private window: the layout lasts as long as the page) */
+  }
+};
+// The sources panel's width, wherever the program can spare it: the program's column keeps at
+// least 400 px and 40% of the window, beside the inspector as wide as it is now. (On a laptop it
+// was held to 22% of the window by the page's own style, so its divider went nowhere at 1280 or
+// 1366 px, and on a wide screen it could take 55%, the program shrunk to a third of its size.)
+const trackPx = () => getComputedStyle($('.work') || document.body).gridTemplateColumns.split(' ').map(parseFloat);
+const rightNow = () => {
+  const t = trackPx();
+  return t.length === 5 && Number.isFinite(t[4]) ? t[4] : 0; // (below 900 px the inspector lies under the rest)
+};
+const leftMax = () => {
+  if (innerWidth <= 900 && !EDIT_ONLY) return 190; // (a tablet: the sources beside the program, the inspector under both)
+  const centre = Math.max(400, innerWidth * 0.4);
+  return Math.max(160, Math.min(innerWidth * 0.5, innerWidth - rightNow() - 12 - centre));
+};
 // (the mixer can come right down to one row of strips: it never needs more when they lie flat)
-const LIMITS = { left: [160, () => innerWidth * 0.55], right: [220, () => innerWidth * 0.45], tl: [120, () => innerHeight * 0.72], dock: [56, () => innerHeight * 0.6] };
+const LIMITS = { left: [160, leftMax], right: [220, () => innerWidth * 0.45], tl: [120, () => innerHeight * 0.72], dock: [56, () => innerHeight * 0.6] };
 export const clampL = (key, v) => Math.round(Math.max(LIMITS[key][0], Math.min(LIMITS[key][1](), v)));
+// The sources' width as shown. Until its divider is dragged (leftSet), a laptop shows the panel
+// as it always has, at most 22% of the window (Edit's media, 18%); once dragged, it's the width
+// it was dragged to.
+const leftNow = (L = layout[mode]) => {
+  if (L.leftHidden) return 0;
+  const share = EDIT_ONLY ? Math.max(170, innerWidth * 0.18) : Math.max(180, innerWidth * 0.22);
+  const laptop = innerWidth < 1440 && (innerWidth > 900 || EDIT_ONLY); // (a tablet's is held to 190 px in any case)
+  const auto = !L.leftSet && laptop ? Math.min(L.left, share) : L.left;
+  return clampL('left', auto);
+};
+const SHUT = 60; // (dragged this far past its narrowest, the sources panel slides shut)
 export function applyLayout() {
   const L = layout[mode];
   const st = document.documentElement.style;
-  st.setProperty('--left', (L.leftHidden ? 0 : clampL('left', L.left)) + 'px');
   st.setProperty('--right', (L.rightHidden ? 0 : clampL('right', L.right)) + 'px');
+  st.setProperty('--left', leftNow(L) + 'px'); // (after the inspector: its width sets how wide this can be)
   if (mode === 'edit') st.setProperty('--tl', clampL('tl', L.tl) + 'px');
   if (mode === 'live') fitDock();
   document.body.classList.toggle('noleft', !!L.leftHidden);
@@ -151,7 +184,8 @@ export function applyLayout() {
     if (!el) continue;
     el.setAttribute('aria-valuemin', String(LIMITS[key][0]));
     el.setAttribute('aria-valuemax', String(Math.round(LIMITS[key][1]())));
-    el.setAttribute('aria-valuenow', String(L[key + 'Hidden'] ? 0 : clampL(key, L[key] ?? LAYOUT_DEFAULT[mode][key] ?? LIMITS[key][0])));
+    const now = key === 'left' ? leftNow(L) : L[key + 'Hidden'] ? 0 : clampL(key, L[key] ?? LAYOUT_DEFAULT[mode][key] ?? LIMITS[key][0]);
+    el.setAttribute('aria-valuenow', String(now));
   }
   fitMonitors();
   live.forEach(fitTile);
@@ -160,31 +194,57 @@ function splitter(id, key, axis, sign) {
   const el = $('#' + id);
   if (!el) return;
   el.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return; // (a right-click isn't a drag)
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
     const L = layout[mode];
     const start = axis === 'x' ? e.clientX : e.clientY;
-    // (the mixer starts from the height you see, which may be less than the one it was dragged to)
-    const v0 = key === 'dock' ? (document.querySelector('.dock')?.getBoundingClientRect().height ?? 0) : L[key + 'Hidden'] ? LIMITS[key][0] : clampL(key, L[key]);
-    const mv = (m) => {
-      L[key] = clampL(key, v0 + sign * ((axis === 'x' ? m.clientX : m.clientY) - start));
-      L[key + 'Hidden'] = false;
+    // (each starts from the size you see: the mixer may be less than it was dragged to, and the
+    // sources narrower on a laptop; a shut panel opens from its narrowest)
+    const v0 =
+      key === 'dock'
+        ? (document.querySelector('.dock')?.getBoundingClientRect().height ?? 0)
+        : L[key + 'Hidden']
+          ? LIMITS[key][0]
+          : key === 'left'
+            ? leftNow(L)
+            : clampL(key, L[key]);
+    // one layout a frame, however fast the pointer sends its moves
+    let at = null;
+    const before = { left: L.left, leftSet: L.leftSet }; // (slid shut, ◧ opens it as it was before the drag)
+    const frame = () => {
+      const v = v0 + sign * (at - start);
+      at = null;
+      if (key === 'left' && v < LIMITS.left[0] - SHUT) Object.assign(L, before, { leftHidden: true });
+      else {
+        L[key] = clampL(key, v);
+        L[key + 'Hidden'] = false;
+        if (key === 'left') L.leftSet = true; // (you set its width: it stays that way on a laptop too)
+      }
       if (key === 'dock') L.dockManual = true; // (you set its height: it stays there)
       applyLayout();
+    };
+    const mv = (m) => {
+      if (at === null) requestAnimationFrame(frame);
+      at = axis === 'x' ? m.clientX : m.clientY;
     };
     const up = () => {
       el.classList.remove('dragging');
       el.removeEventListener('pointermove', mv);
       el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      if (at !== null) frame();
       saveLayout();
     };
     el.addEventListener('pointermove', mv);
     el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up); // (a touch the browser takes back)
   });
   el.addEventListener('dblclick', () => {
     const L = layout[mode];
-    if (key === 'left' || key === 'right') L[key + 'Hidden'] = !L[key + 'Hidden'];
+    if (key === 'left') Object.assign(L, { left: LAYOUT_DEFAULT[mode].left, leftSet: false, leftHidden: false }); // its own width again
+    else if (key === 'right') L.rightHidden = !L.rightHidden;
     else if (key === 'dock') L.dockManual = false; // fit the strips again
     else L[key] = LAYOUT_DEFAULT[mode][key];
     applyLayout();
@@ -198,9 +258,11 @@ function splitter(id, key, axis, sign) {
     if (e.key !== more && e.key !== less && e.key !== 'Home') return;
     e.preventDefault();
     e.stopPropagation();
+    const was = key === 'left' ? leftNow(L) || LIMITS.left[0] : (L[key] ?? LAYOUT_DEFAULT[mode][key]);
     if (e.key === 'Home') L[key] = LAYOUT_DEFAULT[mode][key];
-    else L[key] = clampL(key, (L[key] ?? LAYOUT_DEFAULT[mode][key]) + (e.key === more ? step : -step));
+    else L[key] = clampL(key, was + (e.key === more ? step : -step));
     if (key === 'dock') L.dockManual = e.key !== 'Home';
+    if (key === 'left') L.leftSet = e.key !== 'Home';
     L[key + 'Hidden'] = false;
     applyLayout();
     saveLayout();
