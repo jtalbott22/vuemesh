@@ -152,6 +152,8 @@ function onMessage(m) {
 
 // Program out: what's on air, right above the cameras (its own link from the studio; off to save battery)
 let pgm = null, pgmKey = null;
+let micAsked = null; // the microphone's permission, as the phone last said (see tapUi)
+let autoRevealed = false; // (the phone's address given by itself, once: the microphone was allowed already)
 const pgmOn = () => localStorage.getItem('vm_remote_pgm') !== '0';
 function startProgram(tvKey) {
   pgmKey = tvKey;
@@ -168,6 +170,10 @@ function startProgram(tvKey) {
   });
   // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
   pgm.want(pgmOn() ? 'program' : 'idle');
+  // (the microphone allowed for the site already: the phone's address is given with no question, and
+  // without waiting for the picture to hang 5 s first; not if it's come by itself by then, so the
+  // microphone isn't opened for nothing, its light on the phone)
+  setTimeout(() => micState().then(() => micAsked === 'granted' && pgm && !pgm.linked && !autoRevealed && ((autoRevealed = true), reveal())), 1500);
 }
 $('#pgmTgl').onclick = () => {
   const on = !pgmOn();
@@ -229,12 +235,10 @@ $('#pgmBox').addEventListener('click', (e) => {
 });
 // The box's one button, when the picture needs the phone: to connect it (the phone's address, see
 // pgmview.js reveal), or to show it (a phone that won't play a video until it's touched).
-let micAsked = null; // the microphone's permission, as the phone last said
 async function micState() {
   try { micAsked = (await navigator.permissions?.query({ name: 'microphone' }))?.state || null; } catch {}
 }
 micState();
-let autoRevealed = false;
 function tapUi() {
   // (the microphone allowed for this site already: no question to ask, so no tap needed either)
   if (pgm?.stuck && !pgm.revealed && micAsked === 'granted' && !autoRevealed) {

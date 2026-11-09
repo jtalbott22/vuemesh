@@ -212,12 +212,22 @@ export class DisplayHub {
     // Not connected in 12 s: say so, once a link, and why if it looks like the hidden address. A phone
     // remote's Program out hung at "connecting" for a whole show until the phone's camera was added
     // (+ This phone), which gave the page the camera and the phone its real address.
-    setTimeout(() => {
+    // And whether anything from it reached this computer: the phone has this computer's address,
+    // and tries it. Nothing arriving means this computer (its firewall) or the network turned it
+    // away; let in, every phone would connect with no question asked on it.
+    setTimeout(async () => {
       if (this.links.get(peer)?.pc !== pc || pc.connectionState === 'connected') return;
       const name = this.keys.get(l.key)?.name || 'A TV', h = l.hosts;
+      let heard = false;
+      try {
+        (await pc.getStats()).forEach((r) => {
+          if ((r.type === 'candidate-pair' && (r.requestsReceived > 0 || r.responsesReceived > 0)) || (r.type === 'remote-candidate' && r.candidateType === 'prflx')) heard = true;
+        });
+      } catch {}
+      const nothing = heard ? '' : ` Nothing it sent reached this computer: its firewall may be turning it away (on Windows, allow Google Chrome on this network, and set the network as Private), and then every phone connects without being asked anything.`;
       this.note?.(h?.local && !h.ip
-        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It shows on the phone once the page is allowed the microphone or camera${this.keys.get(l.key)?.remote ? ' (the remote asks: Tap to connect the picture)' : ''}`
-        : `${name} hasn't connected in 12 s (${pc.connectionState}): check it's on the same network as this computer`);
+        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It shows on the phone once the page is allowed the microphone or camera${this.keys.get(l.key)?.remote ? ' (the remote asks: Tap to connect the picture; with the microphone allowed for the site in Safari, it does it by itself)' : ''}.${nothing}`
+        : `${name} hasn't connected in 12 s (${pc.connectionState}): check it's on the same network as this computer.${nothing}`);
     }, 12_000);
     pc.ondatachannel = (e) => {
       if (e.channel.label === 'media') {

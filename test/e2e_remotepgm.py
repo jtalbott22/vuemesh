@@ -33,8 +33,11 @@ NO_AUTOPLAY = """(() => {
   document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('video[autoplay]').forEach((v) => v.removeAttribute('autoplay')));
 })();"""
 
-# a phone that hides its address until the page has the microphone or camera (see above)
+# a phone that hides its address until the page has the microphone or camera (see above); with
+# LET_IN, the studio lets in what the phone sends (no firewall in the way), as on a studio computer
+# that allows its browser on the network
 HIDDEN = """(() => {
+  const letIn = !!window.__letIn;
   let revealed = false;
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = async (c) => { const s = await gum(c); revealed = true; return s; };
@@ -55,16 +58,20 @@ HIDDEN = """(() => {
         if (c) f({ candidate: c });
       })), get: () => on.get.call(this) });
     }
-    addIceCandidate(c) { return revealed ? super.addIceCandidate(c) : Promise.resolve(); }
+    addIceCandidate(c) { return revealed || letIn ? super.addIceCandidate(c) : Promise.resolve(); }
   };
 })();"""
 
-def pair(b, host, ev, init=None, perms=None):
+LET_IN = 'window.__letIn = true;'
+
+def pair(b, host, ev, init=None, perms=None, pre=None):
     host.evaluate("document.querySelectorAll('dialog[open]').forEach((d) => d.close())")
     host.click('#remoteAdd')
     host.wait_for_function("document.querySelector('#remoteDlg').open && document.querySelector('#remoteCode').textContent.length === 9", timeout=10000)
     code = host.inner_text('#remoteCode').replace('-', '')
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, permissions=perms or [])
+    if pre:
+        ctx.add_init_script(pre)
     if init:
         ctx.add_init_script(init)
     rem = ctx.new_page()
@@ -114,23 +121,34 @@ with sync_playwright() as p:
     rem.wait_for_function("vmProgramView()?.stuck && vmProgramView().tapDoes === 'connect'", timeout=12000)
     assert not rem.evaluate("vmProgramView().linked")
     assert 'Tap to connect the picture' in rem.inner_text('#pgmTap')
-    host.wait_for_function("vmNotes().some((t) => /hasn.t connected in 12 s: the phone gave only a hidden address/.test(t))", timeout=20000)
+    host.wait_for_function("vmNotes().some((t) => /hasn.t connected in 12 s: the phone gave only a hidden address.*Nothing it sent reached this computer: its firewall/.test(t))", timeout=20000)
     # (it stays up while the phone asks again, every 12 s)
     for _ in range(16):
         assert rem.evaluate("vmProgramView().tapDoes") == 'connect', 'the button went while it was still hanging'
         time.sleep(0.5)
-    step('a phone that hides its address: the picture hangs, the box says Tap to connect the picture, and the show log says why')
+    step('a phone that hides its address: the picture hangs, the box says Tap to connect the picture, and the show log says why (and that nothing from the phone reached this computer)')
     rem.click('#pgmTap')
     rem.wait_for_function("vmProgramView().linked && vmProgramView().shown > 5 && !vmProgramView().tapShown", timeout=15000)
     assert not rem.evaluate("vmProgramFull()") and not rem.evaluate("!!vmRemoteCam?.()?.on")
     step('one tap (the microphone asked for and let go) connects it, without + This phone')
     rem.context.close()
 
-    # the microphone allowed for the site already: no tap needed
+    # the microphone allowed for the site already: no tap, and no wait for it to hang first
     rem = pair(b, host, ev, HIDDEN, perms=['microphone'])
+    t0 = time.time()
     rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=20000)
-    assert not rem.evaluate("vmProgramView().tapShown")
-    step('with the microphone allowed for the site already, it connects by itself')
+    took = time.time() - t0
+    assert took < 4 and not rem.evaluate("vmProgramView().tapShown"), took
+    step(f'with the microphone allowed for the site already, it connects by itself in {took:.1f} s')
+    rem.context.close()
+
+    # a studio computer that lets in what the phone sends: no question on the phone at all
+    rem = pair(b, host, ev, HIDDEN, pre=LET_IN)
+    t0 = time.time()
+    rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=20000)
+    took = time.time() - t0
+    assert took < 4 and not rem.evaluate("vmProgramView().tapShown") and not rem.evaluate("vmProgramView().stuck"), took
+    step(f'a phone that hides its address, on a studio that lets it in: connects in {took:.1f} s with nothing asked')
 
     assert not errors, errors
     b.close()
