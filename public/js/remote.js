@@ -163,6 +163,7 @@ function startProgram(tvKey) {
   pgm?.stop();
   pgm = new ProgramView({
     eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t),
+    onBlocked: (on) => ($('#pgmTap').hidden = !on), // (this phone won't play it until it's touched: a tap anywhere starts it)
     onCtl: (m) => m.t === 'remote' && onMessage(m.d?.remote),
   });
   // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
@@ -222,7 +223,11 @@ function fullProgram(on) {
   } else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   pgm?.resume(); // (should anything have paused it)
 }
-$('#pgmBox').addEventListener('click', () => fullProgram(!$('#pgmBox').classList.contains('full')));
+$('#pgmBox').addEventListener('click', (e) => {
+  if (e.target.closest('#pgmTap')) return; // (that tap only starts the picture: pgmview.js)
+  fullProgram(!$('#pgmBox').classList.contains('full'));
+});
+$('#pgmTap').onclick = () => pgm?.resume();
 $('#pgmBox').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -232,7 +237,7 @@ $('#pgmBox').addEventListener('keydown', (e) => {
 // (left the browser's full screen another way, a swipe or Esc: back to the remote too)
 document.addEventListener('fullscreenchange', () => !document.fullscreenElement && fullProgram(false));
 window.vmProgramFull = () => $('#pgmBox').classList.contains('full'); // (tests)
-window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, blocked: pgm.blocked, tapShown: !$('#pgmTap').hidden, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
 // seconds, the show's code can be changed (still listening, in case it's only opening late).

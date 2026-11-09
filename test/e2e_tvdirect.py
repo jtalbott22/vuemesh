@@ -176,7 +176,11 @@ with sync_playwright() as p:
     sh.click('#stopBtn')
     wait(tv, "() => window.vmTvDirect().tiles.length === 0 && !document.querySelector('#joinView').hidden && document.querySelector('#directView').hidden", 'the landing page back', 40)
     assert tv.evaluate("window.vmTvDirect().listening")
-    step('as each leaves its tile goes, and with none left the landing page is back, still listening')
+    # (the share that stopped is off the event, not "joining": it said so for good before)
+    wait(tv, "() => !window.vmTvDirect().listed.includes('Slides')", 'the stopped share off the list', 15)
+    time.sleep(1)
+    assert tv.evaluate("window.vmTvDirect().joining") == '', tv.evaluate("window.vmTvDirect().joining")
+    step('as each leaves its tile goes, and with none left the landing page is back, still listening, with nobody listed as joining')
 
     # Clear: everyone off, told so (a phone doesn't link straight back), and the landing page
     cam2x = b.new_context(viewport={'width': 390, 'height': 844}, permissions=['camera', 'microphone'])

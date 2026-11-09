@@ -319,6 +319,12 @@ export class DisplayHub {
     // the TV asked for a mode, or PIP, from its own remote
     if (m.t === 'want') return this.setMode(l.key, DISPLAY_MODES.includes(m.mode) ? m.mode : this.modeOf(l), m.pip);
     // what the TV is getting, every few seconds: lower its bitrate if it's falling behind (tvquality.js)
+    // (the phone has the picture but won't show it until it's touched: an iPhone in Low Power Mode)
+    if (m.t === 'blocked') {
+      const name = this.keys.get(l.key)?.name || 'A TV';
+      this.note?.(m.on ? `${name} has the picture but the phone won't show it until it's touched (an iPhone in Low Power Mode does this): a tap anywhere on it starts it` : `${name} is showing the picture now`);
+      return;
+    }
     if (m.t === 'quality') {
       const q = { fps: num(m.fps), secs: num(m.secs) || 5, freezes: num(m.freezes) || 0, freezeMs: num(m.freezeMs) || 0, dropped: num(m.dropped) || 0, lost: num(m.lost) || 0, w: num(m.w), h: num(m.h), at: Date.now() };
       l.rx = q;

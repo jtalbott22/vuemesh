@@ -123,7 +123,7 @@ function connect() {
       }
     },
   });
-  window.vmTvDirect = () => ({ code: ev?.id, listening: !!sock?.connected, tiles: [...tiles.values()].map((t) => ({ name: t.name, screen: t.screen, mic: t.mic, playing: !!t.video.videoWidth })), spot: spot && tiles.get(spot)?.name, sound: soundFrom?.name || null }); // (tests)
+  window.vmTvDirect = () => ({ code: ev?.id, listening: !!sock?.connected, joining: $('#lJoining').hidden ? '' : $('#lJoining').textContent, listed: (sock?.peers || []).filter((p) => p.role !== 'host').map((p) => p.name), tiles: [...tiles.values()].map((t) => ({ name: t.name, screen: t.screen, mic: t.mic, playing: !!t.video.videoWidth })), spot: spot && tiles.get(spot)?.name, sound: soundFrom?.name || null }); // (tests)
   clearInterval(tallyTimer);
   tallyTimer = setInterval(tellAll, 4000); // (again now and then, in case one was lost: the studio does the same)
 }
@@ -162,9 +162,19 @@ function drawJoin() {
   for (const c of ['#lShare', '#dShare']) $(c).textContent = `${base.replace(/^https?:\/\//, '')}/share`;
   say('');
 }
-/** Phones that have joined but whose picture isn't here yet. */
+/**
+ * Phones that have joined but whose picture isn't here yet: only for a moment after each first
+ * appears (a link takes a second or two). One that was on and left, or that's still listed without
+ * ever linking (a page left open, a phone gone without saying), isn't "joining".
+ */
+const JOINING_MS = 25_000;
+const seenAt = new Map(); // peer → when it was first listed (on the TV or not)
+const wasOn = new Set(); // peers that have been on the TV
 function renderJoining() {
-  const coming = (sock?.peers || []).filter((p) => (p.role === 'cam' || p.role === 'mic') && !tiles.has(p.peer));
+  const now = Date.now(), listed = new Set((sock?.peers || []).map((p) => p.peer));
+  for (const p of listed) if (!seenAt.has(p)) seenAt.set(p, now);
+  for (const p of [...seenAt.keys()]) if (!listed.has(p)) seenAt.delete(p);
+  const coming = (sock?.peers || []).filter((p) => (p.role === 'cam' || p.role === 'mic') && !tiles.has(p.peer) && !wasOn.has(p.peer) && now - seenAt.get(p.peer) < JOINING_MS);
   for (const el of [$('#lJoining'), $('#dJoining')]) {
     el.hidden = !coming.length;
     el.textContent = coming.length ? `Joining: ${coming.map((p) => p.name || 'a camera').join(', ')}…` : '';
@@ -206,6 +216,7 @@ function addTile(peer, stream, role) {
   t.video.srcObject = stream;
   t.video.play().catch(() => {});
   // you're on (a phone's light goes red), don't record, keep your clips; again in case the link wasn't ready
+  wasOn.add(peer);
   for (const ms of [300, 1500, 4000]) setTimeout(() => tiles.has(peer) && tell(peer), ms);
   renderJoining();
   layout();
@@ -236,7 +247,10 @@ function tell(peer) {
   const shown = spot ? peer === spot : order().slice(0, MAX_TILES).includes(peer);
   hub.send(peer, { t: 'tally', on: shown, rec: false, tier: tierOf(peer) });
 }
-const tellAll = () => tiles.forEach((_, peer) => tell(peer));
+const tellAll = () => {
+  tiles.forEach((_, peer) => tell(peer));
+  renderJoining(); // (and "joining" goes for one that never linked)
+};
 
 /** Join order, cameras and screens before microphones (they've nothing to look at). */
 const order = () => [...tiles.entries()].sort(([, a], [, b]) => (a.mic - b.mic) || (a.at - b.at)).map(([p]) => p);

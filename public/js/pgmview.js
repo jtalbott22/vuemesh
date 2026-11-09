@@ -10,7 +10,8 @@ import { meshSocket, ICE } from '/js/vm.js';
 
 export class ProgramView {
   /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js)
-   *  @param o.sound? false: picture only (a camera)  @param o.label? what the studio calls it  @param o.model? 'remote' | 'camera' */
+   *  @param o.sound? false: picture only (a camera)  @param o.label? what the studio calls it  @param o.model? 'remote' | 'camera'
+   *  @param o.onBlocked? (on) the phone won't show the picture until the page is touched (or now it does) */
   constructor(o) {
     Object.assign(this, { sound: true, label: `${o.name || 'Phone remote'} (Program out)`, model: 'remote' }, o);
     this.wanted = null; // (a camera: { mode, big }, sent again whenever the link comes back)
@@ -59,6 +60,19 @@ export class ProgramView {
       if (!document.hidden) this.resume();
     };
     document.addEventListener('visibilitychange', this.onVis);
+    // A phone that won't start a video by itself until the page is touched (an iPhone in Low Power
+    // Mode; some browsers until any tap): the link is up and the picture arriving, but nothing shows.
+    // Opened from the studio's code, a remote may never be tapped before someone taps + This phone,
+    // so Program out looked like it waited for that. Now the first touch anywhere starts it (inside
+    // that touch, which the phone allows), and until then onBlocked says so.
+    this.blocked = false;
+    this.onPlaying = () => this.setBlocked(false);
+    v.addEventListener('playing', this.onPlaying);
+    this.onTouch = () => {
+      if (!this.blocked || !v.srcObject) return;
+      v.play().then(() => this.setBlocked(false)).catch(() => {});
+    };
+    for (const t of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(t, this.onTouch, true);
     // (scrolled off screen, a phone stops drawing it, Safari pauses it if muted: not reported either)
     this.inView = true;
     this.seen = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => {
@@ -108,7 +122,7 @@ export class ProgramView {
       if (e.track.kind === 'audio' && this.onSound) return this.onSound(e.track);
       stream.addTrack(e.track);
       this.video.srcObject = stream;
-      this.video.play().catch(() => {});
+      this.play();
     };
     pc.onicecandidate = (e) => e.candidate && this.signal({ kind: 'ice', c: e.candidate.toJSON() });
     pc.onconnectionstatechange = () => pc.connectionState === 'failed' && this.say("Can't reach the studio's picture on this network");
@@ -144,12 +158,27 @@ export class ProgramView {
    */
   resume() {
     const v = this.video;
-    if (v.srcObject && v.paused && !document.hidden) v.play().catch(() => {});
+    if (v.srcObject && v.paused && !document.hidden) this.play();
+  }
+  /** Play it; a phone that won't without a touch first: blocked, until one (see onTouch). */
+  play() {
+    this.video.play().then(() => this.setBlocked(false)).catch((e) => e?.name === 'NotAllowedError' && !document.hidden && this.setBlocked(true));
+  }
+  setBlocked(on) {
+    if (this.blocked === on) return;
+    this.blocked = on;
+    this.onBlocked?.(on);
+    this.sayBlocked();
+  }
+  /** (the studio's show log says so: the picture's arriving, the phone isn't showing it; once the link's up, if it wasn't) */
+  sayBlocked() {
+    if (this.blocked !== !!this.saidBlocked && this.tell({ t: 'blocked', on: this.blocked })) this.saidBlocked = this.blocked;
   }
   async tick() {
     // stay joined (the studio closes a screen it hasn't heard from in 20 s), and say what it's showing
     if (this.linked) {
       this.resume();
+      this.sayBlocked();
       const now = performance.now();
       const msg = { t: 'ping', seq: 0, at: Date.now() };
       try {
@@ -184,6 +213,7 @@ export class ProgramView {
   }
   drop() {
     this.lastQ = null;
+    this.saidBlocked = false; // (a new link is told again)
     try { this.ctl?.close(); } catch {}
     try { this.pc?.close(); } catch {}
     this.pc = null;
@@ -192,6 +222,8 @@ export class ProgramView {
   stop() {
     clearInterval(this.timer);
     document.removeEventListener('visibilitychange', this.onVis);
+    this.video.removeEventListener('playing', this.onPlaying);
+    for (const t of ['pointerdown', 'touchend', 'keydown']) document.removeEventListener(t, this.onTouch, true);
     this.seen?.disconnect();
     this.drop();
     this.sock.close();
