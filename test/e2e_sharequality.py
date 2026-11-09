@@ -110,6 +110,10 @@ with sync_playwright() as p:
     else: step(f"its sound is stereo: left {r1['L']:.3f}, right {r1['R']:.3f}")
     if strip != [2]: ok = False; print(f'FAIL  mixer strip meters {strip} (want [2])', flush=True)
     else: step('its mixer strip is stereo (two meters)')
+    # its sound reached the mixer from the start: the sound watch never had to put it back
+    back = host.evaluate("vmNotes().filter((n) => /Presenter's sound had stopped reaching the mixer/.test(n))")
+    if back: ok = False; print(f'FAIL  the sound watch put its sound back: {back}', flush=True)
+    else: step('its sound reached the mixer from the start (the sound watch never put it back)')
     # the audio console: a stereo source has a meter for each side (left lit, right dark: mono would light both)
     with host.context.expect_page() as pop:
         host.locator('[data-console]').first.click()
@@ -182,6 +186,17 @@ with sync_playwright() as p:
     sh.wait_for_function("!document.querySelector('#sendSay').hidden && /frames a second/.test(document.querySelector('#sendSay').textContent)", timeout=8000)
     say, codec = sh.inner_text('#sendSay'), sh.evaluate('vmShare().codec')
     step(f'the share page says what it sends: "{say}" (codec {codec})')
+    # Quality first (the studio's switch under Output): the screen on air may send up to 15 Mbit/s
+    # on the local network, not 8, within a moment; off again, 8
+    CAP = "() => { for (const pc of window.__pcs) for (const s of pc.getSenders()) if (s.track?.kind === 'video') return s.getParameters().encodings?.[0]?.maxBitrate; return null; }"
+    assert 'Presenter' in host.inner_text('#progLabel')  # (on air since CUT above)
+    host.evaluate("document.querySelector('#qualityFirst').click()")
+    sh.wait_for_function(f"({CAP})() === 15000000", timeout=12000)
+    step(f'Quality first on: the screen on air may send {sh.evaluate(CAP) // 1000} kbit/s')
+    assert host.evaluate("localStorage.getItem('vm_quality_first')") == '1'
+    host.evaluate("document.querySelector('#qualityFirst').click()")
+    sh.wait_for_function(f"({CAP})() === 8000000", timeout=12000)
+    step(f'Quality first off: back to {sh.evaluate(CAP) // 1000} kbit/s')
     print('\nerrors:', errors or 'none')
     assert ok and not errors
     b.close()

@@ -366,7 +366,9 @@ export class SoundWatch {
  * screen: a ding, a video's quiet moments), and put it back every 12 s while it played.
  * When putting it back brings nothing, it's most likely just silent (a shared screen with nothing
  * playing sends exact silence, which looks the same as a sound that stopped reaching the mixer):
- * it's tried again after 16 s, 32 s, then once a minute, and said once.
+ * it's tried again after 16 s, 32 s, then once a minute, and said once. Just listened to (w.attachedAt,
+ * its first 30 s), it's put back after 2 s, not 8: a new link's sound silent from the start is the
+ * opening of the show, and 10 s of it was heard as the sound dropping out.
  * Returns null, or { say } when it's to be put back now.
  */
 export function mixerWatch(w, now, heard) {
@@ -380,7 +382,8 @@ export function mixerWatch(w, now, heard) {
     w.silentSince = now;
     return null;
   }
-  if (now - w.silentSince <= Math.min(60000, 8000 * 2 ** (w.retries || 0))) return null;
+  const fresh = !w.retries && w.attachedAt && now - w.attachedAt < 30000;
+  if (now - w.silentSince <= (fresh ? 2000 : Math.min(60000, 8000 * 2 ** (w.retries || 0)))) return null;
   const say = !w.retries;
   w.retries = (w.retries || 0) + 1;
   w.silentSince = 0;

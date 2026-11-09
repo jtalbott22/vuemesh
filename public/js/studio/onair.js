@@ -8,6 +8,7 @@ import { camOrder, cutLive } from './live.js';
 import { scoreOfLive } from './usage.js';
 import { mixFollowCut } from './mixer.js';
 import { localRecFollow } from './sources.js';
+import { qualityFirst } from './clips.js';
 import { renderBus } from './room.js';
 import { breakManual, mediaOn, onBreak, syncBreakUi } from './graphics.js';
 import { airCovered, progRec, pvw, sw, swActive } from './switcher.js';
@@ -22,7 +23,7 @@ export function syncTally() {
   const inc = swActive() && sw.to && live.has(sw.to) && sw.to !== liveActive ? sw.to : null;
   if (inc !== swTallied) {
     if (swTallied && swTallied !== liveActive) hub?.send(swTallied, { t: 'tally', on: false });
-    if (inc) hub?.send(inc, { t: 'tally', on: true, rec: recOnAir() });
+    if (inc) hub?.send(inc, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
     swTallied = inc;
   }
   localRecFollow();
@@ -35,20 +36,21 @@ export function syncTally() {
   const on = onBreak() || mediaOn || black.target === 1 ? null : liveActive;
   if (on === tallied) return;
   if (tallied) hub?.send(tallied, { t: 'tally', on: false });
-  if (on) hub?.send(on, { t: 'tally', on: true, rec: recOnAir() });
+  if (on) hub?.send(on, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
   tallied = on;
 }
+document.addEventListener('vm-quality-first', () => tallied && hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() }));
 setInterval(() => {
   // resend now and then, in case a message was lost
-  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir() });
+  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
 }, 4000);
 // Cameras record their time on air while the director is recording the show (Record program):
 // just cutting around shows the cameras live and records nothing. (With the setting on; it is
 // by default.) A camera person's own recording is theirs, and runs as they choose.
 const recOnAir = () => autoRec && !!progRec && !progRec.stopping;
 export function recOnAirChanged() {
-  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir() });
-  if (swTallied) hub?.send(swTallied, { t: 'tally', on: true, rec: recOnAir() });
+  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
+  if (swTallied) hub?.send(swTallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
   localRecFollow();
 }
 // Cameras record while they're on air (if they weren't already): on unless the host turns it off.
@@ -59,7 +61,7 @@ $('#autoRec').onchange = (e) => {
   autoRec = e.target.checked;
   localStorage.setItem('vm_autorec_' + eventId, autoRec ? '1' : '0');
   localStorage.setItem('vm_autorec_default', autoRec ? '1' : '0');
-  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir() });
+  if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
   note(autoRec ? 'Cameras now record their time on air while you Record program' : 'Cameras no longer record automatically when on air');
 };
 

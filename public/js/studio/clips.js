@@ -36,6 +36,18 @@ const outSaved = (() => {
   }
 })();
 export const output = { fps: FRAME_RATES.includes(outSaved.fps) ? outSaved.fps : 30, height: outSaved.height === 1080 ? 1080 : 720 };
+// Quality first: for a studio computer with power to spare. Record program and this computer's own
+// recordings at about twice the bitrate, and the camera on air allowed more on the local network
+// (see qualityFor). Kept on this computer, for every show.
+export const qualityFirst = () => {
+  try {
+    return localStorage.getItem('vm_quality_first') === '1';
+  } catch {
+    return false;
+  }
+};
+/** Record program's bitrate, bits a second: Quality first doubles it (12 Mbit/s at 720p, 20 at 1080p). */
+export const programBitrate = (h) => (qualityFirst() ? (h >= 1080 ? 20_000_000 : 12_000_000) : h >= 1080 ? 10_000_000 : 6_000_000);
 export const outputLabel = () => `${output.height}p at ${output.fps} frames a second`;
 export function setOutput(change) {
   if (progRec) return void toast('Stop Record program first: a recording keeps one frame rate and size');
@@ -53,11 +65,18 @@ export function renderOutput() {
   fps.value = String(output.fps);
   size.value = String(output.height);
   fps.disabled = size.disabled = !!progRec;
+  if ($('#qualityFirst')) $('#qualityFirst').disabled = !!progRec; // (a recording keeps its bitrate)
   const hint = $('#outHint');
   if (hint) hint.textContent = progRec ? 'Fixed while Record program runs.' : `${output.height === 1080 ? 'Sharper, and about twice the work: for one or two cameras here, or a computer with its own graphics card. With three cameras and a screen, a laptop can fall behind and Record program skips frames.' : 'Smooth on most computers, with several cameras and a screen.'} 30 for most shows; 25 where TV is 25 (Europe); 29.97 to match broadcast video in North America.`;
 }
 $('#outFps')?.addEventListener('change', (e) => setOutput({ fps: Number(e.target.value) }));
 $('#outSize')?.addEventListener('change', (e) => setOutput({ height: Number(e.target.value) }));
+if ($('#qualityFirst')) $('#qualityFirst').checked = qualityFirst();
+$('#qualityFirst')?.addEventListener('change', (e) => {
+  try { localStorage.setItem('vm_quality_first', e.target.checked ? '1' : '0'); } catch {}
+  note(`Quality first: ${e.target.checked ? 'on' : 'off'}`);
+  document.dispatchEvent(new Event('vm-quality-first')); // (the camera on air hears at once: see onair.js)
+});
 
 export function setOrientation(o, persist = true) {
   setOrientationValue(o === 'portrait' ? 'portrait' : 'landscape');

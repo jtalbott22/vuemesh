@@ -87,7 +87,15 @@ export const LIVE_QUALITY = {
   preview: { lan: [3000, 1], nat: [2500, 1], internet: [1800, 1], cellular: [1200, 1.5], relay: [1200, 1.5], unknown: [1800, 1] },
   idle: { lan: [1200, 2], nat: [1000, 2], internet: [900, 2], cellular: [600, 2], relay: [600, 2], unknown: [900, 2] },
 };
-export const qualityFor = (tier, route) => (LIVE_QUALITY[tier] || LIVE_QUALITY.idle)[route] || LIVE_QUALITY[tier || 'idle'].unknown;
+/** On air on the local network with the studio's Quality first on (a studio computer with power to
+ *  spare): more room for the phone's or computer's encoder, which reached about 6.5 of the 8 allowed. */
+export const QUALITY_FIRST_KBPS = 15000;
+/** the link's ceiling in the answer's bitrate hints: the most any tier asks for */
+export const LINK_MAX_KBPS = QUALITY_FIRST_KBPS;
+export const qualityFor = (tier, route, first = false) => {
+  if (first && tier === 'program' && route === 'lan') return [QUALITY_FIRST_KBPS, 1];
+  return (LIVE_QUALITY[tier] || LIVE_QUALITY.idle)[route] || LIVE_QUALITY[tier || 'idle'].unknown;
+};
 
 /** What the browser says about a sending link: rate, picture, and what's holding it back. */
 export async function sendStats(pc, prev) {

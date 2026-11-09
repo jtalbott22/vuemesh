@@ -9,7 +9,7 @@ import {
   $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, LIVE_DELAY, liveActive, note,
   player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
-import { addClip, noteAngle, output, rebuild } from './clips.js';
+import { addClip, noteAngle, output, qualityFirst, rebuild } from './clips.js';
 import { renderLive } from './live.js';
 import { syncTally } from './onair.js';
 import { applyStripFx, mix, mixAttach, mixDetach, mixSave, mixState, renderMixer } from './mixer.js';
@@ -827,7 +827,7 @@ function startLocalRec(peer) {
   }
   const one = () => {
     const vids = l.recTrack?.readyState === 'live' ? [l.recTrack] : l.stream.getVideoTracks();
-    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? (l.side && l.recAudio ? [l.recAudio] : l.stream.getAudioTracks()) : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? 3_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
+    const rec = new MediaRecorder(new MediaStream(kind === 'audio' ? (l.side && l.recAudio ? [l.recAudio] : l.stream.getAudioTracks()) : [...vids, ...l.stream.getAudioTracks()]), { mimeType: mime, videoBitsPerSecond: l.screen ? (qualityFirst() ? 8_000_000 : 3_000_000) : qualityFirst() ? 16_000_000 : 8_000_000, audioBitsPerSecond: 160_000 });
     // (another computer's screen arrives about as late as a phone's picture: on the cameras' clock, as the cuts are)
     const chunks = [], t0 = now() - (l.local ? 0 : LIVE_DELAY), began = performance.now();
     const name = l.name; // (named as it was when it started: a split or a rename can come before it's saved)
