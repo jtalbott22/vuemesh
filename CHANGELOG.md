@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.12 — the remote's camera on a real iPhone: the speaker, its bar, and the full-screen mark
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.11.
+
+The first show with the remote's own camera on an iPhone worked, with three things off.
+- **The program's sound came from the earpiece after Mic off.** Mic off only muted the microphone, so it stayed open, and an iPhone with its microphone open plays sound as a phone call does, from the earpiece. Now Mic off lets go of the microphone altogether (the studio gets silence, the picture carries on), and the program's sound comes back on the speaker. Mic on opens it again, holding the program's sound off as before.
+- **The camera's bar was jammed** on a phone held sideways: its picture, "This phone", Mic and Remove in one row squeezed the name under the buttons ("phoı"). Now its picture is on the left, with "This phone" and its state on one line beside it and Mic and Remove under them, then the lenses.
+- **One front camera.** An iPhone 17 lists two, and the second showed as "Front 2", a fifth lens button that said nothing. Now only the plain selfie one shows (0.5×, 1×, 2×, Front).
+- **The full-screen mark floated outside Program out** when the phone was held sideways in Safari: it sat on the corner of Program out's space, which is wider than the picture when the browser's bars take some of the height. Now it's on the picture's own corner, 8 px in, whatever the space.
+
+**Tests:** `e2e_remotecam`: Mic off lets go of the microphone (not only muted) and nothing's sent; Mic on opens it again and the studio hears it (its sound packets climb). Sideways at 956x380, 932x430, 844x390 and 667x375: the full-screen mark 8 px inside the picture's corner each time, and "This phone" clear of Mic and Remove. `e2e_remotelandscape`, `e2e_remote` and `e2e_tvremote` pass. Not tried on an iPhone yet: which speaker the sound comes from (a browser here can't show that).
+
 ## 0.66.11 — the phone remote's own camera
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.9 (the remote held sideways) and 0.66.10.
 

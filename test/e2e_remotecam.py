@@ -54,6 +54,17 @@ with sync_playwright() as p:
     assert not rem.evaluate('vmRemoteCam().pgmOffered'), 'the studio offered the remote camera a program screen'
     step('the studio takes it as the whole frame, landscape, and offers it no program screen (the remote has Program out)')
 
+    # held sideways, Program out's space can be wider (or taller) than the picture in it: the full-screen
+    # mark is on the picture's own corner, and the camera's bar keeps "This phone" clear of its buttons
+    for w, h in ((956, 380), (932, 430), (844, 390), (667, 375)):
+        rem.set_viewport_size({'width': w, 'height': h})
+        rem.wait_for_timeout(500)
+        g = rem.evaluate('''(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(), v = r('#pgm'), i = r('#pgmBox .fsico'), n = r('#myCamH'), m = r('#myMicBtn'), o = r('#myCamOff');
+          return { right: Math.round(v.right - i.right), top: Math.round(i.top - v.top), nameClear: n.bottom <= Math.min(m.top, o.top) + 1 && n.right <= r('#myCam').right }; })()''')
+        assert g == {'right': 8, 'top': 8, 'nameClear': True}, (w, h, g)
+    rem.set_viewport_size({'width': 390, 'height': 844})
+    step('sideways (956x380, 932x430, 844x390, 667x375): the full-screen mark 8 px inside the picture\'s corner, and "This phone" clear of Mic and Remove')
+
     rem.click(f'#cams .cam[data-peer="{peer}"]')
     rem.wait_for_function(f"""document.querySelector('#cams .cam.air')?.dataset.peer === '{peer}' && vmRemoteCam().air && document.querySelector('#myCam').classList.contains('air') && document.querySelector('#myCamSay').textContent === 'ON AIR'""", timeout=15000)
     assert host.evaluate('vmSwitcher().liveActive') == peer
@@ -71,11 +82,21 @@ with sync_playwright() as p:
     assert host.evaluate('vmSwitcher().liveActive') == peer
     step(f'its lenses ({", ".join(x[0] for x in lenses)}): a tap on the other changes the camera, the studio\'s picture carries on ({t0:.1f} s, then {t1:.1f} s) and it stays on air')
 
+    assert rem.evaluate('vmRemoteCam().micOpen && vmRemoteCam().soundSent')
     rem.click('#myMicBtn')
     rem.wait_for_function("!vmRemoteCam().micOn && !vmRemoteCam().held && !document.querySelector('#sndBtn').disabled", timeout=5000)
+    # (let go, not only muted: an iPhone with its microphone open plays sound from the earpiece)
+    rem.wait_for_function("!vmRemoteCam().micOpen && !vmRemoteCam().soundSent", timeout=5000)
     rem.click('#myMicBtn')
-    rem.wait_for_function("vmRemoteCam().micOn && vmRemoteCam().held", timeout=5000)
-    step('Mic off lets the program\'s sound go again; Mic on holds it off again')
+    rem.wait_for_function("vmRemoteCam().micOn && vmRemoteCam().held && vmRemoteCam().micOpen && vmRemoteCam().soundSent", timeout=10000)
+    rem.wait_for_timeout(1500)
+    got = host.evaluate(f"""(async () => {{ const pc = vmHub().links?.get?.('{peer}')?.pc; if (!pc) return null;
+      let n = 0; (await pc.getStats()).forEach((r) => {{ if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.packetsReceived; }}); return n; }})()""")
+    rem.wait_for_timeout(1500)
+    got2 = host.evaluate(f"""(async () => {{ const pc = vmHub().links?.get?.('{peer}')?.pc; if (!pc) return null;
+      let n = 0; (await pc.getStats()).forEach((r) => {{ if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.packetsReceived; }}); return n; }})()""")
+    assert got is not None and got2 > got, (got, got2)
+    step(f'Mic off lets go of the microphone (not only muted) and the program\'s sound goes again; Mic on opens it again, holds the sound off, and the studio hears it (sound packets {got}, then {got2})')
 
     # Record program on: a camera phone leaving is sent its part of the live cut, and the recording's
     # rolled for it; the remote's camera records nothing, so it's neither

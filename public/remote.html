@@ -90,19 +90,24 @@
   .mycam { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 8px; margin-top: 8px; }
   .mycam.air { border-color: var(--tally); }
   .mycam.pvw { border-color: var(--preview); }
-  .mycamtop { display: flex; align-items: center; gap: 8px; }
-  .mycam video { width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; flex: none; }
+  /* (its picture on the left; its name and state, then Mic and Remove, beside it: in one row, a phone
+     held sideways squeezed the name under the buttons) */
+  .mycamtop { display: grid; grid-template-columns: 112px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "pic info info" "pic mic off"; gap: 6px 8px; align-items: center; }
+  .mycam video { grid-area: pic; width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; }
   .mycam video.mirror { transform: scaleX(-1); }
-  .mycaminfo { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
-  .mycaminfo b { font: 700 1.05rem 'Barlow Condensed', sans-serif; }
-  .mycaminfo span { color: var(--dim); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mycaminfo { grid-area: info; min-width: 0; display: flex; align-items: baseline; gap: 8px; line-height: 1.2; }
+  .mycaminfo b { flex: none; font: 700 1.05rem 'Barlow Condensed', sans-serif; }
+  .mycaminfo span { min-width: 0; color: var(--dim); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mycam.air .mycaminfo span { color: var(--tally); font-weight: 700; }
-  .mycam button.mini { width: auto; flex: none; min-height: 44px; padding: 4px 10px; font-size: 1rem; }
+  .mycam button.mini { width: 100%; min-height: 44px; padding: 4px 8px; font-size: 1rem; white-space: nowrap; }
+  #myMicBtn { grid-area: mic; }
+  #myCamOff { grid-area: off; }
+  #myMicBtn[hidden] + #myCamOff { grid-column: mic / off; }
   .mycam #myMicBtn[aria-pressed="true"] { background: var(--preview); color: #04120a; }
   .mycam #myMicBtn[aria-pressed="false"] { background: var(--tally); color: #fff; }
   .lenses { display: flex; gap: 6px; margin-top: 8px; }
   .lenses:empty { display: none; }
-  .lenses button { flex: 1; min-height: 44px; padding: 4px 6px; font-size: 1.05rem; }
+  .lenses button { flex: 1; min-width: 0; min-height: 44px; padding: 4px 6px; font-size: 1.05rem; white-space: nowrap; }
   .sndbtn.held { opacity: .6; }
   .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   /* the mixer: each live channel, its sound mode, its level and how loud it is now */
@@ -154,6 +159,8 @@
     #ctlView .pgm { grid-area: pgm; container-type: size; display: grid; place-items: center; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; background: none; overflow: visible; min-height: 0; }
     #ctlView .pgm video { grid-area: 1 / 1; width: min(100cqw, 100cqh * 16 / 9); height: auto; aspect-ratio: 16 / 9; border: 2px solid var(--tally); border-radius: 10px; background: #000; }
     #ctlView .pgm .pgmsay { grid-area: 1 / 1; position: static; align-self: end; margin-bottom: 10px; }
+    /* (the full-screen mark on the picture's own corner: the box is wider or taller than the picture in it) */
+    #ctlView .pgm .fsico { --pw: min(100cqw, 100cqh * 16 / 9); top: calc((100cqh - var(--pw) * 9 / 16) / 2 + 8px); right: calc((100cqw - var(--pw)) / 2 + 8px); }
     #ctlView .deck { grid-area: deck; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6px; scrollbar-width: thin; }
     /* (150 wide or more, and at least two to a row: a small phone's one column was all picture) */
     #ctlView .deck .cams { grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 3px)), 1fr)); gap: 6px; }

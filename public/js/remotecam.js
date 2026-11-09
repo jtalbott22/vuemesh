@@ -67,7 +67,10 @@ export class RemoteCamera {
       // lens itself in those, so they're left off when it has plain ones to choose)
       const all = (await this.kit.devices()).cams.sort((a, b) => ORDER[a.lens] - ORDER[b.lens]);
       const plainOnes = all.filter((l) => l.lens !== 'multi');
-      this.lenses = plainOnes.some((l) => l.side === 'back') ? plainOnes : all;
+      const list = plainOnes.some((l) => l.side === 'back') ? plainOnes : all;
+      // (and one front camera, the plain selfie one: an iPhone 17 lists two, and "Front 2" said nothing)
+      const front = preferredCamera(list, 'front');
+      this.lenses = list.filter((l) => l.side !== 'front' || l === front);
       const plain = preferredCamera(this.lenses, 'back');
       if (plain && plain.deviceId !== this.kit.deviceId) await this.kit.open({ deviceId: plain.deviceId }).catch(() => {});
     } catch (e) {
@@ -77,17 +80,8 @@ export class RemoteCamera {
       this.onChange();
       throw e;
     }
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      this.mic = s.getAudioTracks()[0] || null;
-      if (this.mic) this.mic.enabled = this.micOn;
-    } catch {
-      this.mic = null; // (said no to the microphone: the picture goes on its own)
-    }
-    try {
-      // (sound and picture both live: iPhones then record and play together, the program's sound held off)
-      if (this.mic && navigator.audioSession) navigator.audioSession.type = 'play-and-record';
-    } catch {}
+    // (said no to the microphone: the picture goes on its own, and there's no Mic button)
+    this.canMic = !!(await this.openMic().catch(() => null));
     this.stream = new MediaStream([this.kit.track, ...(this.mic ? [this.mic] : [])]);
     this.showSelf();
     const id = await identity();
@@ -177,10 +171,58 @@ export class RemoteCamera {
     setTimeout(() => this.orient(), 300);
   }
 
-  /** The microphone on or off (off: silence goes, the picture carries on). */
-  setMic(on) {
-    this.micOn = !!on;
-    if (this.mic) this.mic.enabled = this.micOn;
+  /**
+   * Open the microphone. While it's open, an iPhone plays sound as a phone call does, from the
+   * earpiece (the program's is held off meanwhile, see remote.js); so it's opened only while it's on.
+   */
+  async openMic() {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    this.mic = s.getAudioTracks()[0] || null;
+    try {
+      if (this.mic && navigator.audioSession) navigator.audioSession.type = 'play-and-record';
+    } catch {}
+    return this.mic;
+  }
+
+  /** The link's sender for the sound (found by its transceiver: with nothing sending, it has no track to say). */
+  soundSender() {
+    return this.link?.pc?.getTransceivers?.().find((t) => t.receiver?.track?.kind === 'audio' && !t.stopped)?.sender || null;
+  }
+
+  /**
+   * The microphone on or off. Off lets go of it altogether (silence goes, the picture carries on):
+   * only muted, it stayed open, and with the program's sound back on, an iPhone played it from the
+   * earpiece, not the speaker. On opens it again.
+   */
+  async setMic(on) {
+    on = !!on;
+    if (on === this.micOn && !!this.mic === on) return;
+    this.micOn = on;
+    if (!on) {
+      this.mic?.stop();
+      this.mic = null;
+      this.soundSender()?.replaceTrack(null).catch(() => {});
+      try {
+        if (navigator.audioSession) navigator.audioSession.type = 'auto';
+      } catch {}
+      this.stream = new MediaStream([this.kit.track]);
+      return this.onChange();
+    }
+    this.onChange();
+    try {
+      await this.openMic();
+    } catch {
+      this.micOn = false;
+      this.onChange();
+      throw new Error("The microphone didn't open");
+    }
+    if (!this.on) return this.mic?.stop(); // (removed meanwhile)
+    this.stream = new MediaStream([this.kit.track, this.mic]);
+    const sender = this.soundSender();
+    if (sender) {
+      sender.__track = this.mic;
+      sender.replaceTrack(this.mic).catch(() => {});
+    } else this.link?.connect({ over: true }); // (linked again while it was off: a link with sound)
     this.onChange();
   }
 
@@ -199,11 +241,9 @@ export class RemoteCamera {
         this.switching = false;
       }
     }
-    if (this.mic?.readyState === 'ended') {
+    if (this.micOn && this.mic?.readyState === 'ended') {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-        this.mic = s.getAudioTracks()[0];
-        this.mic.enabled = this.micOn;
+        await this.openMic();
         this.swapIn();
       } catch {}
     }

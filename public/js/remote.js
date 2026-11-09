@@ -437,7 +437,7 @@ let lensSig = '';
 function renderMyCam() {
   const on = !!rcam?.on, bar = $('#myCam');
   bar.hidden = !on;
-  psound.hold(on && !!rcam.mic && rcam.micOn);
+  psound.hold(on && rcam.canMic && rcam.micOn);
   showSound();
   if (!on) return;
   bar.classList.toggle('air', rcam.air);
@@ -454,7 +454,7 @@ function renderMyCam() {
     b.disabled = !!rcam.switching;
   }
   const mic = $('#myMicBtn');
-  mic.hidden = !rcam.mic;
+  mic.hidden = !rcam.canMic;
   mic.setAttribute('aria-pressed', String(rcam.micOn));
   mic.textContent = rcam.micOn ? 'Mic on' : 'Mic off';
 }
@@ -462,7 +462,7 @@ $('#lenses').addEventListener('click', (e) => {
   const b = e.target.closest('[data-lens]');
   if (b && rcam) rcam.useLens(b.dataset.lens).catch(() => toast("That lens didn't open"));
 });
-$('#myMicBtn').onclick = () => rcam?.setMic(!rcam.micOn);
+$('#myMicBtn').onclick = () => rcam?.setMic(!rcam.micOn).catch((e) => toast(e.message));
 // (on air, Remove takes a second tap: the studio would put up its break slate until the next cut)
 let offArmed = null;
 $('#myCamOff').onclick = () => {
@@ -481,7 +481,7 @@ $('#myCamOff').onclick = () => {
   rcam?.stop();
   toast("This phone's camera left the show");
 };
-window.vmRemoteCam = () => rcam && { on: rcam.on, state: rcam.state, peer: rcam.peer, air: rcam.air, lens: rcam.kit?.deviceId || null, lenses: rcam.lenses.map((l) => l.short), mic: !!rcam.mic, micOn: rcam.micOn, held: !!psound.held, pgmOffered: !!rcam.pgmOffered, w: $('#myCamVideo').videoWidth, h: $('#myCamVideo').videoHeight }; // (tests)
+window.vmRemoteCam = () => rcam && { on: rcam.on, state: rcam.state, peer: rcam.peer, air: rcam.air, lens: rcam.kit?.deviceId || null, lenses: rcam.lenses.map((l) => l.short), mic: !!rcam.canMic, micOn: rcam.micOn, micOpen: rcam.mic?.readyState === 'live', soundSent: rcam.soundSender()?.track?.readyState === 'live', held: !!psound.held, pgmOffered: !!rcam.pgmOffered, w: $('#myCamVideo').videoWidth, h: $('#myCamVideo').videoHeight }; // (tests)
 $('#clips').addEventListener('click', (e) => {
   const b = e.target.closest('[data-clip]');
   if (b) act('clip', b.dataset.clip);
