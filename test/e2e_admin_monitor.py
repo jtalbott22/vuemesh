@@ -28,6 +28,10 @@ with sync_playwright() as p:
     mon.wait_for_function("[...document.querySelectorAll('#peers .src dl > div')].some(d => d.querySelector('dt').textContent === 'Round trip' && /\\d+ ms/.test(d.querySelector('dd').textContent))", timeout=15000)
     row = mon.eval_on_selector('#peers .src', "c => [c.querySelector('.nm').textContent, ...[...c.querySelectorAll('dl > div')].map(d => d.querySelector('dt').textContent + ' ' + d.querySelector('dd').textContent.trim())].join(' | ')")
     step('monitor shows the phone live: ' + row)
+    # (the program's small picture, top left: stills from the studio while the monitor is on screen)
+    mon.wait_for_function("document.querySelector('#pgmImg').src.startsWith('blob:') && document.querySelector('#pgmImg').naturalWidth > 0 && !document.querySelector('#pgm').classList.contains('stale')", timeout=10000)
+    assert not mon.evaluate("document.documentElement.scrollWidth > innerWidth"), 'the monitor scrolls sideways'
+    step('monitor shows the program picture: ' + mon.eval_on_selector('#pgm', "f => f.querySelector('figcaption').innerText.replace(/\\n/, ' ') + ' ' + f.querySelector('img').naturalWidth + 'px'"))
     mon.screenshot(path='/tmp/v05-monitor.png', full_page=True)
 
     bc = ctx.new_page(); watch(bc, 'beacon'); bc.set_viewport_size({'width': 1280, 'height': 720})

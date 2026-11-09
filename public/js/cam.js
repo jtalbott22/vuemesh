@@ -587,7 +587,7 @@ async function openCamera() {
   await video.play().catch(() => {});
   await openMic(prefs.micId || null);
   stream = new MediaStream([vt, micTrack]);
-  link?.replaceStream(upright?.stream || stream);
+  link?.replaceStream(liveStream());
 }
 
 async function openMic(deviceId) {
@@ -652,7 +652,7 @@ function connectMesh() {
   window.vmLink = () => link?.linkStats || null; // (diagnostics and tests: this phone's live picture)
   link = new CamLink({
     sock: socket,
-    stream: () => (role === 'mic' ? new MediaStream(stream.getAudioTracks()) : upright?.stream || stream),
+    stream: () => (role === 'mic' ? new MediaStream(stream.getAudioTracks()) : liveStream()),
     onControl: (m) => {
       if (m.t === 'kick') return onKicked(!!m.block);
       // the director has this camera in preview: next to go on air
@@ -2513,7 +2513,35 @@ function makeUpright() {
     draw(chain);
   }, 500);
   setInterval(measureShot, 500);
-  setInterval(() => upright?.view && link?.control({ t: 'orient', ...upright.view }), 3000); // in case a message was lost
+  setInterval(() => (upright?.bg || upright?.view) && link?.control({ t: 'orient', ...(upright.bg || upright.view) }), 3000); // in case a message was lost
+  document.addEventListener('visibilitychange', liveInBackground);
+}
+// A tab in the background (a computer's Chrome, its person sharing their screen from another tab):
+// the browser stops the camera frames the loop above draws on, so the director's picture froze
+// until the tab was back. While it's hidden, the camera's own picture goes instead, straight from
+// the camera (the browser keeps sending that): upright as it is when nothing needs turning (a
+// computer's camera; a phone held as its picture is), the studio told it's the whole frame. Zoom
+// and the look aren't on it meanwhile. The square comes back with the tab.
+function liveInBackground() {
+  if (!upright || role !== 'cam') return;
+  const t = kit.track;
+  const bg = document.hidden && t?.readyState === 'live' && sensors.correction() === 0;
+  if (bg === !!upright.bg) return;
+  if (bg) {
+    const s = t.getSettings?.() || {};
+    upright.bg = { rect: { x: 0, y: 0, w: 1, h: 1 }, upright: (s.width || 16) >= (s.height || 9) ? 'landscape' : 'portrait' };
+    diag('info', 'In the background: sending the camera\u2019s own picture until the tab is back');
+  } else {
+    upright.bg = null;
+    upright.view = null; // (the loop says the square's shape again with its next frame)
+  }
+  link?.replaceStream(liveStream());
+  if (upright.bg) link?.control({ t: 'orient', ...upright.bg });
+}
+/** What goes live to the studio: the upright square, or while the tab's in the background, the camera's own picture. */
+function liveStream() {
+  if (upright?.bg && kit.track?.readyState === 'live') return new MediaStream([kit.track, ...outAudioTracks()]);
+  return upright?.stream || stream;
 }
 
 // Twice a second: how good is this shot? Tell the host, keep a log, coach the shooter.

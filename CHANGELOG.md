@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.66.13 — the time of day on the phone remote
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.12.
+
+The remote had no clock, and a show runs to one.
+- **Now:** the time of day sits at the right end of the remote's title bar, beside the connection dot, styled as the studio's program monitor shows it in its top right: white, bold, monospace, on a dark see-through pill. It ticks on the second and is written only when it changes. It's this phone's own clock, as the studio's is that computer's.
+- It's on one line with the show's name, upright and sideways. Upright on a phone, a long show name is cut short with "…" to make room for it.
+
+**Tests:** `e2e_remotecam`: the clock reads as a time and ticks, sits right of the show's name and left of the dot, inside the title bar, upright and sideways at 956x380, 932x430, 844x390 and 667x375. `e2e_remotelandscape`, `e2e_remote` and `e2e_tvremote` pass.
+
+## 0.66.12 — the remote's camera on a real iPhone: the speaker, its bar, and the full-screen mark
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.11.
+
+The first show with the remote's own camera on an iPhone worked, with three things off.
+- **The program's sound came from the earpiece after Mic off.** Mic off only muted the microphone, so it stayed open, and an iPhone with its microphone open plays sound as a phone call does, from the earpiece. Now Mic off lets go of the microphone altogether (the studio gets silence, the picture carries on), and the program's sound comes back on the speaker. Mic on opens it again, holding the program's sound off as before.
+- **The camera's bar was jammed** on a phone held sideways: its picture, "This phone", Mic and Remove in one row squeezed the name under the buttons ("phoı"). Now its picture is on the left, with "This phone" and its state on one line beside it and Mic and Remove under them, then the lenses.
+- **One front camera.** An iPhone 17 lists two, and the second showed as "Front 2", a fifth lens button that said nothing. Now only the plain selfie one shows (0.5×, 1×, 2×, Front).
+- **The full-screen mark floated outside Program out** when the phone was held sideways in Safari: it sat on the corner of Program out's space, which is wider than the picture when the browser's bars take some of the height. Now it's on the picture's own corner, 8 px in, whatever the space.
+
+**Tests:** `e2e_remotecam`: Mic off lets go of the microphone (not only muted) and nothing's sent; Mic on opens it again and the studio hears it (its sound packets climb). Sideways at 956x380, 932x430, 844x390 and 667x375: the full-screen mark 8 px inside the picture's corner each time, and "This phone" clear of Mic and Remove. `e2e_remotelandscape`, `e2e_remote` and `e2e_tvremote` pass. Not tried on an iPhone yet: which speaker the sound comes from (a browser here can't show that).
+
+## 0.66.11 — the phone remote's own camera
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.9 (the remote held sideways) and 0.66.10.
+
+The phone running the show couldn't be one of its cameras. That needed a second phone, or leaving the remote for the camera page and losing Program out and the buttons.
+- **Now:** after the cameras on the remote, **+ This phone**. A tap (the phone asks for its camera and microphone the first time), and it joins the show as a camera of its own, named after the remote ("Remote camera", or "Josh's iPhone camera"). In a second or two its picture is among the others', with THIS PHONE on it and an amber edge, and a tap on it cuts to it, the same as any camera. The remote stays as it was, upright or sideways, Program out and all.
+- **Under the cameras,** while it's in: its own live picture (to frame the shot; the front camera as a mirror), ON AIR or Up next, **Mic on/off**, and **Remove**. Its lenses are one row of buttons, named as a camera app has them (0.5×, 1×, 2×, Front). A tap changes lens, and the studio's picture changes over with it (a moment's blip on an iPhone, which runs one camera at a time). An iPhone's combined cameras ("Back Dual Wide", "Back Triple") are left off when it has plain ones.
+- **The program's sound is held off** on the phone while its microphone is live: played there, it would go straight back into the show. The Sound button says "Sound off: mic live". Mic off, or Remove, and Sound on comes back if it was on.
+- **Remove** takes a second tap while it's on air ("On air: tap again"). Gone, the studio would put up its break slate until the next cut.
+- **What it sends:** the camera's own picture, the whole frame, upright as the phone is held. The studio is told its shape, and again when the phone turns. The camera page's upright square, zoom, the look and the shot coach aren't on it.
+- **Live only:** the phone records no clip of its own (the camera page does, for Edit). It's in Record program like any camera.
+- **The studio** knows it's a remote's camera (by its id, as it knows a shared screen). It doesn't offer it a place watching the program, since the remote has Program out, and that place goes to another camera. It sends it no part of the live cut, and its leaving doesn't finish the part being recorded.
+- **Locked, or behind another app,** an iPhone stops the camera. Back on the remote, a camera it ended is opened again, the same lens. A reload of the remote takes it out of the show: + This phone puts it back.
+
+**Tests:** `e2e_remotecam` (new), with two fake cameras: + This phone joins the remote's camera to the show. The studio has its picture, and the remote shows it with THIS PHONE on it, its thumbnail from the studio, and its own picture under the cameras. The studio takes it as the whole frame, landscape, and offers it no program screen (with that left out, it was offered one). With Program out's sound on, it's held off while the mic is live, and let go with Mic off. A tap cuts to it: ON AIR on the remote and on its bar, live in the studio. The other lens changes the camera, and the studio's picture carries on, still on air. On air and recording, Remove asks for a second tap, then it's out of the show with no part of the live cut sent its way (with that left out, "Remote camera is leaving: sending them 1 part of the live cut first"). Added again, it's in once. `e2e_remote`, `e2e_remotelandscape`, `e2e_tvremote`, `e2e_remotejoin`, `e2e_campgm`, `e2e_offline`, `e2e_pip`, `e2e_cambg` and `e2e_remotescreenrec` pass.
+
+## 0.66.10 — Record program's sound doesn't crackle on a busy computer
+**Deploy:** `./aws/deploy.sh` (site only). It changes only Record program's sound, and needs nothing from 0.66.8 or 0.66.9.
+
+A show on a busy laptop (four sources, the program encoded on the processor, two recordings here at once) made an MP4 whose music was choppy, though it sounded fine on the remote.
+- **Why:** Record program keeps its sound in step with the picture. When the sound engine's clock falls behind the page's (on a computer this busy, it does), it puts in a millisecond of the sound again, crossfaded, so the join can't be heard. The crossfade ran the wrong way: a jump back of a millisecond at its start and again at its end, two clicks each time. That show's log has 478 put in during 70 s, about 17 a second at first, nearly every block of sound. Taking a millisecond out, the other correction, was right. The remote hears the live mix, which never goes through this.
+- **Now:** the millisecond put in joins the sound smoothly at both ends, as one taken out does.
+- A recording already made keeps its clicks.
+
+**Tests:** `splice.test.mjs` (new): a millisecond put in or taken out of a 2048-sample block of a tone (110 Hz to 3 kHz) never jumps more than twice the tone's own step from one sample to the next. With 0.66.9 one put in jumped 0.625 at 110 Hz, against the tone's own 0.014. The length changes by exactly 48 samples, and the sound either side of the join is the block as it was.
+
+## 0.66.9 — the phone remote held sideways, and Program out full screen
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.8.
+
+Held sideways, the phone remote was the upright page stretched wide: Program out filled the width, so the cameras and the buttons were a long scroll below it, and the sides ran under the Dynamic Island.
+- **Now:** turned sideways, a phone shows the whole show on one screen with no page to scroll. Program out is on the left, 16:9 and as big as the height allows, with what's on air, Program out and Sound above it. The quick actions (Auto-director, Fade to black, Break, Record program, the corner camera) sit in one row under it. The cameras, sounds, clips and the mixer are on the right, from top to bottom, and scroll on their own, at least two to a row. On an iPhone Pro Max that's a 505x284 Program out from the home screen (399x224 in Safari, with its bars). Nothing runs under the Dynamic Island or the home bar.
+- **Program out full screen:** a tap on Program out fills the screen with it (sideways or upright), to just watch. A tap anywhere goes back to the remote. It's the same picture made big, so it carries on playing with nothing to reconnect. "Tap to go back to the remote" shows for 2 s. Where the browser lets a page go full screen (an iPad, Android), it does. An iPhone doesn't let a page do that, so there it fills the page. A small corner mark on Program out says it can.
+- **A screen on air no longer shrinks Program out sideways.** With a screen on air, the corner button said "Corner camera: " and the camera's name, which took three lines on a phone held sideways, so the row of buttons grew and Program out got smaller. Now the buttons sideways are all one height whatever they say, and the corner button says "Corner on" with the camera under it in small type, cut short with "…" if it's long. Upright, it says "Corner camera" with the camera under it.
+- **No "Another show…" sideways** (nor the line above it), so the sources run to the bottom. It's still there upright, and a studio that isn't open brings up the show's code by itself.
+- **With Program out off,** what's on air and the actions go down the left, two to a row, and the sources get the rest.
+- **The toast** ("This phone is now a remote…") shows at the top when sideways, not over the actions.
+- Upright, the remote is otherwise as it was. An iPad isn't affected by the sideways layout (it's for screens under 560 high when sideways).
+
+**Tests:** `e2e_remotelandscape` (new): at 956x440, 956x380 and 667x375, nothing scrolls but the sources, which run to the bottom, Program out is 16:9 beside them, and the actions are one row of buttons 44 or more high under it. Taps on cameras, the microphone, Break and Fade to black work. Another computer's screen cut to, with a camera named "Joshua Talbott iPhone 17 Pro Max" in the corner: Program out and the buttons keep their size, and the corner button's label stays inside it. A tap on Program out fills the screen (782x440 sideways, 440x248 upright), over the buttons, still playing, and a tap goes back. Program out off puts the actions two to a row, and upright it's the old order. `e2e_remote`, `e2e_tvremote` and `e2e_pip` pass.
+
+## 0.66.8 — the Monitor shows the program's picture
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.7.
+
+The Monitor's summary didn't fit in one row on a wide screen (seven figures, then one alone underneath), and the Program figure cut a camera's name short ("Josh M…").
+- **Now:** the summary starts with a small picture of the program, as Program out shows it, with what's on (or Break, Black, Standby) named under it, a red edge while a camera is on air, and AUTO while the auto director cuts. The other figures sit beside it in two rows (three on a narrower screen), so it all fits. On a phone, the picture is on top.
+- **What it costs:** the studio sends a 384-wide still 4 times a second over the same in-browser channel the Monitor already uses, and only while a Monitor is on screen and asking for it (every 2 s; it stops within 5 s of the Monitor going into the background or closing). It's a JPEG made off the page's own thread. There's no video encoder and nothing goes on the network. A live video like Program out's would need the Monitor to be opened by the studio, as Program out is, and the Monitor is a separate tab.
+- **Shorter labels:** "Phones needing attention" is "Needing attention". The stream's figures say "Stream" and "Encoder asked for", with the details on hover.
+
+**Tests:** `e2e_admin_monitor` checks the program picture arrives and the page doesn't scroll sideways.
+
+## 0.66.7 — a camera in a background tab keeps sending
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.6.
+
+A camera page on a Mac stopped sending its picture whenever its Chrome tab wasn't the one showing, for example while the same Mac shared its screen from another tab. The director's picture froze until the tab was back.
+- **Why:** the picture the camera page sends isn't the camera's own. It's an upright square drawn from it frame by frame, turned for a phone held sideways, with digital zoom and the look. That drawing runs on the camera's frames as the page shows them, and Chrome stops those in a background tab. The camera page's own keep-alive also waited for the tab to be back. Its recording was fine: that comes straight from the camera.
+- **Now:** while the tab is hidden, the page sends the camera's own picture instead, and tells the studio it's the whole frame. The browser keeps sending that in the background. This happens when nothing needs turning, as with a computer's camera, or a phone held as its picture is. Zoom and the look aren't applied meanwhile. When the tab is back, the square comes back.
+
+**Tests:** `e2e_cambg` (new): a computer's camera page whose tab goes into the background (headless Chromium never hides a tab, so the test does what Chrome does: the page says it's hidden, and its frame callbacks stop). With 0.66.6 the studio got 0 frames in 3 s. Now it gets about 20 a second, the camera's own 960x540, and the 540x540 square is back with the tab. `e2e_camera_pro`, `e2e_campgm`, `e2e_orientation`, `e2e_phonerobust`, `e2e_rejoin`, `e2e_leave_rejoin`, `e2e_serverblip` and `e2e_vcam` pass.
+
 ## 0.66.6 — the remote's Program out keeps playing after Stop recording
 **Deploy:** `./aws/deploy.sh` (site only).
 
