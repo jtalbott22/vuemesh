@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.66.13 — the time of day on the phone remote
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.12.
+
+The remote had no clock, and a show runs to one.
+- **Now:** the time of day sits at the right end of the remote's title bar, beside the connection dot, styled as the studio's program monitor shows it in its top right: white, bold, monospace, on a dark see-through pill. It ticks on the second and is written only when it changes. It's this phone's own clock, as the studio's is that computer's.
+- It's on one line with the show's name, upright and sideways. Upright on a phone, a long show name is cut short with "…" to make room for it.
+
+**Tests:** `e2e_remotecam`: the clock reads as a time and ticks, sits right of the show's name and left of the dot, inside the title bar, upright and sideways at 956x380, 932x430, 844x390 and 667x375. `e2e_remotelandscape`, `e2e_remote` and `e2e_tvremote` pass.
+
 ## 0.66.12 — the remote's camera on a real iPhone: the speaker, its bar, and the full-screen mark
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.11.
 

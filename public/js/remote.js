@@ -7,7 +7,7 @@
 // home-screen app can't be opened by the camera app's scan.
 import { ProgramView } from '/js/pgmview.js';
 import { ProgramSound } from '/js/progsound.js';
-import { decodeQR, meshSocket } from '/js/vm.js';
+import { decodeQR, meshSocket, now } from '/js/vm.js';
 import { RemoteCamera } from '/js/remotecam.js';
 
 const $ = (s) => document.querySelector(s);
@@ -377,6 +377,13 @@ function render() {
   setHtml($('#pipBtn'), `<span class="lg">${pip?.on ? `Corner camera${now ? '' : ' on'}` : 'Camera in the corner'}</span><span class="sh">${pip?.on ? 'Corner on' : 'Corner cam'}</span>${now ? `<small>${esc(now)}</small>` : ''}`);
   $('#pipBtn').setAttribute('aria-label', pip?.on ? `Camera in the corner: on${now ? `, ${now}` : ''}` : 'Camera in the corner: off');
 }
+// The time of day, top right, as the studio's program monitor shows it: on the second, written only
+// when it changes.
+(function tick() {
+  const t = new Date(Math.floor(now() / 1000) * 1000).toLocaleTimeString();
+  if ($('#clock').textContent !== t) $('#clock').textContent = t;
+  setTimeout(tick, 1005 - (now() % 1000));
+})();
 setInterval(() => {
   const t = $('#recTime');
   t.hidden = !recSince;

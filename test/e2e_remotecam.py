@@ -60,9 +60,19 @@ with sync_playwright() as p:
         rem.set_viewport_size({'width': w, 'height': h})
         rem.wait_for_timeout(500)
         g = rem.evaluate('''(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(), v = r('#pgm'), i = r('#pgmBox .fsico'), n = r('#myCamH'), m = r('#myMicBtn'), o = r('#myCamOff');
-          return { right: Math.round(v.right - i.right), top: Math.round(i.top - v.top), nameClear: n.bottom <= Math.min(m.top, o.top) + 1 && n.right <= r('#myCam').right }; })()''')
-        assert g == {'right': 8, 'top': 8, 'nameClear': True}, (w, h, g)
+          const c = r('#clock'), d = r('#conn'), t = r('#title'), hd = r('header');
+          return { right: Math.round(v.right - i.right), top: Math.round(i.top - v.top), nameClear: n.bottom <= Math.min(m.top, o.top) + 1 && n.right <= r('#myCam').right,
+            clock: c.width > 0 && c.left >= t.right && c.right <= d.left && c.top >= hd.top && c.bottom <= hd.bottom && hd.height < 44 }; })()''')
+        assert g == {'right': 8, 'top': 8, 'nameClear': True, 'clock': True}, (w, h, g)
     rem.set_viewport_size({'width': 390, 'height': 844})
+    rem.wait_for_timeout(300)
+    clock = rem.inner_text('#clock')
+    import re as _re, datetime as _dt
+    assert _re.fullmatch(r'\d{1,2}:\d{2}:\d{2}(\s?[AP]M)?', clock), clock
+    assert rem.evaluate("(() => { const c = document.querySelector('#clock').getBoundingClientRect(), t = document.querySelector('#title').getBoundingClientRect(); return c.left >= t.right && c.right <= innerWidth && c.top < 60; })()")
+    first = clock; rem.wait_for_timeout(1300)
+    assert rem.inner_text('#clock') != first
+    step(f'the time of day at the title bar\'s right end ("{clock}", ticking), upright and sideways, on one line beside the show\'s name')
     step('sideways (956x380, 932x430, 844x390, 667x375): the full-screen mark 8 px inside the picture\'s corner, and "This phone" clear of Mic and Remove')
 
     rem.click(f'#cams .cam[data-peer="{peer}"]')

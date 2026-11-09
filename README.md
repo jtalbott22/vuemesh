@@ -494,7 +494,7 @@ re-encoding this does for its preview.
 Run the show from your phone while you step away from the studio. In the studio's right-hand
 panel, **Phone remote > Add a phone** shows a QR code and a one-time code (good for two minutes
 and one phone; five wrong tries take it away). Scan it, or go to `/remote` and type the show and
-the code. The phone then shows what's on air and whether the program is recording, every camera
+the code. The phone then shows the time of day, what's on air and whether the program is recording, every camera
 by name with its tally (red on air, green in preview) and a small picture every few seconds,
 and can cut to a camera, turn the auto-director on and off, fade to black and up, take a break,
 and start and stop Record program (it asks before stopping).

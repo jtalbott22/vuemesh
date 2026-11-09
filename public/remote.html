@@ -23,6 +23,9 @@
   header { display: flex; align-items: center; gap: 8px; padding: 12px 0 8px; }
   header h1 { font-size: 1.35rem; margin: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7280; flex: none; }
+  /* the time of day, at the title bar's other end: as the studio's program monitor shows it, top right */
+  .clock { flex: none; background: #000b; color: #fff; font: 700 .95rem/1.2 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; padding: .25em .55em; border-radius: 4px; white-space: nowrap; }
+  .clock:empty { display: none; }
   .dot.on { background: var(--preview); }
   .mark { font-weight: 700; letter-spacing: .02em; }
   .mark i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); margin-right: 5px; }
@@ -137,6 +140,7 @@
     body { padding: 0 max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 8px) max(12px, env(safe-area-inset-left, 0px)); }
     header { padding: 6px 0 4px; flex: none; }
     header h1 { font-size: 1.15rem; }
+    header .clock { font-size: .9rem; padding: .15em .5em; }
     #pairView { max-width: 560px; margin: 6px auto 10px; }
     .scanbox { width: min(100%, 64dvh); margin-inline: auto; }
     /* (at the top: at the bottom it covered the quick actions) */
@@ -203,7 +207,7 @@
 </style>
 </head>
 <body>
-  <header><span class="mark"><i aria-hidden="true"></i>VUEMesh</span><h1 id="title">Remote</h1><span class="dot" id="conn" title="Connection to the studio" aria-label="Not connected"></span></header>
+  <header><span class="mark"><i aria-hidden="true"></i>VUEMesh</span><h1 id="title">Remote</h1><span class="clock" id="clock" aria-hidden="true"></span><span class="dot" id="conn" title="Connection to the studio" aria-label="Not connected"></span></header>
 
   <section id="pairView" class="card" aria-labelledby="pairH">
     <h1 id="pairH" style="margin:0 0 4px;font-size:1.4rem">Run the show from this phone</h1>
