@@ -274,7 +274,7 @@
   .playbar { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
   .scanbar { padding-left: calc(18px + var(--sl)); padding-right: calc(18px + var(--sr)); }
   #pocket { padding-left: calc(20px + var(--sl)); padding-right: calc(20px + var(--sr)); }
-  dialog.sheet { max-width: calc(100vw - var(--sl) - var(--sr) - 16px); }
+  dialog.sheet { max-width: min(440px, calc(100vw - var(--sl) - var(--sr) - 16px)); } /* (clear of the notch, and never wider than a sheet: on a computer it spread across the window) */
   /* Sideways, the screen is short: the beacon guide sits inside the framing square instead of
      below it, where it would run into the record button. */
   @media (max-height: 520px) { .aimtext { top: calc(50% - .7em); } }
@@ -295,6 +295,25 @@
   .watchpill::before { content: ''; width: .55em; height: .55em; border-radius: 50%; background: #fff; animation: wpulse 1.6s ease-in-out infinite; }
   @keyframes wpulse { 50% { opacity: .35; } }
   .watchpill.small { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: .78rem; padding: .35em .8em; }
+  /* On a computer (a wide window, a mouse): the forms sit in a card in the middle of the window,
+     the sheets keep their size, My events reads as a column, and its clips go two across. A phone
+     held sideways (short, touch) keeps the phone layout. */
+  @media (min-width: 760px) and (min-height: 560px) and (hover: hover) and (pointer: fine) {
+    .panel:not(.setup):not([hidden]) { min-height: 100dvh; display: grid; align-content: center; padding-top: 32px; padding-bottom: 32px; box-sizing: border-box; }
+    .panel:not(.setup) > * { width: 100%; }
+    #joinView, #codeView { max-width: 520px; }
+    #camSettings { max-width: min(520px, calc(100vw - 32px)); }
+    #camSettings .toggles { grid-template-columns: repeat(3, 1fr); }
+    .sheet { padding: 20px 22px; }
+    .libbar, .libtabs, #libClips, #libShow { padding-left: max(16px, calc((100vw - 960px) / 2)); padding-right: max(16px, calc((100vw - 960px) / 2)); }
+    .libtotals { width: min(960px, calc(100% - 32px)); max-width: none; margin: 4px auto 0; box-sizing: border-box; }
+    .libtabs button { flex: 0 1 200px; }
+    .libclips { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+    .libclips li { grid-template-columns: 160px 1fr; }
+    .libclips .thumb { width: 160px; }
+    .libfoot { max-width: 520px; }
+    .scanframe { width: min(40vh, 340px); }
+  }
   .setup { min-height: 100dvh; display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0px)); }
   .scard { max-width: 420px; display: grid; gap: 12px; justify-items: center; animation: sin .35s ease-out; }
   @keyframes sin { from { opacity: 0; transform: translateY(10px); } }
