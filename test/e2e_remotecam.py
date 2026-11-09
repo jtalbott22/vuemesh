@@ -5,7 +5,7 @@
 # its microphone is live. A second lens changes the studio's picture over; Mic off lets the sound go
 # again; Remove (a second tap while on air) takes it out of the show, and "+ This phone" is back.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotecam.py
-import os
+import os, re
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('BASE', 'http://localhost:8790')
 # (two fake cameras: the remote's camera has two lenses to choose from)
@@ -67,8 +67,7 @@ with sync_playwright() as p:
     rem.set_viewport_size({'width': 390, 'height': 844})
     rem.wait_for_timeout(300)
     clock = rem.inner_text('#clock')
-    import re as _re, datetime as _dt
-    assert _re.fullmatch(r'\d{1,2}:\d{2}:\d{2}(\s?[AP]M)?', clock), clock
+    assert re.fullmatch(r'\d{1,2}:\d{2}:\d{2}(\s?[AP]M)?', clock), clock
     assert rem.evaluate("(() => { const c = document.querySelector('#clock').getBoundingClientRect(), t = document.querySelector('#title').getBoundingClientRect(); return c.left >= t.right && c.right <= innerWidth && c.top < 60; })()")
     first = clock; rem.wait_for_timeout(1300)
     assert rem.inner_text('#clock') != first
