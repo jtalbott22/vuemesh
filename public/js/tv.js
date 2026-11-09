@@ -11,7 +11,7 @@
 import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
 import { ProgramSound } from '/js/progsound.js';
-import { directWanted, startDirect } from '/js/tvdirect.js';
+import { listen, stopListening } from '/js/tvdirect.js';
 
 const $ = (s) => document.querySelector(s);
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -119,14 +119,19 @@ async function join(code) {
   $('#joinErr').textContent = '';
   try {
     ev = await api(`events/${code}`);
+    // (a TV's own code, this one's or another's: that's for phones and computers to show on a TV)
+    if (ev?.kind === 'tv') throw Object.assign(new Error('tv'), { tv: true });
     tvSound.setMeta(ev?.title || code, 'Live program');
-  } catch {
+  } catch (e) {
     $('#eventCells').classList.add('bad');
-    $('#joinErr').textContent = 'No event with that code. Check it on the studio or a beacon.';
+    $('#joinErr').textContent = e.tv ? 'That’s a TV’s code, for phones and computers to show on a TV. Here, enter the code from the studio.' : 'No event with that code. Check it on the studio or a beacon.';
+    localStorage.removeItem('vm_tv_event');
     show('joinView');
+    startListening(); // (still listening on this TV's own code, as the landing page always is)
     return;
   }
   eventId = code;
+  stopListening(); // (a studio's program now: phones on this TV's own code wait until it's left)
   localStorage.setItem('vm_tv_event', code);
   history.replaceState(null, '', `/tv?e=${code}`);
   waiting('Looking for the studio…');
@@ -607,6 +612,7 @@ function leave() {
   eventCode.clear();
   show('joinView');
   eventCode.inputs[0].focus();
+  startListening();
 }
 $('#leaveBtn').onclick = leave;
 $('#exitBtn').onclick = leave;
@@ -650,32 +656,23 @@ function quietSoon() {
 for (const t of ['pointermove', 'keydown']) addEventListener(t, quietSoon);
 
 // ---- phones and screens straight to this TV, with no studio (tvdirect.js) --------
-function backToJoin() {
+// The landing page has both: a studio's code on the left, this TV's own code on the right, already
+// listening. When the last phone or screen leaves the tiles, it's the landing page again.
+function landing() {
+  if (sock) return; // (showing a studio's event: that carries on)
   history.replaceState(null, '', '/tv');
   show('joinView');
-  eventCode.inputs[0].focus();
+  if (!document.activeElement?.closest?.('#joinForm')) eventCode.inputs[0].focus();
 }
-$('#directBtn').onclick = () => {
-  localStorage.setItem('vm_tv_name', $('#screenName').value.trim() || 'TV screen');
-  // (from showing a studio's program: that stops first)
-  if (sock) {
-    drop();
-    tvSound.stop();
-    sock.close();
-    sock = null;
-    host = null;
-    localStorage.removeItem('vm_tv_event');
-  }
-  startDirect({ onLeave: backToJoin });
-};
+const startListening = () => listen({ onLanding: landing });
 
-// ---- start: an event in the address, or the last one, or cameras directly, or ask ----
-const start = eventIdFromUrl() || (directWanted() ? '' : localStorage.getItem('vm_tv_event')) || '';
-if (!start && directWanted()) startDirect({ onLeave: backToJoin });
-else if (start) {
+// ---- start: an event in the address, or the last one, or the landing page (listening) ----
+const start = eventIdFromUrl() || localStorage.getItem('vm_tv_event') || '';
+if (start) {
   eventCode.set(start);
   join(start);
 } else {
   show('joinView');
   eventCode.inputs[0].focus();
+  startListening();
 }

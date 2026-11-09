@@ -979,15 +979,15 @@ let kicked = false, kickedText = '';
 async function onKicked(block) {
   if (kicked) return;
   kicked = true;
-  kickedText = block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
+  kickedText = toTv() ? 'The TV took everyone off. Back on the TV puts you back.' : block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
   if (block) localStorage.setItem('vm_blocked_' + eventId, '1');
   if (recorder) stopRecording();
   if (mic) stopMic?.();
   await leaveEvent();
-  $('#rejoinLabel').textContent = 'Removed by the host';
+  $('#rejoinLabel').textContent = toTv() ? 'Off the TV' : 'Removed by the host';
   $('#rejoinText').textContent = kickedText;
   document.querySelector('.rejoinpair').hidden = !!block;
-  announce(block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
+  announce(toTv() ? 'The TV took everyone off' : block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
 }
 async function leaveEvent() {
   // tell the studio first, so it knows exactly when we left (it sends the live cut by who was

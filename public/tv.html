@@ -111,21 +111,15 @@
   .tile.away .tlabel::after { content: '  · reconnecting'; color: var(--amber); }
   body.dquiet .tlabel { opacity: 0; }
   body.dquiet .tile.away .tlabel { opacity: 1; }
-  /* the join card: the whole screen while nothing's on; then small, in a corner, until it fades */
-  .djoin { position: absolute; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5vmin; z-index: 3; transition: opacity .6s; }
-  body.dempty .djoin { inset: 0; padding: 6vh 7vw; align-content: center; }
-  body:not(.dempty) .djoin { right: 2.5vmin; bottom: 2.5vmin; gap: 1.6vmin; padding: 1.4vmin 1.8vmin 1.4vmin 1.4vmin; background: #000d; border-radius: .6vmin; font-size: .62em; max-width: 46vmin; }
-  body.dquiet:not(.dempty) .djoin { opacity: 0; pointer-events: none; }
-  .djoin canvas { display: block; width: min(62vh, 40vw); height: auto; border-radius: .8vmin; image-rendering: pixelated; }
-  body:not(.dempty) .djoin canvas { width: 15vmin; border-radius: .4vmin; }
-  .djoin h1 { font-size: clamp(36px, 5.6vw, 104px); max-width: 14ch; margin-bottom: 2vh; }
-  body:not(.dempty) .djoin h1, body:not(.dempty) .djoin .dfine, body:not(.dempty) .djoin .mark, body:not(.dempty) .djoin #dNew { display: none; }
-  .dcode { font: 800 clamp(56px, 9vw, 170px)/1 var(--cond); letter-spacing: .08em; font-variant-numeric: tabular-nums; margin: .05em 0 .1em; }
-  body:not(.dempty) .dcode { font-size: 2.6em; letter-spacing: .06em; }
-  .djoin p { margin: .3em 0; color: var(--text-2); max-width: 36ch; }
-  .djoin p b { color: var(--text); font-weight: 600; }
-  .djoin .dfine { font-size: .8em; }
-  .djoin .mark { margin-bottom: 2vh; }
+  /* while someone's on: how to join, small in a corner, until it fades */
+  .djoin { position: absolute; right: 2.5vmin; bottom: 2.5vmin; z-index: 3; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1.6vmin;
+    padding: 1.4vmin 1.8vmin 1.4vmin 1.4vmin; background: #000d; border-radius: .6vmin; font-size: .62em; max-width: 46vmin; transition: opacity .6s; }
+  body.dquiet .djoin { opacity: 0; pointer-events: none; }
+  .djoin canvas { display: block; width: 15vmin; height: auto; border-radius: .4vmin; image-rendering: pixelated; }
+  .dcode { font: 800 clamp(44px, 5.4vw, 104px)/1 var(--cond); letter-spacing: .08em; font-variant-numeric: tabular-nums; margin: .05em 0 .1em; }
+  .djoin .dcode { font-size: 2.6em; letter-spacing: .06em; }
+  .djoin p, .lqr p { margin: .3em 0; color: var(--text-2); }
+  .djoin p b, .lqr p b { color: var(--text); font-weight: 600; }
   .djoining { color: var(--preview) !important; }
   .dmore { position: absolute; left: 50%; top: 2.5vmin; transform: translateX(-50%); z-index: 3; background: #000c; border-radius: .3em; padding: .3em .9em; font: 600 .85em/1.1 var(--cond); }
   .dhint { position: absolute; left: 50%; bottom: 2.5vmin; transform: translateX(-50%); z-index: 3; color: var(--text-2); background: #000b; border-radius: .3em; padding: .3em .9em; font: 600 .75em/1.1 var(--cond); transition: opacity .6s; white-space: nowrap; }
@@ -135,39 +129,67 @@
   .dctl #dTapSound { background: var(--amber); color: var(--black); }
   body.dquiet .dctl { opacity: 0; }
   body.dquiet { cursor: none; }
-  @media (max-aspect-ratio: 1/1) {
-    body.dempty .djoin { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-    .djoin canvas { width: min(70vw, 44vh); }
-  }
-  /* the way in, on the join screen */
-  .or { display: flex; align-items: center; gap: 1em; color: var(--text-2); width: min(40em, 80vw); margin: 0; font-size: .85em; }
-  .or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
-  .direct-go { background: none; border: 2px solid var(--line); color: var(--text); border-radius: .3em; padding: .45em 1.2em; font-weight: 600; cursor: pointer; }
-  .direct-go:hover { border-color: var(--text-2); }
-  .direct-say { color: var(--text-2); margin: 0; max-width: 40ch; font-size: .85em; }
-  #joinView { gap: 1.9vh; padding-block: 4vh; } /* (room for the way in below the code, on a 720p TV) */
+  /* the landing: a studio's program on the left, phones and screens straight to this TV on the right */
+  #joinView { gap: 3.2vh; padding: 4vh 4vw; align-content: center; }
+  .sides { display: grid; grid-template-columns: 1fr auto 1fr; gap: 3.5vw; align-items: start; width: min(100%, 1700px); text-align: left; }
+  .side { display: grid; gap: 1.8vh; justify-items: start; align-content: start; min-width: 0; }
+  .side h1 { font-size: clamp(32px, 3.9vw, 76px); max-width: 15ch; }
+  .side .say { font-size: .9em; }
+  .side form { display: grid; gap: 1.8vh; justify-items: start; }
+  .side .row { justify-content: flex-start; }
+  .side .cells input { font-size: clamp(36px, 4.4vw, 88px); }
+  .vor { align-self: stretch; display: grid; place-items: center; color: var(--text-2); font: 600 .9em/1 var(--cond); position: relative; }
+  .vor::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px solid var(--line); }
+  .vor span { position: relative; background: var(--black); padding: .5em 0; }
+  .lqr { display: grid; grid-template-columns: auto 1fr; gap: 2vw; align-items: center; }
+  .lqr canvas { display: block; width: clamp(140px, 17vw, 320px); height: auto; border-radius: .6vmin; image-rendering: pixelated; }
+  .lqr .link { padding-left: 0; font-size: .8em; }
   #joinView .err:empty { min-height: 0; }
+  /* (a narrow or upright screen: one above the other) */
+  @media (max-aspect-ratio: 5/4) {
+    .sides { grid-template-columns: 1fr; gap: 3vh; }
+    .vor { height: 1px; }
+    .vor::before { top: 50%; bottom: auto; left: 0; right: 0; border-left: 0; border-top: 1px solid var(--line); }
+    .vor span { padding: 0 .8em; }
+  }
   @media (prefers-reduced-motion: reduce) { .djoin, .dctl, .dhint, .tlabel, .tile { transition: none; } .tile.new { animation: none; } }
 </style>
 </head>
 <body>
 <video id="out" autoplay playsinline muted aria-label="Program" hidden></video>
 
-<section class="screen" id="joinView" aria-labelledby="joinH">
+<section class="screen landing" id="joinView" aria-label="Show something on this TV">
   <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
-  <h1 id="joinH">Show an event on this screen</h1>
-  <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
-  <form id="joinForm" class="screen" style="position:static;padding:0">
-    <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
-    <div class="row">
-      <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
-      <button class="go" type="submit">Connect</button>
+  <div class="sides">
+    <div class="side" aria-labelledby="joinH">
+      <h1 id="joinH">Show a studio’s program</h1>
+      <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
+      <form id="joinForm">
+        <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
+        <div class="row">
+          <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
+          <button class="go" type="submit">Connect</button>
+        </div>
+        <p class="err" id="joinErr" aria-live="polite"></p>
+      </form>
     </div>
-    <p class="err" id="joinErr" aria-live="polite"></p>
-  </form>
-  <p class="or" aria-hidden="true">or, with no studio</p>
-  <button class="direct-go" type="button" id="directBtn" aria-describedby="directSay">Show phones and screens on this TV</button>
-  <p class="direct-say" id="directSay">They scan this TV’s code and appear here, side by side as more join. Nothing is recorded.</p>
+    <div class="vor" aria-hidden="true"><span>or</span></div>
+    <div class="side direct" aria-labelledby="lH">
+      <h1 id="lH">Put your camera on this TV</h1>
+      <p class="say">No studio needed. Whoever joins shows here, side by side. Nothing is recorded.</p>
+      <div class="lqr">
+        <canvas id="lQr" aria-label="Scan with a phone to put its camera on this TV"></canvas>
+        <div>
+          <p><b>Phones:</b> scan the code.</p>
+          <p><b>Computers:</b> open <b id="lShare">…/share</b> and enter</p>
+          <div class="dcode" id="lCode" aria-label="This TV’s code">······</div>
+          <p class="djoining" id="lJoining" aria-live="polite" hidden></p>
+          <p class="err" id="lSay" aria-live="polite"></p>
+          <button class="link" type="button" id="lNew" title="A new code for this TV: the old one stops working">New code</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="screen" id="waitView" aria-labelledby="waitTitle" hidden>
@@ -214,15 +236,10 @@
   <div class="djoin" id="dJoin">
     <canvas id="dQr" aria-label="Scan with a phone to put its camera on this TV"></canvas>
     <div>
-      <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
-      <h1>Put your camera on this TV</h1>
       <p><b>Phones:</b> scan the code.</p>
-      <p><b>Computers:</b> open <b id="dShare"></b> to share a screen, with the code</p>
+      <p><b>Computers:</b> open <b id="dShare"></b>, with the code</p>
       <div class="dcode" id="dCode" aria-label="This TV’s code">······</div>
-      <p class="dfine">The code stays the same on this TV. Nothing is recorded.</p>
       <p class="djoining" id="dJoining" aria-live="polite" hidden></p>
-      <p class="err" id="dSay" aria-live="polite"></p>
-      <button class="link" type="button" id="dNew">New code</button>
     </div>
   </div>
   <p class="dmore" id="dMore" hidden></p>
@@ -231,7 +248,7 @@
     <button type="button" id="dTapSound" hidden>Tap for sound</button>
     <button type="button" id="dCamSound" aria-pressed="false" hidden title="A phone’s microphone near the TV can feed back through its speakers">Camera sound off</button>
     <button type="button" id="dFull">Full screen</button>
-    <button type="button" id="dStop" title="Stop showing cameras on this TV">Stop</button>
+    <button type="button" id="dStop" title="Take everyone off this TV">Clear</button>
   </div>
   <audio id="dAudio" autoplay></audio>
 </section>

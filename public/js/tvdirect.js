@@ -1,5 +1,11 @@
-// /tv?direct: a TV that shows phones' cameras and shared screens itself, with no studio. Nothing
-// is recorded and nothing is mixed: whoever joins is on the TV, tiled, as they come and go.
+// /tv shows phones' cameras and shared screens itself, with no studio. Nothing is recorded and
+// nothing is mixed: whoever joins is on the TV, tiled, as they come and go.
+//
+// Its landing page offers both ways on, side by side, with nothing to click to find either: a
+// studio's event code to type on the left, and this TV's own code and QR on the right, already
+// listening. The first phone or screen to join takes the TV to its tiles; when the last one goes,
+// it's back to the landing page. Joining a studio's event stops the listening (tv.js); leaving it
+// starts it again.
 //
 // The TV makes an event of its own (kind "tv") and keeps its code on this TV, so the code stays the
 // same each time (it can go on a sticker). It joins that event's signalling as its host, with
@@ -21,21 +27,16 @@ import { HostHub } from '/js/rtc.js';
 const $ = (s) => document.querySelector(s);
 const MAX_TILES = 9;
 const SAVE_KEY = 'vm_tv_direct'; // { id, hostKey }: this TV's own code, kept for next time
-const MODE_KEY = 'vm_tv_mode'; // 'direct' while this TV is showing cameras directly
 const CAMSOUND_KEY = 'vm_tv_camsound';
 
-let sock = null, hub = null, ev = null, onLeave = null, tallyTimer = null, quietTimer = null;
+let sock = null, hub = null, ev = null, onLanding = null, tallyTimer = null, quietTimer = null, starting = null;
+let wanted = false; // listening is wanted (the landing page, or tiles): not while a studio's event is shown
 let spot = null; // the peer shown full screen, or null for the grid
 const tiles = new Map(); // peer → { el, video, stream, name, screen, mic, at, info }
 let base = location.origin;
 
 const camSoundOn = () => {
   try { return localStorage.getItem(CAMSOUND_KEY) === '1'; } catch { return false; }
-};
-
-/** Whether this TV was left showing cameras directly (it goes back to that after a reload). */
-export const directWanted = () => {
-  try { return localStorage.getItem(MODE_KEY) === 'direct' || new URLSearchParams(location.search).has('direct'); } catch { return false; }
 };
 
 /** This TV's own event: the one it had, if it's still there, else a new one. */
@@ -56,26 +57,30 @@ async function ownEvent(fresh) {
 }
 
 /**
- * Starts showing cameras and screens directly.
- * @param {{fresh?: boolean, onLeave: () => void}} o  fresh: a new code; onLeave: back to the join screen
+ * Listens for phones and screens on this TV's own code, from the landing page.
+ * @param {{fresh?: boolean, onLanding?: () => void}} o  fresh: a new code; onLanding: show the landing page (the last one left)
  */
-export async function startDirect(o = {}) {
-  onLeave = o.onLeave || onLeave;
-  stopDirect({ keepMode: true });
-  try { localStorage.setItem(MODE_KEY, 'direct'); } catch {}
-  history.replaceState(null, '', '/tv?direct');
-  showView();
-  setJoinCard('Getting this TV’s code…');
-  try {
-    ev = await ownEvent(o.fresh);
-  } catch (e) {
-    setJoinCard(`Couldn’t get a code for this TV (${e.message || e}). Check its internet connection.`, true);
-    return;
-  }
-  await lanBase();
-  drawJoin();
-  connect();
+export function listen(o = {}) {
+  if (o.onLanding) onLanding = o.onLanding;
+  if (starting || (sock && !o.fresh)) return starting;
+  starting = (async () => {
+    stopListening();
+    wanted = true;
+    say('Getting this TV’s code…');
+    try {
+      ev = await ownEvent(o.fresh);
+    } catch (e) {
+      say(`Couldn’t get a code for this TV (${e.message || e}). Check its internet connection.`, true);
+      setTimeout(() => wanted && !sock && listen(), 15000); // (it tries again by itself)
+      return;
+    }
+    await lanBase();
+    drawJoin();
+    connect();
+  })().finally(() => (starting = null));
+  return starting;
 }
+export const listening = () => !!sock;
 
 function connect() {
   const peer = localStorage.getItem('vm_tv_direct_peer') || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -118,13 +123,14 @@ function connect() {
       }
     },
   });
-  window.vmTvDirect = () => ({ code: ev?.id, tiles: [...tiles.values()].map((t) => ({ name: t.name, screen: t.screen, mic: t.mic, playing: !!t.video.videoWidth })), spot: spot && tiles.get(spot)?.name, sound: soundFrom?.name || null }); // (tests)
+  window.vmTvDirect = () => ({ code: ev?.id, listening: !!sock?.connected, tiles: [...tiles.values()].map((t) => ({ name: t.name, screen: t.screen, mic: t.mic, playing: !!t.video.videoWidth })), spot: spot && tiles.get(spot)?.name, sound: soundFrom?.name || null }); // (tests)
   clearInterval(tallyTimer);
   tallyTimer = setInterval(tellAll, 4000); // (again now and then, in case one was lost: the studio does the same)
 }
 
-/** Stops it all; with keepMode, only to start again (a new code). */
-export function stopDirect({ keepMode = false } = {}) {
+/** Stops listening, and takes everyone off (a studio's event is about to be shown). */
+export function stopListening() {
+  wanted = false;
   clearInterval(tallyTimer);
   for (const peer of [...tiles.keys()]) removeTile(peer, true);
   if (hub) for (const peer of [...hub.links.keys()]) hub.drop(peer);
@@ -132,11 +138,7 @@ export function stopDirect({ keepMode = false } = {}) {
   sock = hub = null;
   spot = null;
   setSound(null);
-  if (!keepMode) {
-    try { localStorage.removeItem(MODE_KEY); } catch {}
-    $('#directView').hidden = true;
-    document.body.classList.remove('direct');
-  }
+  hideTiles();
 }
 
 // ---- the join card: how to get on this TV ----------------------------------------------
@@ -149,25 +151,24 @@ async function lanBase() {
     if (j?.https?.[0]) base = j.https[0];
   } catch {}
 }
-function setJoinCard(say, bad) {
-  $('#dCode').textContent = ev?.id || '······';
-  $('#dSay').textContent = say;
-  $('#dSay').classList.toggle('err', !!bad);
+function say(text, bad) {
+  $('#lSay').textContent = text || '';
+  $('#lSay').classList.toggle('err', !!bad);
 }
 function drawJoin() {
   const camUrl = `${base}/cam?e=${ev.id}`;
-  drawQR($('#dQr'), camUrl, { size: 560, dark: '#000000', ecl: 'M' });
-  $('#dCode').textContent = ev.id;
-  $('#dShare').textContent = `${base.replace(/^https?:\/\//, '')}/share`;
-  $('#dSay').textContent = '';
-  $('#dSay').classList.remove('err');
+  for (const c of ['#lQr', '#dQr']) drawQR($(c), camUrl, { size: 560, dark: '#000000', ecl: 'M' });
+  for (const c of ['#lCode', '#dCode']) $(c).textContent = ev.id;
+  for (const c of ['#lShare', '#dShare']) $(c).textContent = `${base.replace(/^https?:\/\//, '')}/share`;
+  say('');
 }
 /** Phones that have joined but whose picture isn't here yet. */
 function renderJoining() {
   const coming = (sock?.peers || []).filter((p) => (p.role === 'cam' || p.role === 'mic') && !tiles.has(p.peer));
-  const el = $('#dJoining');
-  el.hidden = !coming.length;
-  el.textContent = coming.length ? `Joining: ${coming.map((p) => p.name || 'a camera').join(', ')}…` : '';
+  for (const el of [$('#lJoining'), $('#dJoining')]) {
+    el.hidden = !coming.length;
+    el.textContent = coming.length ? `Joining: ${coming.map((p) => p.name || 'a camera').join(', ')}…` : '';
+  }
 }
 
 // ---- tiles ------------------------------------------------------------------------------
@@ -261,8 +262,9 @@ function layout() {
   const waiting = all.length - shown.length;
   $('#dMore').hidden = !waiting || !!spot;
   $('#dMore').textContent = `${waiting} more waiting for a place`;
-  // nothing on yet: the join card fills the screen; with something on, it goes to a corner
-  document.body.classList.toggle('dempty', !tiles.size);
+  // the first one on takes the TV from the landing page to the tiles; the last one gone takes it back
+  if (tiles.size) showTiles();
+  else hideTiles(true);
   $('#dHint').hidden = shown.length < 2;
   chooseSound();
   tellAll();
@@ -343,14 +345,18 @@ function setSound(t) {
 }
 
 // ---- the view, its controls, and the remote's keys -------------------------------------
-function showView() {
+function showTiles() {
+  if (!$('#directView').hidden) return;
   for (const id of ['joinView', 'waitView', 'browseView', 'beaconView']) $('#' + id).hidden = true;
-  $('#out').hidden = true;
-  $('#umd').hidden = true;
-  $('#progCtl').hidden = true;
-  $('#modes').hidden = true;
   $('#directView').hidden = false;
-  document.body.classList.add('direct', 'dempty');
+  document.body.classList.add('direct');
+  if (document.activeElement?.closest?.('#joinView')) document.activeElement.blur(); // (the remote's keys go to the tiles now)
+}
+function hideTiles(back) {
+  if ($('#directView').hidden) return;
+  $('#directView').hidden = true;
+  document.body.classList.remove('direct', 'dquiet');
+  if (back) onLanding?.();
 }
 
 function wake() {
@@ -360,11 +366,22 @@ function wake() {
   quietTimer = setTimeout(() => tiles.size && document.body.classList.add('dquiet'), 12000);
 }
 
+// Clear: everyone off (each is told, so it doesn't link straight back), and the landing page again
 $('#dStop').onclick = () => {
-  stopDirect();
-  onLeave?.();
+  for (const peer of [...tiles.keys()]) {
+    hub?.send(peer, { t: 'kick' });
+    hub?.message(peer, { t: 'kick' });
+  }
+  setTimeout(() => {
+    for (const peer of [...tiles.keys()]) {
+      hub?.drop(peer);
+      removeTile(peer);
+    }
+  }, 600);
 };
-$('#dNew').onclick = () => startDirect({ fresh: true });
+$('#lNew').onclick = () => {
+  if (confirm('A new code for this TV? The old one stops working (a sticker with it on would need changing).')) listen({ fresh: true });
+};
 $('#dFull').onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
 $('#dFull').hidden = !document.documentElement.requestFullscreen;
 document.addEventListener('fullscreenchange', () => ($('#dFull').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'));

@@ -1,5 +1,6 @@
-# A TV showing phones and screens itself, with no studio (/tv?direct, tvdirect.js): the TV makes its
-# own code, a phone's camera (/cam) and another computer's screen (/share) join it with that code,
+# A TV showing phones and screens itself, with no studio (/tv, tvdirect.js): its landing page has a
+# studio's code to type and, beside it, the TV's own code, already listening (nothing to click). It makes
+# its own code, a phone's camera (/cam) and another computer's screen (/share) join it with that code,
 # and both are on the TV, tiled, as they come and go. Checks: the code stays the same after a
 # reload; the phone is told it's on and not to record (its light, no recording, clips kept); with
 # two on, both send their full picture; one chosen full screen gets the full picture and the other a
@@ -57,19 +58,25 @@ with sync_playwright() as p:
     tv = tvx.new_page()
     tv.on('pageerror', lambda e: errors.append(f'tv: {e}'))
     tv.goto(f'{BASE}/tv')
-    tv.click('#directBtn')
-    code = wait(tv, "() => window.vmTvDirect?.().code", "the TV's own code")
-    assert tv.locator('#dCode').inner_text() == code and len(code) == 6, code
-    assert tv.evaluate("document.body.classList.contains('dempty') && !document.querySelector('#dJoin').hidden")
-    assert tv.evaluate("document.querySelector('#dQr').width > 100")
-    step(f'the TV has its own code ({code}), and the join card fills the screen')
+    code = wait(tv, "() => window.vmTvDirect?.().code", "the TV's own code, with nothing clicked")
+    wait(tv, "() => window.vmTvDirect().listening", 'the TV listening on its code', 10)
+    assert tv.locator('#lCode').inner_text() == code and len(code) == 6, code
+    land = tv.evaluate("({ join: !document.querySelector('#joinView').hidden, tiles: !document.querySelector('#directView').hidden, cells: !!document.querySelector('#eventCells input'), qr: document.querySelector('#lQr').width, focus: document.activeElement === document.querySelector('#eventCells input') })")
+    assert land['join'] and not land['tiles'] and land['cells'] and land['qr'] > 100 and land['focus'], land
+    step(f"the landing page has both: a studio's code to type (focused) and the TV's own code ({code}) and QR, listening")
 
-    # the same code after a reload: it goes back to showing cameras by itself
+    # the TV's own code typed as a studio's: said so, and still listening
+    tv.keyboard.type(code)
+    tv.click('#joinForm button[type=submit]')
+    wait(tv, "() => /a TV.s code/.test(document.querySelector('#joinErr').textContent)", 'the TV code turned away', 10)
+    assert tv.evaluate("window.vmTvDirect().listening && !document.querySelector('#joinView').hidden")
+    step("its own code typed on the studio side says it's a TV's code, and it keeps listening")
+
+    # the same code after a reload
     tv.reload()
     again = wait(tv, "() => window.vmTvDirect?.().code", 'the code after a reload')
     assert again == code, (again, code)
-    assert tv.evaluate("!document.querySelector('#directView').hidden && document.querySelector('#joinView').hidden")
-    step('after a reload: still showing cameras, with the same code')
+    step('after a reload: the same code')
 
     # a phone's camera joins with the code
     camx = b.new_context(viewport={'width': 390, 'height': 844}, permissions=['camera', 'microphone'])
@@ -88,8 +95,8 @@ with sync_playwright() as p:
     cam.wait_for_selector('#camView.on', timeout=15000)
     step('the phone joins a TV as a camera only, in one tap ("Put my camera on the TV")')
     wait(tv, "() => window.vmTvDirect().tiles.some((t) => t.name === 'Ana' && t.playing)", "Ana's picture on the TV", 40)
-    assert tv.evaluate("!document.body.classList.contains('dempty') && document.querySelector('#dTiles').dataset.n === '1'")
-    step("the phone's camera is on the TV, full screen; the join card went to a corner")
+    assert tv.evaluate("document.querySelector('#joinView').hidden && !document.querySelector('#directView').hidden && document.querySelector('#dTiles').dataset.n === '1'")
+    step("the phone's camera takes the TV from the landing page, full screen, with how to join in a corner")
     s = wait(cam, SENDING, "the phone's link")
     wait(cam, "() => !document.querySelector('#tally').hidden", "the phone's light on (it's on the TV)", 10)
     time.sleep(1.5)
@@ -167,15 +174,24 @@ with sync_playwright() as p:
     camx.close()
     wait(tv, "() => window.vmTvDirect().tiles.length === 1", "Ana's tile gone", 40)
     sh.click('#stopBtn')
-    wait(tv, "() => window.vmTvDirect().tiles.length === 0 && document.body.classList.contains('dempty')", 'the join card back', 40)
-    step('as each leaves its tile goes, and with none left the join card fills the screen again')
+    wait(tv, "() => window.vmTvDirect().tiles.length === 0 && !document.querySelector('#joinView').hidden && document.querySelector('#directView').hidden", 'the landing page back', 40)
+    assert tv.evaluate("window.vmTvDirect().listening")
+    step('as each leaves its tile goes, and with none left the landing page is back, still listening')
 
+    # Clear: everyone off, told so (a phone doesn't link straight back), and the landing page
+    cam2x = b.new_context(viewport={'width': 390, 'height': 844}, permissions=['camera', 'microphone'])
+    cam2 = cam2x.new_page()
+    cam2.goto(f'{BASE}/cam?e={code}'); cam2.fill('#name', 'Ben')
+    if cam2.locator('#agreeGuest').count():
+        cam2.check('#agreeGuest')
+    cam2.click('#joinForm button[type=submit]')
+    wait(tv, "() => window.vmTvDirect().tiles.some((t) => t.playing)", 'Ben on the TV', 40)
     tv.click('#dStop')
-    wait(tv, "() => !document.querySelector('#joinView').hidden", 'the join screen', 5)
-    tv.reload()
-    time.sleep(1)
-    assert tv.evaluate("!document.querySelector('#joinView').hidden && document.querySelector('#directView').hidden")
-    step('Stop goes back to the join screen, and stays there after a reload')
+    wait(tv, "() => !document.querySelector('#joinView').hidden && window.vmTvDirect().tiles.length === 0", 'the landing page after Clear', 10)
+    wait(cam2, "() => !document.querySelector('#rejoinCard').hidden && /took everyone off/.test(document.querySelector('#rejoinText').textContent)", "Ben told he's off", 10)
+    time.sleep(4)
+    assert tv.evaluate("window.vmTvDirect().tiles.length === 0"), 'a phone linked straight back after Clear'
+    step("Clear takes everyone off (the phone says so and stays off) and shows the landing page")
 
     assert not errors, errors
     b.close()

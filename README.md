@@ -151,7 +151,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Stream out** over WHIP straight from the browser (Twitch, Restream, Cloudflare Stream), or to **RTMP** services (YouTube, Facebook, Kick, Vimeo) through a small local relay.
 - **Program out** window for a projector or OBS, and the program **as a webcam** in Zoom, Teams or Meet.
 - **TV screens:** `/tv` in any browser, or the **Apple TV app**, plays the live program from the studio over the LAN.
-- **Straight to a TV, no studio:** `/tv` can show phones' cameras and shared screens itself. They scan the TV's code (it stays the same on that TV) and appear side by side as they join, up to nine, one full screen at a tap. Nothing is recorded.
+- **Straight to a TV, no studio:** `/tv` opens with a studio's code to type and, beside it, the TV's own code and QR. Phones and computers that join with it appear side by side as they come and go, up to nine, one full screen at a tap. Nothing is recorded.
 - **Each camera person gets their part of the live cut** on their own device.
 
 </td>
