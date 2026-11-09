@@ -157,6 +157,18 @@ with sync_playwright() as p:
     jb = host.evaluate("[...new Set(window.__pcs.flatMap((pc) => pc.getReceivers().filter((r) => r.track?.kind === 'audio').map((r) => r.jitterBufferTarget)))]")
     assert jb == [150], jb
     step(f'the studio holds 150 ms of the screen\'s sound in hand ({jb})')
+    # the show log has its sound as played here: its jitter and wait every second, and, once per link
+    # reading (every few seconds), ms hurried through, made up and arrived (about 5000 a reading, in ms
+    # of sound: not counted twice for its two sides)
+    host.wait_for_function("vmShowLog().rows.filter((r) => r.s.some((s) => s.k === 'screen' && typeof s.got === 'number' && s.got > 0)).length >= 2", timeout=30000)
+    snd = host.evaluate("vmShowLog().rows.map((r) => r.s.find((s) => s.k === 'screen')).filter(Boolean)")
+    fresh = [s for s in snd if 'got' in s]
+    assert all(3500 <= s['got'] <= 7000 for s in fresh[1:]), [s['got'] for s in fresh]
+    assert all(s['fast'] >= 0 and s['slow'] >= 0 and s['fill'] >= 0 for s in fresh), fresh
+    last = snd[-1]
+    assert isinstance(last.get('ajit'), int) and 100 <= last.get('abuf', 0) <= 400, last
+    assert len(fresh) < len([s for s in snd if 'ajit' in s]), 'what the browser did is in one sample per reading, not every second'
+    step(f"the show log: the screen's sound jitter {last['ajit']} ms, waiting {last['abuf']} ms; per reading {[s['got'] for s in fresh]} ms arrived, {[s['fast'] for s in fresh]} ms hurried, {[s['fill'] for s in fresh]} ms made up")
     sh.check('input[name="mode"][value="motion"]'); time.sleep(0.5)
     assert sh.evaluate(PREF) == ['maintain-framerate', 'motion'], sh.evaluate(PREF)
     assert sh.evaluate("localStorage.getItem('vm_share_mode')") == 'motion'

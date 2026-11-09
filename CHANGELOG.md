@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.66.17 — the show log hears a phone's sound speeding up
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.16.
+
+0.66.16 keeps 150 ms of each phone's and computer's sound in hand, so a short hiccup isn't hurried through. Whether that's enough after a long stall can't be seen in a test, and the show log couldn't say: it had the link's jitter, but that was its picture's, not its sound's (so the 179 ms read for 0.66.16 was most likely the Mac screen's picture), and nothing on what the browser did with the sound.
+- **Now each phone's and computer's sound is in the show log as the studio plays it:** its own jitter and how long it waits to be played, every second; and every few seconds, how much the browser played faster to catch up (heard as the sound speeding up), stretched, made up for sound that didn't arrive, and got.
+- **When it's hurried** (200 ms or more in a few seconds), the log says so when it happens, with its jitter and what was made up before it. The summary says how often, how much in all and the worst moment, and how much of a source's sound was made up, a second or more.
+- The numbers come as running totals, so the Monitor asking for them as well doesn't split them.
+
+**Tests:** `showlog.test`: from two readings, the wait, and ms hurried, made up and arrived; a first reading or a new link gives only what holds now; the summary says a source hurried after a stall once, with when and how much, and nothing for a steady phone. `e2e_sharequality`: the shared screen's sound in the log, waiting about 150 ms, about 5000 ms arrived each reading (so not counted twice for its two sides), nothing hurried, what the browser did once per reading. A stall can't be made in a test, so the next show is the proof.
+
 ## 0.66.16 — a shared video sent smooth, and sound that doesn't hurry after a stall
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.15.
 

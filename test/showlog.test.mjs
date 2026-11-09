@@ -1,7 +1,7 @@
 // The show log's own logic (public/js/showlog.js): the sound watch's alerts, the summary's
 // numbers and words, and the log's limits. No browser needed.
 import assert from 'node:assert/strict';
-import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile, mixerWatch } from '../public/js/showlog.js';
+import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile, mixerWatch, soundIn } from '../public/js/showlog.js';
 
 const ok = (m) => console.log('ok  ' + m);
 const T0 = Date.UTC(2026, 10, 4, 15, 0, 0);
@@ -291,6 +291,39 @@ const at = (s) => T0 + s * 1000;
   w = {};
   for (let s = 0; s <= 60; s += 2) assert.equal(mixerWatch(w, at(s), true), null);
   ok("the mixer's watch: sound with true silence between (a shared screen's) isn't put back every 12 s; one that stays silent is put back after 8, 16, 32 s, then once a minute, said once; said again after it comes back and stops");
+}
+
+// ---- a phone's sound as the studio plays it: hurried after a rush, made up where it didn't arrive ----
+{
+  const tot = (sec, o = {}) => ({ jitterMs: 5, rate: 48000, received: sec * 48000, removed: 0, inserted: 0, concealed: 0, bufS: sec * 50 * 0.15, emitted: sec * 50, ...o });
+  assert.deepEqual(soundIn(null, tot(10)), { ajit: 5 }, 'the first reading: only what holds now');
+  assert.deepEqual(soundIn(tot(10), tot(15)), { ajit: 5, abuf: 150, fast: 0, slow: 0, fill: 0, got: 5000 }, 'a steady 5 s: 150 ms waiting, nothing hurried');
+  // the Mac's 2 s stall: 1.9 s made up, then the backlog arriving at once and hurried through
+  const v = soundIn(tot(15), tot(20, { jitterMs: 179, removed: 1.4 * 48000, concealed: 1.9 * 48000 }));
+  assert.equal(v.fast, 1400); assert.equal(v.fill, 1900); assert.equal(v.ajit, 179);
+  assert.deepEqual(soundIn(tot(20, { removed: 48000 }), tot(3)), { ajit: 5 }, 'its link made again (totals went back): no numbers from the old one');
+  assert.equal(soundIn(tot(10), null), null);
+  ok('soundIn: from two readings of a link, its sound\'s wait (150 ms), and ms hurried, made up and arrived; a first reading or a new link gives only what holds now');
+
+  // the summary: said once per source, with when and how much, and nothing for a steady phone
+  const rows = [];
+  for (let i = 0; i < 60; i++) {
+    const s = [{ id: 'mac', n: 'Mac screen', k: 'screen', open: 1, a: 'live', ajit: 5 }, { id: 'pix', n: 'Pixel', k: 'cam', open: 1, a: 'live', ajit: 4 }];
+    if (i % 5 === 0) {
+      Object.assign(s[0], i === 30 ? { fast: 1400, fill: 1900, ajit: 179 } : i === 35 ? { fast: 300, fill: 0 } : { fast: 3, fill: 0 });
+      Object.assign(s[1], { fast: 2, fill: 0 });
+    }
+    rows.push({ t: at(i), fps: 30, pk: -20, air: 'Mac screen', s });
+  }
+  const sum = summarize(rows, [], 30);
+  const text = sum.lines.join('\n');
+  const line = sum.lines.find((l) => l.startsWith("Mac screen's sound was played faster"));
+  assert.ok(line, text);
+  assert.match(line, /2 time\(s\)/); assert.match(line, /2 s of it in all/); assert.match(line, /1400 ms/); assert.match(line, /jitter 179 ms/); assert.match(line, /1900 ms made up/);
+  assert.match(line, new RegExp(new Date(at(30)).toTimeString().slice(0, 8)));
+  assert.match(text, /Mac screen: 2 s of its sound didn't arrive in time/);
+  assert.ok(!/Pixel's sound/.test(text) && !/Pixel: .* made up/.test(text), text);
+  ok('summary: a source hurried after a stall is said once (how often, how much, the worst moment with its jitter and what was made up); a steady phone isn\'t');
 }
 
 console.log('\nAll show log tests passed.');

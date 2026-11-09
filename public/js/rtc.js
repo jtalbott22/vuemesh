@@ -858,6 +858,19 @@ export class HostHub {
           if (l.lastAudio) out.audioKbps = Math.round(((r.bytesReceived - l.lastAudio.bytes) * 8) / (now - l.lastAudio.at));
           l.lastAudio = { bytes: r.bytesReceived, at: now };
           if (r.audioLevel != null) out.audioLevel = Math.round(r.audioLevel * 100);
+          // the sound's own counters, as running totals (whoever asks works out what changed: the
+          // show log and the monitor both ask): how much the browser played faster to catch up after
+          // a rush, slower to stretch it, made up for sound that didn't arrive, and kept waiting
+          const a = (out.audioIn ||= { jitterMs: 0, received: 0, removed: 0, inserted: 0, concealed: 0, bufS: 0, emitted: 0, rate: 48000 });
+          if (r.jitter != null) a.jitterMs = Math.max(a.jitterMs, Math.round(r.jitter * 1000));
+          a.received += r.totalSamplesReceived || 0;
+          a.removed += r.removedSamplesForAcceleration || 0;
+          a.inserted += r.insertedSamplesForDeceleration || 0;
+          a.concealed += (r.concealedSamples || 0) - (r.silentConcealedSamples || 0); // (not a muted phone's silence)
+          a.bufS += r.jitterBufferDelay || 0;
+          a.emitted += r.jitterBufferEmittedCount || 0;
+          const ac = r.codecId && st.get(r.codecId);
+          if (ac?.clockRate) a.rate = ac.clockRate;
         }
       });
     } catch {}
