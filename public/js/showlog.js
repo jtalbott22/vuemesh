@@ -20,7 +20,12 @@
 //         picture held), sd (how long its sound waits, ms), ch (this computer's: sides it opened with),
 //         dbL / dbR (a stereo input here: each side's loudest), st2 (the mixer hears both sides), side
 //         (one side of a split input: L or R), and from a phone's link every few
-//         seconds: fps, loss (%), jit (jitter ms), rtt (ms); and what it says about its own sending:
+//         seconds: fps, loss (%), jit (its picture's jitter, ms), rtt (ms); its sound as the studio
+//         plays it: ajit (its sound's jitter, ms), abuf (how long its sound waited to be played, ms,
+//         on average since the last time), and, once each time (every few seconds), what the browser
+//         did in that time, in ms of sound: fast (played faster to catch up, after a rush), slow
+//         (stretched, to wait for what's late), fill (made up, for sound that didn't arrive), got (arrived);
+//         and what it says about its own sending:
 //         tx (frames it sent a second), txk (kbit/s), lim (what held it back: cpu, bandwidth, other,
 //         none), enc (its encoder), hw (on its graphics hardware), tier (program, preview, idle)
 //   tv    each TV, every few seconds: n, st (link state), fps, kbps, lim (why it's held back), cap
@@ -92,6 +97,25 @@ export function spans(rows, test) {
   return out;
 }
 
+/** Played this much faster in a few seconds (ms of sound), a source's sound was hurried: heard as it speeding up. */
+export const HURRIED_MS = 200;
+/**
+ * A phone's or computer's sound as the studio plays it, from two readings of its link's running
+ * totals (rtc.js stats().audioIn): ajit and abuf, and what the browser did with it between them,
+ * in ms of sound: fast, slow, fill, got (see the sample's keys above). With no reading before,
+ * or totals that went back (its link was made again), only what holds now.
+ */
+export function soundIn(prev, now) {
+  if (!now) return null;
+  const out = { ajit: now.jitterMs ?? null };
+  const keys = ['received', 'removed', 'inserted', 'concealed', 'bufS', 'emitted'];
+  if (!prev || prev.rate !== now.rate || keys.some((k) => now[k] < prev[k])) return out;
+  const em = now.emitted - prev.emitted;
+  if (em > 0) out.abuf = Math.round(((now.bufS - prev.bufS) / em) * 1000);
+  const ms = (k) => Math.round(((now[k] - prev[k]) / now.rate) * 1000);
+  return Object.assign(out, { fast: ms('removed'), slow: ms('inserted'), fill: ms('concealed'), got: ms('received') });
+}
+
 /** The show in numbers and in plain words: what to look at first. */
 export function summarize(rows, events = [], target = 30) {
   const out = { from: rows[0]?.t ?? null, to: rows.length ? rows.at(-1).t + 1000 : null, seconds: rows.length, lines: [] };
@@ -138,6 +162,15 @@ export function summarize(rows, events = [], target = 30) {
     if ((s.a === 'ended' || s.a === 'none') && x.hadSound && !x.ended) x.ended = r.t;
     if (s.a === 'live') x.hadSound = true;
     x.droppedMs += s.ad || 0;
+    // a phone's or computer's sound hurried through after a rush, or made up where it didn't arrive
+    if (typeof s.fast === 'number') {
+      x.fastMs = (x.fastMs || 0) + s.fast;
+      x.fillMs = (x.fillMs || 0) + (s.fill || 0);
+      if (s.fast >= HURRIED_MS) {
+        x.hurried = (x.hurried || 0) + 1;
+        if (!x.worst || s.fast > x.worst.fast) x.worst = { t: r.t, fast: s.fast, fill: s.fill ?? null, ajit: s.ajit ?? null };
+      }
+    }
     // nothing arriving from the device while its track was live (it stopped sending: not silence)
     const starved = s.loc && s.k !== 'screen' && s.a === 'live' && typeof s.dv === 'number' && s.dv < STARVED_MS;
     if (starved) {
@@ -181,6 +214,11 @@ export function summarize(rows, events = [], target = 30) {
   for (const x of out.sources) {
     if (x.ended) out.lines.push(`${x.n}: its sound stopped at ${clock(x.ended)}.`);
     if (x.droppedMs >= 100) out.lines.push(`${x.n}: ${mmss(x.droppedMs)} of its sound was dropped on the way in (the device or the computer couldn't keep up).`);
+    if (x.hurried) {
+      const w = x.worst;
+      out.lines.push(`${x.n}'s sound was played faster to catch up ${x.hurried} time(s), ${mmss(x.fastMs)} of it in all (heard as it speeding up: sound that came late, all at once); the most in the few seconds to ${clock(w.t)}: ${w.fast} ms${w.ajit != null ? `, its sound's jitter ${w.ajit} ms` : ''}${w.fill ? `, ${w.fill} ms made up before it` : ''}.`);
+    }
+    if (x.fillMs >= 1000) out.lines.push(`${x.n}: ${mmss(x.fillMs)} of its sound didn't arrive in time and was made up by the studio's browser (its link stalled or lost it).`);
     if (x.starvedSeconds >= 2) out.lines.push(`${x.n}: nothing arrived from the device for ${mmss(x.starvedSeconds * 1000)} in all, ${x.starvedTimes} time(s) (it stopped sending, rather than sending silence).`);
   }
   // cameras sharing one microphone, or on the computer's default one

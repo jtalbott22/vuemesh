@@ -24,15 +24,62 @@ try {
   const m = localStorage.getItem('vm_share_mode');
   if (m === 'motion' || m === 'detail') document.querySelector(`input[name="mode"][value="${m}"]`).checked = true;
 } catch {}
-document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
-  try { localStorage.setItem('vm_share_mode', modeOf()); } catch {}
+const applyMode = () => {
   const v = stream?.getVideoTracks()[0];
   if (v && 'contentHint' in v) v.contentHint = modeOf();
   if (link) {
     link.motion = modeOf() === 'motion';
     link.applyQuality();
   }
+};
+document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
+  try { localStorage.setItem('vm_share_mode', modeOf()); } catch {}
+  stopSoundWatch(); // (the presenter chose: it's not changed for them)
+  applyMode();
 }));
+
+// A share whose sound is playing is almost always a video. Sent as Slides and text, a Mac's encoder
+// spent about 1 Mbit/s on one on air, blocky, and sent 2 frames a second for a minute, with
+// nothing held back that would have shown the tip. So after 3 s of sound it's sent as Video and
+// motion, once per share, and the page says so (not remembered: the next share starts as chosen).
+let soundWatch = null;
+function stopSoundWatch() {
+  if (!soundWatch) return;
+  clearInterval(soundWatch.timer);
+  soundWatch.ctx.close().catch(() => {});
+  soundWatch = null;
+}
+function watchSound(s) {
+  stopSoundWatch();
+  const a = s.getAudioTracks()[0];
+  if (!a || modeOf() === 'motion') return;
+  let ctx;
+  try {
+    ctx = new AudioContext();
+  } catch {
+    return;
+  }
+  ctx.resume?.().catch(() => {});
+  const an = ctx.createAnalyser();
+  an.fftSize = 2048;
+  ctx.createMediaStreamSource(new MediaStream([a])).connect(an);
+  const buf = new Float32Array(an.fftSize);
+  let loud = 0;
+  const w = { ctx, timer: 0 };
+  w.timer = setInterval(() => {
+    if (stream !== s || modeOf() === 'motion') return stopSoundWatch();
+    an.getFloatTimeDomainData(buf);
+    let pk = 0;
+    for (const x of buf) pk = Math.max(pk, Math.abs(x));
+    loud = pk > 0.01 ? loud + 1 : Math.max(0, loud - 1); // (above -40 dB: sound, not a quiet room)
+    if (loud < 12) return;
+    stopSoundWatch();
+    document.querySelector('input[name="mode"][value="motion"]').checked = true;
+    applyMode();
+    $('#soundSay').textContent += ' It’s playing sound, so it’s sent as Video and motion, for smooth pictures. Showing slides? Choose Slides and text.';
+  }, 250);
+  soundWatch = w;
+}
 const show = (v) => {
   for (const id of ['joinView', 'liveView', 'stoppedView']) $('#' + id).hidden = id !== v;
 };
@@ -120,6 +167,7 @@ async function start(e) {
   }
   await revealAddress();
   showStream();
+  watchSound(stream);
   show('liveView');
   $('#sendSay').after($('#modeBox')); // (the choice comes along: it can change while sharing)
   $('#liveName').textContent = ev?.title ? `${name} \u2192 ${ev.title}` : name;
@@ -211,6 +259,7 @@ function connect() {
 function stopped(why) {
   for (const t of stream?.getTracks() || []) t.stop();
   stream = null;
+  stopSoundWatch();
   link?.leave();
   wakeLock(false);
   $('#stoppedWhy').textContent = why;
@@ -231,6 +280,7 @@ $('#againBtn').onclick = async () => {
   stream = s;
   for (const t of old?.getTracks() || []) t.stop();
   showStream();
+  watchSound(s);
   // (the same kinds of track: swap them in place; a sound that wasn't there before needs a new link)
   const same = !!old?.getAudioTracks().length === !!s.getAudioTracks().length;
   if (same) link?.replaceStream(s);

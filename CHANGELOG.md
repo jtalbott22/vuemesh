@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.66.17 — the show log hears a phone's sound speeding up
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.16.
+
+0.66.16 keeps 150 ms of each phone's and computer's sound in hand, so a short hiccup isn't hurried through. Whether that's enough after a long stall can't be seen in a test, and the show log couldn't say: it had the link's jitter, but that was its picture's, not its sound's (so the 179 ms read for 0.66.16 was most likely the Mac screen's picture), and nothing on what the browser did with the sound.
+- **Now each phone's and computer's sound is in the show log as the studio plays it:** its own jitter and how long it waits to be played, every second; and every few seconds, how much the browser played faster to catch up (heard as the sound speeding up), stretched, made up for sound that didn't arrive, and got.
+- **When it's hurried** (200 ms or more in a few seconds), the log says so when it happens, with its jitter and what was made up before it. The summary says how often, how much in all and the worst moment, and how much of a source's sound was made up, a second or more.
+- The numbers come as running totals, so the Monitor asking for them as well doesn't split them.
+
+**Tests:** `showlog.test`: from two readings, the wait, and ms hurried, made up and arrived; a first reading or a new link gives only what holds now; the summary says a source hurried after a stall once, with when and how much, and nothing for a steady phone. `e2e_sharequality`: the shared screen's sound in the log, waiting about 150 ms, about 5000 ms arrived each reading (so not counted twice for its two sides), nothing hurried, what the browser did once per reading. A stall can't be made in a test, so the next show is the proof.
+
+## 0.66.16 — a shared video sent smooth, and sound that doesn't hurry after a stall
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.15.
+
+From a show log with a Mac sharing its screen over `/share` (a video, with its sound) and sending its own camera from another tab, both on its software encoders.
+- **A shared video came out blocky, and at 2 frames a second.** The share page starts on Slides and text, which keeps every word sharp: frames and bitrate give way first. On air the Mac's screen sent about 1 Mbit/s (the studio allows 8), and for a minute only 2 frames a second, 20 s of it on air. Nothing reported being held back, so the page's tip to choose Video and motion never showed. Now a share whose sound plays for 3 s is sent as **Video and motion** by itself, and the page says so ("Showing slides? Choose Slides and text"). It's once per share and not remembered: choosing Slides and text then holds, and the next share starts as chosen.
+- **Sound sped up after a stall.** The Mac stalled for about 2 s (its camera sent 5 frames, then none, then 85 in one second), and its screen's sound jitter went from 5 to 179 ms. The browser then plays the backlog faster to catch up, which is what was heard on air. The studio's own sound delay didn't change (no change over 15 ms in the log). Now the studio keeps 150 ms of each phone's and computer's sound in hand (`jitterBufferTarget`), so less is left over to hurry through. The browser holds the picture back to match: about what the studio's own cameras already wait (~110 ms).
+
+**Tests:** `e2e_sharequality`: a share playing a tone goes to Video and motion by itself (`maintain-framerate`, `motion`), says so, doesn't store it; Slides and text chosen then holds for 4 s; the studio's sound receiver for it is at 150 ms. `e2e_screen`, `e2e_remotescreenrec`, `e2e_audio` and `e2e_sync` pass. `e2e_stillscreen` fails the same way on 0.66.15 without these changes. The catch-up after a stall can't be made to happen in a test, so that part isn't proven until a show.
+
 ## 0.66.15 — the remote's camera: its microphone the first time, and its picture the right shape
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.14.
 

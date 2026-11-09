@@ -93,6 +93,9 @@ export async function routeOf(pc) {
   return (await pathOf(pc)).route;
 }
 
+/** How much sound the studio keeps in hand from each phone or computer, ms (see accept). */
+export const JITTER_MS = 150;
+
 /** Keep only local-network candidates (for "local only" mode). */
 const isHostCandidate = (c) => / typ host( |$)/.test(typeof c === 'string' ? c : c?.candidate || '');
 function localOnlySdp(sdp) {
@@ -727,6 +730,14 @@ export class HostHub {
       this.onLive(peer, stream, fromRoleOf.get(peer));
     };
     pc.ontrack = (e) => {
+      // (its sound keeps 150 ms in hand. When a phone or computer stalls for a moment and then sends
+      // everything at once, the browser plays the backlog faster to catch up: a Mac's 2 s stall
+      // sped up a video's sound on air. With more in hand, less is left over to hurry through.
+      // The browser holds the picture back to match, which lines up with the studio's own
+      // cameras' delay, about 110 ms.)
+      if (e.track.kind === 'audio' && 'jitterBufferTarget' in e.receiver) {
+        try { e.receiver.jitterBufferTarget = JITTER_MS; } catch {}
+      }
       const stream = e.streams[0] || (link.stream ||= new MediaStream());
       if (!e.streams[0]) stream.addTrack(e.track);
       e.track.addEventListener('ended', changed);
@@ -847,6 +858,19 @@ export class HostHub {
           if (l.lastAudio) out.audioKbps = Math.round(((r.bytesReceived - l.lastAudio.bytes) * 8) / (now - l.lastAudio.at));
           l.lastAudio = { bytes: r.bytesReceived, at: now };
           if (r.audioLevel != null) out.audioLevel = Math.round(r.audioLevel * 100);
+          // the sound's own counters, as running totals (whoever asks works out what changed: the
+          // show log and the monitor both ask): how much the browser played faster to catch up after
+          // a rush, slower to stretch it, made up for sound that didn't arrive, and kept waiting
+          const a = (out.audioIn ||= { jitterMs: 0, received: 0, removed: 0, inserted: 0, concealed: 0, bufS: 0, emitted: 0, rate: 48000 });
+          if (r.jitter != null) a.jitterMs = Math.max(a.jitterMs, Math.round(r.jitter * 1000));
+          a.received += r.totalSamplesReceived || 0;
+          a.removed += r.removedSamplesForAcceleration || 0;
+          a.inserted += r.insertedSamplesForDeceleration || 0;
+          a.concealed += (r.concealedSamples || 0) - (r.silentConcealedSamples || 0); // (not a muted phone's silence)
+          a.bufS += r.jitterBufferDelay || 0;
+          a.emitted += r.jitterBufferEmittedCount || 0;
+          const ac = r.codecId && st.get(r.codecId);
+          if (ac?.clockRate) a.rate = ac.clockRate;
         }
       });
     } catch {}

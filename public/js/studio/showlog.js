@@ -4,7 +4,7 @@ import './screens.js';
 import { toast, esc, announce } from '/js/vm.js';
 import { APP_VERSION } from '/js/brand.js';
 import * as idb from '/js/idb.js';
-import { ShowLog, SoundWatch, dbOf, joinChunks } from '/js/showlog.js';
+import { HURRIED_MS, ShowLog, SoundWatch, dbOf, joinChunks, soundIn } from '/js/showlog.js';
 import {
   $, black, EDIT_ONLY, ev, eventId, help, hub, isHost, live, liveActive, log, orientation, player,
   program, sock,
@@ -71,6 +71,8 @@ const delta = (obj, key, now) => {
   return p == null || now == null || now < p ? null : now - p;
 };
 const linkStats = new Map(); // peer → the phone link's last stats (every few seconds)
+const linkSound = new Map(); // peer → its sound as played here, from its last two link stats (see soundIn)
+const soundTotals = new Map(); // peer → its link's sound totals at the last reading
 let tvStats = [];
 const soundOf = (t) => (!t ? 'none' : t.readyState === 'ended' ? 'ended' : t.muted ? 'muted' : !t.enabled ? 'off' : 'live');
 const kindOf = (l) => (l.screen ? 'screen' : l.role === 'mic' ? 'mic' : 'cam');
@@ -135,6 +137,13 @@ function sources() {
     if (st?.delayMs) s.sd = st.delayMs;
     const ls = linkStats.get(peer);
     if (ls && !l.local) Object.assign(s, { fps: ls.fps ?? null, loss: ls.lossPct ?? null, jit: ls.jitterMs ?? null, rtt: ls.rttMs ?? null });
+    // its sound: jitter and wait every second; what the browser did with it, once per reading
+    const snd = !l.local && linkSound.get(peer);
+    if (snd) {
+      const { fresh, ...v } = snd;
+      Object.assign(s, fresh ? v : { ajit: v.ajit, ...(v.abuf != null ? { abuf: v.abuf } : {}) });
+      snd.fresh = false;
+    }
     // what a phone or another computer says about its own sending (every few seconds): frames sent,
     // kbit/s, what's holding it back, its encoder; a slow picture then says whose end it was
     const tx = !l.local && l.tele?.link && Date.now() - (l.tele.at || 0) < 15000 ? l.tele.link : null;
@@ -448,9 +457,18 @@ async function slowStats() {
   try {
     for (const [peer, l] of live) if (!l.local && hub) {
       const st = await hub.stats(peer).catch(() => null);
-      if (st) linkStats.set(peer, st);
+      if (!st) continue;
+      linkStats.set(peer, st);
+      if (st.audioIn) {
+        const v = soundIn(soundTotals.get(peer), st.audioIn);
+        soundTotals.set(peer, st.audioIn);
+        linkSound.set(peer, { ...v, fresh: true });
+        // (heard as its sound speeding up: said in the log when it happened, not only in its numbers)
+        if (v.fast >= HURRIED_MS) showLog.event('sound', `${l.name || 'A source'}'s sound was played faster to catch up: ${v.fast} ms of it in the last few seconds (its sound's jitter ${v.ajit} ms${v.fill ? `, ${v.fill} ms made up before it` : ''})`, { id: peer });
+      }
     }
     for (const p of linkStats.keys()) if (!live.has(p)) linkStats.delete(p);
+    for (const m of [linkSound, soundTotals]) for (const p of m.keys()) if (!live.has(p)) m.delete(p);
     tvStats = ((await displayHub?.stats().catch(() => [])) || []).map((x) => ({ n: x.name, st: x.status, fps: x.fps ?? null, kbps: x.kbps ?? null, lim: x.lim || null, w: x.w || null, h: x.h || null, cap: x.cap || null, ...(x.remote ? { remote: 1 } : {}), ...(x.rx ? { rfps: x.rx.fps, frz: x.rx.freezes, drop: x.rx.dropped } : {}) }));
   } finally {
     statsBusy = false;
