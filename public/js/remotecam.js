@@ -15,6 +15,12 @@ import { CameraKit, preferredCamera } from '/js/camctl.js';
 import { identity, meshSocket, thumbprint } from '/js/vm.js';
 
 const WHOLE = { x: 0, y: 0, w: 1, h: 1 };
+// (the phone's audio session, Safari 17+: "play-and-record" while the microphone is open)
+const session = (type) => {
+  try {
+    if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type;
+  } catch {}
+};
 const LIVE = ['lan', 'nat', 'cellular', 'internet', 'relay', 'unknown'];
 // (the lenses' order on the buttons: as a camera app has them, the front one last)
 const ORDER = { ultra: 0, wide: 1, multi: 2, tele: 3, other: 4, front: 5 };
@@ -57,6 +63,7 @@ export class RemoteCamera {
   async start() {
     if (this.on) return;
     this.state = 'starting';
+    this.micOn = true; // (its microphone goes with it each time it's added: the program's sound is held off from now)
     this.onChange();
     try {
       this.kit = new CameraKit();
@@ -80,8 +87,13 @@ export class RemoteCamera {
       this.onChange();
       throw e;
     }
-    // (said no to the microphone: the picture goes on its own, and there's no Mic button)
-    this.canMic = !!(await this.openMic().catch(() => null));
+    // (the microphone didn't open: the picture goes on its own, and Mic off is a tap to try again;
+    // a tap is a better time to ask, as a page's first request can be turned down without one)
+    this.canMic = !!navigator.mediaDevices?.getUserMedia;
+    if (!(await this.openMic().catch(() => null))) {
+      this.micOn = false;
+      this.micMissed = true;
+    }
     this.stream = new MediaStream([this.kit.track, ...(this.mic ? [this.mic] : [])]);
     this.showSelf();
     const id = await identity();
@@ -176,11 +188,22 @@ export class RemoteCamera {
    * earpiece (the program's is held off meanwhile, see remote.js); so it's opened only while it's on.
    */
   async openMic() {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    this.mic = s.getAudioTracks()[0] || null;
+    // The phone set for recording first, then asked: an iPhone playing the program's sound has its
+    // audio session on "playback" (progsound.js), and in that it won't open the microphone (the
+    // first + This phone asked, then came in without sound; removed and added again, the session
+    // was back on "auto" and it worked). Changed while the microphone's open, it can go silent.
+    // (the program's sound is held off already: remote.js holds it while Mic is on)
+    session('play-and-record');
+    let s;
     try {
-      if (this.mic && navigator.audioSession) navigator.audioSession.type = 'play-and-record';
-    } catch {}
+      s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (e) {
+      session('auto');
+      throw e;
+    }
+    this.mic = s.getAudioTracks()[0] || null;
+    if (!this.mic) session('auto');
+    else this.micMissed = false;
     return this.mic;
   }
 
@@ -202,19 +225,17 @@ export class RemoteCamera {
       this.mic?.stop();
       this.mic = null;
       this.soundSender()?.replaceTrack(null).catch(() => {});
-      try {
-        if (navigator.audioSession) navigator.audioSession.type = 'auto';
-      } catch {}
+      session('auto');
       this.stream = new MediaStream([this.kit.track]);
       return this.onChange();
     }
     this.onChange();
     try {
       await this.openMic();
-    } catch {
+    } catch (e) {
       this.micOn = false;
       this.onChange();
-      throw new Error("The microphone didn't open");
+      throw new Error(e?.name === 'NotAllowedError' ? 'Allow the microphone for this page to use it (Settings > Safari > Microphone on an iPhone)' : "The microphone didn't open");
     }
     if (!this.on) return this.mic?.stop(); // (removed meanwhile)
     this.stream = new MediaStream([this.kit.track, this.mic]);
@@ -265,9 +286,7 @@ export class RemoteCamera {
     this.state = 'off';
     this.air = this.pvw = false;
     this.upright = null;
-    try {
-      if (navigator.audioSession) navigator.audioSession.type = 'auto';
-    } catch {}
+    session('auto');
     this.onChange();
     if (why) this.onEnded(why);
   }

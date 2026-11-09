@@ -503,7 +503,8 @@ and start and stop Record program (it asks before stopping).
 joins as a camera of its own: its picture comes back among the others' (THIS PHONE on it), and a
 tap on it cuts to it. Under the cameras are its own live picture to frame the shot, its lenses
 (0.5×, 1×, 2×, Front: one tap each), its microphone (Mic off lets go of it, so the phone's
-speaker plays the program again), and Remove (a second tap while it's on air).
+speaker plays the program again), and Remove (a second tap while it's on air). If the microphone
+doesn't open when it's added, the camera goes in without it, showing Mic off: a tap tries again.
 It's live only: the phone records no clip of its own, as the camera page does for Edit. While its
 microphone is live, the program's sound is held off on the phone, or the program would go back
 into it. Keep the remote on screen while it's a camera: a locked phone stops its camera.

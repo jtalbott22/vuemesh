@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.66.15 — the remote's camera: its microphone the first time, and its picture the right shape
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.14.
+
+From a show log of the remote's camera on a phone.
+- **The microphone didn't come in the first time.** + This phone asked for it, and the camera joined without sound ("sound from nothing" in the log), with no Mic button to try again. Removed and added again, it worked. The program's sound on the remote puts the phone's audio session on "playback", and an iPhone won't open its microphone in that. Remove set it back to "auto", which is why the second try worked. Now the program's sound is held off from the tap on + This phone, and the phone is set for recording ("play-and-record") before the microphone's asked for, not after: the first add brings it in. The session is never changed while the microphone's open (changed under it, it can go silent).
+- **If the microphone still doesn't open,** the camera goes in without it and says so ("without its microphone: tap Mic off to try it again"). Mic off stays on its bar, the program's sound isn't held, and a tap brings the microphone in. Turned down by the phone's settings, the tap says where to allow it.
+- **Its picture was squeezed in the studio's sources.** The tile took every camera's picture as the square a phone's camera page sends, and the remote's camera sends its whole 16:9 frame, so the tile squeezed it into a square (round things came out tall and thin). The program was right: it's drawn from the picture's real size. Now the tile uses the picture's own shape, and fits it again when that changes (a lens, a turn). A camera page in a background tab, which also sends its whole frame, had the same squeeze.
+
+**Tests:** `e2e_remotecam`: the remote page keeps an iPhone's audio session (the microphone turned down on "playback"). With the program's sound on, the first add asks for the microphone on "play-and-record", the session isn't changed while it's open, and the studio hears it. The studio's tile is 1.778 wide to 1 high for a 1920x1080 picture. Added again with the microphone turned down: in without it, Mic off, the program's sound free; a tap brings it in and the studio hears it. With 0.66.14's code it fails on both (no microphone; the tile 1 to 1). `e2e_cambg`, `e2e_remote`, `e2e_remotelandscape`, `e2e_tvremote`, `e2e_campgm` and `e2e_srcwidth` pass. Not tried on an iPhone yet.
+
 ## 0.66.14 — the sources panel as wide as you like
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.13.
 

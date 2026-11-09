@@ -435,7 +435,8 @@ async function addCamera() {
   try {
     await rcam.start();
     navigator.vibrate?.(30);
-    toast("This phone's camera is in the show. Tap its picture to cut to it.");
+    if (rcam.micMissed) toast("This phone's camera is in the show, without its microphone: tap Mic off to try it again.", 6000);
+    else toast("This phone's camera is in the show. Tap its picture to cut to it.");
   } catch (e) {
     toast(e?.name === 'NotAllowedError' ? 'Allow the camera for this page to add it (Settings > Safari > Camera on an iPhone)' : `The camera didn't open: ${e?.message || e}`, 6000);
   }
@@ -444,7 +445,7 @@ let lensSig = '';
 function renderMyCam() {
   const on = !!rcam?.on, bar = $('#myCam');
   bar.hidden = !on;
-  psound.hold(on && rcam.canMic && rcam.micOn);
+  psound.hold(on && rcam.micOn); // (from the tap on + This phone: held before the microphone's asked for, not after)
   showSound();
   if (!on) return;
   bar.classList.toggle('air', rcam.air);

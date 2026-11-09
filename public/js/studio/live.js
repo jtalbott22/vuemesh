@@ -407,9 +407,18 @@ export function fitTile(l) {
     Object.assign(v.style, { width: '100%', height: '100%', left: '0', top: '0', objectFit: l.screen ? 'contain' : 'cover' }); // (a screen whole, as on the program)
     return;
   }
+  // The rect is a part of the picture as sent, in fractions of its width and height. A phone's camera
+  // page sends a square (the shot inside it); the remote's camera, and a camera page in a background
+  // tab, send the whole frame. Taken as a square, a 16:9 frame was squeezed to one in the tile (the
+  // program, drawn from its real size, was right). A = the frame's width for a height of 1.
+  if (!v.__refit) {
+    v.__refit = true;
+    v.addEventListener('resize', () => fitTile(l)); // (its size comes with its first frame, and changes with a lens or a turn)
+  }
+  const A = v.videoWidth && v.videoHeight ? v.videoWidth / v.videoHeight : 1;
   const TW = tile.clientWidth, TH = tile.clientHeight;
-  const k = fit === 'fit' ? Math.min(TW / r.w, TH / r.h) : Math.max(TW / r.w, TH / r.h);
-  Object.assign(v.style, { objectFit: 'fill', width: k + 'px', height: k + 'px', left: (TW - r.w * k) / 2 - r.x * k + 'px', top: (TH - r.h * k) / 2 - r.y * k + 'px' });
+  const k = fit === 'fit' ? Math.min(TW / (r.w * A), TH / r.h) : Math.max(TW / (r.w * A), TH / r.h);
+  Object.assign(v.style, { objectFit: 'fill', width: A * k + 'px', height: k + 'px', left: (TW - r.w * A * k) / 2 - r.x * A * k + 'px', top: (TH - r.h * k) / 2 - r.y * k + 'px' });
   tile.dataset.shape = l.view.upright;
 }
 window.addEventListener('resize', () => live.forEach(fitTile));
