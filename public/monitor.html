@@ -37,8 +37,23 @@
   .wrap { padding: 16px; display: grid; gap: 16px; max-width: 1800px; margin: 0 auto; }
   .waiting { background: var(--amber); color: #3b2500; padding: 12px 16px; border-radius: 12px; font-weight: 600; }
   .waiting[hidden] { display: none; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line); min-width: 0; }
+  /* the summary: the program's picture, then the figures in two rows beside it (all in view) */
+  .summary { display: grid; grid-template-columns: clamp(220px, 19vw, 340px) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+  .pgm { position: relative; margin: 0; aspect-ratio: 16 / 9; align-self: start; background: #000; border-radius: 12px; overflow: hidden; border: 2px solid var(--line); }
+  .pgm.air { border-color: var(--tally); }
+  .pgm.brk { border-color: var(--amber); }
+  .pgm img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+  .pgm img:not([src]) { display: none; }
+  .pgm .nopic { position: absolute; inset: 0; display: grid; place-items: center; color: #fff9; font-size: .8rem; text-align: center; padding: 8px; }
+  .pgm.stale img { opacity: .4; }
+  .pgm:not(.stale) .nopic { display: none; }
+  .pgm figcaption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 16px 8px 6px; background: linear-gradient(transparent, #000c); color: #fff; min-width: 0; }
+  .pgm figcaption b { font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pgm figcaption .tag { flex: none; background: #fff3; color: #fff; }
+  .pgm .tag.air { background: var(--tally); }
+  .pgm .tag.brk { background: var(--amber); color: #3b2500; }
+  .tiles { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+  .tile { background: var(--surface); border-radius: 12px; padding: 10px 14px; border: 1px solid var(--line); min-width: 0; }
   .tile b { display: block; font-size: 1.5rem; font-stretch: 125%; line-height: 1.1; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile span { display: block; color: var(--text-2); font-size: .78rem; margin-top: 2px; }
   .tile.warn { border-color: var(--amber); } .tile.warn b { color: var(--amber); }
@@ -146,16 +161,21 @@
 
   /* narrower: one column, the event log and saved logs after the rest */
   @media (max-width: 1279px) {
-    .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* (eight in two rows of four, not six and two) */
     .layout { grid-template-columns: minmax(0, 1fr); }
     .side { position: static; max-height: none; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-template-rows: none; align-items: start; }
     .side #events ol.log { max-height: 380px; }
   }
+  @media (max-width: 1100px) {
+    .tiles { grid-template-rows: repeat(3, minmax(0, 1fr)); } /* (three rows of narrower figures beside the picture) */
+    .tile b { font-size: 1.25rem; }
+  }
   @media (max-width: 700px) {
+    .summary { grid-template-columns: minmax(0, 1fr); }
+    .pgm { width: 100%; max-width: 480px; justify-self: center; }
     .wrap { padding: 10px; gap: 10px; }
     .bar { padding-left: 12px; padding-right: 12px; gap: 8px; }
     .link span:last-child { display: none; } /* (the light says it) */
-    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tiles { grid-template-rows: none; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .tile b { font-size: 1.2rem; }
     .srcgrid { grid-template-columns: minmax(0, 1fr); padding: 0 10px 10px; }
     .xcols > div + div { border-left: 0; }
@@ -192,7 +212,14 @@
 </div>
 <main class="wrap">
   <div class="waiting" id="waiting">Open the studio for this event in another tab of this browser. The monitor reads from it directly; nothing is sent anywhere.</div>
-  <section class="tiles" aria-label="Summary" id="tiles"></section>
+  <section class="summary" aria-label="Summary">
+    <figure class="pgm stale" id="pgm" aria-label="Program">
+      <img id="pgmImg" alt="">
+      <span class="nopic" id="pgmNo">The program's picture shows here</span>
+      <figcaption><span class="tag" id="pgmTag">PROGRAM</span><b id="pgmName"></b></figcaption>
+    </figure>
+    <div class="tiles" id="tiles"></div>
+  </section>
   <div class="layout">
     <div class="maincol">
       <section class="panel" id="sources" aria-labelledby="ph">

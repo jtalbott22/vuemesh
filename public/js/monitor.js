@@ -53,7 +53,29 @@ $('#pvClose').onclick = () => $('#pv').close();
 $('#pv').addEventListener('close', () => $('#pvVideo').pause());
 
 const ch = new BroadcastChannel('vuemesh-monitor-' + eventId);
-ch.onmessage = (e) => e.data?.type === 'stats' && render(e.data);
+ch.onmessage = (e) => (e.data?.type === 'stats' ? render(e.data) : e.data?.type === 'pgm' && showPgm(e.data));
+
+// The program's small picture, top left: the studio sends a still a few times a second while
+// this is on screen and asks for it (every 2 s; it stops when nobody asks).
+let pgmUrl = null, pgmAt = 0;
+const wantPgm = () => !document.hidden && ch.postMessage({ type: 'pgmWant' });
+setInterval(wantPgm, 2000);
+document.addEventListener('visibilitychange', wantPgm);
+wantPgm();
+function showPgm(m) {
+  if (!(m.blob instanceof Blob)) return;
+  const img = $('#pgmImg'), old = pgmUrl;
+  pgmUrl = URL.createObjectURL(m.blob);
+  pgmAt = Date.now();
+  img.onload = img.onerror = () => old && URL.revokeObjectURL(old);
+  img.src = pgmUrl;
+  $('#pgm').classList.remove('stale');
+}
+setInterval(() => {
+  const stale = Date.now() - pgmAt > 3000;
+  $('#pgm').classList.toggle('stale', stale);
+  if (stale) $('#pgmNo').textContent = pgmAt ? 'No picture from the studio' : "The program's picture shows here";
+}, 1000);
 
 function linkState() {
   const stale = Date.now() - lastAt > 6000;
@@ -131,18 +153,30 @@ function render(d) {
     ['Recording now', String(d.peers.filter((p) => p.rec).length), ''],
     ['Recordings received', `${d.totals.clips}`, ''],
     ['Footage on this computer', fmtMB(d.totals.bytes), ''],
-    ['Program' + (d.program.auto ? ' · auto director' : ''), d.program.onBreak ? 'Break' : d.program.active || 'Standby', d.program.onBreak ? 'warn' : ''],
-    ['Phones needing attention', String(warnCount), warnCount ? 'bad' : ''],
+    ['Needing attention', String(warnCount), warnCount ? 'bad' : ''],
   ];
+  // the program: its picture says what's on; the caption names it, and a break or black
+  const pg = d.program, on = pg.onBreak ? 'Break' : pg.black === 'black' ? 'Black' : pg.active || 'Standby';
+  $('#pgmName').textContent = on;
+  $('#pgmName').title = on;
+  $('#pgmTag').textContent = pg.onBreak ? 'BREAK' : pg.auto ? 'AUTO' : 'PROGRAM';
+  $('#pgmTag').className = 'tag ' + (pg.onBreak ? 'brk' : pg.active && pg.black !== 'black' ? 'air' : '');
+  $('#pgmTag').title = pg.auto ? 'The auto director is cutting' : '';
+  $('#pgm').classList.toggle('air', !!pg.active && !pg.onBreak && pg.black !== 'black');
+  $('#pgm').classList.toggle('brk', !!pg.onBreak);
+  $('#pgm').setAttribute('aria-label', `Program: ${on}${pg.auto ? ', auto director' : ''}`);
   if (d.stream) {
     const s = d.stream, lim = LIMIT[s.limit] ?? '';
-    tiles.push([`Stream to ${s.name || 'the service'}${s.w ? ` · ${s.w}×${s.h}${s.fps ? ' @' + s.fps : ''}` : ''}${lim ? ` · limited by the ${lim}` : ''}`,
-      `${mbps(s.kbps)} / ${mbps(s.targetKbps)} Mbps`, s.limit === 'bandwidth' || s.limit === 'cpu' || (s.encKbps != null && s.encKbps < s.targetKbps * 0.5) ? 'warn' : '']);
+    // (short labels, so the row fits; the detail on hover)
+    tiles.push([`Stream${lim ? ` · ${lim === "phone's encoder" ? 'encoder' : lim}-limited` : ''}`,
+      `${mbps(s.kbps)} / ${mbps(s.targetKbps)}`, s.limit === 'bandwidth' || s.limit === 'cpu' || (s.encKbps != null && s.encKbps < s.targetKbps * 0.5) ? 'warn' : '',
+      `Stream to ${s.name || 'the service'}: sending / chosen, in Mbps${s.w ? ` · ${s.w}×${s.h}${s.fps ? ' @' + s.fps : ''}` : ''}${lim ? ` · limited by the ${lim}` : ''}`]);
     // (what the encoder was told to aim for: near the chosen rate and sending less, the picture
     // just doesn't need more; far below it, the receiver or the network is holding it back)
-    if (s.encKbps != null) tiles.push(['Stream: the encoder was asked for (Mbps)' + (s.encKbps < s.targetKbps * 0.5 ? ' · held back by the receiver or network' : ''), mbps(s.encKbps), s.encKbps < s.targetKbps * 0.5 ? 'warn' : '']);
+    if (s.encKbps != null) tiles.push(['Encoder asked for', `${mbps(s.encKbps)} Mbps`, s.encKbps < s.targetKbps * 0.5 ? 'warn' : '',
+      'Stream: what the encoder was asked for' + (s.encKbps < s.targetKbps * 0.5 ? ' · held back by the receiver or network' : '')]);
   }
-  $('#tiles').innerHTML = tiles.map(([k, v, cls]) => `<div class="tile ${cls}"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+  $('#tiles').innerHTML = tiles.map(([k, v, cls, tip]) => `<div class="tile ${cls}"${tip ? ` title="${esc(tip)}"` : ''}><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
 
   for (const p of d.peers) {
     const h = history.get(p.peer) || [];

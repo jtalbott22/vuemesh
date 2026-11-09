@@ -6,7 +6,7 @@ import * as S from '/js/sequence.js';
 import * as idb from '/js/idb.js';
 import {
   $, EDIT_ONLY, black, clips, editCh, ev, eventId, help, hub, isHost, live, liveActive, log, mode,
-  note, orientation, player, program, rawBlobs, recMime, seq, setSeq,
+  isRemoteCam, note, orientation, player, program, rawBlobs, recMime, seq, setSeq,
 } from './core.js';
 import { loadSeq, output } from './clips.js';
 import { camOrder, renderLive } from './live.js';
@@ -76,7 +76,7 @@ idb.list('program', eventId).then((rs) => {
   renderPgmState();
 });
 // someone to give the live cut to: a person's camera or microphone (not this computer's own)
-const anyoneFor = () => sendPgm && [...live.values()].some((l) => !l.local && l.cid && !l.leaving);
+const anyoneFor = () => sendPgm && [...live.values()].some((l) => !l.local && l.cid && !l.leaving && !isRemoteCam(l));
 const recording = () => progRec && !progRec.stopping;
 export function startPieces(tracks) {
   pieceTracks = tracks;
@@ -286,7 +286,7 @@ const showIsOn = () => mode === 'live' && black.target !== 1 && camOrder().some(
 const partRate = (peer) => (leavingPeers.size ? Infinity : !showIsOn() ? Infinity : peer === liveActive && !onBreak() ? 125_000 : 250_000);
 export function prepareLeaving(peer) {
   const l = live.get(peer);
-  if (!l?.cid || !sendPgm || !hub) return hub?.message(peer, { t: 'owed', n: 0 });
+  if (!l?.cid || !sendPgm || !hub || isRemoteCam(l)) return hub?.message(peer, { t: 'owed', n: 0 });
   const open = pieceRec?.piece;
   if (progRec && open && wasThere(l.cid, open.t0, now()) && Date.now() - lastLeaveRoll > 15000) {
     lastLeaveRoll = Date.now();
@@ -313,7 +313,7 @@ export async function sendProgramParts() {
     const todo = [...pieces];
     pass: for (const peer of peers) {
       const l = live.get(peer);
-      if (!l?.cid) continue;
+      if (!l?.cid || isRemoteCam(l)) continue;
       const urgent = leavingPeers.has(peer);
       for (const pc of todo) {
         if (!urgent && leavingPeers.size) {
