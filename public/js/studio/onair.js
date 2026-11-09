@@ -48,6 +48,8 @@ setInterval(() => {
 // just cutting around shows the cameras live and records nothing. (With the setting on; it is
 // by default.) A camera person's own recording is theirs, and runs as they choose.
 const recOnAir = () => autoRec && !!progRec && !progRec.stopping;
+/** Whether cameras record their time on air (the Recording card's setting): this computer's cameras follow it too. */
+export const autoRecOn = () => autoRec;
 export function recOnAirChanged() {
   if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
   if (swTallied) hub?.send(swTallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
@@ -62,6 +64,7 @@ $('#autoRec').onchange = (e) => {
   localStorage.setItem('vm_autorec_' + eventId, autoRec ? '1' : '0');
   localStorage.setItem('vm_autorec_default', autoRec ? '1' : '0');
   if (tallied) hub?.send(tallied, { t: 'tally', on: true, rec: recOnAir(), first: qualityFirst() });
+  localRecFollow(); // (this computer's cameras on air start or stop as the phones do)
   note(autoRec ? 'Cameras now record their time on air while you Record program' : 'Cameras no longer record automatically when on air');
 };
 

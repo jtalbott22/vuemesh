@@ -21,6 +21,10 @@ import * as idb from '/js/idb.js';
 
 let eventId = eventIdFromUrl();
 let ev, me, ident, socket, link;
+// A TV's own code, with no studio (/tv, tvdirect.js): the TV shows this camera live and records
+// nothing. So there's no beacon to sync with, no director's cut to wait for on leaving, no
+// microphone role (the TV keeps cameras' sound off), and the words say "the TV".
+const toTv = () => ev?.kind === 'tv';
 let role = 'cam';
 const pgm = { key: null, view: null, watching: false, ready: false, wanted: null, call: null, timer: null }; // (watching the program: see setProgramKey)
 
@@ -45,7 +49,18 @@ const guestHelp = helpDialog('Shooting tips', [
   { heading: 'If something goes wrong', text: (IS_PHONE ? 'Your clips wait safely on this phone until' : 'Your clips wait safely on this computer until') + ' the host gets them, even if you reload. Use Save to keep your own copy. If the pill says "Host not here yet", check that you\'re on the venue Wi-Fi shown on the beacon.' },
   { heading: 'Keys (with a keyboard)', rows: [['Space', 'Start or stop recording'], ['?', 'This help']] },
 ]);
-$('#camHelp')?.addEventListener('click', () => guestHelp.showModal());
+let tvHelp = null;
+const showHelp = () => {
+  if (!toTv()) return guestHelp.showModal();
+  tvHelp ||= helpDialog('On the TV', [
+    { heading: 'Your camera on the TV', text: 'Point your camera at what everyone should see. Hold it steady, or prop it up. Your picture shows on the TV live, beside anyone else who joined; the TV can show you full screen.' },
+    { heading: 'Pausing and leaving', text: 'Pause feed takes you off the TV for a moment. Leave (tap the name at the top) takes you off; Back on the TV puts you back.' },
+    { heading: 'Recording', text: 'The TV doesn\'t record. If you record here, the clip stays on this phone, in My events.' },
+    { heading: 'If it doesn\'t show', text: 'Be on the same Wi-Fi as the TV, and check the TV is showing its code (Show phones and screens on this TV).' },
+  ]);
+  tvHelp.showModal();
+};
+$('#camHelp')?.addEventListener('click', showHelp);
 
 const SOLO_ID = 'SOLO';
 
@@ -61,7 +76,7 @@ const MOTION_ASKS = IS_PHONE && !!(window.DeviceMotionEvent?.requestPermission |
 const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(msg), { name: 'TimeoutError' })), ms))]);
 async function guidedSetup(lastErr) {
   const view = $('#setupView');
-  const steps = ['perm', ...(role === 'cam' && MOTION_ASKS && prefs.motion !== 'off' ? ['motion'] : [])];
+  const steps = ['perm', ...(role === 'cam' && MOTION_ASKS && prefs.motion !== 'off' && !toTv() ? ['motion'] : [])];
   const show = (step) => {
     view.querySelectorAll('[data-step]').forEach((c) => (c.hidden = c.dataset.step !== step));
     view.querySelectorAll('[data-dot]').forEach((d) => {
@@ -74,7 +89,9 @@ async function guidedSetup(lastErr) {
   view.hidden = false;
   // 1. camera and microphone (a microphone: just the microphone)
   $('#setupTitle').textContent = role === 'mic' ? 'Your microphone' : 'Your camera and microphone';
-  $('#setupWhy').textContent = role === 'mic' ? 'VUEMesh uses it to send your sound to the director and record it. Nothing goes anywhere but this event.' : 'VUEMesh uses them to show the director your shot and to record your clips. Nothing goes anywhere but this event, and you can pause any time.';
+  $('#setupWhy').textContent = ev?.kind === 'tv' // (a TV's own code, with no studio: tvdirect.js)
+    ? 'VUEMesh uses them to show your shot on the TV, live. Nothing is recorded there, and you can pause any time.'
+    : role === 'mic' ? 'VUEMesh uses it to send your sound to the director and record it. Nothing goes anywhere but this event.' : 'VUEMesh uses them to show the director your shot and to record your clips. Nothing goes anywhere but this event, and you can pause any time.';
   $('#setupAllow').textContent = role === 'mic' ? 'Allow the microphone' : 'Allow camera and microphone';
   show('perm');
   if (lastErr) {
@@ -398,6 +415,7 @@ async function boot() {
   document.title = `${ev.title} — camera`;
   $('#camTitleText').textContent = ev.title;
   setupOrientationHint();
+  if (toTv()) tvJoinUi();
   const saved = JSON.parse(localStorage.getItem('vm_joined_' + eventId) || 'null');
   // removed and blocked by the host: say so, and don't offer to join
   if (localStorage.getItem('vm_blocked_' + eventId) || (saved && (ev.blocked || []).includes(saved.contributorId))) {
@@ -432,8 +450,25 @@ async function boot() {
   $('#joinForm').addEventListener('submit', onJoin);
   $('#joinForm').addEventListener('change', (e) => {
     if (e.target.name !== 'role') return;
-    $('#joinForm button[type=submit]').textContent = e.target.value === 'mic' ? 'Accept and set up the microphone' : 'Accept and open camera';
+    if (!toTv()) $('#joinForm button[type=submit]').textContent = e.target.value === 'mic' ? 'Accept and set up the microphone' : 'Accept and open camera';
   });
+}
+
+/** Joining a TV: a camera only, one tap, in the TV's words. */
+function tvJoinUi() {
+  document.querySelector('#joinForm .roles').hidden = true;
+  document.querySelector('input[name=role][value=cam]').checked = true;
+  $('label[for="name"]').textContent = 'Your name, shown on the TV';
+  $('#joinForm button[type=submit]').textContent = 'Put my camera on the TV';
+  $('#rejoinBtn').textContent = 'Back on the TV';
+  $('#rejoinMicBtn').hidden = true;
+  $('#tally').textContent = 'ON THE TV';
+  $('#pausedTag').textContent = 'PAUSED · not on the TV';
+  $('#syncPill').hidden = true;
+  // the event sheet (tap the name at the top)
+  $('#lsTitle').textContent = 'TV';
+  $('#liveSwitch').closest('label').querySelector('span').innerHTML = `<b>Show my camera on the TV</b><br><small>Off: you're off the TV for now. You can still record; it stays on this ${DEVICE}.</small>`;
+  $('#leaveBtn').textContent = 'Leave the TV';
 }
 
 async function onJoin(e) {
@@ -504,6 +539,10 @@ async function onJoin(e) {
     }
     $('#camView').classList.add('on');
     connectMesh();
+    if (toTv()) {
+      toast('You’re on the TV. Recording here is yours: it stays on this phone.', 5000);
+      return;
+    }
     if (!synced()) startScanning(); // (already locked in, after a reload: no need)
     controlNote();
   } catch (err) {
@@ -861,7 +900,11 @@ function renderOutbox() {
     : studioHold ? 'Recording only · the studio is full. Your clips still go to the host.'
     : { lan: 'Connected to host on local Wi-Fi', nat: 'Connected to host (same network, through the router)', cellular: 'Connected over mobile data — join the venue Wi-Fi', internet: 'Connected to host over the internet', relay: 'Connected to host', unknown: 'Connected to host', connecting: 'Finding the host…', 'no-host': 'Host not here yet — keep shooting', left: 'Not connected', solo: 'On your own · clips are saved to My events' }[linkState];
   let text, sticky = false;
-  if (waiting.length) {
+  if (toTv()) {
+    text = pgm.watching || paused
+      ? 'Paused · not on the TV'
+      : { lan: 'On the TV · this Wi-Fi', nat: 'On the TV (same network, through the router)', cellular: 'On the TV over mobile data: join the TV’s Wi-Fi for a better picture', internet: 'On the TV over the internet', relay: 'On the TV', unknown: 'On the TV', connecting: 'Finding the TV…', 'no-host': 'Waiting for the TV: is it showing its code?', left: 'Not connected' }[linkState] || '';
+  } else if (waiting.length) {
     const total = waiting.reduce((s, c) => s + c.blob.size, 0);
     const sent = waiting.reduce((s, c) => s + (c.sent || 0), 0);
     text = LIVE.includes(linkState)
@@ -872,7 +915,7 @@ function renderOutbox() {
   const dot = $('#linkDot');
   dot.className = 'ldot ' + (paused || pgm.watching ? 'paused' : LIVE.includes(linkState) ? 'live' : linkState === 'left' ? 'off' : 'wait');
   renderLeftText();
-  $('#lsState').textContent = label;
+  $('#lsState').textContent = toTv() ? text : label;
   if (!pill) return;
   const changed = text.replace(/\d+%/, '') !== statusText.replace(/\d+%/, '');
   statusText = text;
@@ -921,7 +964,7 @@ $('#liveSwitch').onchange = async (e) => {
 
 let savingOnLeave = false;
 $('#leaveBtn').onclick = async () => {
-  if (recorder && !confirm('Stop recording and leave the event? Your clip is kept and sends when you rejoin.')) return;
+  if (recorder && !confirm(toTv() ? `Stop recording and leave the TV? Your clip is kept on this ${DEVICE}.` : 'Stop recording and leave the event? Your clip is kept and sends when you rejoin.')) return;
   if (recorder) {
     savingOnLeave = outbox.size + 1; // done once the clip is sealed and queued
     stopRecording();
@@ -936,21 +979,21 @@ let kicked = false, kickedText = '';
 async function onKicked(block) {
   if (kicked) return;
   kicked = true;
-  kickedText = block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
+  kickedText = toTv() ? 'The TV took everyone off. Back on the TV puts you back.' : block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
   if (block) localStorage.setItem('vm_blocked_' + eventId, '1');
   if (recorder) stopRecording();
   if (mic) stopMic?.();
   await leaveEvent();
-  $('#rejoinLabel').textContent = 'Removed by the host';
+  $('#rejoinLabel').textContent = toTv() ? 'Off the TV' : 'Removed by the host';
   $('#rejoinText').textContent = kickedText;
   document.querySelector('.rejoinpair').hidden = !!block;
-  announce(block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
+  announce(toTv() ? 'The TV took everyone off' : block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
 }
 async function leaveEvent() {
   // tell the studio first, so it knows exactly when we left (it sends the live cut by who was
   // there), and take any of the live cut that's owed before going (or skip it)
   link?.say({ t: 'leaving' });
-  if (!kicked) await waitForCut();
+  if (!kicked && !toTv()) await waitForCut(); // (a TV records no cut: nothing to wait for)
   link?.leave();
   socket?.close();
   setProgramKey(null);
@@ -968,7 +1011,7 @@ async function leaveEvent() {
   setupHome();
   $('#codeView').hidden = false;
   $('#rejoinCard').hidden = false;
-  $('#rejoinLabel').textContent = 'You left';
+  $('#rejoinLabel').textContent = toTv() ? 'You left the TV' : 'You left';
   $('#rejoinTitle').textContent = ev.title;
   rejoinUi(role);
   renderLeftText();
@@ -1041,6 +1084,10 @@ function renderLeftText() {
     return;
   }
   savingOnLeave = false;
+  if (toTv()) {
+    $('#rejoinText').textContent = `You're off the TV. Anything you recorded is on this ${DEVICE}, in My events.`;
+    return;
+  }
   const owed = +(localStorage.getItem('vm_owed_' + eventId) || 0);
   $('#rejoinText').textContent = (n ? `${n} clip${n > 1 ? 's are' : ' is'} kept on this ${DEVICE} and will send when you rejoin.` : 'Everything you shot reached the host.') + (owed ? ` The studio still has ${owed} part${owed > 1 ? 's' : ''} of the live cut for you: rejoin (and keep this screen on) to get ${owed > 1 ? 'them' : 'it'}.` : '');
 }
@@ -1051,7 +1098,7 @@ function renderLeftText() {
 // Leave now button; anything skipped comes next time you join.
 let owedWait = null;
 async function waitForCut() {
-  if (!link || ev?.solo) return;
+  if (!link || ev?.solo || toTv()) return;
   keepAwake(); // (a phone that locks while waiting stops receiving)
   const box = $('#cutWait'), bar = $('#cutWait progress');
   // (a busy studio can take a moment to answer: say what's happening, and Leave now works throughout)
@@ -1586,7 +1633,7 @@ function forgetSync(slip) {
   setSyncPill();
   if (role === 'mic' && $('#micView').classList.contains('on')) {
     setMicState?.('The phone slept, so its timing reset. Tap Re-sync and point it at the beacon once.');
-  } else if ($('#camView').classList.contains('on') && !ev?.solo) {
+  } else if ($('#camView').classList.contains('on') && !ev?.solo && !toTv()) {
     toast(`Your ${DEVICE} slept, so its timing reset. Point it at the beacon once to sync again.`, 6000);
     startScanning();
   }
@@ -1792,7 +1839,7 @@ function onAirRecording(on, rec) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, select, textarea, dialog[open], button')) return;
-  if (e.key === '?') return guestHelp.showModal();
+  if (e.key === '?') return showHelp();
   if (e.key === ' ' && role === 'cam' && $('#camView').classList.contains('on')) {
     e.preventDefault();
     $('#shutter').click();
@@ -1850,7 +1897,7 @@ async function startRecording({ roll = false } = {}) {
   feedBtnUi();
   tickTimer();
   socket?.setRecording(true);
-  if (ev?.solo) return;
+  if (ev?.solo || toTv()) return;
   // Timing locked in: don't ask. Still glance for the beacon quietly in the first moments,
   // in case it's in shot (that sharpens the studio's Auto-sync), with nothing on screen.
   if (synced()) return startScanning(8000, { quiet: true });
@@ -2023,11 +2070,11 @@ class ClipUpload {
       ...(this.kind === 'video' && !this.native && upright ? { square: upright.S, orient: this.orient, qa: this.qa, device: DEVICE } : {}),
     };
     if (deletedEvents.has(eventId)) return; // the event was deleted while this clip was being finished
-    const keepHere = ev?.solo || uploadsOff();
+    const keepHere = ev?.solo || toTv() || uploadsOff();
     await idb.put('outbox', { eventId, id: this.id, blob, meta, status: keepHere ? 'saved' : 'waiting', createdAt: Date.now() }).catch(() => {});
     if (keepHere && !ev?.solo) {
       renderLibrary();
-      toast('Saved on this phone (this show keeps clips on the phones)');
+      toast(toTv() ? 'Saved on this phone, in My events (the TV doesn’t record)' : 'Saved on this phone (this show keeps clips on the phones)');
       return;
     }
     if (ev?.solo) {

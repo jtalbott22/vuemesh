@@ -402,4 +402,16 @@ ok('events expire after 30 days for the API and signaling');
   ok("a local show's address: a host registers it once (its owner again for a renewal), and only its owner puts its certificate check in the DNS, and takes it out");
 }
 
+{
+  // a TV's own code, with no studio (tvdirect.js): what the people joining agree to says nothing's recorded
+  const tv = await call('POST', '/events', { title: 'Lobby TV', kind: 'tv' });
+  const got = await call('GET', `/events/${tv.body.id}`);
+  assert.equal(got.body.kind, 'tv');
+  assert.ok(/is a TV screen/.test(got.body.terms) && /Nothing is recorded/.test(got.body.terms) && !/publish/.test(got.body.terms), got.body.terms);
+  const other = await call('POST', '/events', { title: 'Band night', kind: 'show' });
+  const show = await call('GET', `/events/${other.body.id}`);
+  assert.ok(/publish them/.test(show.body.terms), show.body.terms);
+  ok("a TV's own code: its terms say it's a TV and nothing is recorded; a show's are as before");
+}
+
 console.log('\nAll core tests passed.');

@@ -89,27 +89,111 @@
   body.quiet .ctl { opacity: 0; }
   body.quiet { cursor: none; }
   @media (prefers-reduced-motion: reduce) { .umd, .ctl { transition: none; } }
+
+  /* Direct: phones and shared screens on this TV, with no studio (tvdirect.js). Tiled as they come and go. */
+  .direct-view { position: fixed; inset: 0; background: var(--black); }
+  /* each tile is 16:9, placed by tvdirect.js (as large as they all fit), and slides to its new place as others come and go */
+  .tiles { position: absolute; inset: 0; }
+  .tile { position: absolute; overflow: hidden; background: #0b0c0e; border: 0; border-radius: .4vmin; padding: 0; cursor: pointer;
+    transition: left .45s cubic-bezier(.2, .7, .2, 1), top .45s cubic-bezier(.2, .7, .2, 1), width .45s cubic-bezier(.2, .7, .2, 1), height .45s cubic-bezier(.2, .7, .2, 1); }
+  .tile.new { transition: none; animation: tileIn .45s ease-out; }
+  @keyframes tileIn { from { opacity: 0; transform: scale(.94); } }
+  .tiles.spotlit .tile, .tiles[data-n="1"] .tile { border-radius: 0; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: transparent; }
+  .tile.scr video { object-fit: contain; }
+  .tile.mic video { opacity: 0; }
+  .tile.mic::before { content: '🎙'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 4em; opacity: .5; }
+  .tile.away video { opacity: .35; }
+  .tile:focus-visible { outline: .4vmin solid var(--amber); outline-offset: -.4vmin; }
+  .tlabel { position: absolute; left: 1.2vmin; bottom: 1.2vmin; padding: .25em .7em; background: #000b; border-radius: .25em; font: 600 .85em/1.15 var(--cond); letter-spacing: .01em;
+    max-width: calc(100% - 2.4vmin); overflow: hidden; text-overflow: ellipsis; white-space: pre; transition: opacity .6s; }
+  .tile.sound .tlabel::after { content: '  🔊'; }
+  .tile.away .tlabel::after { content: '  · reconnecting'; color: var(--amber); }
+  body.dquiet .tlabel { opacity: 0; }
+  body.dquiet .tile.away .tlabel { opacity: 1; }
+  /* while someone's on: how to join, small in a corner, until it fades */
+  .djoin { position: absolute; right: 2.5vmin; bottom: 2.5vmin; z-index: 3; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1.6vmin;
+    padding: 1.4vmin 1.8vmin 1.4vmin 1.4vmin; background: #000d; border-radius: .6vmin; font-size: .62em; max-width: 46vmin; transition: opacity .6s; }
+  body.dquiet .djoin { opacity: 0; pointer-events: none; }
+  .djoin canvas { display: block; width: 15vmin; height: auto; border-radius: .4vmin; image-rendering: pixelated; }
+  .dcode { font: 800 clamp(44px, 5.4vw, 104px)/1 var(--cond); letter-spacing: .08em; font-variant-numeric: tabular-nums; margin: .05em 0 .1em; }
+  .djoin .dcode { font-size: 2.6em; letter-spacing: .06em; }
+  .djoin p, .lqr p { margin: .3em 0; color: var(--text-2); }
+  .djoin p b, .lqr p b { color: var(--text); font-weight: 600; }
+  .djoining { color: var(--preview) !important; }
+  .dmore { position: absolute; left: 50%; top: 2.5vmin; transform: translateX(-50%); z-index: 3; background: #000c; border-radius: .3em; padding: .3em .9em; font: 600 .85em/1.1 var(--cond); }
+  .dhint { position: absolute; left: 50%; bottom: 2.5vmin; transform: translateX(-50%); z-index: 3; color: var(--text-2); background: #000b; border-radius: .3em; padding: .3em .9em; font: 600 .75em/1.1 var(--cond); transition: opacity .6s; white-space: nowrap; }
+  body.dquiet .dhint { opacity: 0; }
+  .dctl { position: absolute; left: 2.5vmin; top: 2.5vmin; display: flex; gap: .5em; z-index: 4; transition: opacity .6s; }
+  .dctl button { background: #1c1d22d9; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .85em/1.1 var(--cond); }
+  .dctl #dTapSound { background: var(--amber); color: var(--black); }
+  body.dquiet .dctl { opacity: 0; }
+  body.dquiet { cursor: none; }
+  /* the landing: a studio's program on the left, phones and screens straight to this TV on the right */
+  #joinView { gap: 3.2vh; padding: 4vh 4vw; align-content: center; }
+  .sides { display: grid; grid-template-columns: 1fr auto 1fr; gap: 3.5vw; align-items: start; width: min(100%, 1700px); text-align: left; }
+  .side { display: grid; gap: 1.8vh; justify-items: start; align-content: start; min-width: 0; }
+  .side h1 { font-size: clamp(32px, 3.9vw, 76px); max-width: 15ch; }
+  .side .say { font-size: .9em; }
+  .side form { display: grid; gap: 1.8vh; justify-items: start; }
+  .side .row { justify-content: flex-start; }
+  .side .cells input { font-size: clamp(36px, 4.4vw, 88px); }
+  .vor { align-self: stretch; display: grid; place-items: center; color: var(--text-2); font: 600 .9em/1 var(--cond); position: relative; }
+  .vor::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px solid var(--line); }
+  .vor span { position: relative; background: var(--black); padding: .5em 0; }
+  .lqr { display: grid; grid-template-columns: auto 1fr; gap: 2vw; align-items: center; }
+  .lqr canvas { display: block; width: clamp(140px, 17vw, 320px); height: auto; border-radius: .6vmin; image-rendering: pixelated; }
+  .lqr .link { padding-left: 0; font-size: .8em; }
+  #joinView .err:empty { min-height: 0; }
+  /* (a narrow or upright screen: one above the other) */
+  @media (max-aspect-ratio: 5/4) {
+    .sides { grid-template-columns: 1fr; gap: 3vh; }
+    .vor { height: 1px; }
+    .vor::before { top: 50%; bottom: auto; left: 0; right: 0; border-left: 0; border-top: 1px solid var(--line); }
+    .vor span { padding: 0 .8em; }
+  }
+  @media (prefers-reduced-motion: reduce) { .djoin, .dctl, .dhint, .tlabel, .tile { transition: none; } .tile.new { animation: none; } }
 </style>
 </head>
 <body>
 <video id="out" autoplay playsinline muted aria-label="Program" hidden></video>
 
-<section class="screen" id="joinView" aria-labelledby="joinH">
-  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
-  <h1 id="joinH">Show an event on this screen</h1>
-  <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
-  <form id="joinForm" class="screen" style="position:static;padding:0">
-    <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
-    <div class="row">
-      <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
-      <button class="go" type="submit">Connect</button>
+<section class="screen landing" id="joinView" aria-label="Show something on this TV">
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
+  <div class="sides">
+    <div class="side" aria-labelledby="joinH">
+      <h1 id="joinH">Show a studio’s program</h1>
+      <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
+      <form id="joinForm">
+        <div class="cells" id="eventCells" role="group" aria-label="Event code, 6 characters"></div>
+        <div class="row">
+          <label class="name">This screen <input id="screenName" maxlength="40" autocomplete="off"></label>
+          <button class="go" type="submit">Connect</button>
+        </div>
+        <p class="err" id="joinErr" aria-live="polite"></p>
+      </form>
     </div>
-    <p class="err" id="joinErr" aria-live="polite"></p>
-  </form>
+    <div class="vor" aria-hidden="true"><span>or</span></div>
+    <div class="side direct" aria-labelledby="lH">
+      <h1 id="lH">Put your camera on this TV</h1>
+      <p class="say">No studio needed. Whoever joins shows here, side by side. Nothing is recorded.</p>
+      <div class="lqr">
+        <canvas id="lQr" aria-label="Scan with a phone to put its camera on this TV"></canvas>
+        <div>
+          <p><b>Phones:</b> scan the code.</p>
+          <p><b>Computers:</b> open <b id="lShare">…/share</b> and enter</p>
+          <div class="dcode" id="lCode" aria-label="This TV’s code">······</div>
+          <p class="djoining" id="lJoining" aria-live="polite" hidden></p>
+          <p class="err" id="lSay" aria-live="polite"></p>
+          <button class="link" type="button" id="lNew" title="A new code for this TV: the old one stops working">New code</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="screen" id="waitView" aria-labelledby="waitTitle" hidden>
-  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
   <h1 id="waitTitle"></h1>
   <p class="say" id="waitSay"></p>
   <div class="row">
@@ -147,6 +231,28 @@
   </div>
 </section>
 
+<section class="direct-view" id="directView" aria-label="Cameras and screens on this TV" hidden>
+  <div class="tiles" id="dTiles" data-n="0"></div>
+  <div class="djoin" id="dJoin">
+    <canvas id="dQr" aria-label="Scan with a phone to put its camera on this TV"></canvas>
+    <div>
+      <p><b>Phones:</b> scan the code.</p>
+      <p><b>Computers:</b> open <b id="dShare"></b>, with the code</p>
+      <div class="dcode" id="dCode" aria-label="This TV’s code">······</div>
+      <p class="djoining" id="dJoining" aria-live="polite" hidden></p>
+    </div>
+  </div>
+  <p class="dmore" id="dMore" hidden></p>
+  <p class="dhint" id="dHint" hidden>Choose one, or 1–9, to show it full screen · 0 or Back for all</p>
+  <div class="dctl">
+    <button type="button" id="dTapSound" hidden>Tap for sound</button>
+    <button type="button" id="dCamSound" aria-pressed="false" hidden title="A phone’s microphone near the TV can feed back through its speakers">Camera sound off</button>
+    <button type="button" id="dFull">Full screen</button>
+    <button type="button" id="dStop" title="Take everyone off this TV">Clear</button>
+  </div>
+  <audio id="dAudio" autoplay></audio>
+</section>
+
 <div class="umd" id="umd" hidden><span class="lamp" aria-hidden="true"></span><span id="umdTitle"></span><span class="route" id="umdRoute"></span></div>
 <div class="ctl" id="progCtl" hidden>
   <button type="button" id="soundBtn">Sound off</button>
@@ -157,5 +263,6 @@
 <script src="/vendor/qrcode.js"></script>
 <script src="/config.js"></script>
 <script type="module" src="/js/tv.js"></script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

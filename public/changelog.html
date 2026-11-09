@@ -53,7 +53,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="nav"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><button type="button" id="themeBtn"></button></header>
+  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
   <main>
     <h1>What's new</h1>
     <p class="lede">Every change to VUEMesh, newest first. Most come from real shows: a show log sent in, a camera that misbehaved, a laptop that couldn't keep up. You're running version <b id="ver"></b>.</p>
@@ -71,5 +71,6 @@
   const firstFolded = document.querySelector('#log details.rel');
   if (firstFolded && versions.length > 3) firstFolded.insertAdjacentHTML('beforebegin', `<p class="older">Earlier · ${versions.length - 3} more versions</p>`);
 </script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

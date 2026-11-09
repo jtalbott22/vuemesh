@@ -151,6 +151,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Stream out** over WHIP straight from the browser (Twitch, Restream, Cloudflare Stream), or to **RTMP** services (YouTube, Facebook, Kick, Vimeo) through a small local relay.
 - **Program out** window for a projector or OBS, and the program **as a webcam** in Zoom, Teams or Meet.
 - **TV screens:** `/tv` in any browser, or the **Apple TV app**, plays the live program from the studio over the LAN.
+- **Straight to a TV, no studio:** `/tv` opens with a studio's code to type and, beside it, the TV's own code and QR. Phones and computers that join with it appear side by side as they come and go, up to nine, one full screen at a tap. Nothing is recorded.
 - **Each camera person gets their part of the live cut** on their own device.
 
 </td>
@@ -301,7 +302,7 @@ flowchart LR
 | **This computer** (**+ This computer** in the studio) | USB webcams, USB microphones and audio interfaces, screens, windows and tabs, and the computer's sound, added straight into the studio with a preview of each. Each records its own full-quality file on the studio computer. |
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
-| **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). |
+| **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). With no studio, `/tv` shows phones and shared screens itself, tiled as they come and go. |
 | **Admin** (`/admin`) | For you and your team: every event, rename, list/unlist, change expiry, delete films and events. |
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
 | **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |

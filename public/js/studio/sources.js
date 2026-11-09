@@ -12,7 +12,7 @@ import {
 } from './core.js';
 import { addClip, noteAngle, output, qualityFirst, rebuild } from './clips.js';
 import { renderLive } from './live.js';
-import { syncTally } from './onair.js';
+import { autoRecOn, syncTally } from './onair.js';
 import { applyStripFx, mix, mixAttach, mixDetach, mixSave, mixState, renderMixer } from './mixer.js';
 import { ccuSync } from './ccu.js';
 import { myOs } from './stream.js';
@@ -920,10 +920,13 @@ export function setLocalManualRec(peer, on) {
 export function localAired(peer) {
   return (peer === liveActive || (swActive() && peer === sw.to) || pipAir()?.peer === peer) && !onBreak() && !mediaOn && !(black.target === 1 && black.cleared);
 }
-// Whether this computer's camera should be recording: whenever it's on air (anything aired
-// makes Edit), or by hand. Not at a kiosk: a kiosk never edits, so it records no clips of its
-// own (only the program, which goes back to the phones).
-const localShouldRec = (peer, l) => !KIOSK && (l.recManual || (localAired(peer) && !!progRec && !progRec.stopping)); // (the phones' storage setting doesn't apply to this computer's cameras)
+// Whether this computer's camera should be recording: while it's on air during Record program
+// (anything aired makes Edit), as the phones do, or by hand. With "Cameras record their time on
+// air" off, only by hand: a show log from a 6-core desktop at 1080p had it off, and this
+// computer's cameras still recorded each cut at 1080p beside the program, which skipped a fifth of
+// its frames. Not at a kiosk: a kiosk never edits, so it records no clips of its own (only the
+// program, which goes back to the phones). (The phones' storage setting doesn't apply here.)
+const localShouldRec = (peer, l) => !KIOSK && (l.recManual || (autoRecOn() && localAired(peer) && !!progRec && !progRec.stopping));
 export function localRecFollow() {
   for (const [peer, l] of live) {
     if (!recordedHere(l) || l.role === 'mic') continue;

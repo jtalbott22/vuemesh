@@ -36,6 +36,7 @@
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: calc(16px + env(safe-area-inset-top, 0px)) 0 16px; }
   .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
   .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  @media (max-width: 520px) { .nav .vmver { display: none; } } /* (on a phone it's in the footer: the header has no room) */
   .nav nav { display: flex; align-items: center; gap: 18px; }
   .nav nav a:not(.btn) { color: var(--soft); text-decoration: none; font-weight: 500; }
   .nav .btn { min-height: 40px; padding: .5em 1em; }
@@ -473,7 +474,7 @@
 <body>
 <div class="wrap">
   <header class="nav">
-    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span>
     <nav>
       <a href="#setups">How it works</a>
       <a href="#need">What you need</a>
@@ -811,7 +812,7 @@
 
   <footer>
     <span>VUEMesh · Production in the browser.</span>
-    <span class="patreon">Built by one person. <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Work with me</a> · <a href="/changelog">What's new</a> · <a href="/terms">Terms</a></span>
+    <span class="patreon">Built by one person. <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Work with me</a> · <a href="/changelog">What's new</a> <a data-vm-version hidden></a> · <a href="/terms">Terms</a></span>
   </footer>
 </div>
 
@@ -823,5 +824,6 @@
 <script type="module" src="/js/landing.js"></script>
 <script type="module" src="/js/films.js"></script>
 <script type="module" src="/js/rig.js"></script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

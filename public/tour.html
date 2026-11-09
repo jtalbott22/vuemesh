@@ -21,6 +21,7 @@
   .wrap { max-width: 1180px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) clamp(16px, 4vw, 40px) calc(48px + env(safe-area-inset-bottom, 0px)); }
   .nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: clamp(28px, 6vw, 56px); }
   .nav nav { display: flex; align-items: center; gap: 14px; }
+  @media (max-width: 520px) { .nav .vmver { display: none; } } /* (on a phone it's at the foot of the page: the header has no room) */
   .nav nav a:not(.btn) { color: var(--text-2); text-decoration: none; font-weight: 500; }
   .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
   .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
@@ -68,7 +69,7 @@
 <body>
 <div class="wrap">
   <header class="nav">
-    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span>
     <nav><a href="/#setups">How it works</a><a href="/sponsors">Collab</a><button type="button" id="themeBtn"></button><a class="btn primary" href="/#start">Start a show</a></nav>
   </header>
 
@@ -205,6 +206,7 @@
       <h2>Count the screens in your room.</h2>
       <div class="row"><a class="btn primary" href="/#start">Start a show</a><a class="btn" href="/#setups">See the setups</a></div>
     </section>
+    <p class="vmverline"><a data-vm-version="long" class="plain" hidden></a></p>
   </main>
 </div>
 <script type="module">
@@ -226,5 +228,6 @@
     fig.append(img);
   }
 </script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

@@ -216,7 +216,7 @@ async function createEvent(body, store, now, deps) {
   const untitledKiosk = !!body.kiosk && !String(body.title || '').trim();
   const title = untitledKiosk ? 'New show' : String(body.title || 'Untitled event').trim().slice(0, 120) || 'Untitled event';
   const kind = String(body.kind || 'other').slice(0, 32);
-  const terms = termsText({ title, poolPct });
+  const terms = termsText({ title, poolPct, kind });
   const isPublic = !!body.public;
   const orientation = body.orientation === 'portrait' ? 'portrait' : 'landscape';
   for (let attempt = 0; attempt < 5; attempt++) {

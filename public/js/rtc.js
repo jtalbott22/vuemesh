@@ -6,7 +6,7 @@
 //     and signed-off on arrival
 // Nothing but the handshake touches the cloud.
 
-import { bitrateHints, LINK_MAX_KBPS, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
+import { bitrateHints, LINK_MAX_KBPS, LIVE_QUALITY, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
 import { ICE, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
 
 export const PART_SIZE = 8 * 1024 * 1024;
@@ -281,6 +281,9 @@ export class CamLink {
       // (on air, the studio says whether it's on Quality first: the cap on air follows, see qualityFor)
       if (m?.t === 'tally') this.setFirst(!!(m.on && m.first));
       try { this.onControl?.(m); } catch {}
+      // (a TV showing cameras itself, with no studio, says how good a picture it wants: full for one
+      // or two on it, less for a grid. After the page's own tally handling, which set it from on air)
+      if (m?.t === 'tally' && LIVE_QUALITY[m.tier]) this.setTier?.(m.tier);
     };
     this.ctl = ctl;
     const dc = pc.createDataChannel('clips', { ordered: true });

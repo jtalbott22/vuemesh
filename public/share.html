@@ -54,7 +54,7 @@
 </head>
 <body>
 <main>
-  <div class="mark"><i></i>VUEMesh</div>
+  <div class="mark"><i></i>VUEMesh <a data-vm-version hidden></a></div>
 
   <section id="joinView">
     <h1>Share this computer's screen</h1>
@@ -74,7 +74,7 @@
       <button type="submit" class="primary" id="shareBtn">Share a screen…</button>
       <p class="say err" id="joinErr" role="alert"></p>
       <p class="fine" id="soundTip"></p>
-      <p class="fine">The browser also asks to use the microphone. Nothing is recorded or sent from it: it lets this computer connect straight to the studio on the same Wi-Fi.</p>
+      <p class="fine">The browser also asks to use the microphone. Nothing is recorded or sent from it: it lets this computer connect straight to <span data-place>the studio</span> on the same Wi-Fi.</p>
       <p class="fine" id="termsLine" hidden></p>
     </form>
     <p class="fine" id="cantShare" hidden>This browser can't share its screen (phones and tablets mostly can't). Open this page on a computer, in Chrome, Edge, Firefox or Safari.</p>
@@ -82,7 +82,7 @@
 
   <section id="liveView" hidden>
     <h1 id="liveName"></h1>
-    <p class="say"><span class="dot" id="conn"></span><span id="linkSay">Finding the studio…</span></p>
+    <p class="say"><span class="dot" id="conn"></span><span id="linkSay">Finding <span data-place>the studio</span>…</span></p>
     <div class="pv" id="pv"><video id="preview" muted playsinline autoplay></video><span class="tag" id="tag">In the studio</span></div>
     <p class="fine" id="sendSay" hidden></p>
     <p class="fine" id="soundSay"></p>
@@ -90,7 +90,7 @@
       <button type="button" id="againBtn">Share something else…</button>
       <button type="button" id="stopBtn">Stop sharing</button>
     </div>
-    <p class="fine">Keep this tab open while you share (it can be behind your slides). The studio can't see anything you don't share.</p>
+    <p class="fine">Keep this tab open while you share (it can be behind your slides). <span data-place="P">The studio</span> can't see anything you don't share.</p>
   </section>
 
   <section id="stoppedView" hidden>
@@ -101,5 +101,6 @@
 </main>
 <script src="/config.js"></script>
 <script type="module" src="/js/share.js"></script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>
