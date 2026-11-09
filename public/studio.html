@@ -48,9 +48,10 @@
   .work > .center { grid-area: ctr; }
   .work > #splitR { grid-area: sr; }
   .work > .insp { grid-area: insp; }
-  /* a laptop: each side is the width it was dragged to, but no more than its share, so the program keeps half */
+  /* a laptop: the inspector is the width it was dragged to, but no more than its share, so the program keeps half
+     (the sources' share is worked out by script, which keeps the program 40% of the window: see applyLayout) */
   @media (max-width: 1439px) {
-    .work { grid-template-columns: min(var(--left), max(180px, 22vw)) 6px minmax(0, 1fr) 6px min(var(--right), max(250px, 26vw)); }
+    .work { grid-template-columns: var(--left) 6px minmax(0, 1fr) 6px min(var(--right), max(250px, 26vw)); }
   }
   /* Live: the dock under everything is the audio mixer (like OBS); no timeline */
   /* The mixer dock is a meter bridge: always dark, with its own text colours, in either theme. */
@@ -198,6 +199,8 @@
   .splitter.v::after { width: 2px; height: 28px; }
   .splitter.h::after { height: 2px; width: 36px; }
   .splitter:hover, .splitter:focus-visible, .splitter.dragging { background: var(--preview); }
+  /* a finger: the divider is 6 px to look at and 28 px to take hold of */
+  @media (pointer: coarse) { .splitter.v::before { content: ""; position: absolute; top: 0; bottom: 0; left: -11px; right: -11px; } .splitter.h::before { content: ""; position: absolute; left: 0; right: 0; top: -11px; bottom: -11px; } }
   body > .timeline { height: var(--tl); max-height: none; }
   .panel { background: var(--surface); min-height: 0; overflow: auto; }
   .panel + .panel, .center + .panel { border-left: 1px solid var(--line); }
@@ -962,7 +965,7 @@
       <p class="fine" id="mediaEmpty" hidden></p>
     </div>
   </aside>
-  <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click to hide or show)" aria-controls="srcHead"></div>
+  <div class="splitter v" id="splitL" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the left panel (double-click for its own width; drag it to the edge to hide it)" aria-controls="srcHead"></div>
 
   <section class="center" aria-label="Program">
     <div class="monitor">

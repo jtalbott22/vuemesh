@@ -4,6 +4,10 @@
 # offered a program screen (the remote has Program out), and the program's sound is held off while
 # its microphone is live. A second lens changes the studio's picture over; Mic off lets the sound go
 # again; Remove (a second tap while on air) takes it out of the show, and "+ This phone" is back.
+# 0.66.15: the remote page here keeps an iPhone's rule (in an audio session on "playback", which the
+# program's sound sets, the microphone won't open), and the first add brings the mic all the same; the
+# studio's tile shows its 16:9 frame 16:9, not squeezed to a square; a microphone that didn't open
+# at the add is Mic off, and a tap brings it in.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotecam.py
 import os, re
 from playwright.sync_api import sync_playwright
@@ -11,6 +15,36 @@ BASE = os.environ.get('BASE', 'http://localhost:8790')
 # (two fake cameras: the remote's camera has two lenses to choose from)
 ARGS = ['--use-fake-device-for-media-stream=device-count=2', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--no-sandbox']
 def step(m): print('ok  ' + m, flush=True)
+# An iPhone's audio session (Safari 17+), as this test's Chromium hasn't one: in "playback" the
+# microphone won't open. It notes each time the microphone's asked for (and the session then), a
+# session changed while the microphone's open, and can turn the next microphone down (__failMicOnce).
+IPHONE_SESSION = """(() => {
+  let type = 'auto';
+  const s = {}; Object.defineProperty(s, 'type', { get: () => type, set: (v) => {
+    if (v !== type && (window.__micLive || []).some((t) => t.readyState === 'live')) (window.__sessWhileMic ||= []).push(type + '>' + v);
+    type = v; } });
+  Object.defineProperty(navigator, 'audioSession', { value: s, configurable: true });
+  const md = navigator.mediaDevices, real = md.getUserMedia.bind(md);
+  md.getUserMedia = async (c) => {
+    if (c && c.audio) {
+      (window.__micAsks ||= []).push(type);
+      if (type === 'playback') throw new DOMException('The audio session is playback', 'NotAllowedError');
+      if (window.__failMicOnce) { window.__failMicOnce = false; throw new DOMException('Could not start audio source', 'NotReadableError'); }
+    }
+    const st = await real(c);
+    (window.__micLive ||= []).push(...st.getAudioTracks());
+    return st;
+  };
+})()"""
+AUDIO_IN = """(async () => {{ const pc = vmHub().links?.get?.('{peer}')?.pc; if (!pc) return null;
+  let n = 0; (await pc.getStats()).forEach((r) => {{ if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.packetsReceived; }}); return n; }})()"""
+def hears(host, rem, peer):
+    """The studio's getting sound packets from the remote's camera, more each second."""
+    a = host.evaluate(AUDIO_IN.format(peer=peer)); rem.wait_for_timeout(1500); b = host.evaluate(AUDIO_IN.format(peer=peer))
+    return a is not None and b is not None and b > a, (a, b)
+# The tile's picture the shape it was sent: its width over its height, against the video's own
+TILE_SHAPE = """((peer) => { const v = document.querySelector(`.tile[data-peer="${peer}"] video`);
+  return [parseFloat(v.style.width) / parseFloat(v.style.height), v.videoWidth / v.videoHeight]; })"""
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS)
     errors = []
@@ -27,7 +61,9 @@ with sync_playwright() as p:
     host.click('#remoteAdd')
     host.wait_for_function("document.querySelector('#remoteDlg').open && document.querySelector('#remoteCode').textContent.length === 9", timeout=10000)
     code = host.inner_text('#remoteCode').replace('-', '')
-    rem = b.new_context(viewport={'width': 390, 'height': 844}, permissions=['camera', 'microphone']).new_page()
+    rctx = b.new_context(viewport={'width': 390, 'height': 844}, permissions=['camera', 'microphone'])
+    rctx.add_init_script(IPHONE_SESSION)
+    rem = rctx.new_page()
     rem.on('pageerror', lambda e: errors.append(f'remote: {e}')); rem.on('dialog', lambda d: d.accept())
     rem.goto(f"{BASE}/remote?e={ev['id']}#p={code}")
     rem.wait_for_function("!document.querySelector('#ctlView').hidden && document.querySelectorAll('#cams .cam').length === 1 && vmProgramView()?.linked", timeout=30000)
@@ -43,13 +79,20 @@ with sync_playwright() as p:
     rem.wait_for_function(f"""(() => {{ const me = document.querySelector('#cams .cam.mine[data-peer="{peer}"]');
       return me && me.querySelector('.tag.me')?.textContent === 'THIS PHONE' && me.querySelector('img')?.src.startsWith('data:image/jpeg') && !document.querySelector('#cams .camadd'); }})()""", timeout=30000)
     rc = rem.evaluate('vmRemoteCam()')
-    assert rc['w'] > 0 and rc['mic'] and rc['micOn'] and rc['held'], rc
+    assert rc['w'] > 0 and rc['mic'] and rc['micOn'] and rc['held'] and rc['micOpen'] and rc['soundSent'], rc
+    asks, during = rem.evaluate('[window.__micAsks, window.__sessWhileMic || []]')
+    assert asks == ['play-and-record'] and not during, (asks, during)
+    ok, n = hears(host, rem, peer); assert ok, n
+    step(f'the first add, with the program\'s sound on (the session on "playback", as on an iPhone): the microphone asked for with the session on "play-and-record" ({asks}), never changed while it\'s open, and the studio hears it (sound packets {n[0]}, then {n[1]})')
     assert rem.is_visible('#myCam') and rem.is_disabled('#sndBtn') and 'mic live' in rem.inner_text('#sndBtn'), rem.inner_text('#sndBtn')
     name = rem.inner_text(f'#cams .cam[data-peer="{peer}"] b')
     step(f'"+ This phone": the phone joins as a camera ("{name}"); the studio has its picture, and the remote shows it like the others, THIS PHONE on it; its own picture under the cameras ({rc["w"]}x{rc["h"]}); program sound held off ("{rem.inner_text("#sndBtn")}")')
 
     shape = host.evaluate(f"""document.querySelector('.tile[data-peer="{peer}"]')?.dataset.shape""")
     assert shape == 'landscape', shape
+    drawn, sent = host.evaluate(TILE_SHAPE, peer)
+    assert sent > 1.2 and abs(drawn / sent - 1) < 0.02, (drawn, sent)
+    step(f'the studio\'s tile shows its picture the shape it was sent ({drawn:.3f} wide to 1 high, sent {sent:.3f}): not squeezed to a square')
     rem.wait_for_timeout(4000)
     assert not rem.evaluate('vmRemoteCam().pgmOffered'), 'the studio offered the remote camera a program screen'
     step('the studio takes it as the whole frame, landscape, and offers it no program screen (the remote has Program out)')
@@ -99,12 +142,8 @@ with sync_playwright() as p:
     rem.click('#myMicBtn')
     rem.wait_for_function("vmRemoteCam().micOn && vmRemoteCam().held && vmRemoteCam().micOpen && vmRemoteCam().soundSent", timeout=10000)
     rem.wait_for_timeout(1500)
-    got = host.evaluate(f"""(async () => {{ const pc = vmHub().links?.get?.('{peer}')?.pc; if (!pc) return null;
-      let n = 0; (await pc.getStats()).forEach((r) => {{ if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.packetsReceived; }}); return n; }})()""")
-    rem.wait_for_timeout(1500)
-    got2 = host.evaluate(f"""(async () => {{ const pc = vmHub().links?.get?.('{peer}')?.pc; if (!pc) return null;
-      let n = 0; (await pc.getStats()).forEach((r) => {{ if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.packetsReceived; }}); return n; }})()""")
-    assert got is not None and got2 > got, (got, got2)
+    ok, (got, got2) = hears(host, rem, peer); assert ok, (got, got2)
+    assert not rem.evaluate('window.__sessWhileMic || []')
     step(f'Mic off lets go of the microphone (not only muted) and the program\'s sound goes again; Mic on opens it again, holds the sound off, and the studio hears it (sound packets {got}, then {got2})')
 
     # Record program on: a camera phone leaving is sent its part of the live cut, and the recording's
@@ -127,10 +166,21 @@ with sync_playwright() as p:
     rem.wait_for_function("document.querySelector('#recBtn').getAttribute('aria-pressed') === 'false'", timeout=20000)
     step('Remove, on air and recording: a second tap asked, then out of the show (the studio has Ana alone), no part of the live cut sent its way, the camera let go, "+ This phone" back and the sound button free')
 
+    # added again, the microphone turned down this time (as a page's request can be without a tap): the
+    # camera's in without it, Mic off, the program's sound not held; a tap on Mic brings it in
+    rem.evaluate('window.__failMicOnce = true')
     rem.click('#cams .camadd[data-add]')
     host.wait_for_function("document.querySelectorAll('.tile[data-peer] video').length === 2", timeout=30000)
     rem.wait_for_function("document.querySelectorAll('#cams .cam.mine').length === 1", timeout=30000)
-    step('added again: back in the show, once')
+    rem.wait_for_function("vmRemoteCam().on && !vmRemoteCam().micOn && !vmRemoteCam().micOpen && !vmRemoteCam().held", timeout=10000)
+    assert rem.is_visible('#myMicBtn') and rem.inner_text('#myMicBtn') == 'Mic off' and not rem.is_disabled('#sndBtn')
+    assert 'without its microphone' in rem.inner_text('.toast'), rem.inner_text('.toast')
+    peer = rem.evaluate('vmRemoteCam().peer')
+    rem.click('#myMicBtn')
+    rem.wait_for_function("vmRemoteCam().micOn && vmRemoteCam().held && vmRemoteCam().micOpen && vmRemoteCam().soundSent", timeout=20000)
+    rem.wait_for_timeout(1500)
+    ok, n = hears(host, rem, peer); assert ok, n
+    step(f'added again with the microphone turned down: in without it, Mic off and the program\'s sound free; a tap on Mic brings it in, and the studio hears it (sound packets {n[0]}, then {n[1]}); in the show once')
 
     assert not errors, errors
     step('no page errors')
