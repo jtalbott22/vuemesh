@@ -93,6 +93,9 @@ export async function routeOf(pc) {
   return (await pathOf(pc)).route;
 }
 
+/** How much sound the studio keeps in hand from each phone or computer, ms (see accept). */
+export const JITTER_MS = 150;
+
 /** Keep only local-network candidates (for "local only" mode). */
 const isHostCandidate = (c) => / typ host( |$)/.test(typeof c === 'string' ? c : c?.candidate || '');
 function localOnlySdp(sdp) {
@@ -727,6 +730,14 @@ export class HostHub {
       this.onLive(peer, stream, fromRoleOf.get(peer));
     };
     pc.ontrack = (e) => {
+      // (its sound keeps 150 ms in hand. When a phone or computer stalls for a moment and then sends
+      // everything at once, the browser plays the backlog faster to catch up: a Mac's 2 s stall
+      // sped up a video's sound on air. With more in hand, less is left over to hurry through.
+      // The browser holds the picture back to match, which lines up with the studio's own
+      // cameras' delay, about 110 ms.)
+      if (e.track.kind === 'audio' && 'jitterBufferTarget' in e.receiver) {
+        try { e.receiver.jitterBufferTarget = JITTER_MS; } catch {}
+      }
       const stream = e.streams[0] || (link.stream ||= new MediaStream());
       if (!e.streams[0]) stream.addTrack(e.track);
       e.track.addEventListener('ended', changed);

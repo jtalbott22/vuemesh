@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.66.16 — a shared video sent smooth, and sound that doesn't hurry after a stall
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.15.
+
+From a show log with a Mac sharing its screen over `/share` (a video, with its sound) and sending its own camera from another tab, both on its software encoders.
+- **A shared video came out blocky, and at 2 frames a second.** The share page starts on Slides and text, which keeps every word sharp: frames and bitrate give way first. On air the Mac's screen sent about 1 Mbit/s (the studio allows 8), and for a minute only 2 frames a second, 20 s of it on air. Nothing reported being held back, so the page's tip to choose Video and motion never showed. Now a share whose sound plays for 3 s is sent as **Video and motion** by itself, and the page says so ("Showing slides? Choose Slides and text"). It's once per share and not remembered: choosing Slides and text then holds, and the next share starts as chosen.
+- **Sound sped up after a stall.** The Mac stalled for about 2 s (its camera sent 5 frames, then none, then 85 in one second), and its screen's sound jitter went from 5 to 179 ms. The browser then plays the backlog faster to catch up, which is what was heard on air. The studio's own sound delay didn't change (no change over 15 ms in the log). Now the studio keeps 150 ms of each phone's and computer's sound in hand (`jitterBufferTarget`), so less is left over to hurry through. The browser holds the picture back to match: about what the studio's own cameras already wait (~110 ms).
+
+**Tests:** `e2e_sharequality`: a share playing a tone goes to Video and motion by itself (`maintain-framerate`, `motion`), says so, doesn't store it; Slides and text chosen then holds for 4 s; the studio's sound receiver for it is at 150 ms. `e2e_screen`, `e2e_remotescreenrec`, `e2e_audio` and `e2e_sync` pass. `e2e_stillscreen` fails the same way on 0.66.15 without these changes. The catch-up after a stall can't be made to happen in a test, so that part isn't proven until a show.
+
 ## 0.66.15 — the remote's camera: its microphone the first time, and its picture the right shape
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.14.
 
