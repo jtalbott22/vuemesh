@@ -14,6 +14,7 @@ import { streamOut } from './stream.js';
 import { mediaOn, onBreak } from './graphics.js';
 import { progFrames, progRec, reelOf, stalled } from './switcher.js';
 import { displayHub } from './screens.js';
+import { outputNow, reshareSound } from './sources.js';
 import { output } from './clips.js';
 import { buffers, latencyOf, pictureDelay } from './picsync.js';
 
@@ -96,6 +97,7 @@ function sources() {
     const s = { id: peer, n: l.name || 'Source', k: kindOf(l), open: st?.open ? 1 : 0, a: soundOf(at) };
     if (l.local) s.loc = 1;
     if (l.paused) s.pz = 1; // (its person paused it, or is watching the program: silent on purpose)
+    if (l.sharedOn && outputNow && outputNow !== l.sharedOn) s.om = { from: l.sharedOn, to: outputNow }; // (see sources.js)
     if (l.local && at && !l.screen && usbBusy()) s.usb = 1; // (its sound and 1080p cameras on this computer's USB: see SoundWatch)
     if (srcPeak.has(peer)) s.db = dbOf(srcPeak.get(peer));
     if (at) {
@@ -325,7 +327,7 @@ export function renderNotifs() {
   if (!notifOpen()) return; // (drawn when it opens)
   const backups = now.length ? backupMics().slice(0, 3) : [];
   const tvItems = tvs.map((w) => `<li class="now tvask"><span class="nico" aria-hidden="true">▣</span><span>${esc(w.name)} wants to show the program</span><small>Since ${esc(hms(w.at))}</small><div class="nacts"><button type="button" data-tv-accept="${esc(w.peer)}">Accept</button><button type="button" data-tv-decline="${esc(w.peer)}">Decline</button></div></li>`).join('');
-  const soundItems = now.map((a) => `<li class="now"><span class="nico" aria-hidden="true">⚠</span><span>${esc(a.text)}</span><small>Since ${esc(hms(raisedAt.get(a.key) || a.since || Date.now()))}</small></li>`).join('');
+  const soundItems = now.map((a) => `<li class="now"><span class="nico" aria-hidden="true">⚠</span><span>${esc(a.text)}</span><small>Since ${esc(hms(raisedAt.get(a.key) || a.since || Date.now()))}</small>${a.kind === 'screen-output' ? `<div class="nacts"><button type="button" data-share-sound="${esc(a.id)}">Share its sound again</button></div>` : ''}</li>`).join('');
   list.innerHTML = (n
     ? `<h3>Now</h3><ul>${tvItems}${soundItems}</ul>`
       + (backups.length ? `<div class="nacts"><span>Sound from another source:</span>${backups.map((b) => `<button type="button" data-sound-on="${esc(b.peer)}">Turn on ${esc(b.name)}</button>`).join('')}</div>` : '')
@@ -346,6 +348,7 @@ $('#notifList')?.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (b?.dataset.tvAccept) return displayHub?.accept(b.dataset.tvAccept); // (its changed() draws this again)
   if (b?.dataset.tvDecline) return displayHub?.decline(b.dataset.tvDecline);
+  if (b?.dataset.shareSound) return void reshareSound(b.dataset.shareSound);
   const on = b?.dataset.soundOn;
   if (!on) return;
   const err = soundOn(on);

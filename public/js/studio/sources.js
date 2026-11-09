@@ -4,6 +4,7 @@ import './mixer.js';
 import { api, toast, esc, now } from '/js/vm.js';
 import { snapToCamera } from '/js/camctl.js';
 import { cleanLabel, matchSaved, renamed, usbIdOf } from '/js/devmatch.js';
+import { defaultOutputOf } from '/js/showlog.js';
 import * as idb from '/js/idb.js';
 import {
   $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, LIVE_DELAY, liveActive, note,
@@ -1023,10 +1024,65 @@ const strongComputer = () => (navigator.hardwareConcurrency || 0) >= 12;
 const screenMax = () => (output.height === 1080 ? { width: 1920, height: 1080 } : { width: 1280, height: 720 });
 const screenFps = () => (output.height === 1080 && !strongComputer() ? 15 : Math.min(30, Math.round(output.fps)));
 const screenSize = () => ({ width: { max: screenMax().width }, height: { max: screenMax().height }, frameRate: { ideal: screenFps(), max: screenFps() } });
+const SCREEN_SOUND = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } };
+
+// ---- a shared screen's sound and Windows' default speaker ----
+// "System Audio" is what plays on the speaker that was Windows' default when the screen was shared, and
+// Chrome keeps it on that speaker. Move Windows to another one during the show and everything plays
+// there, while the share hears exact silence with its track still live: a show's Record program had no
+// sound from a video on the screen, and neither did the screen's own recording, after Windows went from
+// the Focusrite to the Realtek 30 s before. Only Chrome's picker can open it again, which takes a click,
+// so the studio says so at once (the show log, Notifications) and offers that click.
+export let outputNow = null; // the default speaker's name (known once a camera or microphone is allowed)
+async function readOutput() {
+  const name = defaultOutputOf(await navigator.mediaDevices?.enumerateDevices?.().catch(() => null));
+  if (name && outputNow && name !== outputNow) note(`Windows moved this computer's sound to ${name} (it was ${outputNow})`);
+  if (name) outputNow = name;
+}
+readOutput();
+navigator.mediaDevices?.addEventListener?.('devicechange', readOutput);
+/** A source just shared: if its sound is Windows' system sound, which speaker it hears. */
+async function hearOutput(peer) {
+  const l = live.get(peer), a = l?.stream.getAudioTracks()[0];
+  if (!l?.screen || !/system audio/i.test(a?.label || '')) {
+    if (l) l.sharedOn = null;
+    return peer;
+  }
+  await readOutput();
+  l.sharedOn = outputNow;
+  if (outputNow) note(`${l.name}'s sound is what plays on ${outputNow}`);
+  return peer;
+}
+/** A shared screen's sound again, from Chrome's picker, for the speaker in use now. Its picture carries on as it is. From Notifications. */
+export async function reshareSound(peer) {
+  const l = live.get(peer);
+  if (!l?.local || !l.screen) return;
+  let s;
+  try {
+    s = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: 640 }, height: { max: 360 }, frameRate: { max: 5 } }, audio: SCREEN_SOUND, systemAudio: 'include', windowAudio: 'system', selfBrowserSurface: 'exclude' });
+  } catch (e) {
+    if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
+    return;
+  }
+  const a = s.getAudioTracks()[0];
+  s.getVideoTracks().forEach((t) => t.stop());
+  if (!a) return void toast('No sound came with it. Pick Entire screen and turn on Also share system audio.', 8000);
+  if (live.get(peer) !== l) return void a.stop();
+  const old = l.stream.getAudioTracks();
+  old.forEach((t) => l.stream.removeTrack(t));
+  l.stream.addTrack(a);
+  l.micLabel = cleanLabel(a.label);
+  watchLocal(peer, a, 'sound');
+  mixAttach(peer);
+  rollLocalRec(peer); // (its recording goes on, with the new sound)
+  setTimeout(() => old.forEach((t) => t.stop()), 1000); // (after the last piece of the recording that had it)
+  await hearOutput(peer);
+  renderMixer();
+}
 async function addScreenSource(soundOnly) {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } }, systemAudio: 'include', windowAudio: 'system', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: screenSize(), audio: SCREEN_SOUND, systemAudio: 'include', windowAudio: 'system', surfaceSwitching: 'include', selfBrowserSurface: 'exclude' });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(`Couldn't share: ${e.message}`, 6000);
     return null;
@@ -1044,7 +1100,7 @@ async function addScreenSource(soundOnly) {
       toast(myOs === 'mac' ? 'No sound came with it. On a Mac, share a Chrome tab and tick Share tab audio.' : 'No sound came with it. Pick Entire screen and tick Share system audio (or a tab, with Share tab audio).', 8000);
       return null;
     }
-    return registerLocal('mic', new MediaStream([a]), { deviceId: 'sound-' + n, screen: true, label: 'Computer sound' });
+    return hearOutput(registerLocal('mic', new MediaStream([a]), { deviceId: 'sound-' + n, screen: true, label: 'Computer sound' }));
   }
   const v = stream.getVideoTracks()[0];
   try {
@@ -1052,7 +1108,7 @@ async function addScreenSource(soundOnly) {
   } catch {}
   const surface = v.getSettings?.().displaySurface;
   const label = surface === 'monitor' ? 'Screen' : surface === 'browser' ? 'Browser tab' : cleanLabel(v.label) || 'Window';
-  return registerLocal('cam', stream, { deviceId: 'screen-' + n, screen: true, label: `${label}${stream.getAudioTracks().length ? '' : ''}` });
+  return hearOutput(registerLocal('cam', stream, { deviceId: 'screen-' + n, screen: true, label: `${label}${stream.getAudioTracks().length ? '' : ''}` }));
 }
 // the add list's icons (24-px line drawings, in the text's colour)
 const svg = (d) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
