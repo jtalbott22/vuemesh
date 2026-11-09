@@ -43,7 +43,7 @@ ok('live picture: on air > preview > standby on every route; full size on air; u
   assert.deepEqual(screenCodecs(noH264), noH264);
   ok("a shared screen's codecs: H.264 first (constrained baseline, packetization-mode=1, first), then the rest in the browser's order; none dropped; without H.264, as it was");
 }
-import { snapToCamera } from '../public/js/camctl.js';
+import { labelCams, lensButtons, snapToCamera } from '../public/js/camctl.js';
 {
   const caps = { brightness: { min: 0, max: 255, step: 1 }, exposureCompensation: { min: -2, max: 2, step: 1 / 6 }, zoom: { min: 1, max: 5, step: 0.1 } };
   const s = snapToCamera(caps, { brightness: 159.375, exposureCompensation: 0.7, zoom: 2.34, focusMode: 'continuous' });
@@ -52,4 +52,24 @@ import { snapToCamera } from '../public/js/camctl.js';
   assert.deepEqual(snapToCamera({}, { brightness: 3.3 }), { brightness: 3.3 });
   ok('camera settings: each number inside the range and on the camera\'s step (a value off the step made the whole set be ignored); anything else as it was');
 }
+{
+  // The remote's lens buttons on an iPhone 17 Pro: its two front cameras listed, the usual selfie one first.
+  // One front button, "Front", and it's the first one listed (0.66.12 kept the shortest name: "Front 2").
+  const iphone = ['Front Camera', 'Back Camera', 'Back Ultra Wide Camera', 'Back Telephoto Camera', 'Back Dual Wide Camera', 'Back Triple Camera', 'Front Camera 2']
+    .map((label, i) => ({ deviceId: 'd' + i, label }));
+  let b = lensButtons(labelCams(iphone));
+  assert.deepEqual(b.map((l) => l.short), ['0.5×', '1×', '2×', 'Front'], b.map((l) => l.short).join());
+  assert.equal(b.find((l) => l.short === 'Front').label, 'Front Camera');
+  // listed the other way round, with a longer name first: still the first listed, still "Front"
+  const other = ['Front TrueDepth Camera', 'Front Camera', 'Back Camera'].map((label, i) => ({ deviceId: 'e' + i, label }));
+  b = lensButtons(labelCams(other));
+  assert.deepEqual(b.map((l) => [l.short, l.label]), [['1×', 'Back Camera'], ['Front', 'Front TrueDepth Camera']]);
+  // a phone with only combined back cameras keeps them; Android's numbered back lenses stay numbered
+  b = lensButtons(labelCams(['Back Triple Camera', 'Front Camera'].map((label, i) => ({ deviceId: 'f' + i, label }))));
+  assert.deepEqual(b.map((l) => l.short), ['Auto', 'Front']);
+  b = lensButtons(labelCams(['camera2 1, facing front', 'camera2 0, facing back', 'camera2 2, facing back'].map((label, i) => ({ deviceId: 'g' + i, label }))));
+  assert.deepEqual(b.map((l) => l.short), ['1×', 'Cam 2', 'Front']);
+  console.log('ok  the remote\'s lens buttons: one front camera, the first the phone lists, called Front');
+}
+
 console.log('\nAll quality tests passed.');

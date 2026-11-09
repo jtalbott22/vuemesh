@@ -170,10 +170,14 @@ function startProgram(tvKey) {
   });
   // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
   pgm.want(pgmOn() ? 'program' : 'idle');
-  // (the microphone allowed for the site already: the phone's address is given with no question, and
-  // without waiting for the picture to hang 5 s first; not if it's come by itself by then, so the
-  // microphone isn't opened for nothing, its light on the phone)
-  setTimeout(() => micState().then(() => micAsked === 'granted' && pgm && !pgm.linked && !autoRevealed && ((autoRevealed = true), reveal())), 1500);
+  // A direct link needs this page to have the camera or microphone, as the camera page and the share
+  // page always do: without, a phone hides its address and the studio can't reach it (pgmview.js
+  // reveal). So, joining a show, the remote asks once, as the camera page does when it joins: the
+  // phone's own question (none if it's allowed for the site already), then let go. Only where the
+  // picture hasn't come by itself within a second (a computer on the studio's network has no need,
+  // and no question is asked). Turned down, or a browser that only asks inside a tap: Tap to
+  // connect the picture.
+  setTimeout(() => pgm && !pgm.linked && !autoRevealed && !rcam?.on && ((autoRevealed = true), reveal()), 1000);
 }
 $('#pgmTgl').onclick = () => {
   const on = !pgmOn();
@@ -240,16 +244,11 @@ async function micState() {
 }
 micState();
 function tapUi() {
-  // (the microphone allowed for this site already: no question to ask, so no tap needed either)
-  if (pgm?.stuck && !pgm.revealed && micAsked === 'granted' && !autoRevealed) {
-    autoRevealed = true;
-    reveal();
-  }
   const b = $('#pgmTap'), connect = !!pgm?.stuck && micAsked !== 'granted' && !(rcam?.on);
   b.dataset.do = connect ? 'connect' : pgm?.blocked ? 'show' : '';
   b.hidden = !b.dataset.do;
   b.innerHTML = connect
-    ? `<b>Tap to connect the picture</b><small>${pgm.revealed ? 'Allow the microphone: without it this phone can’t get the picture on this network.' : 'Your phone asks for the microphone once, to let the studio find it on the network. Nothing is recorded or sent.'}</small>`
+    ? `<b>Tap to connect the picture</b><small>${pgm.revealed ? 'Allow the camera or microphone when it asks: without, a browser hides this device from the studio, and the picture can’t reach it directly.' : 'It asks for the camera and microphone once, so the studio can reach this device directly. Nothing is recorded or sent until you add its camera.'}</small>`
     : '<b>Tap to show the program</b>';
 }
 setInterval(tapUi, 1000);

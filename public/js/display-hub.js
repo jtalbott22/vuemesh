@@ -226,7 +226,7 @@ export class DisplayHub {
       } catch {}
       const nothing = heard ? '' : ` Nothing it sent reached this computer: its firewall may be turning it away (on Windows, allow Google Chrome on this network, and set the network as Private), and then every phone connects without being asked anything.`;
       this.note?.(h?.local && !h.ip
-        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It shows on the phone once the page is allowed the microphone or camera${this.keys.get(l.key)?.remote ? ' (the remote asks: Tap to connect the picture; with the microphone allowed for the site in Safari, it does it by itself)' : ''}.${nothing}`
+        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It connects once the page is allowed the camera or microphone${this.keys.get(l.key)?.remote ? ' (the remote asks for them when it joins; turned down, it offers Tap to connect the picture)' : ''}.${nothing}`
         : `${name} hasn't connected in 12 s (${pc.connectionState}): check it's on the same network as this computer.${nothing}`);
     }, 12_000);
     pc.ondatachannel = (e) => {

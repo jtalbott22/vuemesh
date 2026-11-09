@@ -5,13 +5,14 @@
 #   made here by a play() that refuses until the page has been touched): the picture still arrives,
 #   the box says "Tap to show the program", the studio's show log says so, and the first tap
 #   anywhere on the page (not only on the box) starts it, without opening it full screen.
-# - On a phone that hides its address until the page is allowed its microphone or camera (an
+# - On a phone that hides its address until the page is allowed its camera or microphone (an
 #   iPhone; made here by giving the studio only a made-up name.local and ignoring the studio's
-#   addresses until the microphone's been asked for, as a studio whose firewall drops what it didn't
-#   ask for sees it): the link hangs; after 5 s the box says Tap to connect the picture; the show
-#   log says why (the hidden address); the tap asks for the microphone, lets it go, and the picture
-#   connects, without + This phone. With the microphone allowed for the site already, it does that
-#   without a tap.
+#   addresses until they've been asked for, as a studio whose firewall drops what it didn't ask for
+#   sees it): the remote asks for them once as it joins (the phone's own question, answered yes
+#   here), lets them go, and the picture connects with no tap and no camera added.
+# - The same phone answering no (or a browser that only asks inside a tap): the link hangs, the box
+#   says Tap to connect the picture, the show log says why, and the tap connects it.
+# - On a studio that lets in what the phone sends, the picture comes before anything's asked.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotepgm.py
 import os, time
 from playwright.sync_api import sync_playwright
@@ -37,10 +38,16 @@ NO_AUTOPLAY = """(() => {
 # LET_IN, the studio lets in what the phone sends (no firewall in the way), as on a studio computer
 # that allows its browser on the network
 HIDDEN = """(() => {
-  const letIn = !!window.__letIn;
-  let revealed = false;
+  const letIn = !!window.__letIn, denyUntilTap = !!window.__denyUntilTap;
+  let revealed = false, touched = false;
+  window.__asks = 0;
+  for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, (e) => { if (e.isTrusted) touched = true; }, true);
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-  navigator.mediaDevices.getUserMedia = async (c) => { const s = await gum(c); revealed = true; return s; };
+  navigator.mediaDevices.getUserMedia = async (c) => {
+    window.__asks++;
+    if (denyUntilTap && !touched) throw new DOMException('no', 'NotAllowedError');
+    const s = await gum(c); revealed = true; return s;
+  };
   const PC = window.RTCPeerConnection;
   window.RTCPeerConnection = class extends PC {
     constructor(...a) {
@@ -63,6 +70,7 @@ HIDDEN = """(() => {
 })();"""
 
 LET_IN = 'window.__letIn = true;'
+DENY = 'window.__denyUntilTap = true;'
 
 def pair(b, host, ev, init=None, perms=None, pre=None):
     host.evaluate("document.querySelectorAll('dialog[open]').forEach((d) => d.close())")
@@ -116,8 +124,18 @@ with sync_playwright() as p:
 
     rem.context.close()
 
-    # a phone that hides its address: the picture hangs, until the microphone's asked for once
+    # a phone that hides its address: asked once as it joins, then the picture, with no tap
     rem = pair(b, host, ev, HIDDEN)
+    t0 = time.time()
+    rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=15000)
+    took = time.time() - t0
+    assert took < 5 and not rem.evaluate("vmProgramView().tapShown"), took
+    assert rem.evaluate("window.__asks") == 1 and not rem.evaluate("!!vmRemoteCam?.()?.on"), rem.evaluate("window.__asks")
+    step(f'a phone that hides its address: asked once for its camera and microphone as it joins (let go at once), and the picture comes in {took:.1f} s, with no tap and no camera added')
+    rem.context.close()
+
+    # the same phone answering no: the picture hangs, until a tap
+    rem = pair(b, host, ev, HIDDEN, pre=DENY)
     rem.wait_for_function("vmProgramView()?.stuck && vmProgramView().tapDoes === 'connect'", timeout=12000)
     assert not rem.evaluate("vmProgramView().linked")
     assert 'Tap to connect the picture' in rem.inner_text('#pgmTap')
@@ -126,20 +144,11 @@ with sync_playwright() as p:
     for _ in range(16):
         assert rem.evaluate("vmProgramView().tapDoes") == 'connect', 'the button went while it was still hanging'
         time.sleep(0.5)
-    step('a phone that hides its address: the picture hangs, the box says Tap to connect the picture, and the show log says why (and that nothing from the phone reached this computer)')
+    step('answered no: the picture hangs, the box says Tap to connect the picture (staying up), and the show log says why (and that nothing from the phone reached this computer)')
     rem.click('#pgmTap')
     rem.wait_for_function("vmProgramView().linked && vmProgramView().shown > 5 && !vmProgramView().tapShown", timeout=15000)
     assert not rem.evaluate("vmProgramFull()") and not rem.evaluate("!!vmRemoteCam?.()?.on")
-    step('one tap (the microphone asked for and let go) connects it, without + This phone')
-    rem.context.close()
-
-    # the microphone allowed for the site already: no tap, and no wait for it to hang first
-    rem = pair(b, host, ev, HIDDEN, perms=['microphone'])
-    t0 = time.time()
-    rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=20000)
-    took = time.time() - t0
-    assert took < 4 and not rem.evaluate("vmProgramView().tapShown"), took
-    step(f'with the microphone allowed for the site already, it connects by itself in {took:.1f} s')
+    step('the tap asks again and connects it, without + This phone')
     rem.context.close()
 
     # a studio computer that lets in what the phone sends: no question on the phone at all
@@ -147,7 +156,7 @@ with sync_playwright() as p:
     t0 = time.time()
     rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=20000)
     took = time.time() - t0
-    assert took < 4 and not rem.evaluate("vmProgramView().tapShown") and not rem.evaluate("vmProgramView().stuck"), took
+    assert not rem.evaluate("vmProgramView().tapShown") and rem.evaluate("window.__asks") == 0, (took, rem.evaluate("window.__asks"))
     step(f'a phone that hides its address, on a studio that lets it in: connects in {took:.1f} s with nothing asked')
 
     assert not errors, errors

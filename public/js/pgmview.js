@@ -158,17 +158,22 @@ export class ProgramView {
    * (an iPhone always; Chrome too), giving a made-up name.local the studio has to find on the
    * network, which from a Wi-Fi phone to a wired studio computer it usually can't. Then the picture
    * never connects: the remote's Program out waited for its camera to be added, which allowed it.
-   * Asked here inside a tap: the microphone, let go at once (nothing from it is kept or sent), and
-   * the picture asked for again, now with the phone's real address. (A page keeps that for as long
-   * as it's open.) @returns false if the microphone was turned down
+   * The camera and microphone asked for (the camera page asks the same when it joins), let go at
+   * once (nothing from them is kept or sent), and the picture asked for again, now with the phone's
+   * real address. (A page keeps that for as long as it's open.) A device without a camera: the
+   * microphone alone. @returns false if they were turned down (or need a tap first)
    */
   async reveal() {
-    let ok = true;
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-      s.getTracks().forEach((t) => t.stop());
-    } catch {
-      ok = false;
+    let ok = false;
+    for (const ask of [{ audio: true, video: true }, { audio: true }, { video: true }]) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia(ask);
+        s.getTracks().forEach((t) => t.stop());
+        ok = true;
+        break;
+      } catch (e) {
+        if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') break; // (said no, or not without a tap: asked again on one)
+      }
     }
     this.revealed = true;
     if (this.host) this.offer();
