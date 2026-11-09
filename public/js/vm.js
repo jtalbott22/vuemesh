@@ -1,5 +1,6 @@
 // Shared client helpers for every VUEMesh page.
 import { bgClear, bgInterval, bgTimeout } from '/js/bgclock.js';
+import { fillVersions } from '/js/version.js';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -495,13 +496,15 @@ export function helpDialog(title, sections) {
   d.className = 'help';
   d.setAttribute('aria-labelledby', 'helpTitle');
   const keys = (k) => k.split(' ').map((x) => (['/', 'or', '+', '–'].includes(x) ? ` ${x} ` : `<kbd>${esc(x)}</kbd>`)).join('');
-  d.innerHTML = `<div class="hd"><h2 id="helpTitle">${esc(title)}</h2><button type="button" class="ghost" data-close>Close</button></div>
+  // (the version, beside the title: Help is where an app says which one it is)
+  d.innerHTML = `<div class="hd"><span class="vmbrand"><h2 id="helpTitle">${esc(title)}</h2><a data-vm-version hidden></a></span><button type="button" class="ghost" data-close>Close</button></div>
     <div class="bd">${sections
       .map((s) => `<h3>${esc(s.heading)}</h3>${s.text ? `<p>${s.text}</p>` : ''}${s.rows ? `<table>${s.rows.map(([k, v]) => `<tr><td>${keys(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` : ''}`)
       .join('')}</div>`;
   d.querySelector('[data-close]').onclick = () => d.close();
   d.addEventListener('click', (e) => e.target === d && d.close());
   document.body.append(d);
+  fillVersions(d);
   return d;
 }
 

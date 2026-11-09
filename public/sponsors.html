@@ -55,7 +55,7 @@
 <body>
 <div class="wrap">
   <header class="nav">
-    <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a>
+    <span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span>
     <button type="button" id="themeBtn"></button>
   </header>
   <main>
@@ -135,5 +135,6 @@
   if (!BRAND.sponsorEmail) $('#contactNote').textContent = 'Each button opens our Patreon page: send a message there and it comes straight to the developer.';
   $('#patreon').href = BRAND.patreon;
 </script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

@@ -73,6 +73,7 @@
     </div>
     <p class="code">Or go to <strong id="host"></strong> and enter <strong id="code"></strong></p>
     <p class="code" id="hostState"></p>
+    <p class="code vmverline"><a data-vm-version="long" class="plain" hidden></a></p>
     <div class="wifi" id="wifi" hidden>
       <div class="wqr"><canvas id="wifiQr" aria-label="Scan to join the Wi-Fi"></canvas></div>
       <div><b>First, join the Wi-Fi</b><span id="wifiName"></span><span id="wifiPass"></span></div>
@@ -202,5 +203,6 @@
     else document.documentElement.requestFullscreen?.().catch(() => toast('Full screen is not available here'));
   };
 </script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

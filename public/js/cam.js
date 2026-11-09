@@ -74,7 +74,9 @@ async function guidedSetup(lastErr) {
   view.hidden = false;
   // 1. camera and microphone (a microphone: just the microphone)
   $('#setupTitle').textContent = role === 'mic' ? 'Your microphone' : 'Your camera and microphone';
-  $('#setupWhy').textContent = role === 'mic' ? 'VUEMesh uses it to send your sound to the director and record it. Nothing goes anywhere but this event.' : 'VUEMesh uses them to show the director your shot and to record your clips. Nothing goes anywhere but this event, and you can pause any time.';
+  $('#setupWhy').textContent = ev?.kind === 'tv' // (a TV's own code, with no studio: tvdirect.js)
+    ? 'VUEMesh uses them to show your shot on the TV, live. Nothing is recorded there, and you can pause any time.'
+    : role === 'mic' ? 'VUEMesh uses it to send your sound to the director and record it. Nothing goes anywhere but this event.' : 'VUEMesh uses them to show the director your shot and to record your clips. Nothing goes anywhere but this event, and you can pause any time.';
   $('#setupAllow').textContent = role === 'mic' ? 'Allow the microphone' : 'Allow camera and microphone';
   show('perm');
   if (lastErr) {
@@ -869,6 +871,7 @@ function renderOutbox() {
       : `${waiting.length} clip${waiting.length > 1 ? 's' : ''} waiting for the host · ${label}`;
     sticky = LIVE.includes(linkState); // keep progress visible while it's moving
   } else text = label;
+  if (ev?.kind === 'tv') text = text.replace(/\bthe host\b/g, 'the TV').replace(/\bhost\b/g, 'TV').replace(/\bHost\b/g, 'The TV'); // (a TV's own code, with no studio: tvdirect.js)
   const dot = $('#linkDot');
   dot.className = 'ldot ' + (paused || pgm.watching ? 'paused' : LIVE.includes(linkState) ? 'live' : linkState === 'left' ? 'off' : 'wait');
   renderLeftText();

@@ -13,7 +13,14 @@ export const b64url = (buf) => Buffer.from(buf).toString('base64url');
 
 // (what a camera or microphone agrees to on joining; kept with the event when it's made, so an
 // event's terms never change under it)
-export function termsText({ title }) {
+export function termsText({ title, kind }) {
+  // (a TV showing cameras itself, with no studio: nothing's recorded or kept there)
+  if (kind === 'tv') {
+    return [
+      `"${title}" is a TV screen. While you're connected, your camera or screen shows on it live, for everyone in the room.`,
+      `Nothing is recorded on the TV or sent anywhere else.`,
+    ].join(' ');
+  }
   return [
     `By joining "${title}" you add your angle to one shared production.`,
     `The host may use your clips in cuts of this event and publish them.`,

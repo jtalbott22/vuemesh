@@ -11,6 +11,7 @@
 import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
 import { ProgramSound } from '/js/progsound.js';
+import { directWanted, startDirect } from '/js/tvdirect.js';
 
 const $ = (s) => document.querySelector(s);
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -648,9 +649,30 @@ function quietSoon() {
 }
 for (const t of ['pointermove', 'keydown']) addEventListener(t, quietSoon);
 
-// ---- start: an event in the address, or the last one, or ask -------------------
-const start = eventIdFromUrl() || localStorage.getItem('vm_tv_event') || '';
-if (start) {
+// ---- phones and screens straight to this TV, with no studio (tvdirect.js) --------
+function backToJoin() {
+  history.replaceState(null, '', '/tv');
+  show('joinView');
+  eventCode.inputs[0].focus();
+}
+$('#directBtn').onclick = () => {
+  localStorage.setItem('vm_tv_name', $('#screenName').value.trim() || 'TV screen');
+  // (from showing a studio's program: that stops first)
+  if (sock) {
+    drop();
+    tvSound.stop();
+    sock.close();
+    sock = null;
+    host = null;
+    localStorage.removeItem('vm_tv_event');
+  }
+  startDirect({ onLeave: backToJoin });
+};
+
+// ---- start: an event in the address, or the last one, or cameras directly, or ask ----
+const start = eventIdFromUrl() || (directWanted() ? '' : localStorage.getItem('vm_tv_event')) || '';
+if (!start && directWanted()) startDirect({ onLeave: backToJoin });
+else if (start) {
   eventCode.set(start);
   join(start);
 } else {

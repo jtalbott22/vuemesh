@@ -12,7 +12,7 @@ import { camOrder, cutLive, renderLive } from './live.js';
 import { addUsage } from './usage.js';
 import { autoOn, manualUntil, recOnAirChanged, setAuto, setManualUntil, syncTally } from './onair.js';
 import { mix, mixInit } from './mixer.js';
-import { flushRecordings } from './sources.js';
+import { camCapture, flushRecordings } from './sources.js';
 import { cutMedia, lt, ltUi, mediaOn, reel, toggleBlack } from './graphics.js';
 import {
   autoTransition, clearPreview, frameSinks, programVideoTrack, progRec, pvw, renderSwitcher,
@@ -411,9 +411,11 @@ function startProgramRecorder(tracks, saved) {
 }
 // The encoder can't keep up (frames skipped): say so as it happens, once a minute at most, with
 // what else this computer is encoding (each of its cameras' and screens' own recordings).
-// At 1080p it says so on screen too, once: the size is what to change (720p was smooth with three
-// cameras, a screen and a phone where 1080p on the same laptop skipped frames), and it can't change
-// while Record program runs.
+// At 1080p it says so on screen too, once, with what to change. With this computer's cameras at
+// 1080p, that's their capture size first: it changes during the recording (each camera when it's
+// off air), and the output stays 1080p. A 6-core desktop with three USB cameras at 1080p had them
+// deliver 28 frames a second of 30, 25 with a phone joined, and 18 while recording, where at 720p
+// all three gave 30. Otherwise it's Output, which can't change while Record program runs.
 function watchEncoder(r) {
   let last = 0, said = 0, shown = false;
   const t = setInterval(() => {
@@ -426,7 +428,10 @@ function watchEncoder(r) {
     note(`The program recording is skipping frames (${n} in the last 5 s): this computer is too busy to encode it all${others.length ? `. Also recording here: ${others.join(', ')}` : ''}`);
     if (!shown && program.height * program.width >= 1920 * 1080 * 0.9 && !KIOSK) {
       shown = true;
-      toast('Record program is skipping frames: this computer can’t keep up at 1080p. After this recording, set Output to 720p.', 12000);
+      const cams = [...live.values()].filter((l) => l.local && l.role !== 'mic' && !l.screen).length;
+      toast(cams && camCapture() === 1080
+        ? `Record program is skipping frames: this computer can’t keep up with ${cams > 1 ? `${cams} cameras` : 'its camera'} at 1080p. In Sync, set “This computer’s cameras capture at” to 720p: the program stays 1080p.${others.length ? ' Or turn off “Cameras record their time on air”.' : ''}`
+        : 'Record program is skipping frames: this computer can’t keep up at 1080p. After this recording, set Output to 720p.', 14000);
     }
   }, 5000);
 }

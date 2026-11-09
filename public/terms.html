@@ -44,7 +44,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="nav"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><button type="button" id="themeBtn"></button></header>
+  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
   <main>
     <h1>Terms of Use</h1>
     <p>Version <span id="ver"></span>. These terms apply to everyone who uses VUEMesh: people who host events, people who join them with a camera or microphone, and people who watch.</p>
@@ -198,5 +198,6 @@
   $('#ver').textContent = TERMS_VERSION;
   $('#contactLink').href = sponsorContactHref('VUEMesh: a question, notice or removal request');
 </script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

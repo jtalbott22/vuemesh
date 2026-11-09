@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.67.0 — phones and screens straight to a TV, which VUEMesh this is, and a 6-core desktop at 1080p
+**Deploy:** `./aws/deploy.sh` (backend and site: a TV's own code has its own words for the people joining; with the older backend it still works, with the studio's words). It builds on 0.66.19.
+
+**Straight to a TV, with no studio.** On `/tv`, under the event code: **Show phones and screens on this TV**.
+- **The TV gets a code of its own** and shows it big with a QR code. Phones scan it and join as a camera does (`/cam`); a computer opens `/share` and types it in. The code stays the same on that TV, after a reload or the next day, so it can go on a sticker. **New code** makes another.
+- **Whoever joins is on the TV,** as they come and go: one fills the screen, two side by side, three as one big and two beside it, then 2x2, 3+2, 3x3 (up to nine; more wait for a place). Every tile is 16:9 and slides to its new place as others join and leave. A shared screen is shown whole; a phone's picture fills its tile.
+- **One full screen:** click it, OK on a remote, or 1 to 9; again, 0 or Back for all of them. The remote's arrows move between tiles. The one shown full screen sends its full picture and the rest a small one; with one or two on, both send their full picture, with three or four a full picture at less, with more a small one.
+- **Sound, one at a time:** a shared screen's (the one full screen, else the first with sound). A phone's microphone in the same room as the TV feeds back through its speakers, so cameras' sound is off until **Camera sound** is turned on; then the camera full screen plays its.
+- **Nothing is recorded.** Each phone's light goes red while it's on the TV, it doesn't record, and it keeps its own clips. The terms a phone agrees to say so, and the phone and share pages say "the TV", not the studio.
+- The join card fills the screen until someone's on, then sits small in a corner; it and the buttons fade after 12 s and come back with any key or movement.
+- How: the TV joins its own event's signalling as its host, with the studio's own end of a phone's link, so `/cam` and `/share` link to it exactly as to a studio. A phone told how good a picture to send (the TV's tiers) takes it as it takes the studio's tally.
+
+**Which VUEMesh this is, on every page.** A small `v0.67.0` beside the VUEMesh mark (the home page, What's new, Terms, Work with VUEMesh, the tour, Monitor, Admin, the share page and the TV's), and at the foot of the phone pages (camera, remote), the beacon, the watch page and TV calibration. The studio, Edit and the kiosk have it in Help, beside its title, as their bars have no room. It opens What's new at that version. On a phone the home page and the tour show it at the foot, where it doesn't push Start a show onto two lines. Not on the program output, which goes on air. The number comes from one place, so a page can't show an old one.
+
+**From a show log of a 6-core desktop (a Dell all-in-one, 9th-gen Intel, 8 GB) at 1080p with Quality first,** three USB cameras, its screen with sound, a phone and the phone remote.
+- **This computer's cameras recorded on air with "Cameras record their time on air" off.** It was turned off a minute and a half before Record program, and each cut to one of the computer's own cameras still started its recording, at 1080p and 16 Mbit/s, beside the program's. The setting applied to the phones only. Now it applies to this computer's cameras and screens too (one recording by hand still records).
+- **What the log says about 1080p on it:** the program held 30 frames a second throughout, but the cameras didn't. At 720p all three delivered 30 frames a second; opened again at 1080p, 28; with the phone joined and the phone remote watching, 25; while recording (the program plus each camera's own), 18. Record program skipped 391 of 1891 frames (a fifth). So the cameras at 1080p, then the recordings, are what it can't keep up with, not the program.
+- **What it now says to change:** when Record program skips frames at 1080p with this computer's cameras at 1080p, the message says to set **This computer's cameras capture at** to 720p (in Sync): the program stays 1080p, and it changes during the recording, each camera as it's off air. With cameras recording here too, it says to turn off Cameras record their time on air. Before, it said only to set Output to 720p after the recording.
+
+**Tests:** `e2e_tvdirect` (new): the TV's code, the same after a reload; a phone's camera and a shared screen join with it and are tiled; the phone's light on, not recording, its full picture with two on; 2 full screen (the phone then sends a small picture) and 0 back; the screen's sound plays and the camera's only with Camera sound on; the share page says it's on the TV; tiles go as each leaves and the join card comes back; Stop back to the join screen, after a reload too. `docsync.test`: every page but the program output shows the version, and its link is an anchor on What's new.
+
 ## 0.66.19 — a shared screen's sound when Windows changes speakers
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.18.
 

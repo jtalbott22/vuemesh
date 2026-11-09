@@ -89,13 +89,72 @@
   body.quiet .ctl { opacity: 0; }
   body.quiet { cursor: none; }
   @media (prefers-reduced-motion: reduce) { .umd, .ctl { transition: none; } }
+
+  /* Direct: phones and shared screens on this TV, with no studio (tvdirect.js). Tiled as they come and go. */
+  .direct-view { position: fixed; inset: 0; background: var(--black); }
+  /* each tile is 16:9, placed by tvdirect.js (as large as they all fit), and slides to its new place as others come and go */
+  .tiles { position: absolute; inset: 0; }
+  .tile { position: absolute; overflow: hidden; background: #0b0c0e; border: 0; border-radius: .4vmin; padding: 0; cursor: pointer;
+    transition: left .45s cubic-bezier(.2, .7, .2, 1), top .45s cubic-bezier(.2, .7, .2, 1), width .45s cubic-bezier(.2, .7, .2, 1), height .45s cubic-bezier(.2, .7, .2, 1); }
+  .tile.new { transition: none; animation: tileIn .45s ease-out; }
+  @keyframes tileIn { from { opacity: 0; transform: scale(.94); } }
+  .tiles.spotlit .tile, .tiles[data-n="1"] .tile { border-radius: 0; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: transparent; }
+  .tile.scr video { object-fit: contain; }
+  .tile.mic video { opacity: 0; }
+  .tile.mic::before { content: '🎙'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 4em; opacity: .5; }
+  .tile.away video { opacity: .35; }
+  .tile:focus-visible { outline: .4vmin solid var(--amber); outline-offset: -.4vmin; }
+  .tlabel { position: absolute; left: 1.2vmin; bottom: 1.2vmin; padding: .25em .7em; background: #000b; border-radius: .25em; font: 600 .85em/1.15 var(--cond); letter-spacing: .01em;
+    max-width: calc(100% - 2.4vmin); overflow: hidden; text-overflow: ellipsis; white-space: pre; transition: opacity .6s; }
+  .tile.sound .tlabel::after { content: '  🔊'; }
+  .tile.away .tlabel::after { content: '  · reconnecting'; color: var(--amber); }
+  body.dquiet .tlabel { opacity: 0; }
+  body.dquiet .tile.away .tlabel { opacity: 1; }
+  /* the join card: the whole screen while nothing's on; then small, in a corner, until it fades */
+  .djoin { position: absolute; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5vmin; z-index: 3; transition: opacity .6s; }
+  body.dempty .djoin { inset: 0; padding: 6vh 7vw; align-content: center; }
+  body:not(.dempty) .djoin { right: 2.5vmin; bottom: 2.5vmin; gap: 1.6vmin; padding: 1.4vmin 1.8vmin 1.4vmin 1.4vmin; background: #000d; border-radius: .6vmin; font-size: .62em; max-width: 46vmin; }
+  body.dquiet:not(.dempty) .djoin { opacity: 0; pointer-events: none; }
+  .djoin canvas { display: block; width: min(62vh, 40vw); height: auto; border-radius: .8vmin; image-rendering: pixelated; }
+  body:not(.dempty) .djoin canvas { width: 15vmin; border-radius: .4vmin; }
+  .djoin h1 { font-size: clamp(36px, 5.6vw, 104px); max-width: 14ch; margin-bottom: 2vh; }
+  body:not(.dempty) .djoin h1, body:not(.dempty) .djoin .dfine, body:not(.dempty) .djoin .mark, body:not(.dempty) .djoin #dNew { display: none; }
+  .dcode { font: 800 clamp(56px, 9vw, 170px)/1 var(--cond); letter-spacing: .08em; font-variant-numeric: tabular-nums; margin: .05em 0 .1em; }
+  body:not(.dempty) .dcode { font-size: 2.6em; letter-spacing: .06em; }
+  .djoin p { margin: .3em 0; color: var(--text-2); max-width: 36ch; }
+  .djoin p b { color: var(--text); font-weight: 600; }
+  .djoin .dfine { font-size: .8em; }
+  .djoin .mark { margin-bottom: 2vh; }
+  .djoining { color: var(--preview) !important; }
+  .dmore { position: absolute; left: 50%; top: 2.5vmin; transform: translateX(-50%); z-index: 3; background: #000c; border-radius: .3em; padding: .3em .9em; font: 600 .85em/1.1 var(--cond); }
+  .dhint { position: absolute; left: 50%; bottom: 2.5vmin; transform: translateX(-50%); z-index: 3; color: var(--text-2); background: #000b; border-radius: .3em; padding: .3em .9em; font: 600 .75em/1.1 var(--cond); transition: opacity .6s; white-space: nowrap; }
+  body.dquiet .dhint { opacity: 0; }
+  .dctl { position: absolute; left: 2.5vmin; top: 2.5vmin; display: flex; gap: .5em; z-index: 4; transition: opacity .6s; }
+  .dctl button { background: #1c1d22d9; border: 0; border-radius: .25em; padding: .35em .8em; cursor: pointer; font: 600 .85em/1.1 var(--cond); }
+  .dctl #dTapSound { background: var(--amber); color: var(--black); }
+  body.dquiet .dctl { opacity: 0; }
+  body.dquiet { cursor: none; }
+  @media (max-aspect-ratio: 1/1) {
+    body.dempty .djoin { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .djoin canvas { width: min(70vw, 44vh); }
+  }
+  /* the way in, on the join screen */
+  .or { display: flex; align-items: center; gap: 1em; color: var(--text-2); width: min(40em, 80vw); margin: 0; font-size: .85em; }
+  .or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+  .direct-go { background: none; border: 2px solid var(--line); color: var(--text); border-radius: .3em; padding: .45em 1.2em; font-weight: 600; cursor: pointer; }
+  .direct-go:hover { border-color: var(--text-2); }
+  .direct-say { color: var(--text-2); margin: 0; max-width: 40ch; font-size: .85em; }
+  #joinView { gap: 1.9vh; padding-block: 4vh; } /* (room for the way in below the code, on a 720p TV) */
+  #joinView .err:empty { min-height: 0; }
+  @media (prefers-reduced-motion: reduce) { .djoin, .dctl, .dhint, .tlabel, .tile { transition: none; } .tile.new { animation: none; } }
 </style>
 </head>
 <body>
 <video id="out" autoplay playsinline muted aria-label="Program" hidden></video>
 
 <section class="screen" id="joinView" aria-labelledby="joinH">
-  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
   <h1 id="joinH">Show an event on this screen</h1>
   <p class="say">Enter the event code. It’s on the studio and on every beacon.</p>
   <form id="joinForm" class="screen" style="position:static;padding:0">
@@ -106,10 +165,13 @@
     </div>
     <p class="err" id="joinErr" aria-live="polite"></p>
   </form>
+  <p class="or" aria-hidden="true">or, with no studio</p>
+  <button class="direct-go" type="button" id="directBtn" aria-describedby="directSay">Show phones and screens on this TV</button>
+  <p class="direct-say" id="directSay">They scan this TV’s code and appear here, side by side as more join. Nothing is recorded.</p>
 </section>
 
 <section class="screen" id="waitView" aria-labelledby="waitTitle" hidden>
-  <div class="mark"><i aria-hidden="true"></i>VUEMesh</div>
+  <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
   <h1 id="waitTitle"></h1>
   <p class="say" id="waitSay"></p>
   <div class="row">
@@ -147,6 +209,33 @@
   </div>
 </section>
 
+<section class="direct-view" id="directView" aria-label="Cameras and screens on this TV" hidden>
+  <div class="tiles" id="dTiles" data-n="0"></div>
+  <div class="djoin" id="dJoin">
+    <canvas id="dQr" aria-label="Scan with a phone to put its camera on this TV"></canvas>
+    <div>
+      <div class="mark"><i aria-hidden="true"></i>VUEMesh <a data-vm-version hidden></a></div>
+      <h1>Put your camera on this TV</h1>
+      <p><b>Phones:</b> scan the code.</p>
+      <p><b>Computers:</b> open <b id="dShare"></b> to share a screen, with the code</p>
+      <div class="dcode" id="dCode" aria-label="This TV’s code">······</div>
+      <p class="dfine">The code stays the same on this TV. Nothing is recorded.</p>
+      <p class="djoining" id="dJoining" aria-live="polite" hidden></p>
+      <p class="err" id="dSay" aria-live="polite"></p>
+      <button class="link" type="button" id="dNew">New code</button>
+    </div>
+  </div>
+  <p class="dmore" id="dMore" hidden></p>
+  <p class="dhint" id="dHint" hidden>Choose one, or 1–9, to show it full screen · 0 or Back for all</p>
+  <div class="dctl">
+    <button type="button" id="dTapSound" hidden>Tap for sound</button>
+    <button type="button" id="dCamSound" aria-pressed="false" hidden title="A phone’s microphone near the TV can feed back through its speakers">Camera sound off</button>
+    <button type="button" id="dFull">Full screen</button>
+    <button type="button" id="dStop" title="Stop showing cameras on this TV">Stop</button>
+  </div>
+  <audio id="dAudio" autoplay></audio>
+</section>
+
 <div class="umd" id="umd" hidden><span class="lamp" aria-hidden="true"></span><span id="umdTitle"></span><span class="route" id="umdRoute"></span></div>
 <div class="ctl" id="progCtl" hidden>
   <button type="button" id="soundBtn">Sound off</button>
@@ -157,5 +246,6 @@
 <script src="/vendor/qrcode.js"></script>
 <script src="/config.js"></script>
 <script type="module" src="/js/tv.js"></script>
+<script type="module" src="/js/version.js"></script>
 </body>
 </html>

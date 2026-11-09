@@ -17,6 +17,17 @@ const isLinux = /Linux/.test(navigator.platform || '') && !/Android/.test(naviga
 const canShare = !!navigator.mediaDevices?.getDisplayMedia;
 
 const err = (t) => ($('#joinErr').textContent = t || '');
+// (a TV's own code, with no studio: tvdirect.js. The words say where the screen goes)
+const toTv = () => ev?.kind === 'tv';
+const place = () => (toTv() ? 'the TV' : 'the studio');
+const Place = () => (toTv() ? 'The TV' : 'The studio');
+function sayWhere() {
+  if (!ev) return;
+  $('#joinWhat').textContent = toTv()
+    ? `Onto ${ev.title ? `“${ev.title}”` : 'the TV'}, live for the room: slides, a demo, a video. Nothing is recorded.`
+    : `Into ${ev.title ? `“${ev.title}”` : 'the studio'}, as a source the director can cut to: slides, a demo, a video.`;
+  for (const el of document.querySelectorAll('[data-place]')) el.textContent = el.dataset.place === 'P' ? Place() : place();
+}
 // What's on it: slides and text keep every word sharp (frames give way first); video and motion
 // keep 30 frames a second (the size gives way first). Remembered on this computer.
 const modeOf = () => document.querySelector('input[name="mode"]:checked')?.value === 'motion' ? 'motion' : 'detail';
@@ -109,7 +120,7 @@ function setup() {
     $('#code').required = false;
     api(`events/${eventId}`).then((e) => {
       ev = e;
-      $('#joinWhat').textContent = `Into ${e.title ? `“${e.title}”` : 'the studio'}, as a source the director can cut to: slides, a demo, a video.`;
+      sayWhere();
     }).catch(() => {});
   }
   $('#soundTip').textContent = isMac || isLinux
@@ -146,9 +157,10 @@ async function start(e) {
     try {
       ev = await api(`events/${code}`);
       eventId = code;
+      sayWhere();
       history.replaceState(null, '', `${location.pathname}?e=${code}`);
     } catch {
-      return err('No event with that code. Check it against the studio.');
+      return err('No event or TV with that code. Check it against the studio or the TV.');
     }
   }
   $('#shareBtn').disabled = true;
@@ -200,7 +212,7 @@ async function revealAddress() {
 function showStream() {
   $('#preview').srcObject = new MediaStream(stream.getVideoTracks());
   const a = stream.getAudioTracks().length;
-  $('#soundSay').textContent = a ? 'Its sound goes to the studio too, in stereo.' : 'No sound with it (the browser didn’t share any). ' + (isMac || isLinux ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
+  $('#soundSay').textContent = a ? `Its sound goes to ${place()} too${toTv() ? '' : ', in stereo'}.` : 'No sound with it (the browser didn’t share any). ' + (isMac || isLinux ? 'For sound, share a Chrome tab with Share tab audio.' : 'For sound, tick Share system audio or Share tab audio.');
 }
 
 function connect() {
@@ -218,16 +230,16 @@ function connect() {
     stream: () => stream,
     onState: (s) => {
       $('#conn').className = 'dot' + (s === 'lan' || s === 'internet' || s === 'relay' ? ' on' : '');
-      $('#linkSay').textContent = s === 'no-host' ? 'Waiting for the studio to open…' : s === 'connecting' ? 'Connecting to the studio…' : `In the studio${s === 'lan' ? ' (on this network)' : s === 'relay' ? ' (through a relay)' : ''}`;
+      $('#linkSay').textContent = s === 'no-host' ? (toTv() ? 'Waiting for the TV: is it showing its code?' : 'Waiting for the studio to open…') : s === 'connecting' ? `Connecting to ${place()}…` : `${toTv() ? 'On the TV' : 'In the studio'}${s === 'lan' ? ' (on this network)' : s === 'relay' ? ' (through a relay)' : ''}`;
     },
     onControl: (m) => {
-      if (m.t === 'kick') return stopped('The studio took this screen out of the show.');
+      if (m.t === 'kick') return stopped(toTv() ? 'The TV took this screen off.' : 'The studio took this screen out of the show.');
       if (m.t === 'pvw') pvw = !!m.on;
       if (m.t === 'tally') air = !!m.on;
       if (m.t === 'pvw' || m.t === 'tally') {
         tier();
         $('#pv').className = 'pv' + (air ? ' air' : pvw ? ' pvw' : '');
-        $('#tag').textContent = air ? 'ON AIR' : pvw ? 'Up next' : 'In the studio';
+        $('#tag').textContent = toTv() ? (air ? 'ON THE TV' : 'Waiting for a place') : air ? 'ON AIR' : pvw ? 'Up next' : 'In the studio';
       }
     },
     onHostMessage: () => {},
@@ -268,7 +280,7 @@ function stopped(why) {
 
 $('#joinForm').addEventListener('submit', start);
 $('#resumeBtn').onclick = () => start();
-$('#stopBtn').onclick = () => stopped('The studio no longer has this screen.');
+$('#stopBtn').onclick = () => stopped(`${Place()} no longer has this screen.`);
 $('#againBtn').onclick = async () => {
   let s;
   try {
