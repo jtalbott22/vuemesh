@@ -79,10 +79,14 @@ with sync_playwright() as p:
     cam.goto(f'{BASE}/cam?e={code}')
     terms = cam.locator('#terms').inner_text()
     assert 'TV screen' in terms and 'Nothing is recorded' in terms, terms
+    assert cam.evaluate("document.querySelector('#joinForm .roles').hidden"), 'the microphone choice shows for a TV'
+    assert cam.locator('#joinForm button[type=submit]').inner_text() == 'Put my camera on the TV'
     cam.fill('#name', 'Ana')
     if cam.locator('#agreeGuest').count():
         cam.check('#agreeGuest')
     cam.click('#joinForm button[type=submit]')
+    cam.wait_for_selector('#camView.on', timeout=15000)
+    step('the phone joins a TV as a camera only, in one tap ("Put my camera on the TV")')
     wait(tv, "() => window.vmTvDirect().tiles.some((t) => t.name === 'Ana' && t.playing)", "Ana's picture on the TV", 40)
     assert tv.evaluate("!document.body.classList.contains('dempty') && document.querySelector('#dTiles').dataset.n === '1'")
     step("the phone's camera is on the TV, full screen; the join card went to a corner")
@@ -94,7 +98,16 @@ with sync_playwright() as p:
     assert s['kbps'] >= 2500 and s['scale'] == 1, s
     step(f"the phone sends its full picture ({s['kbps']} kbit/s), and isn't recording")
     status = cam.evaluate("document.querySelector('#upPill')?.textContent || ''")
-    assert 'host' not in status.lower(), status
+    assert status.startswith('On the TV'), status
+    # no beacon: nothing asks to aim at one, and there's no sync pill
+    st = cam.evaluate("({ aim: document.querySelector('#aimText').classList.contains('show'), pill: !document.querySelector('#syncPill').hidden, tally: document.querySelector('#tally').textContent, note: !document.querySelector('#ctlNote').hidden })")
+    assert not st['aim'] and not st['pill'] and not st['note'] and st['tally'] == 'ON THE TV', st
+    # recording here: it stays on the phone, and still no beacon
+    cam.click('#shutter'); time.sleep(2.5)
+    assert not cam.evaluate("document.querySelector('#aimText').classList.contains('show')"), 'asked for the beacon while recording'
+    cam.click('#shutter')
+    wait(cam, "() => [...document.querySelectorAll('.toast')].some((t) => /the TV doesn.t record/.test(t.textContent))", 'the clip saved on the phone', 15)
+    step("no beacon, no sync pill, no director note; its light says ON THE TV; a clip recorded here stays on the phone")
     # the camera's sound doesn't play on the TV (it would feed back)
     assert tv.evaluate("window.vmTvDirect().sound") is None
     assert tv.evaluate("!document.querySelector('#dCamSound').hidden")
@@ -135,7 +148,22 @@ with sync_playwright() as p:
     tv.keyboard.press('0')
     step("with Camera sound on, the camera full screen plays its sound")
 
-    # the phone leaves: its tile goes; the screen leaves: the join card fills the screen again
+    # the phone leaves (no waiting for a cut that a TV never makes) and comes back
+    cam.click('#camTitle')
+    t0 = time.time()
+    cam.click('#leaveBtn')
+    cam.wait_for_selector('#rejoinCard:not([hidden])', timeout=5000)
+    took = time.time() - t0
+    assert took < 2.5 and cam.evaluate("document.querySelector('#cutWait').hidden"), took
+    assert "You're off the TV" in cam.locator('#rejoinText').inner_text()
+    assert cam.evaluate("document.querySelector('#rejoinMicBtn').hidden")
+    wait(tv, "() => window.vmTvDirect().tiles.length === 1", "Ana's tile gone", 40)
+    step(f'leaving takes {took:.1f} s, with no wait for a copy of the show; the TV takes her tile away')
+    cam.click('#rejoinBtn')
+    wait(tv, "() => window.vmTvDirect().tiles.filter((t) => t.playing).length === 2", 'Ana back on the TV', 40)
+    step('Back on the TV puts her back')
+
+    # the phone closes: its tile goes; the screen leaves: the join card fills the screen again
     camx.close()
     wait(tv, "() => window.vmTvDirect().tiles.length === 1", "Ana's tile gone", 40)
     sh.click('#stopBtn')
