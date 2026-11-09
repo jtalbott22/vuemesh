@@ -19,7 +19,9 @@
 //         arrival, ms), sp (how much later than that its frames come, ms), held (stopped sending: its last
 //         picture held), sd (how long its sound waits, ms), ch (this computer's: sides it opened with),
 //         dbL / dbR (a stereo input here: each side's loudest), st2 (the mixer hears both sides), side
-//         (one side of a split input: L or R), and from a phone's link every few
+//         (one side of a split input: L or R), om (a screen shared here with Windows' system sound, after
+//         Windows moved to another speaker: { from: the speaker it still hears, to: the one in use }),
+//         and from a phone's link every few
 //         seconds: fps, loss (%), jit (its picture's jitter, ms), rtt (ms); its sound as the studio
 //         plays it: ajit (its sound's jitter, ms), abuf (how long its sound waited to be played, ms,
 //         on average since the last time), and, once each time (every few seconds), what the browser
@@ -95,6 +97,12 @@ export function spans(rows, test) {
     } else cur = null;
   }
   return out;
+}
+
+/** This computer's default speaker, by name, from the browser's device list; null if it isn't listed or has no name yet (nothing allowed). */
+export function defaultOutputOf(devices) {
+  const d = devices?.find((x) => x.kind === 'audiooutput' && x.deviceId === 'default');
+  return d?.label?.replace(/^Default\s*-\s*/i, '').trim() || null;
 }
 
 /** Played this much faster in a few seconds (ms of sound), a source's sound was hurried: heard as it speeding up. */
@@ -307,6 +315,9 @@ export class SoundWatch {
     };
     for (const s of sources) {
       if (s.a === 'live') this.hadSound.add(s.id);
+      // A screen shared with Windows' system sound, after Windows moved to another speaker: it hears the
+      // old one, so it's silent whatever plays. Unlike a screen with nothing playing, that's worth saying
+      if (s.om) check(`output:${s.id}`, s.a === 'live', 0, { kind: 'screen-output', id: s.id, n: s.n, text: `${s.n}: its sound isn't reaching the show. Windows moved its sound to ${s.om.to}, and this share only hears ${s.om.from}. Share its sound again, or put Windows back on ${s.om.from}` });
       // paused by its person (Pause feed, or watching the program on the phone): its silence is no alert.
       // Nor a shared screen's: it's silent whenever nothing on it plays (slides, a desktop), which is most of the time
       if (s.pz || s.k === 'screen') continue;

@@ -102,7 +102,8 @@ bgInterval(() => {
     pre.getFloatTimeDomainData(preBuf);
     const back = mixerWatch(st, Date.now(), preBuf.some((v) => v !== 0));
     if (back) {
-      if (back.say) note(`${l.name}'s sound had stopped reaching the mixer: reconnected it`);
+      // (not a screen on this computer: there's no link to it, and silent is what it is with nothing playing)
+      if (back.say && !(l.local && l.screen)) note(`${l.name}'s sound had stopped reaching the mixer: reconnected it`);
       st.trackId = null;
       mixAttach(peer);
     }

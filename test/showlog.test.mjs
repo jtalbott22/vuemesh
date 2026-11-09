@@ -1,7 +1,7 @@
 // The show log's own logic (public/js/showlog.js): the sound watch's alerts, the summary's
 // numbers and words, and the log's limits. No browser needed.
 import assert from 'node:assert/strict';
-import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile, mixerWatch, soundIn } from '../public/js/showlog.js';
+import { ShowLog, SoundWatch, summarize, spans, dbOf, FLOOR_DB, joinChunks, sessionFile, mixerWatch, soundIn, defaultOutputOf } from '../public/js/showlog.js';
 
 const ok = (m) => console.log('ok  ' + m);
 const T0 = Date.UTC(2026, 10, 4, 15, 0, 0);
@@ -257,6 +257,34 @@ const at = (s) => T0 + s * 1000;
   assert.match(mac[0], /arrived at 11 frames a second \(of 30\) from .* for 15 s: it sent 12, held back by its processor \(encoding VideoToolbox on its graphics hardware\)\./);
   assert.ok(lines.some((l) => /^Phone's picture arrived at 10 frames a second .* for 12 s: no word from its side\.$/.test(l)), lines.join('\n'));
   ok("a remote picture arriving slowly for 10 s or more: when, how slowly, what it says it sent and what held it back; not while it's off air");
+}
+
+// ---- a screen shared with Windows' system sound, after Windows moved to another speaker ----
+{
+  const moved = { from: 'Speakers (Focusrite USB Audio)', to: 'Speakers (3- Realtek(R) Audio)' };
+  const screen = (om, a = 'live') => ({ id: 's', n: 'Screen', k: 'screen', open: 1, a, db: -99, ...(om ? { om } : {}) });
+  const w = new SoundWatch();
+  for (let i = 0; i < 20; i++) assert.equal(w.update(at(i), { sources: [screen()] }).raised.length, 0, 'silent with nothing playing is no alert');
+  let r = w.update(at(20), { sources: [screen(moved)] });
+  assert.equal(r.raised.length, 1, 'said at once');
+  assert.equal(r.raised[0].kind, 'screen-output');
+  assert.equal(r.raised[0].id, 's');
+  assert.match(r.raised[0].text, /Windows moved its sound to Speakers \(3- Realtek\(R\) Audio\), and this share only hears Speakers \(Focusrite USB Audio\)/);
+  assert.equal(w.update(at(21), { sources: [screen(moved)] }).raised.length, 0, 'said once');
+  r = w.update(at(22), { sources: [screen()] });
+  assert.equal(r.cleared.length, 1, 'clears when shared again, or Windows is put back');
+  assert.equal(r.active.length, 0);
+  const gone = new SoundWatch();
+  assert.equal(gone.update(at(0), { sources: [screen(moved, 'ended')] }).raised.length, 0, 'a share that has ended has nothing to say');
+  ok("a screen's system sound after Windows moved speakers: said at once with both names, once; cleared when it's put right; a silent screen otherwise says nothing");
+}
+{
+  const list = (label) => [{ kind: 'audioinput', deviceId: 'default', label: 'Default - Microphone (X)' }, { kind: 'audiooutput', deviceId: 'communications', label: 'Communications - Speakers (Y)' }, { kind: 'audiooutput', deviceId: 'default', label }];
+  assert.equal(defaultOutputOf(list('Default - Speakers (3- Realtek(R) Audio)')), 'Speakers (3- Realtek(R) Audio)');
+  assert.equal(defaultOutputOf(list('')), null, 'no name until something is allowed');
+  assert.equal(defaultOutputOf([{ kind: 'audiooutput', deviceId: 'abc', label: 'Speakers' }]), null, 'no default listed');
+  assert.equal(defaultOutputOf(null), null);
+  ok('the default speaker by name, from the browser\'s device list; not guessed when it has no name');
 }
 
 // ---- the mixer's watch: a source whose sound stopped reaching the mixer is put back ----

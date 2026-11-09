@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.19 — a shared screen's sound when Windows changes speakers
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.18.
+
+From a show log of a video on a shared screen with its sound: 10 s of it reached the program, then none, and Record program's file and the screen's own recording had none of it.
+- **Windows moved its sound to another speaker during the show** (from the Focusrite to the Realtek, half a minute before Record program started). A screen's System Audio is what plays on the speaker that was Windows' default when it was shared, and Chrome keeps it on that speaker: everything then played on the other one, and the share heard exact silence with its track still live. The log only said "the computer said its devices changed".
+- **Now the studio says so at once,** under Notifications (and as a system alert while it's hidden): which speaker Windows moved to and which one the share still hears, with **Share its sound again** beside it. That's Chrome's picker (Entire screen, Also share system audio on); the picture carries on as it is, and so does its recording. Putting Windows back on the first speaker clears it too.
+- **The show log says which speaker a screen's sound comes from,** when Windows moves, and, each second until it's put right, that the screen is on the wrong one.
+- A screen on this computer no longer logs "sound had stopped reaching the mixer: reconnected it": nothing links it to the mixer, and with nothing playing it's simply silent.
+
+**Tests:** `showlog.test`: the alert comes at once with both speakers' names, once, and clears when it's put right; a silent screen otherwise says nothing; the default speaker is read from the browser's device list, and not guessed when it has no name.
+
 ## 0.66.18 — sound from the start of a new link, and Quality first
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.66.17.
 
