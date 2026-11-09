@@ -163,7 +163,7 @@ function startProgram(tvKey) {
   pgm?.stop();
   pgm = new ProgramView({
     eventId, key: tvKey, name: localStorage.getItem('vm_remote_name') || 'Phone remote', video: $('#pgm'), onState: (t) => ($('#pgmSay').textContent = t), onSound: (t) => psound.setTrack(t),
-    onBlocked: (on) => ($('#pgmTap').hidden = !on), // (this phone won't play it until it's touched: a tap anywhere starts it)
+    onBlocked: () => tapUi(), // (this phone won't play it until it's touched: a tap anywhere starts it)
     onCtl: (m) => m.t === 'remote' && onMessage(m.d?.remote),
   });
   // (turned off, it stays connected and is sent nothing: the remote's buttons go on this link)
@@ -227,7 +227,42 @@ $('#pgmBox').addEventListener('click', (e) => {
   if (e.target.closest('#pgmTap')) return; // (that tap only starts the picture: pgmview.js)
   fullProgram(!$('#pgmBox').classList.contains('full'));
 });
-$('#pgmTap').onclick = () => pgm?.resume();
+// The box's one button, when the picture needs the phone: to connect it (the phone's address, see
+// pgmview.js reveal), or to show it (a phone that won't play a video until it's touched).
+let micAsked = null; // the microphone's permission, as the phone last said
+async function micState() {
+  try { micAsked = (await navigator.permissions?.query({ name: 'microphone' }))?.state || null; } catch {}
+}
+micState();
+let autoRevealed = false;
+function tapUi() {
+  // (the microphone allowed for this site already: no question to ask, so no tap needed either)
+  if (pgm?.stuck && !pgm.revealed && micAsked === 'granted' && !autoRevealed) {
+    autoRevealed = true;
+    reveal();
+  }
+  const b = $('#pgmTap'), connect = !!pgm?.stuck && micAsked !== 'granted' && !(rcam?.on);
+  b.dataset.do = connect ? 'connect' : pgm?.blocked ? 'show' : '';
+  b.hidden = !b.dataset.do;
+  b.innerHTML = connect
+    ? `<b>Tap to connect the picture</b><small>${pgm.revealed ? 'Allow the microphone: without it this phone can’t get the picture on this network.' : 'Your phone asks for the microphone once, to let the studio find it on the network. Nothing is recorded or sent.'}</small>`
+    : '<b>Tap to show the program</b>';
+}
+setInterval(tapUi, 1000);
+$('#pgmTap').onclick = () => ($('#pgmTap').dataset.do === 'connect' ? reveal() : pgm?.resume());
+async function reveal() {
+  $('#pgmTap').hidden = true;
+  // (the program's sound held and the phone set for recording while the microphone's asked for, as
+  // + This phone does: an iPhone won't open it on "playback"; then back as they were)
+  psound.hold(true);
+  try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch {}
+  const ok = await pgm?.reveal();
+  try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch {}
+  psound.hold(!!(rcam?.on && rcam.micOn));
+  if (ok) micAsked = 'granted'; // (Safari can still say "prompt" after a yes: it's for this page)
+  else await micState();
+  tapUi();
+}
 $('#pgmBox').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -237,7 +272,7 @@ $('#pgmBox').addEventListener('keydown', (e) => {
 // (left the browser's full screen another way, a swipe or Esc: back to the remote too)
 document.addEventListener('fullscreenchange', () => !document.fullscreenElement && fullProgram(false));
 window.vmProgramFull = () => $('#pgmBox').classList.contains('full'); // (tests)
-window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, blocked: pgm.blocked, tapShown: !$('#pgmTap').hidden, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
+window.vmProgramView = () => pgm && { linked: pgm.linked, shown: pgm.shown, blocked: pgm.blocked, tapShown: !$('#pgmTap').hidden, tapDoes: $('#pgmTap').dataset.do || '', stuck: pgm.stuck, w: $('#pgm').videoWidth, h: $('#pgm').videoHeight, sound: pgm.hasSound, muted: !psound.on, nowPlaying: navigator.mediaSession?.metadata?.title || null }; // (tests)
 
 // Opened on a show whose studio isn't open (last week's, from the home screen): after a few
 // seconds, the show's code can be changed (still listening, in case it's only opening late).

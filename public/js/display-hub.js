@@ -164,7 +164,11 @@ export class DisplayHub {
     if (data.kind === 'offer') return this.answer(from, data);
     if (data.kind === 'restart') return this.close(from, true);
     if (data.kind === 'ice' && data.c) {
-      if (this.localOnly?.() && !/ typ host( |$)/.test(data.c.candidate || '')) return;
+      // (what addresses it gave: a phone whose page hasn't been allowed its camera or microphone
+      // gives only a made-up name.local for its own, which this computer has to find on the network)
+      const c = data.c.candidate || '';
+      if (/ typ host( |$)/.test(c)) (l.hosts ||= { local: 0, ip: 0 })[/\.local /.test(c) ? 'local' : 'ip']++;
+      if (this.localOnly?.() && !/ typ host( |$)/.test(c)) return;
       if (l.remoteSet) await l.pc.addIceCandidate(data.c).catch(() => {});
       else l.pendingIce.push(data.c);
     }
@@ -204,7 +208,17 @@ export class DisplayHub {
     const l = this.links.get(peer);
     this.teardown(l);
     const pc = new RTCPeerConnection({ iceServers: ICE });
-    Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' } });
+    Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' }, hosts: null });
+    // Not connected in 12 s: say so, once a link, and why if it looks like the hidden address. A phone
+    // remote's Program out hung at "connecting" for a whole show until the phone's camera was added
+    // (+ This phone), which gave the page the camera and the phone its real address.
+    setTimeout(() => {
+      if (this.links.get(peer)?.pc !== pc || pc.connectionState === 'connected') return;
+      const name = this.keys.get(l.key)?.name || 'A TV', h = l.hosts;
+      this.note?.(h?.local && !h.ip
+        ? `${name} hasn't connected in 12 s: the phone gave only a hidden address for itself (name.local), and this computer couldn't find it on the network. It shows on the phone once the page is allowed the microphone or camera${this.keys.get(l.key)?.remote ? ' (the remote asks: Tap to connect the picture)' : ''}`
+        : `${name} hasn't connected in 12 s (${pc.connectionState}): check it's on the same network as this computer`);
+    }, 12_000);
     pc.ondatachannel = (e) => {
       if (e.channel.label === 'media') {
         // (recordings for Browse go out on this one: the TV opened it, reliable and in order)

@@ -5,6 +5,13 @@
 #   made here by a play() that refuses until the page has been touched): the picture still arrives,
 #   the box says "Tap to show the program", the studio's show log says so, and the first tap
 #   anywhere on the page (not only on the box) starts it, without opening it full screen.
+# - On a phone that hides its address until the page is allowed its microphone or camera (an
+#   iPhone; made here by giving the studio only a made-up name.local and ignoring the studio's
+#   addresses until the microphone's been asked for, as a studio whose firewall drops what it didn't
+#   ask for sees it): the link hangs; after 5 s the box says Tap to connect the picture; the show
+#   log says why (the hidden address); the tap asks for the microphone, lets it go, and the picture
+#   connects, without + This phone. With the microphone allowed for the site already, it does that
+#   without a tap.
 # Run: node dev/server.mjs &  then  python3 test/e2e_remotepgm.py
 import os, time
 from playwright.sync_api import sync_playwright
@@ -26,12 +33,38 @@ NO_AUTOPLAY = """(() => {
   document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('video[autoplay]').forEach((v) => v.removeAttribute('autoplay')));
 })();"""
 
-def pair(b, host, ev, init=None):
+# a phone that hides its address until the page has the microphone or camera (see above)
+HIDDEN = """(() => {
+  let revealed = false;
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = async (c) => { const s = await gum(c); revealed = true; return s; };
+  const PC = window.RTCPeerConnection;
+  window.RTCPeerConnection = class extends PC {
+    constructor(...a) {
+      super(...a);
+      const hide = (c) => {
+        if (revealed || !c) return c;
+        if (!/ typ host /.test(c.candidate)) return null;
+        const parts = c.candidate.split(' '); parts[4] = crypto.randomUUID() + '.local';
+        return new RTCIceCandidate({ candidate: parts.join(' '), sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex });
+      };
+      const on = Object.getOwnPropertyDescriptor(PC.prototype, 'onicecandidate');
+      Object.defineProperty(this, 'onicecandidate', { configurable: true, set: (f) => on.set.call(this, f && ((e) => {
+        if (!e.candidate) return f(e);
+        const c = hide(e.candidate);
+        if (c) f({ candidate: c });
+      })), get: () => on.get.call(this) });
+    }
+    addIceCandidate(c) { return revealed ? super.addIceCandidate(c) : Promise.resolve(); }
+  };
+})();"""
+
+def pair(b, host, ev, init=None, perms=None):
     host.evaluate("document.querySelectorAll('dialog[open]').forEach((d) => d.close())")
     host.click('#remoteAdd')
     host.wait_for_function("document.querySelector('#remoteDlg').open && document.querySelector('#remoteCode').textContent.length === 9", timeout=10000)
     code = host.inner_text('#remoteCode').replace('-', '')
-    ctx = b.new_context(viewport={'width': 390, 'height': 844})
+    ctx = b.new_context(viewport={'width': 390, 'height': 844}, permissions=perms or [])
     if init:
         ctx.add_init_script(init)
     rem = ctx.new_page()
@@ -73,6 +106,31 @@ with sync_playwright() as p:
     assert not rem.evaluate("vmProgramFull()"), 'the tap opened it full screen'
     host.wait_for_function("vmNotes().some((t) => /is showing the picture now/.test(t))", timeout=10000)
     step('the first tap anywhere starts it (not full screen), and the show log says it is showing')
+
+    rem.context.close()
+
+    # a phone that hides its address: the picture hangs, until the microphone's asked for once
+    rem = pair(b, host, ev, HIDDEN)
+    rem.wait_for_function("vmProgramView()?.stuck && vmProgramView().tapDoes === 'connect'", timeout=12000)
+    assert not rem.evaluate("vmProgramView().linked")
+    assert 'Tap to connect the picture' in rem.inner_text('#pgmTap')
+    host.wait_for_function("vmNotes().some((t) => /hasn.t connected in 12 s: the phone gave only a hidden address/.test(t))", timeout=20000)
+    # (it stays up while the phone asks again, every 12 s)
+    for _ in range(16):
+        assert rem.evaluate("vmProgramView().tapDoes") == 'connect', 'the button went while it was still hanging'
+        time.sleep(0.5)
+    step('a phone that hides its address: the picture hangs, the box says Tap to connect the picture, and the show log says why')
+    rem.click('#pgmTap')
+    rem.wait_for_function("vmProgramView().linked && vmProgramView().shown > 5 && !vmProgramView().tapShown", timeout=15000)
+    assert not rem.evaluate("vmProgramFull()") and not rem.evaluate("!!vmRemoteCam?.()?.on")
+    step('one tap (the microphone asked for and let go) connects it, without + This phone')
+    rem.context.close()
+
+    # the microphone allowed for the site already: no tap needed
+    rem = pair(b, host, ev, HIDDEN, perms=['microphone'])
+    rem.wait_for_function("vmProgramView()?.linked && vmProgramView().shown > 5", timeout=20000)
+    assert not rem.evaluate("vmProgramView().tapShown")
+    step('with the microphone allowed for the site already, it connects by itself')
 
     assert not errors, errors
     b.close()

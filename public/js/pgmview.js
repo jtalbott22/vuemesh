@@ -102,12 +102,14 @@ export class ProgramView {
   }
   async offer() {
     this.lastTry = Date.now();
+    this.tryingSince ||= Date.now(); // (since the first try, not this one: it asks again every 12 s)
     this.drop();
     const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
     pc.addTransceiver('video', { direction: 'recvonly' });
     if (this.sound) pc.addTransceiver('audio', { direction: 'recvonly' });
     this.ctl = pc.createDataChannel('ctl', { ordered: true });
     this.ctl.onopen = () => {
+      this.tryingSince = null;
       this.say('');
       if (this.wanted) this.want(this.wanted.mode, this.wanted.big);
       this.onOpen?.();
@@ -146,6 +148,31 @@ export class ProgramView {
     } catch {
       return false;
     }
+  }
+  /** Asked for the picture over 5 s ago and still not linked (see reveal). */
+  get stuck() {
+    return !!this.pc && !this.linked && !!this.tryingSince && Date.now() - this.tryingSince > 5000;
+  }
+  /**
+   * A phone hides its own address from a page that hasn't been allowed its camera or microphone
+   * (an iPhone always; Chrome too), giving a made-up name.local the studio has to find on the
+   * network, which from a Wi-Fi phone to a wired studio computer it usually can't. Then the picture
+   * never connects: the remote's Program out waited for its camera to be added, which allowed it.
+   * Asked here inside a tap: the microphone, let go at once (nothing from it is kept or sent), and
+   * the picture asked for again, now with the phone's real address. (A page keeps that for as long
+   * as it's open.) @returns false if the microphone was turned down
+   */
+  async reveal() {
+    let ok = true;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach((t) => t.stop());
+    } catch {
+      ok = false;
+    }
+    this.revealed = true;
+    if (this.host) this.offer();
+    return ok;
   }
   get linked() {
     return this.ctl?.readyState === 'open' && this.pc?.connectionState === 'connected';

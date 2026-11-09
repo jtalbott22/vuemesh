@@ -54,7 +54,9 @@
   .pgm video { width: 100%; height: 100%; object-fit: contain; display: block; }
   .pgm .pgmsay { position: absolute; inset: auto 8px 8px 8px; color: var(--dim); font-size: .85rem; text-align: center; }
   /* (a phone that won't play the picture until it's touched: one tap, anywhere, starts it) */
-  .pgm .pgmtap { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; border: 0; border-radius: 0; background: #000b; color: #fff; font-weight: 700; font-size: 1.05rem; }
+  .pgm .pgmtap { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; border: 0; border-radius: 0; background: #000c; color: #fff; font-weight: 700; font-size: 1.05rem;
+    display: grid; place-content: center; gap: 6px; padding: 12px 18px; text-align: center; }
+  .pgm .pgmtap small { font-weight: 500; font-size: .82rem; color: #ffffffcc; max-width: 34ch; line-height: 1.3; }
   .pgm .pgmtap[hidden] { display: none; }
   .pgmrow { display: flex; gap: 8px; margin: 0 0 8px; }
   .pgmrow[hidden], .pgmrow button[hidden] { display: none; }
