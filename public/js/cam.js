@@ -37,7 +37,7 @@ const guestHelp = helpDialog('Shooting tips', [
   { heading: 'Camera controls', rows: [
     ['Zoom', 'Pinch the picture, drag the slider on the right, or tap a lens (0.5×, 1×, 2×)'],
     ['Tap', `Focus and expose on that spot (where the ${DEVICE} allows it)`],
-    ['Hold', 'Lock focus and exposure (AE/AF LOCK)'],
+    ['Hold', `Lock focus and exposure, AE/AF LOCK (where the ${DEVICE} allows it)`],
     ['⚙', 'Choose the camera and the microphone separately, quality, exposure, mic level, grid, level and zebras'],
     ['⚡ / ⛶', 'Torch (if your phone has one) / full screen'],
     ['Left meter', 'Your microphone level: aim for yellow on the loud parts, never the red light'],
@@ -220,9 +220,9 @@ function camState() {
     z: Math.round((zoomGoal ?? kit.zoom ?? 1) * 100) / 100, zmin: zr.min, zmax: zr.max, zn: !!zr.native,
     ev: Math.round((kit.ev || 0) * 10) / 10, evmin: Math.max(-3, ec?.min ?? -2), evmax: Math.min(3, ec?.max ?? 2), evn: !!ec,
     ct: Math.round((kit.contrast || 1) * 100) / 100,
-    focus: kit.can('pointsOfInterest') || kit.can('focusMode'),
+    focus: kit.canFocus(),
     lenses: lensChoices.filter((c) => lensAllowed(c.kind)), lens: kit.deviceId || null, facing: kit.facing,
-    lock: !!kit.locked, canLock: (c.focusMode || []).includes('manual') || (c.exposureMode || []).includes('manual'),
+    lock: !!kit.locked, canLock: kit.canLock(),
     wb: wbLocked, canWb: (c.whiteBalanceMode || []).includes('manual'),
   };
 }
@@ -2928,16 +2928,19 @@ function setupViewfinderTouch() {
   const pts = new Map();
   let pinch = null, holdTimer = null, moved = false, downAt = null;
   const isControl = (el) => el.closest('button, input, select, .bar, .zoomrail, .vu, [role=button], dialog, a');
+  // iPhones zoom the page on a pinch even with touch-action set; Safari's own gesture events stop it.
+  for (const t of ['gesturestart', 'gesturechange', 'gestureend']) view.addEventListener(t, (e) => e.preventDefault());
   view.addEventListener('pointerdown', (e) => {
     if (isControl(e.target) || role !== 'cam') return;
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    moved = false;
+    if (pts.size === 1) moved = false;
     downAt = { x: e.clientX, y: e.clientY };
     if (pts.size === 2) {
       const [a, b] = [...pts.values()];
-      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: kit.zoom };
+      pinch = { d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), z: zoomGoal ?? kit.zoom ?? 1 };
+      moved = true; // the finger left after a pinch is no tap
       clearTimeout(holdTimer);
-    } else {
+    } else if (pts.size === 1 && kit.canLock()) {
       holdTimer = setTimeout(() => toggleLock(e.clientX, e.clientY), 700);
     }
   });
@@ -2961,6 +2964,7 @@ function setupViewfinderTouch() {
       if (pts.size < 2) pinch = null;
       return;
     }
+    if (pts.size) return;
     if (!moved && e.type === 'pointerup' && holdTimer !== 'held') focusTap(e.clientX, e.clientY);
     holdTimer = null;
   };
@@ -2972,7 +2976,7 @@ function setupViewfinderTouch() {
     showFocusBox(x, y);
     const ok = await kit.setLock(on);
     sendCamState();
-    if (!ok && on) return toast(`This ${DEVICE}'s camera doesn’t let the browser lock focus and exposure`);
+    if (!ok) return;
     $('#aeLock').hidden = !kit.locked;
     announce(kit.locked ? 'Focus and exposure locked' : 'Focus and exposure unlocked');
   }
@@ -2993,8 +2997,10 @@ function pictureAt(cx, cy) {
   return { x: Math.min(1, Math.max(0, (x + (vw * k) / 2) / (vw * k))), y: Math.min(1, Math.max(0, (y + (vh * k) / 2) / (vh * k))) };
 }
 
+// Only where the camera lets a page focus (Android's Chrome): on an iPhone the camera keeps its own
+// focus, exposure and white balance, and a focus box that changes nothing would look broken.
 async function focusTap(x, y) {
-  if (!$('#camView').classList.contains('on')) return;
+  if (!$('#camView').classList.contains('on') || !kit.canFocus()) return;
   showFocusBox(x, y);
   const p = pictureAt(x, y);
   if (p) await kit.focusAt(p.x, p.y);

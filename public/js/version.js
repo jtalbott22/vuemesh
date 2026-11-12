@@ -51,4 +51,6 @@ export function fillVersions(root = document) {
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => fillVersions());
   else fillVersions();
+  // (every page loads this, so the once-per-browser note on what's stored rides along: see notice.js)
+  import('./notice.js').catch(() => {});
 }

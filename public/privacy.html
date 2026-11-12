@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy — VUEMesh</title>
+<meta name="description" content="Exactly what VUEMesh keeps in your browser and on its server, and how to clear it. No cookies, no accounts, no trackers.">
+<link rel="canonical" href="https://vuemesh.com/privacy">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/privacy">
+<meta property="og:title" content="Privacy — VUEMesh">
+<meta property="og:description" content="Exactly what VUEMesh keeps in your browser and on its server, and how to clear it.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  .wrap { max-width: 820px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
+  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin-bottom: .2em; }
+  h2 { margin-top: 2em; font-size: 1.25rem; }
+  p, li, td { color: var(--text-2); }
+  b, strong, th { color: var(--text); }
+  .short { background: var(--surface); border-radius: 12px; padding: 16px 20px; }
+  .short ul { margin: .4em 0 0; padding-left: 1.2em; }
+  .short li { margin: .25em 0; }
+  .tbl { overflow-x: auto; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; }
+  code { font-family: var(--mono); font-size: .88em; overflow-wrap: anywhere; }
+  .here { background: var(--surface); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .here p { margin: .3em 0; }
+  .here .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  button.danger { background: var(--tally); color: #fff; }
+  footer { margin-top: 48px; font-size: .9rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
+  <main>
+    <h1>Privacy</h1>
+    <p>Exactly what VUEMesh keeps, where, and for how long. This page describes the site at vuemesh.com. VUEMesh is open source (MIT), so anyone can run their own copy; a copy run by someone else is theirs, and so is what it keeps.</p>
+
+    <div class="short">
+      <b>The short version</b>
+      <ul>
+        <li><b>No cookies, no accounts, no ads, no trackers, no third-party analytics.</b> There's nothing to accept.</li>
+        <li><b>Never your location.</b> VUEMesh doesn't ask where you are, and there's no public list or map of events.</li>
+        <li><b>Your recordings stay on your devices.</b> Video goes from device to device over your own network. Our server never receives it.</li>
+        <li><b>The server keeps an event's name and settings for 30 days</b>, so devices can find each other, then deletes it by itself.</li>
+        <li><b>You can clear everything VUEMesh keeps in this browser</b> with one button, below.</li>
+      </ul>
+    </div>
+
+    <h2 id="browser">In this browser</h2>
+    <p>VUEMesh is an app that runs in your browser, and it keeps its work there, on this device only, the way a document editor keeps files. None of this is a cookie and none of it is sent anywhere by itself. It's grouped here by what it's for; every key starts with <code>vm_</code>.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>What</th><th>Where</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><b>Your recordings and edits</b>: camera and microphone clips, clips waiting to reach the studio, the recorded program, break-reel images and videos, the show log</td><td>IndexedDB, database <code>vuemesh</code> (<code>clips</code>, <code>outbox</code>, <code>program</code>, <code>reel</code>, <code>showlog</code>)</td><td>So footage survives a reload or a dropped connection, and you can export it later. Delete or export it from <a href="/#start">Your events on this device</a> on the home page, or from My footage on a phone.</td></tr>
+        <tr><td><b>Your events</b>: the ones you made or joined, their names and codes, and your role</td><td>Local storage: <code>vm_events</code>, <code>vm_last</code>, <code>vm_ev_…</code></td><td>So you can get back to them.</td></tr>
+        <tr><td><b>Keys</b>: a host's key for each event it made; a TV's key; this device's own signing key</td><td>Local storage: <code>vm_host_…</code>, <code>vm_tv_key_…</code>, <code>vm_identity</code></td><td>The host key is what lets you run the studio for your event. The signing key lets a phone sign its clips so the studio can check nothing was changed. Keys never leave the device except to prove who you are to the event.</td></tr>
+        <tr><td><b>Names you typed</b>: your name when joining, a TV's name, a remote's name, a shared screen's name</td><td>Local storage: <code>vm_name</code>, <code>vm_tv_name</code>, <code>vm_remote_name</code>, <code>vm_share_name</code></td><td>So you don't have to type it again.</td></tr>
+        <tr><td><b>Each event's edit and show</b>: the timeline, live cuts, crew, camera angles, the mixer, lower thirds, rundown, messages, output and recording choices</td><td>Local storage: <code>vm_seq_…</code>, <code>vm_cut_…</code>, <code>vm_crew_…</code>, <code>vm_angles_…</code>, <code>vm_livemix_…</code>, <code>vm_lt_…</code>, <code>vm_rundown_…</code>, <code>vm_msgs_…</code> and similar</td><td>So the studio comes back as you left it.</td></tr>
+        <tr><td><b>Settings</b>: light or dark, layouts, camera preferences, which tips you've seen, that you agreed to the Terms, and that you've seen the note about this page</td><td>Local storage: <code>vm_theme</code>, <code>vm_layout</code>, <code>vm_camprefs</code>, <code>vm_terms</code>, <code>vm_privacy_ok</code> and similar</td><td>Preferences.</td></tr>
+        <tr><td><b>This visit only</b>: a phone's clock offset to the beacon, Admin's key while signed in</td><td>Session storage: <code>vm_off_…</code>, <code>vm_admin</code></td><td>Gone when the tab closes.</td></tr>
+        <tr><td><b>The app itself</b>: its pages, scripts and pictures</td><td>The browser's cache, through a service worker (<code>vm-app-v1</code>)</td><td>So the app opens with no internet, for a show on a network of its own.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="here" id="here">
+      <b>What this browser has now</b>
+      <p id="hereKeys">Checking…</p>
+      <p id="hereBytes"></p>
+      <div class="row">
+        <button type="button" class="danger" id="clearAll">Clear everything VUEMesh keeps here</button>
+      </div>
+      <p class="fine" style="margin-top:10px">This removes every recording, edit, key and setting VUEMesh has in this browser, and the saved copy of the app. Export anything you want to keep first, from the home page. It can't be undone, and without its host key you can't run the studio for an event again.</p>
+    </div>
+
+    <h2 id="server">On our server</h2>
+    <p>The server is a small switchboard. It helps devices at an event find each other, then gets out of the way. It keeps:</p>
+    <ul>
+      <li><b>Each event</b>: its name, code, shape (landscape or portrait), settings, the Terms its people agreed to, a one-way hash of the host's key, when it was made, and when the studio was last open. <b>Deleted automatically 30 days after it's made</b> (12 hours for a show started at a kiosk), or sooner when the host deletes it.</li>
+      <li><b>Who's connected right now</b>: a random ID for each device in the event, the name it joined with, and its role (camera, microphone, studio, TV). Used to pass the handshake between devices. Deleted within a day.</li>
+      <li><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, microphones and viewers joined, recordings made, hours of footage, live cut and streaming. So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
+      <li><b>Anonymous page views</b>: one count per page load, by page, with the site that linked to it, device type (phone, tablet, desktop), browser name, and country if the network provides it. A visitor is counted once a day using a salted hash of the day, the address and the browser, which can't be turned back into either and isn't kept with the counts. <b>None of this is sent if your browser asks not to be tracked</b> (Do Not Track or Global Privacy Control).</li>
+    </ul>
+    <p><b>Recordings never go to the server.</b> Film publishing (uploading a finished film for a watch page) exists in the code but is turned off on vuemesh.com. If it's ever turned on, it will be something a host chooses for a film, and this page will say what it keeps.</p>
+
+    <h2 id="others">Other services your browser talks to</h2>
+    <ul>
+      <li><b>Amazon Web Services</b> hosts the site and the server. Like any host, it handles your requests and may keep its own short operational logs.</li>
+      <li><b>Google's STUN server</b> (<code>stun.l.google.com</code>): when devices connect, each asks it for its own public address, so they can find a path to each other. It sees that request and nothing else; no video goes through it.</li>
+      <li><b>Google Fonts</b> serves the Archivo typeface on some pages, so Google sees that your browser asked for a font. (Moving it onto our own server is on the list. <a href="https://github.com/jtalbott22/vuemesh/blob/main/CONTRIBUTING.md">Help welcome.</a>)</li>
+      <li><b>Only when you set them up:</b> a streaming service you stream to (YouTube, Twitch and the like), and Patreon or email if you follow those links.</li>
+    </ul>
+
+    <h2 id="you">Your choices</h2>
+    <ul>
+      <li>Delete or export a single event's recordings from the home page, or a phone's from My footage.</li>
+      <li>Clear everything with the button above, or with your browser's own "clear site data".</li>
+      <li>Turn on Do Not Track or Global Privacy Control and no page views are counted.</li>
+      <li>A host can delete an event from the server at any time from the studio; it deletes itself after 30 days anyway.</li>
+      <li>Run your own copy: it's MIT licensed, and your copy keeps only what you choose.</li>
+    </ul>
+
+    <h2 id="changes">Changes and questions</h2>
+    <p>If what VUEMesh keeps changes, this page changes with it, in the same release (it's in the <a href="https://github.com/jtalbott22/vuemesh">public repository</a>, so every change is visible). Questions: <a id="contactLink" target="_blank" rel="noopener">get in touch</a>, or open an issue.</p>
+  </main>
+  <footer><a href="/">Home</a><a href="/terms">Terms</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
+</div>
+<script src="/js/version.js" type="module"></script>
+<script type="module">
+  import { $, themeButton } from '/js/vm.js';
+  import { sponsorContactHref } from '/js/brand.js';
+  themeButton($('#themeBtn'));
+  $('#contactLink').href = sponsorContactHref('VUEMesh: a privacy question');
+
+  const mb = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+  const vmKeys = (st) => {
+    try { return Object.keys(st).filter((k) => k.startsWith('vm_')); } catch { return []; }
+  };
+  async function census() {
+    const keys = vmKeys(localStorage), sess = vmKeys(sessionStorage);
+    let events = 0;
+    try { events = JSON.parse(localStorage.getItem('vm_events') || '[]').length; } catch {}
+    $('#hereKeys').textContent = keys.length + sess.length
+      ? `${keys.length} saved item${keys.length === 1 ? '' : 's'}${sess.length ? ` (and ${sess.length} for this visit only)` : ''}, for ${events} event${events === 1 ? '' : 's'}.`
+      : 'Nothing saved by VUEMesh in this browser.';
+    try {
+      const est = await navigator.storage?.estimate?.();
+      if (est?.usage) $('#hereBytes').textContent = `About ${mb(est.usage)} in all, including recordings and the saved copy of the app.`;
+      else $('#hereBytes').textContent = '';
+    } catch {}
+  }
+  census();
+
+  $('#clearAll').addEventListener('click', async (e) => {
+    if (!confirm('Clear everything VUEMesh keeps in this browser?\n\nEvery recording, edit, host key and setting here will be deleted. Export anything you want to keep first.\n\nThis can\'t be undone.')) return;
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    for (const st of [localStorage, sessionStorage]) for (const k of vmKeys(st)) st.removeItem(k);
+    await new Promise((done) => {
+      const r = indexedDB.deleteDatabase('vuemesh');
+      r.onsuccess = r.onerror = r.onblocked = () => done();
+    });
+    try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+    try { for (const r of (await navigator.serviceWorker?.getRegistrations?.()) || []) await r.unregister(); } catch {}
+    try { localStorage.setItem('vm_privacy_ok', '1'); } catch {}   // (don't greet them with the note again straight after)
+    btn.disabled = false;
+    await census();
+    btn.textContent = 'Cleared';
+  });
+</script>
+</body>
+</html>

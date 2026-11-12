@@ -1,10 +1,8 @@
 import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally } from '/js/vm.js';
 import * as idb from '/js/idb.js';
 import { makeZip, ZIP_LIMIT } from '/js/zip.js';
-import { EventGlobe, km } from '/js/globe.js';
-import { BRAND, FEATURES, TERMS_VERSION } from '/js/brand.js';
+import { BRAND, TERMS_VERSION } from '/js/brand.js';
 
-document.body.classList.toggle('globe', FEATURES.globe);
 themeButton($('#themeBtn'));
 $('#patreonLink').href = BRAND.patreon;
 import { ANGLES, render, tickBeacon } from '/js/landing-scene.js';
@@ -221,8 +219,8 @@ $('#create').addEventListener('submit', async (e) => {
   try {
     const title = $('#title').value.trim();
     const orientation = new FormData($('#create')).get('orientation') === 'portrait' ? 'portrait' : 'landscape';
-    const body = { title, kind: $('#kind').value, public: $('#listPublic').checked, orientation };
-    if (body.public) Object.assign(body, await where().catch(() => ({})));
+    // (nothing about where you are or what kind of event it is: a name and a shape, that's all)
+    const body = { title, orientation };
     const { id, hostKey } = await api('events', { method: 'POST', body });
     localStorage.setItem('vm_terms', TERMS_VERSION);
     localStorage.setItem('vm_host_' + id, hostKey);
@@ -241,124 +239,6 @@ $('#create').addEventListener('submit', async (e) => {
   } catch (err) {
     toast(err.message);
     btn.disabled = false;
-  }
-});
-
-// ------------------------------------------------------------ find nearby ----
-
-function where() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('Location is not available on this device'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => reject(new Error('Allow location to find events near you')),
-      { maximumAge: 600000, timeout: 10000 },
-    );
-  });
-}
-
-// --------------------------------------------------------- globe + board ----
-
-const KINDS = { wedding: 'Wedding or party', show: 'Show', game: 'Game', talk: 'Talk or service', other: 'Event' };
-let events = [];
-let me = null;
-const globe = FEATURES.globe
-  ? new EventGlobe($('#globe'), { onSelect: (ev) => choose(ev, false) })
-  : { select() {}, flyTo() {}, setMe() {}, setEvents() {}, load: async () => {}, selected: null };
-const detail = document.createElement('div');
-detail.className = 'detail';
-detail.hidden = true;
-detail.setAttribute('aria-live', 'polite');
-$('#board').after(detail);
-
-function ago(ms) {
-  const d = Math.floor((Date.now() - ms) / 86400000);
-  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
-}
-function statusOf(ev) {
-  return ev.live ? 'live' : ev.published ? 'film' : 'idle';
-}
-function subline(ev) {
-  const bits = [ev.live ? 'Live now' : ev.published ? 'Film ready' : `Created ${ago(ev.createdAt)}`, KINDS[ev.kind] || 'Event'];
-  if (ev.orientation === 'portrait') bits.push('portrait');
-  if (me && ev.km != null) bits.push(ev.km <= 1 ? 'about 1 km' : `${Math.round(ev.km)} km`);
-  return bits.join(' · ');
-}
-
-function renderBoard(selectedId) {
-  $('#boardCount').textContent = events.length ? `${events.filter((e) => e.live).length} live · ${events.length} total` : '';
-  if (!events.length) {
-    $('#board').innerHTML = '<li style="padding:14px;color:var(--text-2)">No public events yet. Start one below and tick “List it on the globe”.</li>';
-    return;
-  }
-  $('#board').innerHTML = events
-    .map((ev) => `<li><button type="button" data-id="${ev.id}" aria-current="${ev.id === selectedId}">
-      <span class="pin ${statusOf(ev)}" aria-hidden="true"></span><b>${esc(ev.title)}</b><span class="go">${ev.live ? 'Shoot' : ev.published ? 'Watch' : ''}</span>
-      <small>${esc(subline(ev))}</small></button></li>`)
-    .join('');
-}
-
-function choose(ev, fly = true) {
-  globe.select(ev, fly);
-  renderBoard(ev.id);
-  $(`#board [data-id="${ev.id}"]`)?.scrollIntoView({ block: 'nearest' });
-  detail.hidden = false;
-  detail.innerHTML = `<h3>${esc(ev.title)}</h3><p>${esc(subline(ev))}</p><div class="row">
-    ${ev.live ? `<a class="btn primary" href="/cam?e=${ev.id}">Join and shoot</a>` : ''}
-    ${ev.published ? `<a class="btn" href="/watch?e=${ev.id}">Watch the film</a>` : ''}
-    ${!ev.live && !ev.published ? '<span style="color:var(--text-2)">Not live right now. Check back when it starts.</span>' : ''}</div>`;
-}
-
-$('#board').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-id]');
-  if (b) choose(events.find((x) => x.id === b.dataset.id));
-});
-
-async function loadEvents() {
-  if (!FEATURES.globe) {
-    $('#board').innerHTML = '<li style="padding:14px;color:var(--text-2)">Tap “Near me” to see public events within 80 km. Your location stays on this device; we only send it to find nearby events.</li>';
-    return;
-  }
-  try {
-    await globe.load();
-    const { events: list } = await api('events/public');
-    events = list;
-    sortEvents();
-    globe.setEvents(events);
-    renderBoard();
-  } catch (e) {
-    $('#board').innerHTML = `<li style="padding:14px;color:var(--text-2)">Couldn't load events: ${esc(e.message)}</li>`;
-  }
-}
-function sortEvents() {
-  if (me) events.forEach((ev) => (ev.km = km(me.lat, me.lon, ev.lat, ev.lon)));
-  events.sort((a, b) => (b.live - a.live) || (me ? a.km - b.km : b.createdAt - a.createdAt));
-}
-loadEvents();
-
-$('#findBtn').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  btn.textContent = 'Locating…';
-  try {
-    me = await where();
-    if (!FEATURES.globe) {
-      const { events: list } = await api(`events/near?lat=${me.lat.toFixed(2)}&lon=${me.lon.toFixed(2)}`);
-      events = list;
-      events.sort((a, b) => (b.live - a.live) || a.km - b.km);
-      renderBoard();
-      if (!events.length) $('#board').innerHTML = '<li style="padding:14px;color:var(--text-2)">Nothing public within 80 km right now. Start one below.</li>';
-      return;
-    }
-    globe.setMe(me.lat, me.lon);
-    globe.flyTo(me.lon, me.lat);
-    sortEvents();
-    renderBoard(globe.selected);
-  } catch (err) {
-    toast(err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Near me';
   }
 });
 

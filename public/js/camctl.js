@@ -162,6 +162,7 @@ export class CameraKit {
     }
     const old = this.track;
     this.track = s.getVideoTracks()[0];
+    this.held = {}; // a new camera starts from its own settings
     if (old && old !== this.track) old.stop();
     const set = this.track.getSettings?.() || {};
     this.deviceId = set.deviceId || this.deviceId;
@@ -187,8 +188,25 @@ export class CameraKit {
     return c !== undefined && !(Array.isArray(c) && !c.length);
   }
 
+  /**
+   * Change camera settings. applyConstraints replaces everything the track was asked for, so each
+   * call carries the picture's size and rate (left out, a phone falls back to its default size and
+   * the picture jumps with every step of a zoom) and every setting made so far (left out, a zoom
+   * undid the exposure, white balance and focus point). Each setting is its own advanced set: one
+   * the camera can't do is skipped on its own, not with the rest. A one-shot focus isn't kept, or
+   * every zoom step would refocus.
+   */
   async apply(advanced) {
-    await this.track.applyConstraints({ advanced: [snapToCamera(this.caps(), advanced)] });
+    const caps = this.caps();
+    const set = snapToCamera(caps, advanced);
+    this.held = { ...(this.held || {}), ...set };
+    if (set.focusMode === 'single-shot') delete this.held.focusMode;
+    const { deviceId, facingMode, ...base } = this.constraints();
+    const all = { ...this.held, ...set };
+    // Points of interest before the modes that act on them; zoom first so it never waits on the rest.
+    const order = ['zoom', 'pointsOfInterest', 'focusMode', 'exposureMode', 'whiteBalanceMode'];
+    const keys = Object.keys(all).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+    await this.track.applyConstraints({ ...base, advanced: keys.map((k) => ({ [k]: all[k] })) });
   }
 
   zoomRange() {
@@ -216,9 +234,19 @@ export class CameraKit {
     return this.ev;
   }
 
+  /** Whether a tap can focus or expose (Android's Chrome can; no iPhone browser lets a page). */
+  canFocus() {
+    return this.can('pointsOfInterest') || this.can('focusMode');
+  }
+
+  /** Whether focus or exposure can be held (AE/AF lock). */
+  canLock() {
+    return (this.caps().focusMode || []).includes('manual') || (this.caps().exposureMode || []).includes('manual');
+  }
+
   /** Focus and expose on a point (0..1 in the picture). */
   async focusAt(x, y) {
-    if (!this.can('pointsOfInterest') && !this.can('focusMode')) return false;
+    if (!this.canFocus()) return false;
     const adv = {};
     if (this.can('pointsOfInterest')) adv.pointsOfInterest = [{ x, y }];
     const modes = this.caps().focusMode || [];

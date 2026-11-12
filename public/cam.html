@@ -41,6 +41,9 @@
 
   #camView { position: fixed; inset: 0; display: none; }
   #camView.on { display: block; }
+  /* The viewfinder's pinch, tap and hold are ours: without this the browser zooms the whole page
+     with the pinch (and on a double tap), and the picture and controls jump around. */
+  #camView { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   video#preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
   .bar { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
   .bar.top { top: 0; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: linear-gradient(#000a, #0000); }
@@ -190,12 +193,16 @@
   .vubar .clip { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: #3a0d0d; }
   .vubar .clip.on { background: #ff3b30; }
   .vu b { font-family: var(--mono); font-size: .62rem; color: #fff; text-shadow: 0 1px 2px #000; }
-  .zoomrail { position: absolute; right: 8px; top: 24%; height: 46%; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; justify-items: center; z-index: 2; }
+  .zoomrail { position: absolute; right: 8px; top: 24%; height: 46%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; justify-items: center; z-index: 2; }
   .lenses { display: grid; gap: 4px; }
   .lenses button { min-height: 34px; min-width: 40px; padding: 0 .3em; border-radius: 999px; background: #0009; color: #fff; font-size: .74rem; font-weight: 800; }
   .lenses button[aria-pressed="true"] { background: #fff; color: #111; }
   .vslider { writing-mode: vertical-lr; direction: rtl; width: 30px; height: 100%; margin: 0; accent-color: #f2c037; }
-  .ztrack { position: relative; height: 100%; display: grid; justify-items: center; }
+  /* The track is the grid row's height, and the slider fills it from outside the flow: as a grid
+     child at height:100%, iPhones (portrait) re-sized the slider on every zoom step, between its own
+     length and the row's, so the track and its thumb jumped as you pinched. */
+  .ztrack { position: relative; width: 30px; min-height: 0; align-self: stretch; contain: layout size; }
+  .ztrack .vslider { position: absolute; top: 0; left: 0; height: 100%; }
   .ztrack .vslider { pointer-events: none; } /* (the wide pad on top takes the touches) */
   .zoompad { position: absolute; top: -12px; bottom: -12px; right: -10px; left: -56px; touch-action: none; cursor: ns-resize; }
   .zoomrail.grabbed .vslider { accent-color: #fff; filter: drop-shadow(0 0 6px #f2c037); }
@@ -351,9 +358,21 @@
   .pgmlbl { position: absolute; left: 4px; bottom: 3px; font-size: .56rem; font-weight: 800; letter-spacing: .08em; color: #fff; background: #000a; padding: .1em .35em; border-radius: 3px; }
   .side .pgmhide { position: absolute; top: -9px; left: -9px; width: 24px; height: 24px; min-height: 24px; min-width: 24px; padding: 0; border-radius: 50%; background: #000c; color: #fff; border: 1px solid #ffffff66; font-size: .9rem; line-height: 1; }
   .side .pgmhide::before { content: ""; position: absolute; inset: -10px; } /* (a bigger target than it looks) */
-  /* sideways, the zoom rail runs down the right edge to the bottom bar, and its touch pad reaches ~56px
-     left of the slider: the box sits clear of all of it (its × is on its left corner, away from the rail) */
-  @media (max-height: 520px) { .side.right { padding-right: 92px; } }
+  /* Sideways the screen is short: a column of lens chips left the slider a stub, its thumb over the
+     zoom readout. So, as on a phone's own camera, the lenses become one row in a capsule just above
+     the record button, and the slider has the right edge from under the top bar to the bottom bar.
+     The pills that sat above the record button move up past the capsule; the program box keeps the
+     bottom bar's right corner, under the rail's end (its × on its left corner, away from the rail). */
+  @media (max-height: 520px) {
+    .zoomrail { top: calc(62px + env(safe-area-inset-top, 0px)); bottom: calc(112px + env(safe-area-inset-bottom, 0px)); height: auto; grid-template-rows: minmax(0, 1fr) auto; }
+    .lenses { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: #0008; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 0 0 1px #ffffff1f; }
+    .lenses:empty { display: none; }
+    .lenses button { min-height: 36px; min-width: 44px; padding: 0 .55em; background: transparent; }
+    .lenses button[aria-pressed="true"] { background: #fff; color: #111; }
+    .uploads { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+    .hintrow, #camWatch { bottom: calc(208px + env(safe-area-inset-bottom, 0px)); }
+    .side.right { padding-right: 0; }
+  }
   .side .pgmtab { font-size: .72rem; font-weight: 700; letter-spacing: .04em; border: 1px solid #ffffff55; }
   .pgmwatch { position: absolute; inset: 0; z-index: 5; background: #000; display: grid; grid-template-rows: auto 1fr auto; }
   .pgmwatch video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
