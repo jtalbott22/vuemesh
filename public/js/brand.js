@@ -10,11 +10,10 @@ export const BRAND = {
 // Beta switches. Turn these on when the legal and security groundwork is in place.
 export const FEATURES = {
   publish: false, // upload finished films to the cloud and host a watch page
-  globe: false,   // the public map of events (the server has its own switch too)
 };
 
 // Bump this when the Terms change; people are asked to agree again.
-export const TERMS_VERSION = '2026-10-11';
+export const TERMS_VERSION = '2026-11-12';
 
 export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
   BRAND.sponsorEmail
@@ -22,4 +21,4 @@ export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.67.0';
+export const APP_VERSION = '0.68.0';

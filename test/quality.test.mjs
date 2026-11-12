@@ -43,7 +43,7 @@ ok('live picture: on air > preview > standby on every route; full size on air; u
   assert.deepEqual(screenCodecs(noH264), noH264);
   ok("a shared screen's codecs: H.264 first (constrained baseline, packetization-mode=1, first), then the rest in the browser's order; none dropped; without H.264, as it was");
 }
-import { labelCams, lensButtons, snapToCamera } from '../public/js/camctl.js';
+import { CameraKit, labelCams, lensButtons, snapToCamera } from '../public/js/camctl.js';
 {
   const caps = { brightness: { min: 0, max: 255, step: 1 }, exposureCompensation: { min: -2, max: 2, step: 1 / 6 }, zoom: { min: 1, max: 5, step: 0.1 } };
   const s = snapToCamera(caps, { brightness: 159.375, exposureCompensation: 0.7, zoom: 2.34, focusMode: 'continuous' });
@@ -70,6 +70,42 @@ import { labelCams, lensButtons, snapToCamera } from '../public/js/camctl.js';
   b = lensButtons(labelCams(['camera2 1, facing front', 'camera2 0, facing back', 'camera2 2, facing back'].map((label, i) => ({ deviceId: 'g' + i, label }))));
   assert.deepEqual(b.map((l) => l.short), ['1×', 'Cam 2', 'Front']);
   console.log('ok  the remote\'s lens buttons: one front camera, the first the phone lists, called Front');
+}
+
+{
+  // Camera settings add up: a zoom (sent every frame of a pinch) keeps the exposure, white balance
+  // and focus point set before it, and the picture's size and rate, so the phone doesn't reset them.
+  // Each setting is its own advanced set, so one the camera can't do doesn't take the rest with it.
+  const sent = [];
+  const kit = new CameraKit();
+  kit.track = {
+    getCapabilities: () => ({ zoom: { min: 1, max: 5, step: 0.1 }, exposureCompensation: { min: -2, max: 2, step: 1 / 3 }, focusMode: ['single-shot', 'continuous', 'manual'], pointsOfInterest: {}, whiteBalanceMode: ['continuous', 'manual'] }),
+    applyConstraints: async (c) => sent.push(c),
+  };
+  await kit.setExposure(1);
+  await kit.setWhiteBalanceLock(true);
+  await kit.focusAt(0.3, 0.4);
+  assert.ok(sent.at(-1).advanced.some((a) => a.focusMode === 'single-shot'));
+  await kit.setZoom(2);
+  const last = sent.at(-1);
+  assert.deepEqual(last.width, { ideal: 1920 });
+  assert.equal(last.deviceId, undefined);
+  assert.deepEqual(last.advanced, [{ zoom: 2 }, { pointsOfInterest: [{ x: 0.3, y: 0.4 }] }, { whiteBalanceMode: 'manual' }, { exposureCompensation: 1 }]);
+  console.log('ok  camera settings add up: a zoom keeps exposure, white balance, focus point and size; a one-shot focus isn\'t repeated');
+}
+
+{
+  // Tap to focus and hold to lock only answer where the camera lets a page do them. An iPhone's
+  // camera (any iPhone browser) gives zoom, torch and white balance only; Android's Chrome gives more.
+  const kit = new CameraKit();
+  kit.track = { getCapabilities: () => ({ zoom: { min: 1, max: 10 }, torch: true, whiteBalanceMode: ['continuous', 'manual'] }), applyConstraints: async () => {} };
+  assert.equal(kit.canFocus(), false);
+  assert.equal(kit.canLock(), false);
+  assert.equal(await kit.focusAt(0.5, 0.5), false);
+  kit.track.getCapabilities = () => ({ focusMode: ['continuous', 'single-shot', 'manual'], exposureMode: ['continuous', 'manual'], pointsOfInterest: {} });
+  assert.equal(kit.canFocus(), true);
+  assert.equal(kit.canLock(), true);
+  console.log('ok  tap to focus and hold to lock: none on an iPhone, both where the camera allows (Android)');
 }
 
 console.log('\nAll quality tests passed.');

@@ -11,6 +11,8 @@
 
 <p align="center">
   <a href="https://vuemesh.com"><img alt="Live at vuemesh.com" src="https://img.shields.io/badge/live-vuemesh.com-e8372c?style=flat-square"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2ea043?style=flat-square"></a>
+  <img alt="No accounts, no cookies, no trackers" src="https://img.shields.io/badge/privacy-no%20accounts%20%C2%B7%20no%20cookies%20%C2%B7%20no%20trackers-1f6feb?style=flat-square">
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
   <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
   <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
@@ -22,8 +24,12 @@
   <a href="https://vuemesh.com/tour">Tour of every screen</a> ·
   <a href="docs/HOW-IT-WORKS.md">How it fits together</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a> ·
+  <a href="https://vuemesh.com/privacy">Privacy</a> ·
   <a href="docs/TESTS.md">Tests</a>
 </p>
+
+<p align="center"><b>Free and open source under the <a href="LICENSE">MIT License</a>.</b> Use it for your shows, run your own copy, and help build it: artists, producers and developers all welcome. See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 
 ---
 
@@ -70,6 +76,11 @@ every angle, already cut on the timeline and ready to re-cut.
   devices line up to the frame.
 - **Signed footage.** Every phone has its own key. Each clip is hashed in parts and signed, and the
   studio verifies every part before accepting it. Published films carry the signatures.
+- **Private by design.** No accounts, no cookies, no trackers, never your location. Recordings stay on
+  your devices; the server only introduces them. A note on first visit says exactly what the browser
+  keeps, and [/privacy](public/privacy.html) lists every item and clears it all with one button.
+- **Free and open.** MIT licensed, plain HTML, CSS and JavaScript with no build step. Fork it, run it,
+  change it.
 - **Serverless and nearly free to run.** CloudFront, S3, API Gateway, Lambda and DynamoDB with TTLs.
   Every piece scales to zero, and event data deletes itself after 30 days.
 
@@ -91,8 +102,10 @@ every angle, already cut on the timeline and ready to re-cut.
 - [Repository layout](#repository-layout)
 - [Keyboard](#keyboard)
 - [Security model](#security-model)
+- [Privacy](#privacy)
 - [Guides](#guides): streaming, the WHIP receiver, the phone remote, kiosks, video calls and more
 - [Known limits](#known-limits)
+- [Contributing](#contributing) and [License](#license)
 
 ## Features
 
@@ -162,7 +175,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
 - **Show log:** frame rate, sound and alerts for each session, saved for later.
 - **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
-- **Admin:** every event, listing, expiry and film, plus anonymous growth numbers and web traffic.
+- **Admin:** every event, its expiry and film, plus anonymous growth numbers and web traffic.
 
 </td>
 </tr>
@@ -303,10 +316,11 @@ flowchart LR
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
 | **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). With no studio, `/tv` shows phones and shared screens itself, tiled as they come and go. |
-| **Admin** (`/admin`) | For you and your team: every event, rename, list/unlist, change expiry, delete films and events. |
+| **Admin** (`/admin`) | For you and your team: every event, rename, change expiry, delete films and events. |
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
 | **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |
-| **Landing** (`/`) | Live multi-angle demo, a globe and board of public events, and start an event (landscape or portrait, optionally listed on the globe). |
+| **Privacy** (`/privacy`) | Exactly what the browser and the server keep, and for how long, what this browser holds right now, and one button to clear all of it. |
+| **Landing** (`/`) | Quick starts (Camera, My media, Kiosk, Join a show, TV, Share, Start a show), the live multi-angle demo, how-tos for the TV and Share pages, and starting an event with just a name and a shape (landscape or portrait). No event type, no public listing, no location. |
 | **Work with VUEMesh** (`/sponsors`) | Collaborating, gear to try, sponsoring the breaks in local shows, and hosting your shows on the site, with the house rules. Its buttons write to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
 | **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL. All scale to zero. |
 
@@ -329,8 +343,12 @@ browser to use for the studio, and network and capacity planning.
 
 ### Use it
 
-Open **[vuemesh.com](https://vuemesh.com)**, choose **Start a show**, and open the studio on a laptop
-or desktop. Then:
+Open **[vuemesh.com](https://vuemesh.com)**. The tiles at the top go straight in, with no event or
+sign-up: **Camera** records on this device, **My media** is everything recorded here, **Kiosk** makes a
+screen people scan into, **Join a show** takes a code, **TV** turns this screen into a monitor (a
+studio's program, or phones straight to it), and **Share** sends this computer's screen into a show.
+For the full studio, choose **Start a show**, give it a name, and open the studio on a laptop or
+desktop. Then:
 
 - **+ This computer** adds your USB cameras, microphones and interfaces, screens and the computer's sound.
 - **Another computer's screen:** send the presenter the link shown under **+ This computer → Screen and sound**.
@@ -417,7 +435,30 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 - The host laptop checks every part hash, the fingerprint, the key, and both signatures before accepting a clip.
 - Published manifests carry the signatures, so anyone can re-verify who shot what.
 - The host key (in the studio link) is required for hosting the signaling room and publishing. Guests can only message the host, never each other.
-- Public listings store location rounded to about a kilometer.
+- Nothing asks for or stores anyone's location. There is no public listing of events: people join by the code or QR the host shares.
+
+## Privacy
+
+No accounts, no cookies, no ads, no trackers, no third-party analytics. The first time someone opens
+a VUEMesh page, a small note says what's kept, in plain words, with **Got it** (it isn't shown on
+screens that go on air or hang on a wall, or in automated test browsers). The [Privacy page](public/privacy.html)
+(`/privacy`) has the full list:
+
+- **In the browser, on that device only:** recordings, edits and the show log (IndexedDB `vuemesh`),
+  the events you made or joined with their keys, names you typed, and settings (local storage keys
+  starting `vm_`), plus a saved copy of the app for working offline. The page shows what this browser
+  holds now and clears all of it with one button.
+- **On the server, for 30 days:** each event's name, code, shape and settings, a hash of the host key,
+  and the agreed terms; connection records (a random device ID, its name and role) for under a day.
+- **Kept as anonymous daily totals:** events, joins, recordings and hours, and page views, with
+  nothing that names a person, device, place or event. Page views aren't sent at all when the browser
+  asks not to be tracked (Do Not Track or Global Privacy Control).
+- **Other services:** AWS hosts it, Google's STUN server helps devices find a path to each other, and
+  Google Fonts serves the Archivo typeface on some pages (moving it in-house is a
+  [good first contribution](CONTRIBUTING.md#good-places-to-start)).
+
+**If you change what's stored, change the Privacy page and [notice.js](public/js/notice.js) in the
+same commit.**
 
 ## Guides
 
@@ -588,11 +629,11 @@ panel shows visitors, page views, pages, where visitors came from, landing pages
 (`?utm_source=` on a link), devices, browsers, countries (when the edge provides them) and how
 often each film was played and watched to the end, with a CSV.
 
-### Growth numbers (for investors) without keeping anyone's data
+### Growth numbers without keeping anyone's data
 
 Events and everything in them still delete themselves 30 days after they're created. Alongside,
 the server keeps one record per day of **anonymous counts**, which never expire: events created
-(by kind), events run (a studio opened that day), cameras, microphones and viewers joining (each
+events run (a studio opened that day), cameras, microphones and viewers joining (each
 counted once per event, by a hash that expires with the event), recordings received, hours of
 footage, live cut and streaming, and films published. Nothing in a day's counts names a person,
 a phone, a place or an event.
@@ -637,3 +678,26 @@ These are the limits known today, and what has and hasn't been tested on real ha
 - Remote viewers get the published director's cut. Watching any single angle remotely would mean hosting every clip, which is the expensive thing this design avoids.
 
 </details>
+
+## Contributing
+
+VUEMesh is built in the open, and it's meant for artists and producers as much as developers. Run a
+show with it and tell us how it went (a saved show log helps most), describe a show you want to make
+that it can't do yet, test it with your gear, improve the words, or send code. No build step: the app
+is plain HTML, CSS and JavaScript, so a change is an edit and a reload.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has how to run it, how to send a change, the principles every change
+keeps (privacy first, no barriers, the local network first, plain words), and good places to start.
+Please read the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+VUEMesh is released under the [MIT License](LICENSE): use it, copy it, change it, run your own copy,
+and share it, keeping the copyright and license notice. The license covers the code, not the
+VUEMesh name: a changed copy you run for others should have a name of its own.
+
+Bundled third-party code keeps its own license: the QR code generator (`public/vendor/qrcode.js`,
+MIT, Kazuhiko Arase), jsQR (`public/vendor/jsQR.js`, Apache 2.0), mp4-muxer
+(`public/vendor/mp4-muxer.js`, MIT), mp4box.js (`public/vendor/mp4box.min.js`, BSD 3-Clause, GPAC),
+and the Barlow fonts (`public/fonts/`, SIL Open Font License, see
+[LICENSE-Barlow-OFL.txt](public/fonts/LICENSE-Barlow-OFL.txt)).

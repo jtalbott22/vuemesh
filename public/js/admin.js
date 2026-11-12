@@ -43,7 +43,7 @@ async function load(reset) {
     const st = await call('stats');
     const mb = st.filmBytes > 1e9 ? (st.filmBytes / 1e9).toFixed(2) + ' GB' : Math.round(st.filmBytes / 1e6) + ' MB';
     $('#tiles').innerHTML = [
-      ['Events', st.events], ['Live now', st.live], ['Listed publicly', st.public], ['Published', st.published], ['Film files', st.films], ['Film storage', mb],
+      ['Events', st.events], ['Live now', st.live], ['Published', st.published], ['Film files', st.films], ['Film storage', mb],
     ].map(([k, v]) => `<div class="tile"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
   }
   const page = await call(`events?limit=50${next ? '&cursor=' + encodeURIComponent(next) : ''}`);
@@ -76,10 +76,9 @@ function render() {
         <td>${new Date(e.createdAt).toLocaleString()}</td>
         <td>${daysLeft(e)}</td>
         <td class="times">${timeUsed(e)}</td>
-        <td>${e.live ? '<span class="tag live">LIVE</span> ' : ''}${e.public ? '<span class="tag pub">PUBLIC</span> ' : ''}${e.published ? '<span class="tag">FILM</span> ' : ''}${e.orientation === 'portrait' ? '<span class="tag">PORTRAIT</span>' : ''}</td>
+        <td>${e.live ? '<span class="tag live">LIVE</span> ' : ''}${e.published ? '<span class="tag">FILM</span> ' : ''}${e.orientation === 'portrait' ? '<span class="tag">PORTRAIT</span>' : ''}</td>
         <td><div class="acts">
           <button type="button" data-act="rename">Rename</button>
-          <button type="button" data-act="public">${e.public ? 'Unlist' : 'List'}</button>
           <button type="button" data-act="days">Set expiry</button>
           ${e.published ? '<button type="button" data-act="films">Delete film</button>' : ''}
           <button type="button" class="danger" data-act="delete">Delete</button>
@@ -101,8 +100,6 @@ $('#list').addEventListener('click', async (e) => {
       const title = prompt('New title', ev.title);
       if (!title) return;
       Object.assign(ev, (await call(`events/${id}`, { method: 'PATCH', body: { title } })).event);
-    } else if (b.dataset.act === 'public') {
-      Object.assign(ev, (await call(`events/${id}`, { method: 'PATCH', body: { public: !ev.public } })).event);
     } else if (b.dataset.act === 'days') {
       const d = prompt('Delete this event in how many days? (0–30)', String(daysLeft(ev)));
       if (d === null) return;

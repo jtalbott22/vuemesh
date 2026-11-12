@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.68.0 — free and open source, nothing given up to start a show, and a steadier zoom on iPhones
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.67.0.
+
+**Free and open source.** VUEMesh is now MIT licensed (`LICENSE`), with `CONTRIBUTING.md`, a Code of Conduct, and issue and pull-request templates written for artists and producers as well as developers.
+
+**Nothing given up to start a show.**
+- **Starting an event asks for a name and a shape, nothing else.** The event-type choice and "List it on the globe" are gone from the home page, and so is the events section with Near me: nothing asks for a location any more. Admin no longer lists or unlists events, and the globe and its map files are removed.
+- **A note on first visit says what's kept,** in plain words: no cookies, no accounts, no trackers; what this browser stores (settings, events and their keys, names, recordings and edits); what the server keeps for 30 days; and the anonymous counts. **Got it** puts it away for good. Not on the program, a TV, the beacon, a kiosk or TV calibration, and not in automated test browsers.
+- **A Privacy page** (`/privacy`): every item kept in the browser and on the server, and for how long, the other services a browser talks to (AWS, Google's STUN server, Google Fonts), what this browser holds right now, and **Clear everything VUEMesh keeps here** (with a warning to export first).
+- **The Terms** (version 2026-11-12, so people are asked to agree again) say the code is MIT licensed in place of the old intellectual-property section, and point to the Privacy page. The home page footer links Privacy and the source code, and Work with VUEMesh opens with building it together.
+
+**TV and Share on the home page.** Two more tiles beside Camera, My media, Kiosk and Join a show: **TV** (show a studio's program, or phones straight to this screen) and **Share** (send this computer's screen into a show), with a how-to for each further down the page. Start a show takes the full width under them, and the header's duplicate Start a show button is gone.
+
+**The camera page's zoom, on an iPhone.**
+- **A pinch zoomed the whole page,** not just the camera, and the picture and controls jumped. The viewfinder's pinch, tap and hold are now the camera's alone (Safari's own page-zoom gestures are stopped there).
+- **The zoom slider's thumb jumped as you pinched,** upright: the slider resized itself at each step. It stays put now.
+- **Sideways, the lens chips left the slider a stub** over the zoom readout. As on a phone's own camera app, the lenses are now one row in a capsule above the record button, and the slider runs the right edge.
+- **Each zoom step reset the picture's size and undid exposure, white balance and the focus point.** Camera settings now add up: a zoom keeps everything set before it, and a setting the camera can't do is skipped on its own instead of taking the others with it.
+- **Tap to focus and hold to lock only appear where they work** (Android's Chrome). An iPhone's camera keeps its own focus and exposure, and a focus box that changed nothing looked broken; holding no longer says it can't lock.
+
+**Tests:** `quality.test`: a zoom keeps exposure, white balance, focus point and size, and a one-shot focus isn't repeated; tap to focus and hold to lock are off where the camera doesn't allow them. `e2e_outbox` (was `e2e_outbox_globe`): the home page asks only for a name. `e2e_home`: the TV and Share tiles.
+
 ## 0.67.0 — phones and screens straight to a TV, which VUEMesh this is, and a 6-core desktop at 1080p
 **Deploy:** `./aws/deploy.sh` (backend and site: a TV's own code has its own words for the people joining; with the older backend it still works, with the studio's words). It builds on 0.66.19.
 

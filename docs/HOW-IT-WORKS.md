@@ -60,6 +60,9 @@ For very large events, a second laptop could run its own studio for one zone, wi
 - **Phones** keep their own clips (unless turned off) and any live-cut parts in *My footage*.
 - **The studio browser** keeps every clip it receives, the edit, and the program recordings. Use *Export* on the home page to keep a copy outside the browser.
 - **The cloud** stores only what's needed to find the event, for 30 days.
+- **Nothing about where anyone is.** VUEMesh never asks for a location, and there is no public list of events: people join with the code the host shares.
+
+The [Privacy page](../public/privacy.html) (`/privacy` on the site) lists every item kept in the browser and on the server, and clears the browser's with one button.
 
 ## When something goes wrong
 

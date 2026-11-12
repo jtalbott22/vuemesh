@@ -1,7 +1,14 @@
 {
   "name": "vuemesh",
   "private": true,
-  "version": "0.67.0",
+  "version": "0.68.0",
+  "description": "A live production studio in the browser: cameras, screens, phones and sound, switched, mixed, recorded, streamed and edited.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jtalbott22/vuemesh.git"
+  },
+  "homepage": "https://vuemesh.com",
   "type": "module",
   "scripts": {
     "dev": "node dev/server.mjs",

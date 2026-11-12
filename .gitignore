@@ -43,3 +43,10 @@ node_modules/
 
 # Show logs saved from the studio (exported for debugging, not source)
 vuemesh-showlog-*.json
+
+# Personal screenshots and screen recordings dropped in the repo while testing
+/IMG_*.PNG
+/IMG_*.png
+/ScreenRecording_*
+# Local Claude Code settings
+/.claude/

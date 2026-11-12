@@ -102,7 +102,7 @@ install chromium`), and some need `ffmpeg`. To run one by itself, start `npm run
 | `test/e2e_audio_console.py` | left-only microphones recorded on both sides, moments/markers through Collapse gaps, the audio console |
 | `test/e2e_synclock.py` | beacon timing locked in: on/off air, black, reload never ask again; a clock slip asks once (needs ffmpeg) |
 | `test/e2e_showcontrol.py` | lower thirds (delete, edit), fade/cut to black, slate looks, moments, markers, rundown end/clear, picture watchdog |
-| `test/e2e_outbox_globe.py` | clips waiting for a late host, reload survival, nearby events |
+| `test/e2e_outbox.py` | clips waiting for a late host, reload survival; the home page asks only for a name (no event type, listing or location) |
 | `test/e2e_admin_monitor.py` | monitor tab, beacon dimmers, admin panel (dev admin key: dev-admin) |
 | `test/e2e_display.py` | TV screens at `/tv`: pairing with Accept, the program, Remove, full screen, Browse, PiP, the beacon on the studio's clock |
 | `test/e2e_remote.py` | the phone remote: pairing code, cut, auto director, break, black, Record program; wrong and reused codes turned away |
