@@ -122,3 +122,7 @@ sam delete --stack-name vuemesh --region us-east-2
 | `iam-deploy-policy.json` | Scoped IAM policy for the person or agent running the deploy (replace `ACCOUNT_ID`) |
 | `iam-domain-policy.json` | Optional add-on for ACM and Route 53 when you attach vuemesh.com |
 | `PROMPT.md` | A prompt for having AWS's AI assistant do the deployment for you |
+
+## Email (info@)
+
+The domain's contact address is a separate, optional stack: see [mail/README.md](mail/README.md).

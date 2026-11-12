@@ -94,11 +94,14 @@
       <li><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, microphones and viewers joined, recordings made, hours of footage, live cut and streaming. So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
       <li><b>Anonymous page views</b>: one count per page load, by page, with the site that linked to it, device type (phone, tablet, desktop), browser name, and country if the network provides it. A visitor is counted once a day using a salted hash of the day, the address and the browser, which can't be turned back into either and isn't kept with the counts. <b>None of this is sent if your browser asks not to be tracked</b> (Do Not Track or Global Privacy Control).</li>
     </ul>
+    <h2 id="mail">If you email us</h2>
+    <p>Mail to <b>info@vuemesh.com</b> is received by Amazon's email service, checked for viruses and spam, and forwarded to the maintainer's inbox. A copy is kept encrypted on AWS for 30 days, then deleted automatically; the forwarding keeps a one-line record that a message was passed on (its ID, not its contents) for 14 days. Nobody else reads it, and the address isn't added to any list.</p>
+
     <p><b>Recordings never go to the server.</b> Film publishing (uploading a finished film for a watch page) exists in the code but is turned off on vuemesh.com. If it's ever turned on, it will be something a host chooses for a film, and this page will say what it keeps.</p>
 
     <h2 id="others">Other services your browser talks to</h2>
     <ul>
-      <li><b>Amazon Web Services</b> hosts the site and the server. Like any host, it handles your requests and may keep its own short operational logs.</li>
+      <li><b>Amazon Web Services</b> hosts the site, the server, and mail to info@. Like any host, it handles your requests and may keep its own short operational logs.</li>
       <li><b>Google's STUN server</b> (<code>stun.l.google.com</code>): when devices connect, each asks it for its own public address, so they can find a path to each other. It sees that request and nothing else; no video goes through it.</li>
       <li><b>Google Fonts</b> serves the Archivo typeface on some pages, so Google sees that your browser asked for a font. (Moving it onto our own server is on the list. <a href="https://github.com/jtalbott22/vuemesh/blob/main/CONTRIBUTING.md">Help welcome.</a>)</li>
       <li><b>Only when you set them up:</b> a streaming service you stream to (YouTube, Twitch and the like), and Patreon or email if you follow those links.</li>

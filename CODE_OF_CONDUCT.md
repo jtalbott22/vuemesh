@@ -22,7 +22,7 @@ We want everyone who joins in to feel welcome, whatever their background, experi
 
 ## If something goes wrong
 
-Contact the maintainer privately at jtalbott22@gmail.com. Reports are kept confidential. Maintainers
+Contact the maintainer privately at info@vuemesh.com. Reports are kept confidential. Maintainers
 may remove comments, code or issues, and may block people from the project, to keep it a good place
 to work.
 

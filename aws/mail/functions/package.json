@@ -1,0 +1,7 @@
+{
+  "name": "vuemesh-mail-forwarder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Forwards info@ mail received by SES. The AWS SDK comes with the Lambda runtime: no dependencies to install."
+}
