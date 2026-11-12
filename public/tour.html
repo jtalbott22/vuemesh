@@ -32,7 +32,7 @@
   .stages a { display: inline-block; padding: .4em .9em; border-radius: 999px; background: var(--surface); color: var(--text-2); text-decoration: none; font-weight: 600; font-size: .9rem; }
   .stages a:hover { color: var(--text); }
   .stage { margin-top: clamp(48px, 8vw, 90px); }
-  .stage > h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--tally); margin: 0 0 18px; }
+  .stage > h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--tally) 80%, var(--text)); margin: 0 0 18px; }
   /* one screen: the picture and what it's for, side by side (alternating) */
   .screen { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: center; margin: 0 0 clamp(36px, 6vw, 64px); }
   .screen:nth-of-type(even) .shot { order: 2; }

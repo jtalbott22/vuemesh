@@ -11,7 +11,7 @@ export const versionHref = (v = APP_VERSION) => `/changelog#${versionAnchor(v)}`
 
 const CSS = `
 .vmver { display: inline-flex; align-items: center; gap: .35em; font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1.2;
-  font-variant-numeric: tabular-nums; letter-spacing: .02em; color: inherit; opacity: .62; text-decoration: none;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em; color: inherit; opacity: .9; text-decoration: none;
   white-space: nowrap; vertical-align: middle; border-radius: 999px; padding: 3px 8px;
   border: 1px solid color-mix(in srgb, currentColor 28%, transparent); flex: none; }
 .vmver:hover, .vmver:focus-visible { opacity: 1; border-color: color-mix(in srgb, currentColor 55%, transparent); }
@@ -19,8 +19,7 @@ const CSS = `
 .vmver.plain { border: 0; padding: 0; border-radius: 0; font-size: inherit; font-weight: inherit; }
 .vmver.plain:hover { text-decoration: underline; text-underline-offset: 2px; }
 .mark .vmver { font-stretch: normal; text-transform: none; margin-left: .35em; font-size: max(11px, .55em); }
-.vmverline { margin: 14px 0 0; text-align: center; font-size: 12px; opacity: .85; }
-.vmverline .vmver { opacity: .6; }
+.vmverline { margin: 14px 0 0; text-align: center; font-size: 12px; }
 .vmbrand { display: inline-flex; align-items: center; gap: .6rem; flex: none; min-width: 0; }
 `;
 

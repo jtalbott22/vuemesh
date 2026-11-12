@@ -43,6 +43,13 @@ sam deploy \
 out() { aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
 BUCKET="$(out BucketName)"; API="$(out ApiUrl)"; WS="$(out WsUrl)"; SITE="$(out SiteUrl)"; DIST="$(out DistributionId)"
 
+echo "==> Keeping the functions' logs for 14 days (as the Privacy page says), not forever"
+for fn in ApiFunction SignalFunction; do
+  name="$(aws cloudformation describe-stack-resource --stack-name "$STACK" --region "$REGION" --logical-resource-id "$fn" --query StackResourceDetail.PhysicalResourceId --output text)"
+  aws logs create-log-group --log-group-name "/aws/lambda/$name" --region "$REGION" 2>/dev/null || true
+  aws logs put-retention-policy --log-group-name "/aws/lambda/$name" --retention-in-days 14 --region "$REGION"
+done
+
 echo "==> Uploading the site to s3://$BUCKET"
 SITE_DIR="$(mktemp -d)"
 cp -R ../public/. "$SITE_DIR/"

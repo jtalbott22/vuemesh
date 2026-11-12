@@ -101,19 +101,31 @@
 
     <h2 id="others">Other services your browser talks to</h2>
     <ul>
-      <li><b>Amazon Web Services</b> hosts the site, the server, and mail to info@. Like any host, it handles your requests and may keep its own short operational logs.</li>
-      <li><b>Google's STUN server</b> (<code>stun.l.google.com</code>): when devices connect, each asks it for its own public address, so they can find a path to each other. It sees that request and nothing else; no video goes through it.</li>
-      <li><b>Google Fonts</b> serves the Archivo typeface on some pages, so Google sees that your browser asked for a font. (Moving it onto our own server is on the list. <a href="https://github.com/jtalbott22/vuemesh/blob/main/CONTRIBUTING.md">Help welcome.</a>)</li>
+      <li><b>Amazon Web Services</b> hosts the site, the server, and mail to info@. Like any host, it handles your requests. The server's own logs (errors and timings, no page contents) are kept for 14 days. AWS acts for us as a processor under its data processing terms; the servers are in the United States (Ohio), and transfers from the EU and UK rely on the EU–US Data Privacy Framework and the standard contractual clauses in those terms.</li>
+      <li><b>Google's STUN server</b> (<code>stun.l.google.com</code>): when devices connect, each asks it for its own public address, so they can find a path to each other. It sees that request, including your device's public internet address, and nothing else; no video goes through it. A copy of VUEMesh can use its own STUN server instead (<code>iceServers</code> in <code>config.js</code>).</li>
+      <li><b>No fonts, scripts or images come from anyone else.</b> The typefaces are served from vuemesh.com itself.</li>
       <li><b>Only when you set them up:</b> a streaming service you stream to (YouTube, Twitch and the like), and Patreon or email if you follow those links.</li>
     </ul>
 
-    <h2 id="you">Your choices</h2>
+    <h2 id="legal">Who's responsible, and on what basis</h2>
+    <p>vuemesh.com is run by VUEMesh's maintainer, who decides what is kept and is responsible for it (the "controller" under the GDPR and UK GDPR). Contact: <b>info@vuemesh.com</b>.</p>
+    <ul>
+      <li><b>Running your event</b> (the event record, who's connected, the handshake between devices): because you asked for it. It's needed to provide the service (GDPR Art. 6(1)(b)).</li>
+      <li><b>What's kept in your browser</b>: it's strictly necessary for the app you're using to work, so it doesn't need a consent banner (ePrivacy Directive Art. 5(3)). You can clear it at any time, above.</li>
+      <li><b>Anonymous counts and page views, server logs</b>: our legitimate interest in keeping the service working, secure, and knowing whether it's used (Art. 6(1)(f)). You can opt out of page views with Do Not Track or Global Privacy Control.</li>
+      <li><b>Mail you send</b>: our legitimate interest in answering you (Art. 6(1)(f)).</li>
+    </ul>
+    <p>Nothing is sold or shared for advertising, and nothing is used for automated decisions about you.</p>
+
+    <h2 id="you">Your choices and rights</h2>
     <ul>
       <li>Delete or export a single event's recordings from the home page, or a phone's from My footage.</li>
       <li>Clear everything with the button above, or with your browser's own "clear site data".</li>
       <li>Turn on Do Not Track or Global Privacy Control and no page views are counted.</li>
       <li>A host can delete an event from the server at any time from the studio; it deletes itself after 30 days anyway.</li>
       <li>Run your own copy: it's MIT licensed, and your copy keeps only what you choose.</li>
+      <li><b>Your rights:</b> you can ask to see, correct, or delete what we hold about you, to restrict or object to its use, or to get a copy of it. Write to <b>info@vuemesh.com</b>. With no accounts, the server usually can't tell which records are yours, so tell us the event code or the message you sent, and we'll answer within a month.</li>
+      <li>You can also complain to a data protection authority, for example the one where you live (in the UK, the ICO).</li>
     </ul>
 
     <h2 id="changes">Changes and questions</h2>
