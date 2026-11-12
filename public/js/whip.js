@@ -82,7 +82,7 @@ import { bitrateHints, sendStats } from '/js/quality.js';
 
 export async function startWhip({ url, token, stream, kbps = 4500, onState = () => {} }) {
   if (!/^https:\/\//i.test(url || '')) throw new Error('The WHIP URL has to start with https://');
-  const pc = new RTCPeerConnection({ bundlePolicy: 'max-bundle', iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  const pc = new RTCPeerConnection({ bundlePolicy: 'max-bundle', iceServers: (window.VM_CONFIG && window.VM_CONFIG.iceServers) || [{ urls: 'stun:stun.l.google.com:19302' }] }); // (the site's own STUN server, as for every connection)
   const v = stream.getVideoTracks()[0], a = stream.getAudioTracks()[0];
   const tv = v && pc.addTransceiver(v, { direction: 'sendonly', sendEncodings: [{ maxBitrate: kbps * 1000, maxFramerate: 30, priority: 'high', networkPriority: 'high' }] });
   if (a) pc.addTransceiver(a, { direction: 'sendonly' });

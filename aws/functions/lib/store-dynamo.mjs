@@ -211,6 +211,15 @@ export function dynamoStore(TableName) {
         throw e;
       }
     },
+    async daySalt(day, fresh) {
+      try {
+        await db.send(new PutCommand({ TableName, Item: { pk: 'SALT', sk: day, salt: fresh, ttl: Math.floor(Date.now() / 1000) + 2 * 86400 }, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return fresh;
+      } catch (e) {
+        if (e.name !== 'ConditionalCheckFailedException') throw e;
+        return (await db.send(new GetCommand({ TableName, Key: { pk: 'SALT', sk: day }, ConsistentRead: true }))).Item.salt;
+      }
+    },
     async markOnce(key) {
       try {
         await db.send(new PutCommand({ TableName, Item: { pk: 'SEEN', sk: key, ttl: Math.floor(Date.now() / 1000) + 2 * 86400 }, ConditionExpression: 'attribute_not_exists(pk)' }));

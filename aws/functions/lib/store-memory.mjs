@@ -1,7 +1,7 @@
 // In-memory store with the same interface as store-dynamo.mjs (local dev + tests).
 export function memoryStore() {
   const events = new Map();
-  const traffic = new Map(), seen = new Set();
+  const traffic = new Map(), seen = new Set(), salts = new Map();
   const conns = new Map(); // connId -> {eventId, ...info}
   const stats = new Map(); // day -> counts (kept)
   const snaps = [];
@@ -74,6 +74,10 @@ export function memoryStore() {
       if (lans.has(rec.slug)) return false;
       lans.set(rec.slug, clone(rec));
       return true;
+    },
+    async daySalt(day, fresh) {
+      if (!salts.has(day)) salts.set(day, fresh);
+      return salts.get(day);
     },
     async markOnce(key) {
       if (seen.has(key)) return false;

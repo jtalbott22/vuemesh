@@ -54,7 +54,17 @@ echo "==> Uploading the site to s3://$BUCKET"
 SITE_DIR="$(mktemp -d)"
 cp -R ../public/. "$SITE_DIR/"
 cp ../CHANGELOG.md "$SITE_DIR/changelog.md" # (the site's What's new page reads it: public/changelog.html)
-echo "window.VM_CONFIG = { api: '$API', ws: '$WS' };" > "$SITE_DIR/config.js"
+# The STUN server devices ask for their public address: our own (aws/stun), as the Privacy page says.
+# STUN=google uses Google's instead (and then the Privacy page must say so).
+STUN="${STUN:-$(aws cloudformation describe-stacks --stack-name "${STUN_STACK:-vuemesh-stun}" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='StunUrl'].OutputValue" --output text 2>/dev/null || true)}"
+if [ "$STUN" = "google" ]; then
+  ICE=""; echo "    (using Google's STUN server)"
+elif [[ "$STUN" == stun:* ]]; then
+  ICE=", iceServers: [{ urls: '$STUN' }]"; echo "    (STUN: $STUN)"
+else
+  echo "No STUN server found: deploy aws/stun first (./aws/stun/deploy.sh), or run with STUN=google." >&2; exit 1
+fi
+echo "window.VM_CONFIG = { api: '$API', ws: '$WS'$ICE };" > "$SITE_DIR/config.js"
 # For the local show helper (public/relay/vuemesh-local.mjs): the server's own code, and the list
 # of the app's files it keeps a copy of (not the big landing-page films)
 mkdir -p "$SITE_DIR/relay/lib"

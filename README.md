@@ -454,7 +454,7 @@ screens that go on air or hang on a wall, or in automated test browsers). The [P
 - **Kept as anonymous daily totals:** events, joins, recordings and hours, and page views, with
   nothing that names a person, device, place or event. Page views aren't sent at all when the browser
   asks not to be tracked (Do Not Track or Global Privacy Control).
-- **Other services:** AWS hosts it and Google's STUN server helps devices find a path to each other.
+- **Other services:** AWS hosts it, including our own STUN server (`aws/stun`) that helps devices find a path to each other.
   Every font, script and image is served from the site itself.
 
 **If you change what's stored, change the Privacy page and [notice.js](public/js/notice.js) in the

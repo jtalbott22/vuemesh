@@ -18,7 +18,8 @@ const CFG = window.VM_CONFIG || {};
 const API = (CFG.api || '/api').replace(/\/$/, '');
 const WS = CFG.ws || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
-// Public STUN only. No TURN: media stays on the local network, so there is no relay bill.
+// STUN only, the site's own (config.js, from aws/stun); Google's for a copy without one. No TURN:
+// media stays on the local network, so there is no relay bill.
 export const ICE = CFG.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }];
 
 // The app kept on this device (sw.js): opened again with no internet, it still works, and can join

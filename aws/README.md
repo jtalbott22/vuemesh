@@ -22,6 +22,7 @@ Video only reaches AWS once: when the host publishes the finished film.
 - **No TURN server.** A TURN server relays video when two devices can't reach each other directly, and you pay for every byte. VUEMesh skips it: phones join the venue Wi-Fi and connect straight to the host laptop. Discovery and handshakes (what you described as "act as a TURN or something") are signaling, which is cheap.
 - **The one thing that grows with success** is people watching published films through CloudFront. CloudFront's always-free allowance is 1 TB of data out and 10 million requests per month.
 - **S3** stores the site and published films only. Raw clips stay on the host laptop.
+- **Our own STUN server** (`aws/stun`, optional): one small Lightsail server, about $5 a month, so devices ask us for their public address instead of Google. STUN is UDP, so it can't be a Lambda. See [stun/README.md](stun/README.md).
 
 ## One-time setup
 
@@ -34,6 +35,7 @@ Video only reaches AWS once: when the host publishes the finished film.
 From the project folder:
 
 ```bash
+./aws/stun/deploy.sh   # once: the STUN server (or skip it and run the next line with STUN=google)
 ./aws/deploy.sh
 ```
 
