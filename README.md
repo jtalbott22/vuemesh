@@ -385,6 +385,7 @@ public/            The whole app: plain HTML, CSS and ES modules, no build step
   relay/           The local RTMP / virtual-camera relay (Node + ffmpeg)
   media/screens/   The screenshots used here and on /tour
 aws/               SAM template, deploy script, and the two Lambdas (api, signal)
+  mail/            info@ for the domain: SES receiving, forwarding and replying (its own stack)
   functions/lib/   The cloud core, shared by the Lambdas and the dev server
 dev/               The local dev server (same API and signalling, in memory)
 apple-tv/          The Apple TV app (SwiftUI), same protocol as /tv

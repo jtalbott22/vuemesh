@@ -50,3 +50,6 @@ vuemesh-showlog-*.json
 /ScreenRecording_*
 # Local Claude Code settings
 /.claude/
+
+# info@ mail: the SMTP login made by aws/mail/deploy.sh
+aws/mail/.smtp-credentials

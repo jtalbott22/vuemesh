@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.69.0 — info@vuemesh.com
+**Deploy:** `./aws/deploy.sh` (site only), after `aws/mail` is set up. It builds on 0.68.0.
+
+**A contact address of the project's own.** The Collaborate page's buttons, the Terms' contact link and the Code of Conduct now go to **info@vuemesh.com** instead of a personal address.
+- **How it works** (`aws/mail`, its own stack): mail to info@ arrives at Amazon SES, is scanned for viruses and spam, kept encrypted for 30 days, and forwarded to the maintainer's inbox from info@ with the sender as Reply-To. Replies go out as info@ through SES, signed with the domain's DKIM key. Only info@ is accepted; a virus is dropped, and suspected spam is marked in the subject. It costs cents a month. `aws/mail/README.md` has the setup.
+- **The Privacy page says so:** what happens to a message sent to info@, and that AWS handles it.
+
+**Tests:** `mail.test`: a message forwarded from info@ with the sender as Reply-To, the headers that would fail checks taken out, the body untouched; suspected spam marked; accented names encoded; a sender's own Reply-To kept.
+
 ## 0.68.0 — free and open source, nothing given up to start a show, and a steadier zoom on iPhones
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.67.0.
 

@@ -1,0 +1,213 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  info@ for the VUEMesh domain, forwarded to one inbox. Mail arrives at Amazon SES (spam and virus
+  scanned), is kept encrypted in a private bucket for 30 days, and a small function forwards it.
+  Replies go out through SES as info@ (Gmail's "Send mail as", with SMTP credentials made by
+  deploy.sh). Its own stack: nothing here touches the app.
+
+Parameters:
+  Domain:
+    Type: String
+    Default: vuemesh.com
+  Address:
+    Type: String
+    Default: info
+    Description: The part before the @.
+  ForwardTo:
+    Type: String
+    Description: Where mail to the address is forwarded (an inbox you read).
+  HostedZoneId:
+    Type: String
+    Description: The domain's Route 53 hosted zone.
+  RuleSetName:
+    Type: String
+    Default: vuemesh-mail
+    Description: SES receipt rule set (one is active per region; deploy.sh activates this one).
+
+Resources:
+  # ---- where mail is kept: private, encrypted, TLS only, deleted after 30 days ----
+  MailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      LifecycleConfiguration:
+        Rules:
+          - Id: forget-after-30-days
+            Status: Enabled
+            ExpirationInDays: 30
+
+  MailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SesWritesIncomingMail
+            Effect: Allow
+            Principal: { Service: ses.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub '${MailBucket.Arn}/inbound/*'
+            Condition:
+              StringEquals: { 'AWS:SourceAccount': !Ref AWS::AccountId }
+              ArnLike: { 'AWS:SourceArn': !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:receipt-rule-set/${RuleSetName}:receipt-rule/*' }
+          - Sid: TlsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt MailBucket.Arn, !Sub '${MailBucket.Arn}/*']
+            Condition:
+              Bool: { 'aws:SecureTransport': 'false' }
+
+  # ---- the domain, as a sender: DKIM signing and its own MAIL FROM, so SPF and DMARC line up ----
+  Identity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref Domain
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        MailFromDomain: !Sub 'mail.${Domain}'
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+
+  Dns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: !Ref Domain
+          Type: MX
+          TTL: '3600'
+          ResourceRecords: [!Sub '10 inbound-smtp.${AWS::Region}.amazonaws.com']
+        - Name: !Ref Domain
+          Type: TXT
+          TTL: '3600'
+          ResourceRecords: ['"v=spf1 include:amazonses.com ~all"']
+        - Name: !Sub 'mail.${Domain}'
+          Type: MX
+          TTL: '3600'
+          ResourceRecords: [!Sub '10 feedback-smtp.${AWS::Region}.amazonses.com']
+        - Name: !Sub 'mail.${Domain}'
+          Type: TXT
+          TTL: '3600'
+          ResourceRecords: ['"v=spf1 include:amazonses.com ~all"']
+        - Name: !Sub '_dmarc.${Domain}'
+          Type: TXT
+          TTL: '3600'
+          ResourceRecords: ['"v=DMARC1; p=quarantine; adkim=r; aspf=r"']
+        - Name: !GetAtt Identity.DkimDNSTokenName1
+          Type: CNAME
+          TTL: '3600'
+          ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue1]
+        - Name: !GetAtt Identity.DkimDNSTokenName2
+          Type: CNAME
+          TTL: '3600'
+          ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue2]
+        - Name: !GetAtt Identity.DkimDNSTokenName3
+          Type: CNAME
+          TTL: '3600'
+          ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue3]
+
+  # ---- the forwarder ----
+  Forwarder:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/
+      Handler: forward.handler
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          BUCKET: !Ref MailBucket
+          PREFIX: inbound/
+          FROM_ADDRESS: !Sub '${Address}@${Domain}'
+          FORWARD_TO: !Ref ForwardTo
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub '${MailBucket.Arn}/inbound/*'
+            - Effect: Allow
+              Action: [ses:SendEmail, ses:SendRawEmail]
+              Resource: '*'
+              Condition:
+                StringEquals: { 'ses:FromAddress': !Sub '${Address}@${Domain}' }
+
+  ForwarderLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Forwarder}'
+      RetentionInDays: 14
+
+  SesInvokesForwarder:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Forwarder
+      Action: lambda:InvokeFunction
+      Principal: ses.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:receipt-rule-set/${RuleSetName}:receipt-rule/*'
+
+  # ---- receiving: only the one address; everything else to the domain is turned away ----
+  RuleSet:
+    Type: AWS::SES::ReceiptRuleSet
+    Properties:
+      RuleSetName: !Ref RuleSetName
+
+  Rule:
+    Type: AWS::SES::ReceiptRule
+    DependsOn: [MailBucketPolicy, SesInvokesForwarder]
+    Properties:
+      RuleSetName: !Ref RuleSet
+      Rule:
+        Name: !Sub '${Address}-forward'
+        Enabled: true
+        Recipients: [!Sub '${Address}@${Domain}']
+        ScanEnabled: true
+        TlsPolicy: Optional
+        Actions:
+          - S3Action:
+              BucketName: !Ref MailBucket
+              ObjectKeyPrefix: inbound/
+          - LambdaAction:
+              FunctionArn: !GetAtt Forwarder.Arn
+              InvocationType: Event
+
+  # ---- replying as the address: an SMTP user that can only send as it ----
+  SmtpUser:
+    Type: AWS::IAM::User
+    Properties:
+      Policies:
+        - PolicyName: send-as-address-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ses:SendRawEmail
+                Resource: '*'
+                Condition:
+                  StringEquals: { 'ses:FromAddress': !Sub '${Address}@${Domain}' }
+
+Outputs:
+  Address:
+    Value: !Sub '${Address}@${Domain}'
+  Bucket:
+    Value: !Ref MailBucket
+  RuleSet:
+    Value: !Ref RuleSet
+  SmtpUser:
+    Value: !Ref SmtpUser
+  SmtpHost:
+    Value: !Sub 'email-smtp.${AWS::Region}.amazonaws.com'
