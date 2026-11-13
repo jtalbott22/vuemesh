@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  VUEMesh's own STUN server (stun.<domain>), so devices finding a path to each other ask us,
+  not Google. STUN only: it tells a device its public address and relays nothing (no TURN, no
+  video). It keeps no logs. One small Lightsail server with a fixed address. Its own stack.
+
+Parameters:
+  Domain:
+    Type: String
+    Default: vuemesh.com
+  HostedZoneId:
+    Type: String
+    Description: The domain's Route 53 hosted zone.
+  BundleId:
+    Type: String
+    Default: nano_3_0
+    Description: Lightsail size (the smallest with a public IPv4 address; see `aws lightsail get-bundles`).
+
+Resources:
+  Server:
+    Type: AWS::Lightsail::Instance
+    Properties:
+      InstanceName: vuemesh-stun
+      AvailabilityZone: !Sub '${AWS::Region}a'
+      BlueprintId: ubuntu_24_04
+      BundleId: !Ref BundleId
+      Networking:
+        Ports:
+          - { FromPort: 3478, ToPort: 3478, Protocol: udp, Cidrs: ['0.0.0.0/0'], Ipv6Cidrs: ['::/0'] }
+          - { FromPort: 3478, ToPort: 3478, Protocol: tcp, Cidrs: ['0.0.0.0/0'], Ipv6Cidrs: ['::/0'] }
+          # SSH only from the Lightsail console's browser terminal, for maintenance
+          - { FromPort: 22, ToPort: 22, Protocol: tcp, CidrListAliases: ['lightsail-connect'] }
+      UserData: |
+        #!/bin/bash
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get install -y coturn unattended-upgrades
+        cat > /etc/turnserver.conf <<'CONF'
+        # STUN only: answers "what's my public address?" and nothing else. No relaying, no accounts.
+        listening-port=3478
+        stun-only
+        no-tls
+        no-dtls
+        no-cli
+        no-rfc5780
+        no-stun-backward-compatibility
+        response-origin-only-with-rfc5780
+        fingerprint
+        no-software-attribute
+        # No logs: addresses are answered and forgotten.
+        no-stdout-log
+        log-file=/dev/null
+        CONF
+        sed -i 's/^#\?TURNSERVER_ENABLED=.*/TURNSERVER_ENABLED=1/' /etc/default/coturn 2>/dev/null || true
+        systemctl enable coturn
+        systemctl restart coturn
+
+  Address:
+    Type: AWS::Lightsail::StaticIp
+    Properties:
+      StaticIpName: vuemesh-stun-ip
+      AttachedTo: !Ref Server
+
+  Dns:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub 'stun.${Domain}'
+      Type: A
+      TTL: '300'
+      ResourceRecords: [!GetAtt Address.IpAddress]
+
+Outputs:
+  StunUrl:
+    Description: The ICE server the site's config.js gives every device.
+    Value: !Sub 'stun:stun.${Domain}:3478'
+  IpAddress:
+    Value: !GetAtt Address.IpAddress

@@ -5,7 +5,7 @@
 //   3. publishing: hand out one-time upload URLs for the finished film
 // Video never passes through here.
 
-import { randomId, sha256hex, b64url, termsText, HttpError, geohash, nearbyCells, km, publicEvent } from './common.mjs';
+import { randomId, sha256hex, b64url, termsText, HttpError, publicEvent } from './common.mjs';
 import { randomBytes } from 'node:crypto';
 
 const DAY = 86400;
@@ -48,41 +48,7 @@ async function route(req, deps) {
 
   if (seg.length === 1 && m === 'POST') return createEvent(req.body || {}, store, now, deps);
 
-  if (seg[1] === 'near' && m === 'GET') {
-    const lat = Number(req.query.lat), lon = Number(req.query.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new HttpError(400, 'Share your location to find events near you');
-    const found = await store.listByCells(nearbyCells(lat, lon, 4));
-    const events = found
-      .filter((e) => e.public && e.lat != null && alive(e, now))
-      // Whole kilometres only, so a listing can't be used to pinpoint a venue.
-      .map((e) => ({ ...publicEvent(e), km: Math.max(1, Math.round(km(lat, lon, e.lat, e.lon))), live: now - (e.hostSeenAt || 0) < LIVE_WINDOW_MS }))
-      .filter((e) => e.km <= 80)
-      .sort((a, b) => (b.live - a.live) || (a.km - b.km))
-      .slice(0, 30)
-      .map(({ lat: _a, lon: _b, terms, termsHash, ...e }) => e);
-    return { status: 200, body: { events } };
-  }
-
-  if (seg[1] === 'public' && m === 'GET') {
-    if (!deps.flags?.globe) throw new HttpError(404, 'The event map is turned off during the beta');
-    // Everything public and recent, for the globe. Coarse location only (~10 km).
-    const found = await store.listPublic(200);
-    const events = found
-      .filter((e) => e.public && e.lat != null && alive(e, now))
-      .map((e) => ({
-        id: e.id,
-        title: e.title,
-        kind: e.kind,
-        orientation: e.orientation || 'landscape',
-        lat: Math.round(e.lat * 10) / 10,
-        lon: Math.round(e.lon * 10) / 10,
-        createdAt: e.createdAt,
-        live: now - (e.hostSeenAt || 0) < LIVE_WINDOW_MS,
-        published: e.published ? { title: e.published.title, publishedAt: e.published.publishedAt } : null,
-      }))
-      .sort((a, b) => (b.live - a.live) || (b.createdAt - a.createdAt));
-    return { status: 200, body: { events } };
-  }
+  // (No location endpoints: VUEMesh never asks where anyone is, and there's no list or map of events.)
 
   const id = String(seg[1] || '').toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(id)) throw new HttpError(400, 'Bad event code');
@@ -142,14 +108,8 @@ async function route(req, deps) {
       fields.public = !!b.public;
       fields.pub = b.public ? 'P' : null;
     }
-    if (Number.isFinite(b.lat) && Number.isFinite(b.lon)) Object.assign(fields, place(b.lat, b.lon));
     // contributors the host removed and blocked (their random camera ids for this event)
     if ('blocked' in b) fields.blocked = (Array.isArray(b.blocked) ? b.blocked : []).map(String).filter((x) => /^[\w-]{4,80}$/.test(x)).slice(0, 500);
-    if (fields.public === false) fields.gh = null;
-    else if (fields.public || meta.public) {
-      const lat = fields.lat ?? meta.lat, lon = fields.lon ?? meta.lon;
-      if (lat != null) fields.gh = geohash(lat, lon, 4);
-    }
     const updated = await store.updateEvent(id, fields);
     return { status: 200, body: publicEvent(updated) };
   }
@@ -236,11 +196,6 @@ async function createEvent(body, store, now, deps) {
       ttl: Math.floor(now / 1000) + (body.kiosk ? KIOSK_TTL_HOURS * 3600 : EVENT_TTL_DAYS * DAY),
       ...(body.kiosk ? { kiosk: true, titled: !untitledKiosk } : {}),
     };
-    if (Number.isFinite(body.lat) && Number.isFinite(body.lon)) Object.assign(meta, place(body.lat, body.lon));
-    if (isPublic && meta.lat != null) {
-      meta.gh = geohash(meta.lat, meta.lon, 4);
-      meta.pub = 'P';
-    }
     if (await store.putEventIfAbsent(meta)) {
       await bump(deps, now, { events: 1, events_public: isPublic ? 1 : 0, [`kind_${kindKey(kind)}`]: 1 });
       return { status: 200, body: { id, hostKey, termsHash: meta.termsHash } };
@@ -267,6 +222,14 @@ const refOf = (r) => {
     return null;
   }
 };
+// A random salt for each day, kept two days like the visitor marks, then gone: once it's deleted
+// nobody (the maintainer included) can recompute a visitor's mark from an address.
+let localSalt = null;
+async function daySalt(store, day) {
+  if (store.daySalt) return store.daySalt(day, b64url(randomBytes(24)));
+  if (!localSalt || localSalt.day !== day) localSalt = { day, salt: b64url(randomBytes(24)) };
+  return localSalt.salt;
+}
 async function hit(req, deps) {
   const ok = { status: 200, body: { ok: true } };
   const b = req.body || {}, h = req.headers || {}, ua = String(h['user-agent'] || '');
@@ -286,7 +249,7 @@ async function hit(req, deps) {
     else if (ref !== own && !ref.endsWith('vuemesh.com')) c[`ref:${ref}`] = 1;
     const utm = String(b.u || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 40);
     if (utm) c[`utm:${utm}`] = 1;
-    const fp = sha256hex(`${day}|${req.ip || ''}|${ua}|${(deps.adminKeyHashes || [])[0] || 'vuemesh'}`).slice(0, 24);
+    const fp = sha256hex(`${day}|${req.ip || ''}|${ua}|${await daySalt(store, day)}`).slice(0, 24);
     if (await store.markOnce(`VIS#${day}#${fp}`).catch(() => false)) {
       // a new visitor today: what they came on, and from where (country, if the edge says so)
       c.visitors = 1;
@@ -324,8 +287,6 @@ async function bump(deps, now, counts) {
   }
 }
 
-// Stored to ~1 km so a public listing never pins someone's front door.
-const place = (lat, lon) => ({ lat: Math.round(lat * 100) / 100, lon: Math.round(lon * 100) / 100 });
 
 // ------------------------------------------------------------ WebSocket API ---
 
@@ -631,8 +592,8 @@ async function admin(req, seg, deps, now) {
     if (typeof b.title === 'string' && b.title.trim()) fields.title = b.title.trim().slice(0, 120);
     if ('public' in b) {
       fields.public = !!b.public;
-      fields.pub = b.public && meta.lat != null ? 'P' : null;
-      fields.gh = b.public && meta.lat != null ? geohash(meta.lat, meta.lon, 4) : null;
+      fields.pub = null;
+      fields.gh = null;
     }
     if (Number.isFinite(b.daysLeft)) {
       const days = Math.min(30, Math.max(0, b.daysLeft));

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Accessibility — VUEMesh</title>
+<meta name="description" content="How accessible VUEMesh is, what has been checked, what is known not to work yet, and how to tell us about a barrier.">
+<link rel="canonical" href="https://vuemesh.com/accessibility">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vuemesh.com/accessibility">
+<meta property="og:title" content="Accessibility — VUEMesh">
+<meta property="og:description" content="How accessible VUEMesh is, and how to tell us about a barrier.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link rel="stylesheet" href="/css/vm.css">
+<style>
+  .wrap { max-width: 820px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
+  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin-bottom: .2em; }
+  h2 { margin-top: 2em; font-size: 1.25rem; }
+  p, li, td { color: var(--text-2); }
+  b, strong, th { color: var(--text); }
+  .short { background: var(--surface); border-radius: 12px; padding: 16px 20px; }
+  .short ul { margin: .4em 0 0; padding-left: 1.2em; }
+  .short li { margin: .25em 0; }
+  .tbl { overflow-x: auto; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; }
+  code { font-family: var(--mono); font-size: .88em; overflow-wrap: anywhere; }
+  .here { background: var(--surface); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .here p { margin: .3em 0; }
+  .here .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  button.danger { background: var(--tally); color: #fff; }
+  footer { margin-top: 48px; font-size: .9rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
+  <main>
+    <h1>Accessibility</h1>
+    <p>VUEMesh should be usable by everyone who makes or joins a show. This page says how close it is, what has been checked, what is known not to work well yet, and how to tell us about a barrier. It describes the site at vuemesh.com.</p>
+
+    <h2 id="standard">The standard we aim for</h2>
+    <p>The <a href="https://www.w3.org/TR/WCAG22/">Web Content Accessibility Guidelines (WCAG) 2.2</a>, level AA. VUEMesh <b>partially conforms</b>: some parts don't meet it yet (below).</p>
+
+    <h2 id="checked">What has been checked</h2>
+    <ul>
+      <li>Every public page (home, tour, privacy, terms, collaborate, what's new, and the studio, camera, watch, share, remote and TV pages) is checked with the automated tool <a href="https://github.com/dequelabs/axe-core">axe</a> against WCAG 2.2 AA, in both light and dark themes, and passes.</li>
+      <li>Pages work at any zoom and on a phone's width, follow your system's light or dark setting, and use real buttons, labels and headings.</li>
+      <li>Automated tools catch only some barriers. The checks above don't replace testing with a screen reader or a keyboard alone, which is still to do for most of the studio.</li>
+    </ul>
+
+    <h2 id="limits">Known limits</h2>
+    <ul>
+      <li><b>The studio is a dense, live control surface.</b> Audio meters, the timeline and some monitors are drawn as pictures, so a screen reader can't read them yet, and not every control can be reached and used from the keyboard alone.</li>
+      <li><b>Live video and sound come from the people at the show.</b> VUEMesh doesn't add captions or audio description to them; a host can add lower thirds and slates.</li>
+      <li>Some status is shown by colour (for example red for on air); we are adding words or shapes alongside wherever we find it.</li>
+    </ul>
+
+    <h2 id="tell">Tell us about a barrier</h2>
+    <p>If something on VUEMesh keeps you from doing what you came to do, please write to <a id="contactLink"><b>info@vuemesh.com</b></a> or <a href="https://github.com/jtalbott22/vuemesh/issues">open an issue</a>. Say which page, what you were trying to do, and what you use (browser, screen reader or other tools) if you like. We aim to reply within 30 days. VUEMesh is run by one person, so a reply can take a while, but every report is read and kept.</p>
+
+    <p class="muted">Last reviewed November 2026, with VUEMesh 0.70.</p>
+  </main>
+  <footer><a href="/">Home</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
+</div>
+<script src="/js/version.js" type="module"></script>
+<script type="module">
+  import { $, themeButton } from '/js/vm.js';
+  import { sponsorContactHref } from '/js/brand.js';
+  themeButton($('#themeBtn'));
+  $('#contactLink').href = sponsorContactHref('VUEMesh: an accessibility barrier');
+</script>
+</body>
+</html>

@@ -30,26 +30,19 @@ assert.equal(a.status, 200);
 const { id, hostKey } = a.body;
 const got = await call('GET', `/events/${id}`);
 assert.equal(got.body.title, 'Garage show');
-assert.equal(got.body.lat, 41.08, 'location rounded to ~1 km');
+assert.ok(!('lat' in got.body) && !('lon' in got.body), 'a location sent with an event is never kept');
 assert.ok(!('hostKeyHash' in got.body) && !('gh' in got.body), 'secrets hidden');
 ok('create and read an event');
 
 await call('POST', '/events', { title: 'Private wedding', public: false, lat: 41.08, lon: -81.52 });
-const near = await call('GET', '/events/near', null, {}, { lat: '41.13', lon: '-81.48' });
-assert.deepEqual(near.body.events.map((e) => e.title), ['Garage show'], 'only public events are discoverable');
-assert.ok(Number.isInteger(near.body.events[0].km) && near.body.events[0].km < 10 && !('lat' in near.body.events[0]), 'whole km, no coordinates');
-ok('find nearby lists public events only, without coordinates');
-
-const feed = await call('GET', '/events/public');
-assert.deepEqual(feed.body.events.map((e) => e.title), ['Garage show'], 'globe feed is public-only');
-assert.equal(feed.body.events[0].lat, 41.1, 'globe feed rounds to ~10 km');
-assert.equal(feed.body.events[0].orientation, 'landscape');
 const p1 = await call('POST', '/events', { title: 'Vertical set', public: true, orientation: 'portrait', lat: 40.0, lon: -83.0 });
 const p1Host = { 'x-host-key': p1.body.hostKey };
 assert.equal((await call('GET', `/events/${p1.body.id}`)).body.orientation, 'portrait');
-await call('PATCH', `/events/${p1.body.id}`, { public: false }, p1Host);
-assert.ok(!(await call('GET', '/events/public')).body.events.some((e) => e.title === 'Vertical set'), 'un-listing removes it from the globe');
-ok('globe feed, orientation, un-listing');
+assert.ok(!('lat' in (await call('PATCH', `/events/${p1.body.id}`, { lat: 40.1, lon: -83.1 }, p1Host)).body), 'nor one sent later');
+for (const r of [await call('GET', '/events/near', null, {}, { lat: '41.13', lon: '-81.48' }), await call('GET', '/events/public')]) {
+  assert.ok(r.status >= 400 && !r.body?.events, 'no "near me", and no public list or map');
+}
+ok('no location is kept or asked for; orientation');
 
 // host-only routes
 assert.equal((await call('POST', `/events/${id}/publish`, { ext: 'mp4' })).status, 403);

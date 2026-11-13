@@ -97,6 +97,6 @@ export function km(lat1, lon1, lat2, lon2) {
 
 export function publicEvent(meta) {
   if (!meta) return null;
-  const { pk, sk, hostKeyHash, gh, pub, ttl, joined, usage, activeDay, ...rest } = meta; // (counting details stay private)
+  const { pk, sk, hostKeyHash, gh, pub, ttl, joined, usage, activeDay, lat: _lat, lon: _lon, ...rest } = meta; // (counting details stay private; no location, even on an old event)
   return rest;
 }

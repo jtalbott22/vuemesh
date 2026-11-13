@@ -34,6 +34,18 @@
       "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:vuemesh-*"
     },
     {
+      "Sid": "StunServer",
+      "Effect": "Allow",
+      "Action": "lightsail:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "FunctionLogRetention",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:PutRetentionPolicy"],
+      "Resource": "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/vuemesh-*"
+    },
+    {
       "Sid": "Apis",
       "Effect": "Allow",
       "Action": "apigateway:*",

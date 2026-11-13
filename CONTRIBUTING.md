@@ -81,8 +81,6 @@ however good they are otherwise. Ask if you're unsure.
 
 ## Good places to start
 
-- **Host the Archivo font ourselves** instead of from Google Fonts, so pages make no request to
-  Google (the Barlow fonts in `public/fonts/` show how).
 - **Try it on real hardware** listed under *Known limits* and report what happens.
 - **Translations:** the app is English only today. Laying the groundwork for other languages would
   open it to many more people.

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.70.0 — nothing sent to Google, no location code left, a fuller Privacy page, and easier to read
+**Deploy:** update the deploy user's IAM policy from `aws/iam-deploy-policy.json` (log retention and Lightsail), then `./aws/stun/deploy.sh` (new, once), then `./aws/deploy.sh` (functions and site). It builds on 0.69.0.
+
+**No outside requests for fonts.** Archivo, the typeface of the studio and most pages, is now served from the site (`public/css/archivo.css`, `public/fonts/archivo-*.woff2`, SIL Open Font License) instead of Google Fonts. No page sends a visitor's address to Google for a font, and Archivo works offline on a show's own network too.
+
+**The Privacy page covers what the GDPR asks for:** who is responsible and how to reach them; the basis for each thing kept (providing the service, legitimate interests, and why browser storage needs no consent banner); AWS as processor, with the servers in the United States and what covers the transfer; your rights (to see, correct, delete, restrict, object, take a copy) and how to use them without an account; and the right to complain to a data protection authority. Google Fonts is gone from its list of other services, and it says the STUN server sees a device's public address and how a copy can use its own.
+
+**Our own STUN server** (`aws/stun`): devices ask `stun.vuemesh.com` for their public address instead of Google's server. STUN only (coturn): it relays nothing and keeps no logs. One small Lightsail server; `deploy.sh` writes it into `config.js`, and stops if it isn't there (or runs with `STUN=google`). Going live to a streaming service (WHIP) uses it too. `aws/stun/check.mjs` asks it for this computer's address.
+
+**No location code left.** The server no longer accepts or keeps a location with an event, and the "near me" and map endpoints are gone (nothing has asked for a location since 0.68.0). An older event's location is never shown.
+
+**Visitor counting uses a random salt made fresh each day**, deleted with that day's visitor marks after two days, instead of one fixed salt: once it's gone, nobody can recompute a mark from an address.
+
+**An Accessibility page** (`/accessibility`): the standard aimed for (WCAG 2.2 AA, partially met), what has been checked, the known limits, and how to report a barrier. Linked from the home page and the Privacy page.
+
+**The Privacy page names who runs vuemesh.com** (Joshua Allen Talbott, Ohio) and the STUN server it now uses.
+
+**Server logs are kept for 14 days**, not forever: `deploy.sh` sets the retention on both functions' CloudWatch log groups.
+
+**Easier to read (WCAG 2.2 AA colour contrast),** checked with axe on every public page in light and dark: the role labels on the home page's rig, the step headings on the Tour, the muted text on the light home page, white on red buttons in the dark home page, the partner labels on Collaborate, and the version links on the camera, share, remote and TV pages. The Remote's connection dot is announced as a status.
+
+**Tests:** `core.test`: a location sent with an event, or later, is never kept; no "near me" and no public list; visitors still counted once a day with the daily salt.
+
 ## 0.69.0 — info@vuemesh.com
 **Deploy:** `./aws/deploy.sh` (site only), after `aws/mail` is set up. It builds on 0.68.0.
 

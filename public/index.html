@@ -52,7 +52,7 @@
   .program { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 3px var(--tally); background: #0b0c0f; aspect-ratio: 16 / 9; }
   .program canvas, .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .chip { position: absolute; z-index: 2; font-size: .8rem; font-weight: 700; padding: .3em .65em; border-radius: 5px; background: #0009; display: inline-flex; align-items: center; gap: .45em; }
-  .onair { left: 12px; top: 12px; background: var(--tally); color: #fff; gap: 0; }
+  .onair { left: 12px; top: 12px; background: var(--tally-fill, var(--tally)); color: #fff; gap: 0; }
   .ptc { right: 12px; top: 12px; }
   .mode { left: 12px; bottom: 12px; font-weight: 600; }
   .mode.you { background: var(--preview); }
@@ -102,7 +102,7 @@
   .flow li svg, .hubcard svg, .remotechip svg { width: 34px; height: 34px; color: var(--job, var(--tally)); }
   .flow li b, .remotechip b { display: block; font-weight: 700; line-height: 1.15; }
   .flow li small, .remotechip small { display: block; color: var(--text-2); font-size: .84rem; line-height: 1.25; }
-  .flow li em, .hubcard em { font-style: normal; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--job, var(--tally)); white-space: nowrap; }
+  .flow li em, .hubcard em { font-style: normal; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--job, var(--tally)) 50%, var(--text)); white-space: nowrap; } /* (mixed with the text colour so the label is readable in light and dark: WCAG AA contrast) */
   .hub { display: grid; gap: 10px; justify-items: stretch; }
   .hubcard { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 22px 16px; border-radius: 16px; background: var(--bg); box-shadow: 0 0 0 3px var(--tally), 0 10px 30px #0003; }
   .hubcard svg { width: 56px; height: 56px; }
@@ -262,7 +262,7 @@
   .minelist .acts button, .minelist .acts a { min-height: 32px; padding: .2em .65em; font-size: .8rem; border-radius: 8px; }
   .badge { font-size: .7rem; font-weight: 800; letter-spacing: .04em; padding: .1em .45em; border-radius: 4px; background: var(--surface-2); color: var(--text); }
   .badge.gone { background: var(--amber); color: #3b2500; }
-  .badge.live { background: var(--tally); color: #fff; }
+  .badge.live { background: var(--tally-fill, var(--tally)); color: #fff; }
   @media (max-width: 560px) { .minelist li { grid-template-columns: 1fr; } .minelist .acts { grid-column: 1; grid-row: auto; justify-content: flex-start; } }
 
   footer { color: var(--muted); font-size: .85rem; padding: 24px 0 calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); }
@@ -314,12 +314,12 @@
   :root, [data-theme="dark"] {
     --bg: #121519; --surface: #1a1e24; --surface-2: #242a32; --line: #2f3640; --field: #0e1115;
     --text: #eef2f6; --text-2: #b4bcc8; --soft: #b4bcc8; --muted: #808a98;
-    --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; --wall: #05070a;
+    --tally: #ff2f2a; --tally-fill: #d9241e; --preview: #2fd56b; /* (tally-fill: a red that white text reads on, WCAG AA) */ --amber: #ffb21e; --wall: #05070a;
     --key: linear-gradient(#2b313a, #1c2128); --key-edge: #00000080; --key-led: #3b434f;
   }
   [data-theme="light"] {
     --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
-    --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #646e7b;
+    --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #5c6673;
     --tally: #dc211c; --preview: #129a47; --amber: #a86a08; --wall: #0b0e12;
     --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
   }
@@ -328,7 +328,7 @@
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
       --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
-      --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #646e7b;
+      --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #5c6673;
       --tally: #dc211c; --preview: #129a47; --amber: #a86a08;
       --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
     }
@@ -342,7 +342,7 @@
   .mark { font-size: 1.5rem; font-weight: 800; letter-spacing: .01em; }
   .mark i { border-radius: 2px; width: 12px; height: 12px; box-shadow: 0 0 10px var(--tally); }
   .btn { border-radius: 4px; font-weight: 700; letter-spacing: .02em; font-size: 1.05rem; }
-  .btn.primary { background: var(--tally); color: #fff; }
+  button.primary, .btn.primary { background: var(--tally-fill, var(--tally)); color: #fff; }
 
   /* the headline: big, condensed, one colour */
   h1.big { font-weight: 800; font-size: clamp(3.1rem, 8.6vw, 7.6rem); line-height: .86; letter-spacing: -.005em; }
@@ -362,7 +362,7 @@
   .tile .who { left: 0; right: 0; bottom: 0; padding: 2px 8px 3px; background: #000d; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: .86rem; letter-spacing: .02em; text-shadow: none; }
   .tile .ttc { color: var(--amber); font-variant-numeric: tabular-nums; font-family: 'Barlow Condensed', sans-serif; font-size: .8rem; }
   .chip { border-radius: 2px; font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; letter-spacing: .03em; background: #000c; padding: .2em .6em; }
-  .onair { background: var(--tally); }
+  .onair { background: var(--tally-fill, var(--tally)); }
   .ptc { color: var(--amber); font-variant-numeric: tabular-nums; }
   .mode.you { background: var(--preview); color: #04120a; }
   .demo .hint { color: #aab3bf; padding: 2px 4px 4px; margin: 0; }
@@ -778,7 +778,7 @@
 
   <footer>
     <span>VUEMesh · Production in the browser.</span>
-    <span class="patreon">Free and open source (MIT). <a href="https://github.com/jtalbott22/vuemesh" target="_blank" rel="noopener">Build it with us</a> · <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Collaborate</a> · <a href="/changelog">What's new</a> <a data-vm-version hidden></a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
+    <span class="patreon">Free and open source (MIT). <a href="https://github.com/jtalbott22/vuemesh" target="_blank" rel="noopener">Build it with us</a> · <a id="patreonLink" target="_blank" rel="noopener">Support it on Patreon</a> · <a href="/sponsors">Collaborate</a> · <a href="/changelog">What's new</a> <a data-vm-version hidden></a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/accessibility">Accessibility</a></span>
   </footer>
 </div>
 
