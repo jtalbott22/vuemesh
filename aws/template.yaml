@@ -132,6 +132,27 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
+  # The security headers of the default, except that any site may frame the page (CSP
+  # frame-ancestors *, no X-Frame-Options): for the kiosk, studio and TV pages on digital signs.
+  EmbedHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-embed'
+        Comment: Kiosk, studio and TV pages, framed by digital signage players
+        CorsConfig:
+          AccessControlAllowOrigins: { Items: ['*'] }
+          AccessControlAllowHeaders: { Items: ['*'] }
+          AccessControlAllowMethods: { Items: [ALL] }
+          AccessControlAllowCredentials: false
+          AccessControlMaxAgeSec: 600
+          OriginOverride: true
+        SecurityHeadersConfig:
+          ContentSecurityPolicy: { ContentSecurityPolicy: 'frame-ancestors *', Override: true }
+          ContentTypeOptions: { Override: true }
+          ReferrerPolicy: { ReferrerPolicy: strict-origin-when-cross-origin, Override: true }
+          StrictTransportSecurity: { AccessControlMaxAgeSec: 31536000, Override: true }
+
   # /cam → /cam.html so links and the beacon QR stay short.
   CleanUrls:
     Type: AWS::CloudFront::Function
@@ -172,10 +193,49 @@ Resources:
           TargetOriginId: site
           ViewerProtocolPolicy: redirect-to-https
           Compress: true
+          AllowedMethods: [GET, HEAD, OPTIONS]
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # Managed-CORS-S3Origin
+          ResponseHeadersPolicyId: eaab4381-ed33-4a86-88ca-d9558dc6cd63 # Managed-CORS-with-preflight-and-SecurityHeadersPolicy (no framing by other sites)
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt CleanUrls.FunctionMetadata.FunctionARN
+        # Pages other sites may show in a frame: digital signs (Rise Vision and the like) embed
+        # the kiosk, the studio and the TV page. Everything else stays same-origin only.
+        CacheBehaviors:
+          - PathPattern: '/kiosk*'
+            TargetOriginId: site
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # Managed-CORS-S3Origin
+            ResponseHeadersPolicyId: !Ref EmbedHeaders
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt CleanUrls.FunctionMetadata.FunctionARN
+          - PathPattern: '/studio*'
+            TargetOriginId: site
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # Managed-CORS-S3Origin
+            ResponseHeadersPolicyId: !Ref EmbedHeaders
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt CleanUrls.FunctionMetadata.FunctionARN
+          - PathPattern: '/tv*'
+            TargetOriginId: site
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # Managed-CORS-S3Origin
+            ResponseHeadersPolicyId: !Ref EmbedHeaders
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt CleanUrls.FunctionMetadata.FunctionARN
 
   # ------------------------------------------------------------------- API ---
   HttpApi:

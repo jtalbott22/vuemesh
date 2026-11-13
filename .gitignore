@@ -53,3 +53,4 @@ vuemesh-showlog-*.json
 
 # info@ mail: the SMTP login made by aws/mail/deploy.sh
 aws/mail/.smtp-credentials
+*.har
