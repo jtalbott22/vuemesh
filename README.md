@@ -121,6 +121,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Screens, windows and tabs**, with their sound, captured sharp for text and **always shown whole**, with bars if the screen is another shape than the show. **The computer's own sound** too.
 - **Another computer's screen** over `/share`: no install, its sound in stereo, sharpest for slides or smoothest for video (the presenter picks; a share that's playing sound goes to smoothest by itself), and a tally that tells the presenter when they're up next or on air.
 - **Phones and tablets** as cameras or microphones, with full-quality local recording, tally lights, and messages from the director.
+- **People on a call**, from anywhere: the studio starts or joins a call (`/call`), and each person in it is a source, their camera and sound, and any screen they share. The call sees the program and hears it without themselves.
 - **Clips** for ads, b-roll, a pre-made package, a bumper or a logo: video or images, ready in Sources, aired with a click (once and back to the camera, or looped), with their sound on their own mixer strip. Aired video clips land in Edit where they aired.
 - **Camera control** for every camera, as far as each device allows: zoom, exposure, contrast, white balance and focus, with a histogram and waveform.
 
@@ -223,6 +224,15 @@ the room (other computers, phones, tablets, TVs) use the cloud only to find each
 pictures and sound **directly over the local network**. The cloud side is CloudFront and S3 for the
 app, an HTTP API and a WebSocket API on Lambda, and DynamoDB with a 30-day TTL, all scaling to zero.
 
+How two devices find a path to each other is WebRTC's **ICE**: each gathers its possible addresses
+(its own on the local network, and its public one, which it learns by asking our **STUN** server),
+they swap them through the cloud's signalling, and they try the pairs until one connects. On one
+network the local address wins. Across the internet most devices connect straight through their
+routers; the few that can't (a phone on mobile data behind its carrier, a strict office or hotel
+network) fall back to our **TURN** relay, which passes their media on still encrypted end to end,
+so it can't read it. STUN and TURN are one small server (`aws/stun`), the relay only for devices
+with a short-lived password from the API.
+
 ```mermaid
 flowchart LR
   subgraph In["Sources"]
@@ -232,9 +242,11 @@ flowchart LR
     Share["💻 Another computer<br/>/share"]
     Cams["📱 Phones and tablets<br/>cameras and microphones"]
     Clips["🎞️ Clips<br/>ads, b-roll, packages"]
+    Guests["🎦 People on a call<br/>anywhere, /call"]
   end
 
   Cloud["☁️ AWS handshake<br/>signalling only, no video"]
+  Ice["🧭 STUN / TURN<br/>public addresses; a relay<br/>only when there's no other way"]
 
   Studio["🖥️ <b>VUEMesh studio</b><br/>one browser tab<br/><br/>switch · mix · record<br/>stream · edit"]
 
@@ -257,9 +269,13 @@ flowchart LR
   Share == "local network" ==> Studio
   Cams == "local network" ==> Studio
   Clips -- "files" --> Studio
+  Guests == "internet, encrypted" ==> Studio
   Share -.- Cloud
   Cams -.- Cloud
+  Guests -.- Cloud
   Cloud -.- Studio
+  Guests -. "if no direct path" .- Ice
+  Ice -.- Studio
   Midi --> Studio
   Remote -.-> Studio
   Studio ==> Rec
@@ -280,13 +296,20 @@ sequenceDiagram
   participant Phone
   participant Beacon
   participant Cloud as Cloud (HTTP + WebSocket)
+  participant Ice as STUN / TURN
   participant Studio as Studio laptop
 
   Phone->>Beacon: Scan the QR code (the join link)
   Phone->>Cloud: Look up the event, sign its terms with the phone's own key
   Phone->>Cloud: Join the event's signalling as a camera
   Cloud-->>Studio: Who's here: a new camera
-  Phone->>Studio: WebRTC offer, answer and ICE (relayed by the cloud)
+  Phone->>Ice: What's my public address? (STUN)
+  Phone->>Studio: WebRTC offer, answer and ICE candidates (passed on by the cloud)
+  Note over Phone,Studio: ICE tries the pairs: on one network, straight across it
+  opt No direct path (mobile data, a strict network)
+    Phone->>Ice: A relay, with the API's short-lived password (TURN)
+    Note over Phone,Studio: Media goes through the relay, still encrypted end to end
+  end
   Note over Phone,Studio: From here on, nothing goes through the cloud
   Phone->>Beacon: Read the optical clock through the camera (sync)
   Phone-)Studio: Live picture, its quality set by on air, preview or standby
@@ -294,6 +317,30 @@ sequenceDiagram
   Phone-)Studio: Each finished clip, in 8 MB hashed parts
   Studio->>Studio: Check every part hash, the fingerprint, the key and both signatures
   Studio-)Phone: The camera person's part of the live cut
+```
+
+### A call
+
+A call (`/call`) has no studio of its own: everyone connects to everyone, the same way. The studio
+can join one as one of its people (Add → People on a call), and then each person in it is a source.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant G as Guest
+  participant Cloud as Cloud (HTTP + WebSocket)
+  participant In as Someone in the call (or the studio)
+  participant Ice as STUN / TURN
+
+  G->>Cloud: Enter: the link's key (its hash) or code and PIN
+  Cloud-->>G: Waiting: sees nobody
+  G->>Cloud: Knock, with a name (passed on, not kept)
+  Cloud-->>In: Someone's waiting
+  In->>Cloud: Let them in
+  Cloud-->>G: In: who else is here
+  G->>Ice: Public address (STUN), and a relay password if one's needed (TURN)
+  G->>In: Offer, answer and ICE candidates, passed on by the cloud
+  G-)In: Picture, sound, a shared screen, captions: device to device, encrypted
 ```
 
 ### From the room to the finished film
@@ -390,7 +437,8 @@ public/            The whole app: plain HTML, CSS and ES modules, no build step
   js/studio/       The studio's parts: live, sources, mixer, edit, screens…
   relay/           The local RTMP / virtual-camera relay (Node + ffmpeg)
   media/screens/   The screenshots used here and on /tour
-aws/               SAM template, deploy script, and the two Lambdas (api, signal)
+aws/               SAM template, deploy script, and the Lambdas (api, signal, the relay's guard)
+  stun/            The STUN and TURN server (coturn on Lightsail; its own stack) and its check
   mail/            info@ for the domain: SES receiving, forwarding and replying (its own stack)
   functions/lib/   The cloud core, shared by the Lambdas and the dev server
 dev/               The local dev server (same API and signalling, in memory)
