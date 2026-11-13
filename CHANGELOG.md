@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.76.4 — Start a show at the bottom right
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.3.
+
+**Start a show is the last of the home page's keys again**, at the bottom right, with Call before it.
+
 ## 0.76.3 — Call on the home page
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.2.
 

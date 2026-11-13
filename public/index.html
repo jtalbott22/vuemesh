@@ -289,7 +289,7 @@
   .app b { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; line-height: 1.1; }
   .app small { color: var(--soft); font-size: .88rem; line-height: 1.3; }
   .app:hover, .app:focus-visible { transform: translateY(-2px); border-color: var(--tally); box-shadow: 0 10px 28px #0006; }
-  /* (Start a show and Call side by side: two full rows of four, four rows of two on a phone) */
+  /* (Call, then Start a show at the bottom right: two full rows of four, four rows of two on a phone) */
   .app.studio { background: linear-gradient(160deg, color-mix(in srgb, var(--tally) 22%, var(--panel)), var(--panel)); }
   @media (max-width: 900px) { .apps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .gate { max-width: 460px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: inherit; padding: 24px; }
@@ -477,13 +477,13 @@
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="10" width="30" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M4 36h40l-3-6H7z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M24 25v-9M20 19l4-4 4 4" fill="none" stroke="var(--tally)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <b>Share</b><small>Send this computer's screen into a show</small>
     </a>
-    <a class="app studio" href="#start">
-      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M5 39h38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="21" r="4" fill="var(--tally)"/><path d="M23 17h14M23 25h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-      <b>Start a show</b><small>Run the studio from this computer</small>
-    </a>
     <a class="app" href="/call" data-app>
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="9" width="27" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M31 15l9-5v18l-9-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><rect x="11" y="33" width="12" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="27" y="33" width="12" height="9" rx="2" fill="none" stroke="var(--tally)" stroke-width="2.5"/></svg>
       <b>Call</b><small>A video call: send a link, let people in</small>
+    </a>
+    <a class="app studio" href="#start">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M5 39h38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="21" r="4" fill="var(--tally)"/><path d="M23 17h14M23 25h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <b>Start a show</b><small>Run the studio from this computer</small>
     </a>
   </section>
   <dialog class="gate" id="gate" aria-labelledby="gateH">
