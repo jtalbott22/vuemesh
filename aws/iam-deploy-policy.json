@@ -34,6 +34,12 @@
       "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:vuemesh-*"
     },
     {
+      "Sid": "RelayGuardSchedule",
+      "Effect": "Allow",
+      "Action": ["events:PutRule", "events:DeleteRule", "events:DescribeRule", "events:PutTargets", "events:RemoveTargets", "events:ListTargetsByRule", "events:TagResource", "events:UntagResource"],
+      "Resource": "arn:aws:events:*:ACCOUNT_ID:rule/vuemesh-*"
+    },
+    {
       "Sid": "StunServer",
       "Effect": "Allow",
       "Action": "lightsail:*",

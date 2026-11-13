@@ -4,6 +4,7 @@
 //   pk CONN#<conn>  sk C             reverse lookup for $disconnect
 //   pk STATS        sk DAY#<date>    one day's anonymous counts (kept: no ttl)
 //   pk STATS        sk SNAP#<iso>    a growth snapshot saved from Admin (kept)
+//   pk RATE         sk TURN#<hour>#… a rate count (TURN passwords an hour), gone after the hour
 // Every item carries a ttl so nothing needs cleaning up by hand.
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
@@ -118,8 +119,10 @@ export function dynamoStore(TableName) {
       ]);
     },
     async listConns(eventId) {
+      // (consistent: the list everyone's told right after someone leaves mustn't still have them in it)
       const r = await db.send(new QueryCommand({
         TableName, KeyConditionExpression: 'pk = :p AND begins_with(sk, :c)', ExpressionAttributeValues: { ':p': `EVT#${eventId}`, ':c': 'CONN#' },
+        ConsistentRead: true,
       }));
       return r.Items || [];
     },
@@ -219,6 +222,16 @@ export function dynamoStore(TableName) {
         if (e.name !== 'ConditionalCheckFailedException') throw e;
         return (await db.send(new GetCommand({ TableName, Key: { pk: 'SALT', sk: day }, ConsistentRead: true }))).Item.salt;
       }
+    },
+    // A count that deletes itself (rate limits: TURN passwords an hour); returns the count after this one
+    async countUp(key, ttlSec) {
+      const r = await db.send(new UpdateCommand({
+        TableName, Key: { pk: 'RATE', sk: key },
+        UpdateExpression: 'ADD n :one SET #ttl = if_not_exists(#ttl, :ttl)',
+        ExpressionAttributeNames: { '#ttl': 'ttl' }, ExpressionAttributeValues: { ':one': 1, ':ttl': Math.floor(Date.now() / 1000) + ttlSec },
+        ReturnValues: 'UPDATED_NEW',
+      }));
+      return Number(r.Attributes.n);
     },
     async markOnce(key) {
       try {

@@ -59,6 +59,17 @@
   .tgrid table { width: 100%; border-collapse: collapse; font-size: .88rem; }
   .tgrid caption { text-align: left; font-weight: 700; padding: 4px 0; }
   .tgrid td { padding: 3px 4px; border-top: 1px solid var(--line); }
+  .servers { padding: 12px 16px; display: grid; gap: 12px; }
+  .server { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+  .server header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .server header b { font-size: 1rem; }
+  .server .kpis { padding: 0; }
+  .server .kpi { background: var(--surface); }
+  .meter { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--preview); }
+  .meter i.warn { background: #d99a1e; } .meter i.over { background: var(--tally); }
+  .spark { width: 100%; height: 48px; display: block; color: var(--preview); }
+  .tag.ok { background: #2bb673; color: #fff; } .tag.bad { background: var(--tally); color: #fff; }
   .tgrid td.n { text-align: right; font-variant-numeric: tabular-nums; width: 5em; }
   .tgrid td .tbar { display: block; height: 3px; background: var(--accent, #e5534b); opacity: .7; margin-top: 2px; }
   #gFlags li { margin: 4px 0; }
@@ -129,10 +140,18 @@
       <span class="note">No cookies, nothing stored about anyone. A visitor is counted once a day by an anonymous fingerprint (a salted hash of the day, their address and browser) that's deleted after two days. Bots, these admin pages and browsers that ask not to be tracked aren't counted.</span>
     </div>
   </section>
+  <section class="panel" aria-labelledby="sh">
+    <div class="tools">
+      <h2 id="sh" style="margin:0;font-size:1rem">Servers</h2>
+      <button type="button" id="sRefresh">Refresh</button>
+      <span class="note">The Lightsail servers (STUN and the TURN relay): Lightsail's own numbers, nothing about the people using them.</span>
+    </div>
+    <div id="servers" class="servers"><p class="note">Loading…</p></div>
+  </section>
   <section class="panel" aria-labelledby="eh">
     <div class="tools">
       <h2 id="eh" style="margin:0;font-size:1rem">Events</h2>
-      <input type="search" id="filter" placeholder="Filter by title or code (or kiosk, studio)" aria-label="Filter events">
+      <input type="search" id="filter" placeholder="Filter by code (or kiosk, studio, tv)" aria-label="Filter events">
       <span class="spacer"></span>
       <button type="button" id="refresh">Refresh</button>
     </div>

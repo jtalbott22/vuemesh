@@ -1,4 +1,4 @@
-// Studio, part 23 of 26: the Monitor, the phone remote, TV screens.
+// Studio, part 23 of 29: the Monitor, the phone remote, TV screens.
 // Loads after export.js: that import comes first, so the parts run in order (see ../studio.js).
 import './export.js';
 import { toast, esc, now, drawQR, decodeQR } from '/js/vm.js';
@@ -64,11 +64,14 @@ export async function pushPgmFrame() {
   }
 }
 window.vmStreamOut = () => streamOut; // (diagnostics and tests: the stream out, while live)
+// The studio's call (studio/callin.js, a later part, fills this in): each guest's link measured for
+// coming in, and what goes out to the call
+export const callFeed = { peerStats: async () => null, out: async () => null };
 export async function pushMonitor() {
   if (!monitorChannel || !hub) return;
   const peers = [];
   for (const [peer, l] of live) {
-    const st = l.local ? null : await hub.stats(peer);
+    const st = l.local ? null : l.call ? await callFeed.peerStats(peer).catch(() => null) : await hub.stats(peer);
     if (st) l.stats = st;
     if (l.local && l.role === 'mic') {
       // this computer's own microphone or sound: no link to measure; it goes straight in
@@ -101,6 +104,7 @@ export async function pushMonitor() {
     peers, log: log.slice(0, 80),
     stream: streamOut?.link ? { name: streamOut.name, ...(await streamOut.link().catch(() => ({}))) } : null,
     displays: (await displayHub?.stats().catch(() => [])) || [],
+    call: await callFeed.out().catch(() => null),
     remotes: remoteHost?.links?.() || [],
     showlog: showLogBrief(),
   });

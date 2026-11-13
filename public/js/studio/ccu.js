@@ -1,4 +1,4 @@
-// Studio, part 8 of 26: Camera control for the phones.
+// Studio, part 8 of 29: Camera control for the phones.
 // Loads after sources.js: that import comes first, so the parts run in order (see ../studio.js).
 import './sources.js';
 import { toast, esc, announce } from '/js/vm.js';

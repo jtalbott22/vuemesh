@@ -14,7 +14,7 @@ with sync_playwright() as p:
     host = ctx.new_page(); host.on('pageerror', lambda e: errors.append(f'host: {e}')); host.on('dialog', lambda d: d.accept())
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Saturday show'})})).json()""")
-    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Saturday%20show")  # (the name rides in the studio link; the phone hears it from the studio)
     host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=60000)
     cam = b.new_context(permissions=['camera', 'microphone']).new_page()
     cam.goto(f"{BASE}/cam?e={ev['id']}"); cam.fill('#name', 'Ana'); cam.check('#agreeGuest'); cam.click('#joinForm button[type=submit]')

@@ -1,4 +1,4 @@
-// Studio, part 15 of 26: the live cut sent to the crew, iPhone playback, overflow, capacity, diagnostics, incoming clips.
+// Studio, part 15 of 29: the live cut sent to the crew, iPhone playback, overflow, capacity, diagnostics, incoming clips.
 // Loads after autopilot.js: that import comes first, so the parts run in order (see ../studio.js).
 import './autopilot.js';
 import { toast, esc, fmtDur, now, announce, diag, codecsOf, diagnosticsDialog } from '/js/vm.js';
@@ -76,7 +76,7 @@ idb.list('program', eventId).then((rs) => {
   renderPgmState();
 });
 // someone to give the live cut to: a person's camera or microphone (not this computer's own)
-const anyoneFor = () => sendPgm && [...live.values()].some((l) => !l.local && l.cid && !l.leaving && !isRemoteCam(l));
+const anyoneFor = () => sendPgm && [...live.values()].some((l) => !l.local && !l.call && l.cid && !l.leaving && !isRemoteCam(l)); // (not a call's people: they keep nothing)
 const recording = () => progRec && !progRec.stopping;
 export function startPieces(tracks) {
   pieceTracks = tracks;
@@ -307,7 +307,7 @@ export async function sendProgramParts() {
   sending = true;
   sendAgain = false;
   try {
-    const peers = [...live.keys()].filter((p) => !live.get(p)?.local).sort((a, b) => leavingPeers.has(b) - leavingPeers.has(a));
+    const peers = [...live.keys()].filter((p) => !live.get(p)?.local && !live.get(p)?.call).sort((a, b) => leavingPeers.has(b) - leavingPeers.has(a));
     // (a snapshot: parts finished during this pass are picked up by the next one; and someone
     // starting to leave cuts in at the next part, rather than waiting for this pass to end)
     const todo = [...pieces];

@@ -93,7 +93,7 @@
 <script src="/vendor/qrcode.js"></script>
 <script src="/config.js"></script>
 <script type="module">
-  import { $, api, now, drawQR, timecodeUrl, fmtClock, meshSocket, wakeLock, eventIdFromUrl, toast, themeButton } from '/js/vm.js';
+  import { $, api, now, drawQR, timecodeUrl, fmtClock, meshSocket, wakeLock, eventIdFromUrl, toast, themeButton, showName, unnamedShow } from '/js/vm.js';
   if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed'); // (inside a kiosk)
 
   const id = eventIdFromUrl();
@@ -103,6 +103,8 @@
 
   try {
     const ev = await api(`events/${id}`);
+    // (the show's name is this computer's, where the studio keeps it: the server never has it)
+    ev.title = showName(id) || unnamedShow(id);
     $('#title').textContent = ev.title;
     document.title = `${ev.title} — beacon`;
   } catch (e) {

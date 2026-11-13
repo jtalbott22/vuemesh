@@ -1,4 +1,4 @@
-// Studio, part 2 of 26: output shape, clips, the cut log, the channel to the Edit page, Live/Edit modes.
+// Studio, part 2 of 29: output shape, clips, the cut log, the channel to the Edit page, Live/Edit modes.
 // Loads after core.js: that import comes first, so the parts run in order (see ../studio.js).
 import './core.js';
 import { api, toast, fmtDur, announce } from '/js/vm.js';

@@ -59,9 +59,9 @@ with sync_playwright() as p:
     step('admin: wrong key refused, right key in; totals: ' + ' · '.join(adm.eval_on_selector_all('#tiles .tile', 'els => els.map(e => e.innerText.replace(/\\n/, " "))')))
     adm.fill('#filter', ev['id']); time.sleep(0.2)
     adm.click(f'tr[data-id="{ev["id"]}"] [data-act="days"]'); time.sleep(0.5)
-    kind = adm.inner_text(f'tr[data-id="{ev["id"]}"] td:nth-child(3)')
+    kind = adm.inner_text(f'tr[data-id="{ev["id"]}"] td:nth-child(2)')
     assert kind.strip() == 'STUDIO', kind   # (events say where they ran: STUDIO or KIOSK)
-    days = adm.inner_text(f'tr[data-id="{ev["id"]}"] td:nth-child(5)')
+    days = adm.inner_text(f'tr[data-id="{ev["id"]}"] td:nth-child(4)')
     assert days.strip() == '3', days
     step(f'admin: set the event to expire in {days.strip()} days')
     adm.screenshot(path='/tmp/v05-admin.png')

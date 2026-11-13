@@ -21,7 +21,7 @@
 // Sound: one at a time. A shared screen's plays (the spotlit one, else the first that has sound).
 // Cameras' sound stays off unless turned on: a phone's microphone in the same room as the TV's
 // speakers feeds back. With it on, the spotlit camera's sound plays.
-import { api, meshSocket, drawQR } from '/js/vm.js';
+import { api, meshSocket, drawQR, withShowName } from '/js/vm.js';
 import { HostHub } from '/js/rtc.js';
 
 const $ = (s) => document.querySelector(s);
@@ -39,6 +39,8 @@ const camSoundOn = () => {
   try { return localStorage.getItem(CAMSOUND_KEY) === '1'; } catch { return false; }
 };
 
+const tvName = () => (localStorage.getItem('vm_tv_name') || 'TV screen').slice(0, 60);
+
 /** This TV's own event: the one it had, if it's still there, else a new one. */
 async function ownEvent(fresh) {
   let saved = null;
@@ -46,14 +48,15 @@ async function ownEvent(fresh) {
   if (saved?.id && saved?.hostKey && !fresh) {
     try {
       const e = await api(`events/${saved.id}`);
-      if (e?.kind === 'tv') return { ...e, hostKey: saved.hostKey };
+      if (e?.kind === 'tv') return { ...e, title: tvName(), hostKey: saved.hostKey };
     } catch {} // (gone: a new one)
   }
-  const name = (localStorage.getItem('vm_tv_name') || 'TV screen').slice(0, 60);
-  const made = await api('events', { method: 'POST', body: { title: name, kind: 'tv' } });
+  // (the TV's name stays on the TV: it tells the phones over their own links, and the join QR
+  // carries it after the #; the server never has it)
+  const made = await api('events', { method: 'POST', body: { kind: 'tv' } });
   localStorage.setItem(SAVE_KEY, JSON.stringify({ id: made.id, hostKey: made.hostKey }));
   const e = await api(`events/${made.id}`);
-  return { ...e, hostKey: made.hostKey };
+  return { ...e, title: tvName(), hostKey: made.hostKey };
 }
 
 /**
@@ -86,7 +89,7 @@ function connect() {
   const peer = localStorage.getItem('vm_tv_direct_peer') || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   localStorage.setItem('vm_tv_direct_peer', peer); // (the same id after a reload: phones link to it again at once)
   sock = meshSocket({
-    eventId: ev.id, role: 'host', hostKey: ev.hostKey, peer, name: ev.title,
+    eventId: ev.id, role: 'host', hostKey: ev.hostKey, peer,
     onPeers: () => {
       hub?.syncPeers(sock.peers);
       renderJoining();
@@ -97,7 +100,10 @@ function connect() {
     eventId: ev.id,
     termsHash: ev.termsHash,
     sock,
-    onLive: (peer, stream, role) => addTile(peer, stream, role),
+    onLive: (peer, stream, role) => {
+      addTile(peer, stream, role);
+      for (const ms of [300, 2000, 6000]) setTimeout(() => hub?.message(peer, { t: 'show', title: ev.title }), ms); // (its name, which only the TV has)
+    },
     onTracks: (peer, stream) => {
       const t = tiles.get(peer);
       if (!t) return;
@@ -156,7 +162,7 @@ function say(text, bad) {
   $('#lSay').classList.toggle('err', !!bad);
 }
 function drawJoin() {
-  const camUrl = `${base}/cam?e=${ev.id}`;
+  const camUrl = withShowName(`${base}/cam?e=${ev.id}`, ev.title);
   for (const c of ['#lQr', '#dQr']) drawQR($(c), camUrl, { size: 560, dark: '#000000', ecl: 'M' });
   for (const c of ['#lCode', '#dCode']) $(c).textContent = ev.id;
   for (const c of ['#lShare', '#dShare']) $(c).textContent = `${base.replace(/^https?:\/\//, '')}/share`;

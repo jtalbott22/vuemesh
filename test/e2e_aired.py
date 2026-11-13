@@ -1,5 +1,5 @@
-# Anything aired makes Edit: a camera on this computer records whenever it's on air (whatever
-# the phones' setting), a clip that aired is placed where it aired, going to Edit finishes the
+# Anything aired makes Edit: a camera on this computer records whenever it's on air (with "Cameras
+# record their time on air" on, as it is by default), a clip that aired is placed where it aired, going to Edit finishes the
 # recordings in progress (they keep recording) so the edit has everything up to now, and the
 # program recording lands in Media as "Program (as aired)" (for shots by hand, not the auto edit).
 # Run: node dev/server.mjs &  then  python3 test/e2e_aired.py
@@ -19,7 +19,7 @@ with sync_playwright() as p:
     host = ctx.new_page(); host.on('pageerror', lambda e: errors.append(f'host: {e}'))
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Aired'})})).json()""")
-    host.evaluate("localStorage.setItem('vm_autorec_default', '0')")   # (phones' "record while on air" off: this computer's cameras record anyway)
+    host.evaluate("localStorage.setItem('vm_autorec_default', '1')")   # ("Cameras record their time on air" on: since 0.67.0 it applies to this computer's cameras too)
     host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
     host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=15000)
     host.click('#addLocal'); host.wait_for_selector('#localList [data-add="cam"]', timeout=10000)

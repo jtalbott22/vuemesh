@@ -1,8 +1,8 @@
-// Studio, part 1 of 26: shared state, the page helpers, constants.
+// Studio, part 1 of 29: shared state, the page helpers, constants.
 // The parts load in order (see ../studio.js); this one loads every library first, as the single file did.
 import {
   $ as $q, api, hostKey, rememberEvent, meshSocket, joinSockets, toast, esc, eventIdFromUrl, myEvents, themeButton,
-  announce, helpDialog, diag,
+  announce, helpDialog, diag, showName, keepShowName, unnamedShow,
 } from '/js/vm.js';
 import { bitrateHints } from '/js/quality.js';
 import '/js/camctl.js';
@@ -228,6 +228,18 @@ export const gainToDb = (g) => (g <= 0.001 ? -60 : Math.round(20 * Math.log10(g)
 export const eventId = eventIdFromUrl();
 export const key = hostKey(eventId);
 export let ev;
+/** The show's name, set here (renamed, or a kiosk's first phone naming it): kept on this computer
+ * and sent to every device in the show over its own link, never to our servers. */
+export function setShowTitle(title) {
+  title = String(title || '').trim().slice(0, 120);
+  if (!title || !ev) return;
+  ev.title = title;
+  keepShowName(eventId, title);
+  $('#title').textContent = title;
+  document.title = `${title} — ${KIOSK ? 'VUEMesh' : 'studio'}`;
+  for (const peer of live.keys()) hub?.message(peer, { t: 'show', title });
+  document.dispatchEvent(new CustomEvent('vm-show-title', { detail: title }));
+}
 export let isHost = false;
 export let mode = 'live';
 export function setModeValue(v) { return (mode = v); }
@@ -637,8 +649,20 @@ async function init() {
     offlineStart = true;
     return kept;
   });
-  document.title = `${ev.title} — studio`;
-  $('#title').textContent = ev.title;
+  // the show's name is this computer's (the server never has it): kept here, or from the studio link
+  ev.title = showName(eventId) || (ev.kiosk && !ev.titled ? '' : unnamedShow(eventId));
+  if (ev.title) keepShowName(eventId, ev.title);
+  if (ev.title) document.dispatchEvent(new CustomEvent('vm-show-title', { detail: ev.title })); // (the kiosk's screen)
+  document.title = `${ev.title || 'New show'} — studio`;
+  $('#title').textContent = ev.title || 'New show';
+  if (!KIOSK) {
+    $('#title').title = 'Rename the show (only this computer and the devices in it see the name)';
+    $('#title').style.cursor = 'pointer';
+    $('#title').onclick = () => {
+      const t = prompt('The show’s name (kept on this computer and sent to the devices in it, never to our servers)', ev.title || '');
+      if (t?.trim()) setShowTitle(t);
+    };
+  }
   renderMoments();
   if (key) {
     try {
@@ -731,6 +755,9 @@ async function init() {
         live.set(peer, { ...prev, stream, role: role || info.role || 'cam', name: titleFor(info.cid) || info.name || 'Guest', phoneName: info.name || 'Guest', cid: info.cid, rec: info.rec, route: prev.route || 'connecting', joinedAt: prev.joinedAt || back?.joinedAt || Date.now() });
         setPresence();
         if (KIOSK) for (const ms of [800, 3000, 9000]) setTimeout(() => hub?.message(peer, { t: 'uploads', on: false }), ms); // (phones keep their clips; again in case the link wasn't ready)
+        // the show's name, which the phone has no other way to learn (the server never has it); a
+        // kiosk show nobody's named yet asks this phone if it's the first
+        for (const ms of [300, 2000, 6000]) setTimeout(() => hub?.message(peer, ev?.title ? { t: 'show', title: ev.title } : { t: 'show', title: '', ask: true }), ms);
         if (typeof isBlocked === 'function' && isBlocked(info.cid)) {
           hub?.message(peer, { t: 'kick', block: true });
           hub?.send(peer, { t: 'kick', block: true });
@@ -836,6 +863,18 @@ async function init() {
           return ccuSync();
         }
         if (m.t === 'go' && KIOSK && peer === ap.starter) return apCountIn(peer);
+        // a kiosk show's first phone naming it (over its own link: the server never has the name).
+        // The first to arrive names it; anyone after is told the name it already has.
+        if (m.t === 'name') {
+          const title = String(m.title || '').trim().slice(0, 80);
+          if (KIOSK && !ev.title && title) {
+            setShowTitle(title);
+            ev.titled = true;
+            api(`events/${eventId}`, { method: 'PATCH', host: key, body: { titled: true } }).catch(() => {});
+            note(`${l.name} named the show “${title}”`);
+          } else if (ev.title) hub?.message(peer, { t: 'show', title: ev.title, taken: true });
+          return;
+        }
         if (m.t === 'leaving') {
           l.leaving = true;
           presenceOff(l.cid);

@@ -18,9 +18,23 @@ const CFG = window.VM_CONFIG || {};
 const API = (CFG.api || '/api').replace(/\/$/, '');
 const WS = CFG.ws || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
-// STUN only, the site's own (config.js, from aws/stun); Google's for a copy without one. No TURN:
-// media stays on the local network, so there is no relay bill.
-export const ICE = CFG.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }];
+// The site's own STUN server (config.js, from aws/stun); Google's for a copy without one. Where the
+// site has its relay too (config.js's turn), the API's short-lived TURN password for it is added
+// once it comes: devices that can't reach each other directly (a phone on a mobile network, a strict
+// office network) then connect through it, its media still encrypted end to end. On the local
+// network nothing changes: a direct path always wins over the relay. ICE is filled in place, so
+// every new connection gets what's there; iceReady waits (up to 2 s) for the first password.
+export const ICE = [...(CFG.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }])];
+const BASE_ICE = ICE.length;
+async function fetchTurn() {
+  try {
+    const r = await fetch(API + '/ice', { cache: 'no-store' });
+    const { iceServers = [], ttl = 0 } = r.ok ? await r.json() : {};
+    if (iceServers.length) ICE.splice(BASE_ICE, ICE.length - BASE_ICE, ...iceServers);
+    if (ttl) setTimeout(fetchTurn, (ttl / 2) * 1000); // (a fresh one long before it runs out)
+  } catch {} // (offline, or a local show: STUN, or nothing, is enough there)
+}
+export const iceReady = CFG.turn ? Promise.race([fetchTurn(), new Promise((r) => setTimeout(r, 2000))]) : Promise.resolve();
 
 // The app kept on this device (sw.js): opened again with no internet, it still works, and can join
 // a show by QR code. (Online nothing changes: everything still comes from the network.)
@@ -78,12 +92,41 @@ export function hostKey(eventId) {
   return localStorage.getItem('vm_host_' + eventId);
 }
 
-/** Remember an event on this device (as its host, or as a guest who shot at it). */
+// --- a show's name: on the devices, never on our servers ------------------------
+// The cloud never has a show's name. The host's browser keeps it (with its events, vm_events);
+// the studio tells each device over its own link ({t: 'show', title}); a link someone copies
+// carries it after the # (…#n=Garage%20show), which browsers never send to a server.
+// (read as the page loads, before anything takes the # off the address)
+const LINK_NAME = (() => { try { return (new URLSearchParams(location.hash.slice(1)).get('n') || '').trim().slice(0, 120); } catch { return ''; } })();
+/** The show's name as this device knows it: kept here, or from the link it was opened with ('' if neither). */
+export function showName(eventId) {
+  return myEvents().find((x) => x.id === eventId)?.title || LINK_NAME || '';
+}
+/** What to call a show before its name arrives. */
+export const unnamedShow = (eventId) => `Show ${eventId}`;
+/** Keep a show's name on this device (from the studio, or the host renaming it). */
+export function keepShowName(eventId, title) {
+  title = String(title || '').trim().slice(0, 120);
+  if (!title) return;
+  if (myEvents().some((x) => x.id === eventId)) updateRemembered(eventId, { title });
+  else rememberEvent({ id: eventId, title }, 'guest');
+}
+/** A link with the show's name after the # (kept with any # it already has). */
+export function withShowName(url, title) {
+  if (!title) return url;
+  const [base, hash = ''] = url.split('#');
+  const h = new URLSearchParams(hash);
+  h.set('n', title);
+  return `${base}#${h.toString().replace(/\+/g, '%20')}`;
+}
+
+/** Remember an event on this device (as its host, or as a guest who shot at it). The name is
+ * this device's (the server's copy of an event has none): kept unless a new one's given. */
 export function rememberEvent(ev, role = 'host') {
   const all = JSON.parse(localStorage.getItem('vm_events') || '[]');
   const old = all.find((x) => x.id === ev.id);
   const list = all.filter((x) => x.id !== ev.id);
-  list.unshift({ id: ev.id, title: ev.title, at: Date.now(), createdAt: ev.createdAt || old?.createdAt || null, role: old?.role === 'host' ? 'host' : role, archived: !!old?.archived });
+  list.unshift({ id: ev.id, title: ev.title || old?.title || LINK_NAME || '', at: Date.now(), createdAt: ev.createdAt || old?.createdAt || null, role: old?.role === 'host' ? 'host' : role, archived: !!old?.archived });
   localStorage.setItem('vm_events', JSON.stringify(list.slice(0, 100)));
 }
 
@@ -278,7 +321,9 @@ export function toast(msg, ms = 2600) {
  * @param {(from:string, data:object, fromRole:string)=>void} [o.onSignal]
  */
 /** @param o.url another server's address (this computer's local show, vuemesh-local.mjs) @param o.peer this one's id, the same on both */
-export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal, url = WS, peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16) }) {
+/** @param o.query more to send on connecting (a call's proof: its key's hash, PIN or pass) @param o.onMessage anything else the server sends (a call's knock, admitted, removed, locked) @param o.onWaiting a call's waiting room: (true) waiting, (false) in */
+/** @param o.pingMs how often it checks the server still answers (a call: often, to come back fast after a network change) */
+export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal, onMessage, onWaiting, query = () => ({}), pingMs = 0, url = WS, peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16) }) {
   let ws;
   let closed = false;
   let delay = 1000;
@@ -332,7 +377,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   // joining meanwhile wait at "Host not here yet". The server answers each ping (one that says so,
   // in its first list: the local show helper may keep an older copy that doesn't), and no answer in
   // 10 s means connect again. Anything else stays at 4 minutes (API Gateway idles out at 10).
-  const PING_MS = role === 'host' ? 30 * 1000 : 4 * 60 * 1000;
+  const PING_MS = pingMs || (role === 'host' ? 30 * 1000 : 4 * 60 * 1000);
   let answers = false;
   const ping = () => {
     self.send({ action: 'ping' });
@@ -341,6 +386,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   const open = () => {
     const q = new URLSearchParams({ e: eventId, role, peer, name, cid });
     if (hostKey) q.set('k', hostKey);
+    for (const [k, v] of Object.entries(query() || {})) if (v) q.set(k, v);
     ws = new WebSocket(`${url}?${q}`);
     ws.onopen = () => {
       delay = 1000;
@@ -359,11 +405,12 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
       bgClear(heardTimer); // (anything from the server: it knows this connection)
       if (msg.type === 'peers') {
         if (msg.pong) answers = true;
+        onWaiting?.(!!msg.waiting);
         self.peers = msg.peers;
-        onPeers?.(msg.peers, msg.you);
+        onPeers?.(msg.peers, msg.you, msg);
       } else if (msg.type === 'signal') {
         onSignal?.(msg.from, msg.data, msg.fromRole);
-      }
+      } else onMessage?.(msg);
     };
     ws.onclose = lost;
   };

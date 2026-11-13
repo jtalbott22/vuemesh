@@ -36,6 +36,16 @@ Parameters:
     Default: ''
     Description: Route 53 hosted zone ID of the site's domain, for local shows' addresses (<name>.lan.<domain>) and their certificates (vuemesh-local.mjs). Blank turns that off.
 
+  TurnSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: The secret the relay's (aws/stun) TURN passwords are signed with (deploy.sh reads aws/.turn-secret). Blank, no relay.
+  TurnUrls:
+    Type: String
+    Default: ''
+    Description: The relay's TURN addresses, comma-separated (deploy.sh takes them from the vuemesh-stun stack).
+
 Conditions:
   HasDomain: !Not [!Equals [!Ref DomainName, '']]
   HasLan: !Not [!Equals [!Ref LanZoneId, '']]
@@ -260,8 +270,15 @@ Resources:
           PUBLISH_ENABLED: !Ref PublishEnabled
           LAN_ZONE_ID: !Ref LanZoneId
           LAN_DOMAIN: !If [HasDomain, !Sub 'lan.${DomainName}', 'lan.vuemesh.com']
+          TURN_SECRET: !Ref TurnSecret
+          TURN_URLS: !Ref TurnUrls
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            # the Lightsail servers (aws/stun): their health for Admin, and the relay's switch
+            - Effect: Allow
+              Action: [lightsail:GetInstances, lightsail:GetInstanceMetricData, lightsail:GetBundles, lightsail:OpenInstancePublicPorts, lightsail:CloseInstancePublicPorts]
+              Resource: '*'
         - !If
           - HasLan
           - Statement:
@@ -287,6 +304,24 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /{proxy+}
             Method: ANY
+
+  # The relay's guard: every 15 minutes, past the month's data allowance, it switches the relay off
+  RelayGuardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: guard.handler
+      Timeout: 30
+      Policies:
+        - Statement:
+            # the Lightsail servers (aws/stun): their health for Admin, and the relay's switch
+            - Effect: Allow
+              Action: [lightsail:GetInstances, lightsail:GetInstanceMetricData, lightsail:GetBundles, lightsail:OpenInstancePublicPorts, lightsail:CloseInstancePublicPorts]
+              Resource: '*'
+      Events:
+        Every15Minutes:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
 
   # ------------------------------------------------------------- signaling ---
   WsApi:

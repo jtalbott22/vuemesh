@@ -9,6 +9,7 @@
 .aws-sam/
 dev/uploads/
 aws/.admin-keys
+aws/.turn-secret
 test-results.txt
 .test-last.json
 # Python virtual environments

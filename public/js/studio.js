@@ -33,4 +33,7 @@
 //   24. showlog.js        the show log (what happened, second by second) and the sound watch
 //   25. picsync.js        one timeline for this computer's cameras and microphones; the sync check
 //   26. pip.js            picture-in-picture, live: a camera in a corner over a screen
-import './studio/pip.js';
+//   27. captions.js       live captions of the program's sound, on this computer
+//   28. faces.js          faces and speakers: framing, cutting to whoever's talking, Speaker 1, 2…
+//   29. callin.js         a call's people as sources; the call sees the program
+import './studio/callin.js';

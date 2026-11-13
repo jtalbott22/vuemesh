@@ -56,13 +56,15 @@
     <ul>
       <li>Every public page (home, tour, privacy, terms, collaborate, what's new, and the studio, camera, watch, share, remote and TV pages) is checked with the automated tool <a href="https://github.com/dequelabs/axe-core">axe</a> against WCAG 2.2 AA, in both light and dark themes, and passes.</li>
       <li>Pages work at any zoom and on a phone's width, follow your system's light or dark setting, and use real buttons, labels and headings.</li>
-      <li>Automated tools catch only some barriers. The checks above don't replace testing with a screen reader or a keyboard alone, which is still to do for most of the studio.</li>
+      <li><b>Calls</b> (<code>/call</code>): each of its views (starting or joining, before joining, waiting to be let in, in a call with captions on, the people and invite panels) is checked with axe against WCAG 2.2 AA and passes.</li>
+      <li>Automated tools catch only some barriers. The checks above don't replace testing with a screen reader or a keyboard alone, which is still to do for most of the studio and for calls.</li>
     </ul>
 
     <h2 id="limits">Known limits</h2>
     <ul>
       <li><b>The studio is a dense, live control surface.</b> Audio meters, the timeline and some monitors are drawn as pictures, so a screen reader can't read them yet, and not every control can be reached and used from the keyboard alone.</li>
-      <li><b>Live video and sound come from the people at the show.</b> VUEMesh doesn't add captions or audio description to them; a host can add lower thirds and slates.</li>
+      <li><b>Live video and sound come from the people at the show.</b> A host can turn on <b>live captions</b> (in Chrome 139 or later, or Edge, on a computer): the browser recognises what's said on the program, on that computer, and the captions go on the picture and are saved with the recording as a captions file. They're made by a machine, live, so they lag a moment behind and can get words wrong, and they aren't in every language or browser. VUEMesh doesn't add audio description; a host can add lower thirds and slates.</li>
+      <li><b>In a call, anyone can turn on captions</b> (Captions): each person's words appear on their picture, worked out on their own device by its browser's on-device speech recognition and sent to the others over the call's own encrypted links. Each person chooses whether to see them, how big (Aa), and at the bottom or top of the pictures (↕). They're made by a machine, live, so they lag a moment and can get words wrong, and they come only from browsers that can recognise speech on the device (Chrome 139 or later, or Edge, on a computer, in their languages); a picture whose browser can't says so. A sign language interpreter can join a call like anyone, and a tap on their picture keeps it big; captioning by a person or an outside captioning service isn't built in yet. Someone waiting, joining or leaving, a studio in the call, and its recording, are also said to screen readers.</li>
       <li>Some status is shown by colour (for example red for on air); we are adding words or shapes alongside wherever we find it.</li>
     </ul>
 

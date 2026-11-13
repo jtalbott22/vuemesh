@@ -1,13 +1,13 @@
-// Studio, part 7 of 26: this computer's cameras, mics, screen and sound; recording; moderation.
+// Studio, part 7 of 29: this computer's cameras, mics, screen and sound; recording; moderation.
 // Loads after mixer.js: that import comes first, so the parts run in order (see ../studio.js).
 import './mixer.js';
-import { api, toast, esc, now } from '/js/vm.js';
+import { api, toast, esc, now, withShowName } from '/js/vm.js';
 import { snapToCamera } from '/js/camctl.js';
 import { cleanLabel, matchSaved, renamed, usbIdOf } from '/js/devmatch.js';
 import { defaultOutputOf } from '/js/showlog.js';
 import * as idb from '/js/idb.js';
 import {
-  $, askTitle, black, clips, EDIT_ONLY, eventId, hub, isHost, key, KIOSK, live, LIVE_DELAY, liveActive, note,
+  $, askTitle, black, clips, EDIT_ONLY, ev, eventId, hub, isHost, key, KIOSK, live, LIVE_DELAY, liveActive, note,
   player, REC_MIMES, recMime, seq, setLiveActive, setTitle,
 } from './core.js';
 import { addClip, noteAngle, output, qualityFirst, rebuild } from './clips.js';
@@ -805,7 +805,8 @@ export function fileHasSound(blob) {
 // (from /share). That page sends only the live picture and records nothing itself, so without
 // this its time on air had no footage in Edit (black there). It's recorded as it arrives, as
 // aired: at the size and rate it's sent, the output's.
-export const recordedHere = (l) => !!l && (l.local || (!!l.screen && l.role !== 'mic'));
+// (and a call's people, studio/callin.js: their devices record nothing for the show either)
+export const recordedHere = (l) => !!l && (l.local || !!l.call || (!!l.screen && l.role !== 'mic'));
 function startLocalRec(peer) {
   const l = live.get(peer);
   if (!recordedHere(l) || l.recorder) return;
@@ -1323,6 +1324,8 @@ async function openLocalPicker(o) {
     row('screen', 'A screen or window', 'With its sound, if the browser shares it', '', '<button type="button" class="ladd" data-share="screen">Share…</button>'),
     row('sound', 'This computer’s sound', myOs === 'mac' ? 'On a Mac: a Chrome tab’s sound (tick Share tab audio)' : 'Pick Entire screen and tick Share system audio', '', '<button type="button" class="ladd" data-share="sound">Share…</button>'),
     row('link', 'Another computer’s screen', `Open <b id="shareUrl">${esc(shareUrl())}</b> on it, name it, share`, '', '<button type="button" class="ladd" data-copy-share>Copy link</button>'),
+    // (a call's people as sources, from anywhere: studio/callin.js)
+    row('cam', 'People on a call', 'Guests anywhere, on their own camera: each is a source. The call sees the program', '', '<button type="button" class="ladd" data-call>Call…</button>'),
   ];
   // (the OK asked for when nothing is listed, or a kind with saved ones waiting isn't allowed yet)
   const allow = !named || missing.some((s) => perm[s.kind] !== 'granted');
@@ -1343,8 +1346,9 @@ async function openLocalPicker(o) {
   }
 }
 $('#addLocal').onclick = openLocalPicker;
-/** The page another computer opens to share its screen into this show (see share.js). */
-export const shareUrl = () => `${shareBase}/share?e=${eventId}`;
+/** The page another computer opens to share its screen into this show (see share.js), with the
+ * show's name after the # (which no server sees) */
+export const shareUrl = () => withShowName(`${shareBase}/share?e=${eventId}`, ev?.title);
 // On this computer's own dev server (localhost), the link said localhost, which another computer
 // can't open, and sharing a screen needs a secure address: the dev server's https address on this
 // network instead, when it has one (see dev/server.mjs).

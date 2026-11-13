@@ -1,6 +1,7 @@
 import {
   $, api, now, identity, signStatement, decodeQR, drawQR, parseTimecode,
   meshSocket, wakeLock, toast, eventIdFromUrl, thumbprint, themeButton, helpDialog, announce, esc, rememberEvent, myEvents, fmtDur, diag, codecsOf, diagnosticsDialog,
+  showName, keepShowName, unnamedShow,
 } from '/js/vm.js';
 import { TERMS_VERSION } from '/js/brand.js';
 import { CamLink, sealClip } from '/js/rtc.js';
@@ -405,6 +406,9 @@ async function boot() {
     pendingBoot = await qrJoin();
     ev = pendingBoot.hello.ev;
   }
+  // the show's name: the server never has it. This phone's own copy, or the link's, till the studio
+  // says it (onHostMessage's 'show')
+  ev.title = showName(eventId) || ev.title || unnamedShow(eventId);
   await keepEventsApart(ev);
   showFirstBox();
 
@@ -483,22 +487,16 @@ async function onJoin(e) {
   const motionAsk = remembered && !asMic && MOTION_ASKS && prefs.motion !== 'off' ? Sensors.requestPermission() : Promise.resolve(false); // (iPhones only allow this inside the tap)
   if (remembered && !asMic) makeAudio(); // so is starting sound
   try {
-    // first at a kiosk show: name it (once; if someone else just did, join theirs)
+    // first at a kiosk show: name it. The name goes to the kiosk over this phone's own link once it's
+    // up (the server never has it); if someone else got there first, the kiosk says theirs.
     if (ev.kiosk && !ev.titled) {
       const title = $('#showName').value.trim();
       if (!title) {
         $('#showName').focus();
         throw Object.assign(new Error('Name the show first'), { name: 'NeedName' });
       }
-      try {
-        ev = { ...ev, ...(await api(`events/${eventId}/name`, { method: 'POST', body: { title } })) };
-      } catch {
-        ev = await api(`events/${eventId}`);
-        toast(`Someone just named it \u201c${ev.title}\u201d: you're joining that show`, 6000);
-      }
-      $('#joinTitle').textContent = ev.title;
-      $('#terms').textContent = ev.terms;
-      showFirstBox();
+      namingShow = title;
+      $('#joinTitle').textContent = title;
     }
     const name = $('#name').value.trim();
     if (!me || me.name !== name || !me.joinSig) {
@@ -1331,7 +1329,35 @@ $('#goLiveBtn').onclick = () => {
   step();
 };
 
+/** The show's name, from the studio over this phone's link (the only way it reaches a phone that
+ * joined by the beacon: the server never has it). A kiosk show nobody's named asks; this phone
+ * answers with the name it was given, if it was the one naming it. */
+let namingShow = '';
+function onShowName(m) {
+  if (m.ask) {
+    if (namingShow) link?.say({ t: 'name', title: namingShow });
+    return;
+  }
+  const title = String(m.title || '').trim().slice(0, 120);
+  if (!title || !ev) return;
+  if (m.taken && namingShow && namingShow !== title) toast(`Someone just named it “${title}”: you're in that show`, 6000);
+  namingShow = '';
+  if (title === ev.title) return;
+  ev.title = title;
+  ev.titled = true;
+  keepShowName(eventId, title);
+  document.title = `${title} — camera`;
+  $('#camTitleText').textContent = title;
+  $('#joinTitle').textContent = title;
+  if ($('#rejoinTitle')) $('#rejoinTitle').textContent = title;
+  try {
+    const last = JSON.parse(localStorage.getItem('vm_last') || 'null');
+    if (last?.id === eventId) localStorage.setItem('vm_last', JSON.stringify({ ...last, title }));
+  } catch {}
+}
+
 function onHostMessage(m) {
+  if (m.t === 'show') return onShowName(m);
   if (m.t === 'kick') return onKicked(!!m.block);
   if (m.t === 'uploads') return void setUploads(!!m.on);
   if (m.t === 'starter') return setStarter(!!m.on);

@@ -1,8 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  VUEMesh's own STUN server (stun.<domain>), so devices finding a path to each other ask us,
-  not Google. STUN only: it tells a device its public address and relays nothing (no TURN, no
-  video). It keeps no logs. One small Lightsail server with a fixed address. Its own stack.
+  VUEMesh's own STUN and TURN server (stun.<domain>). STUN tells a device its public address, so
+  devices can find a path to each other. TURN relays a connection when they can't (a phone on a
+  mobile network, a strict office or hotel network): it forwards the encrypted media without being
+  able to read it, and only for devices with a short-lived password from the site's API. It keeps
+  no logs. One small Lightsail server with a fixed address. Its own stack.
 
 Parameters:
   Domain:
@@ -15,12 +17,21 @@ Parameters:
     Type: String
     Default: nano_3_0
     Description: Lightsail size (the smallest with a public IPv4 address; see `aws lightsail get-bundles`).
+  TurnSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: >
+      The secret the site's API signs TURN passwords with (deploy.sh makes it, in aws/.turn-secret).
+      The server reads it (and the rest of UserData) only on its first boot: to change either, also
+      bump the number in InstanceName, which makes a new server (the static IP moves to it).
 
 Resources:
   Server:
     Type: AWS::Lightsail::Instance
     Properties:
-      InstanceName: vuemesh-stun
+      # UserData only runs on a server's first boot: bump this number when it (or TurnSecret) changes
+      InstanceName: vuemesh-stun-3
       AvailabilityZone: !Sub '${AWS::Region}a'
       BlueprintId: ubuntu_24_04
       BundleId: !Ref BundleId
@@ -28,32 +39,124 @@ Resources:
         Ports:
           - { FromPort: 3478, ToPort: 3478, Protocol: udp, Cidrs: ['0.0.0.0/0'], Ipv6Cidrs: ['::/0'] }
           - { FromPort: 3478, ToPort: 3478, Protocol: tcp, Cidrs: ['0.0.0.0/0'], Ipv6Cidrs: ['::/0'] }
+          # TURN's relayed media (min-port..max-port below)
+          - { FromPort: 49152, ToPort: 49999, Protocol: udp, Cidrs: ['0.0.0.0/0'], Ipv6Cidrs: ['::/0'] }
           # SSH only from the Lightsail console's browser terminal, for maintenance
           - { FromPort: 22, ToPort: 22, Protocol: tcp, CidrListAliases: ['lightsail-connect'] }
-      UserData: |
+      UserData: !Sub |
         #!/bin/bash
         set -e
         export DEBIAN_FRONTEND=noninteractive
         apt-get update
-        apt-get install -y coturn unattended-upgrades
-        cat > /etc/turnserver.conf <<'CONF'
-        # STUN only: answers "what's my public address?" and nothing else. No relaying, no accounts.
+        apt-get install -y coturn unattended-upgrades nftables
+        install -d -m 755 /etc/vuemesh
+        cat > /etc/vuemesh/turnserver.conf.in <<'CONF'
+        # STUN for everyone; TURN only with a password from the site's API (use-auth-secret: the
+        # username is "<expiry>:<random id>", the password an HMAC of it with the shared secret).
         listening-port=3478
-        stun-only
+        realm=${Domain}
+        use-auth-secret
+        static-auth-secret=${TurnSecret}
+        fingerprint
         no-tls
         no-dtls
         no-cli
         no-rfc5780
         no-stun-backward-compatibility
         response-origin-only-with-rfc5780
-        fingerprint
         no-software-attribute
-        # No logs: addresses are answered and forgotten.
+        # Relayed media: UDP only (browsers never ask for TCP relays, and a TCP relay is how a TURN
+        # server gets used to reach other machines' services), on these ports (open in the firewall),
+        # with limits so it can't run away: 12 relays a password, 400 in all, 5 Mbit/s each and
+        # 50 Mbit/s for the whole server (a busy day is then at most about half the month's data)
+        no-tcp-relay
+        min-port=49152
+        max-port=49999
+        user-quota=12
+        total-quota=400
+        max-bps=625000
+        bps-capacity=6250000
+        stale-nonce=600
+        # Only to the public internet: never into this server's own network or the cloud's
+        # metadata service (169.254.169.254), so it can't be used to reach anything private
+        no-multicast-peers
+        denied-peer-ip=0.0.0.0-0.255.255.255
+        denied-peer-ip=10.0.0.0-10.255.255.255
+        denied-peer-ip=100.64.0.0-100.127.255.255
+        denied-peer-ip=127.0.0.0-127.255.255.255
+        denied-peer-ip=169.254.0.0-169.254.255.255
+        denied-peer-ip=172.16.0.0-172.31.255.255
+        denied-peer-ip=192.0.0.0-192.0.0.255
+        denied-peer-ip=192.0.2.0-192.0.2.255
+        denied-peer-ip=192.88.99.0-192.88.99.255
+        denied-peer-ip=192.168.0.0-192.168.255.255
+        denied-peer-ip=198.18.0.0-198.19.255.255
+        denied-peer-ip=198.51.100.0-198.51.100.255
+        denied-peer-ip=203.0.113.0-203.0.113.255
+        denied-peer-ip=224.0.0.0-255.255.255.255
+        denied-peer-ip=::-::1
+        # (IPv4 written as IPv6, ::ffff:127.0.0.1: coturn before 4.9.0 let it past the rules above)
+        denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
+        denied-peer-ip=64:ff9b:1::-64:ff9b:1:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=2001:db8::-2001:db8:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
+        denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        # No logs: addresses are answered and forgotten, relays aren't recorded.
         no-stdout-log
         log-file=/dev/null
         CONF
+        chmod 600 /etc/vuemesh/turnserver.conf.in
+        # Lightsail puts the server behind a one-to-one NAT: TURN must tell devices its public address
+        # (stun.${Domain}, the static IP, which can be attached after first boot), mapped to its
+        # private one. This writes the config with both, and restarts coturn when either changes.
+        # It also keeps the server's own firewall (nftables, table vuemesh):
+        # - the relay may reach this server's own public address only on its relay ports (two
+        #   relayed devices meet there), never its STUN/TURN port or anything else on it;
+        # - a source opening more than 20 new flows a second to 3478 (an allocation flood, or
+        #   spoofed requests to bounce answers at someone) is dropped past a burst of 40.
+        cat > /usr/local/sbin/vuemesh-turn-config <<'SH'
+        #!/bin/bash
+        set -e
+        pub="$(getent ahostsv4 stun.${Domain} | awk 'NR==1{print $1}')"
+        priv="$(ip -4 route get 1.1.1.1 | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')"
+        [ -n "$priv" ] || exit 0
+        new="$(mktemp)"
+        cat /etc/vuemesh/turnserver.conf.in > "$new"
+        [ -n "$pub" ] && echo "external-ip=$pub/$priv" >> "$new"
+        if ! cmp -s "$new" /etc/turnserver.conf; then
+          install -m 640 -o root -g turnserver "$new" /etc/turnserver.conf
+          systemctl restart coturn
+        fi
+        rm -f "$new"
+        want="$(cat <<NFT
+        table inet vuemesh {
+          set flood { type ipv4_addr; flags dynamic; timeout 1m; }
+          set flood6 { type ipv6_addr; flags dynamic; timeout 1m; }
+          chain input {
+            type filter hook input priority 0; policy accept;
+            udp dport 3478 ct state new add @flood { ip saddr limit rate over 20/second burst 40 packets } drop
+            udp dport 3478 ct state new add @flood6 { ip6 saddr limit rate over 20/second burst 40 packets } drop
+          }
+          chain output {
+            type filter hook output priority 0; policy accept;
+            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } udp dport != 49152-49999 drop
+            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } meta l4proto != udp drop
+          }
+        }
+        NFT
+        )"
+        if [ "$want" != "$(cat /etc/vuemesh/nft.conf 2>/dev/null)" ]; then
+          printf '%s\n' "$want" > /etc/vuemesh/nft.new
+          nft delete table inet vuemesh 2>/dev/null || true
+          nft -f /etc/vuemesh/nft.new && mv /etc/vuemesh/nft.new /etc/vuemesh/nft.conf
+        fi
+        SH
+        chmod 755 /usr/local/sbin/vuemesh-turn-config
+        echo '* * * * * root /usr/local/sbin/vuemesh-turn-config' > /etc/cron.d/vuemesh-turn
         sed -i 's/^#\?TURNSERVER_ENABLED=.*/TURNSERVER_ENABLED=1/' /etc/default/coturn 2>/dev/null || true
         systemctl enable coturn
+        /usr/local/sbin/vuemesh-turn-config
         systemctl restart coturn
 
   Address:
@@ -75,5 +178,8 @@ Outputs:
   StunUrl:
     Description: The ICE server the site's config.js gives every device.
     Value: !Sub 'stun:stun.${Domain}:3478'
+  TurnUrls:
+    Description: The TURN addresses the site's API hands out with a short-lived password (UDP, then TCP).
+    Value: !Sub 'turn:stun.${Domain}:3478?transport=udp,turn:stun.${Domain}:3478?transport=tcp'
   IpAddress:
     Value: !GetAtt Address.IpAddress

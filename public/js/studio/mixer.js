@@ -1,4 +1,4 @@
-// Studio, part 6 of 26: the live mixer, its strips and meter bridge, the pop-out audio console.
+// Studio, part 6 of 29: the live mixer, its strips and meter bridge, the pop-out audio console.
 // Loads after onair.js: that import comes first, so the parts run in order (see ../studio.js).
 import './onair.js';
 import { toast, esc, announce } from '/js/vm.js';
@@ -31,7 +31,7 @@ import { pipAir } from './pip.js';
 // pans a mono channel and balances a stereo one.
 
 export const mix = { strips: new Map(), bus: null, dest: null, out: null, listen: null, meterL: null, meterR: null };
-const mixSaved = () => JSON.parse(localStorage.getItem('vm_livemix_' + eventId) || '{}');
+export const mixSaved = () => JSON.parse(localStorage.getItem('vm_livemix_' + eventId) || '{}');
 export const MODES = ['afv', 'on', 'off'];
 export const MODE_LABEL = { afv: 'AFV', on: 'ON', off: 'OFF' };
 /** Whether a channel's source has two sides of its own (see mixAttach). */
@@ -90,8 +90,16 @@ export function mixInit() {
   mix.spec.fftSize = 4096;
   mix.spec.smoothingTimeConstant = 0.75;
   lim.connect(mix.spec);
+  // The sound a call hears from the studio (studio/callin.js): the program without the call's own
+  // people, who hear each other straight (sent back to them, they'd hear themselves late). Every
+  // channel feeds it but theirs (mixAttach), through its own fade to black.
+  mix.minus = ctx.createGain();
+  mix.minusFtb = ctx.createGain();
+  mix.minusDest = ctx.createMediaStreamDestination();
+  mix.minus.connect(mix.minusFtb).connect(mix.minusDest);
   // one strip for clips played from the Clips panel
   mix.media = { ...liveChain(ctx, false), open: false };
+  mix.media.gate.connect(mix.minus);
   applyStripFx(mix.media, mixState('media', 'media'));
 }
 
@@ -139,6 +147,15 @@ export function toggleStripMono(r) {
   announce(`${r.name}: ${st.mono ? 'mono' : 'stereo'}`);
 }
 
+/** The sound a call hears from the studio: the program without the call's own people (and black when the program is) */
+export function callSoundTrack() {
+  mixInit();
+  clearInterval(mix.minusSync);
+  // (follows the program's fade to black, whichever way it's moved)
+  mix.minusSync = setInterval(() => (mix.minusFtb.gain.value = mix.ftb.gain.value), 50);
+  return mix.minusDest.stream.getAudioTracks()[0];
+}
+
 export function mixAttach(peer) {
   mixInit();
   const l = live.get(peer);
@@ -160,6 +177,7 @@ export function mixAttach(peer) {
     st = { peer, ...liveChain(ctx), fix: channelFixer(ctx), src: null, pre: ctx.createAnalyser() };
     st.pre.fftSize = 512;
     st.fix.output.connect(st.mono); // a phone that only fills the left side still counts at full level
+    if (!l.call) st.gate.connect(mix.minus); // (what a call hears: everything but its own people)
     mix.strips.set(peer, st);
   }
   // (a phone's or computer's sound track arrives muted, before any sound has come. Listened to then,

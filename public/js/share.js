@@ -5,8 +5,12 @@
 // the way a phone does (the event's signalling, then a direct link to the studio) but sends
 // only the live picture: nothing is recorded here, so there are no clips to send. The studio
 // records it as it arrives while it's on air (see recordedHere in studio/sources.js), for Edit.
+//
+// Or into a call (/share?e=CODE#k=KEY, the call's link with /share: callmesh.js): one more in the
+// call, sending only its screen (and the screen's sound), let in from the waiting room like anyone.
 import { CamLink } from '/js/rtc.js';
-import { api, identity, meshSocket, thumbprint } from '/js/vm.js';
+import { api, identity, meshSocket, thumbprint, showName, keepShowName } from '/js/vm.js';
+import { CallMesh, MAX_PEOPLE } from '/js/callmesh.js';
 
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
@@ -19,10 +23,19 @@ const canShare = !!navigator.mediaDevices?.getDisplayMedia;
 const err = (t) => ($('#joinErr').textContent = t || '');
 // (a TV's own code, with no studio: tvdirect.js. The words say where the screen goes)
 const toTv = () => ev?.kind === 'tv';
-const place = () => (toTv() ? 'the TV' : 'the studio');
-const Place = () => (toTv() ? 'The TV' : 'The studio');
+const toCall = () => ev?.kind === 'call';
+const callKey = new URLSearchParams(location.hash.slice(1)).get('k') || '';
+let mesh = null;
+const place = () => (toCall() ? 'the call' : toTv() ? 'the TV' : 'the studio');
+const Place = () => (toCall() ? 'The call' : toTv() ? 'The TV' : 'The studio');
 function sayWhere() {
   if (!ev) return;
+  if (toCall()) {
+    $('#joinWhat').textContent = `Into call ${eventId}, for everyone in it to see: slides, a demo, a video. Someone in the call lets it in.`;
+    $('#pinBox').hidden = !!(callKey || localStorage.getItem('vm_callkey_' + eventId));
+    for (const el of document.querySelectorAll('[data-place]')) el.textContent = el.dataset.place === 'P' ? Place() : place();
+    return;
+  }
   $('#joinWhat').textContent = toTv()
     ? `Onto ${ev.title ? `“${ev.title}”` : 'the TV'}, live for the room: slides, a demo, a video. Nothing is recorded.`
     : `Into ${ev.title ? `“${ev.title}”` : 'the studio'}, as a source the director can cut to: slides, a demo, a video.`;
@@ -119,7 +132,7 @@ function setup() {
     $('#codeBox').hidden = true;
     $('#code').required = false;
     api(`events/${eventId}`).then((e) => {
-      ev = e;
+      ev = { ...e, title: showName(eventId) }; // (the name: this computer's, or the link's; the studio says it once connected)
       sayWhere();
     }).catch(() => {});
   }
@@ -156,13 +169,17 @@ async function start(e) {
     const code = $('#code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     try {
       ev = await api(`events/${code}`);
+      ev = { ...ev, title: showName(code) };
       eventId = code;
       sayWhere();
       history.replaceState(null, '', `${location.pathname}?e=${code}`);
     } catch {
-      return err('No event or TV with that code. Check it against the studio or the TV.');
+      return err('No event, call or TV with that code. Check it against the studio, the call or the TV.');
     }
+    // (a call's code typed: it needs the call's PIN too)
+    if (toCall() && !$('#pin').value.trim()) return err('That’s a call: type its PIN too (whoever started the call has it).');
   }
+  if (toCall() && !callKey && !localStorage.getItem('vm_callkey_' + eventId) && $('#pin').value.replace(/\D/g, '').length !== 6) return err('Type the call’s 6-digit PIN');
   $('#shareBtn').disabled = true;
   try {
     stream = await pick();
@@ -184,6 +201,7 @@ async function start(e) {
   $('#sendSay').after($('#modeBox')); // (the choice comes along: it can change while sharing)
   $('#liveName').textContent = ev?.title ? `${name} \u2192 ${ev.title}` : name;
   wakeLock(true);
+  if (toCall()) return joinCall();
   if (!sock) connect();
   else if (link) {
     link.rejoin();
@@ -242,7 +260,14 @@ function connect() {
         $('#tag').textContent = toTv() ? (air ? 'ON THE TV' : 'Waiting for a place') : air ? 'ON AIR' : pvw ? 'Up next' : 'In the studio';
       }
     },
-    onHostMessage: () => {},
+    // the show's name, from the studio over this link (the server never has it)
+    onHostMessage: (m) => {
+      if (m.t !== 'show' || !m.title || !ev) return;
+      ev = { ...ev, title: String(m.title).slice(0, 120) };
+      keepShowName(eventId, ev.title);
+      sayWhere();
+      $('#liveName').textContent = `${name} → ${ev.title}`;
+    },
     extraTelemetry: () => ({ role: 'cam', screen: true, kind: 'computer', rec: false }),
     onProgress: () => {},
     onSent: () => {},
@@ -268,10 +293,41 @@ function connect() {
   }, 2000);
 }
 
+/** Into a call: one more in it, sending this screen (and its sound), let in like anyone */
+async function joinCall() {
+  const say = (t, on = false) => {
+    $('#linkSay').textContent = t;
+    $('#conn').className = 'dot' + (on ? ' on' : '');
+  };
+  $('#tag').textContent = 'Waiting';
+  say('Asking to come into the call…');
+  mesh = new CallMesh({
+    id: eventId, key: callKey, pin: $('#pin').value.replace(/\D/g, ''), name, slot: 'scr',
+    tracks: () => ({ audio: stream?.getAudioTracks()[0], camera: null, screen: stream?.getVideoTracks()[0] }),
+    state: () => ({ mic: !!stream?.getAudioTracks().length, cam: false, screen: true }),
+    on: {
+      waiting: () => say('Waiting to be let in: someone in the call lets this screen in'),
+      in: () => { $('#tag').textContent = 'IN THE CALL'; say('In the call', true); },
+      change: () => mesh?.inCall && say(`In the call, with ${mesh.peers.size} other${mesh.peers.size === 1 ? '' : 's'}${[...mesh.peers.values()].some((p) => p.relayed) ? ' (some through a relay)' : ''}`, true),
+      gone: () => mesh?.inCall && say(`In the call, with ${mesh.peers.size} other${mesh.peers.size === 1 ? '' : 's'}`, true),
+      removed: (block) => stopped(block ? 'Someone in the call took this screen out.' : 'It wasn’t let into the call.'),
+      full: () => say(`The call is full (${MAX_PEOPLE})`),
+    },
+  });
+  try {
+    await mesh.enter();
+    await mesh.join();
+  } catch (x) {
+    stopped(x.message);
+  }
+}
+
 function stopped(why) {
   for (const t of stream?.getTracks() || []) t.stop();
   stream = null;
   stopSoundWatch();
+  mesh?.leave();
+  mesh = null;
   link?.leave();
   // (off the event's signalling too: left on it, the studio's and a TV's lists still had this
   // computer, and a TV said "Joining: Josh's Mac" after it had gone. Share again joins afresh.)
@@ -298,6 +354,7 @@ $('#againBtn').onclick = async () => {
   for (const t of old?.getTracks() || []) t.stop();
   showStream();
   watchSound(s);
+  if (mesh) return mesh.refill(); // (a call: into the same places, no new link)
   // (the same kinds of track: swap them in place; a sound that wasn't there before needs a new link)
   const same = !!old?.getAudioTracks().length === !!s.getAudioTracks().length;
   if (same) link?.replaceStream(s);

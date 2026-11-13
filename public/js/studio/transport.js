@@ -1,4 +1,4 @@
-// Studio, part 18 of 26: program meters, Program out, layout, transport, tools, markers on the ruler.
+// Studio, part 18 of 29: program meters, Program out, layout, transport, tools, markers on the ruler.
 // Loads after menus.js: that import comes first, so the parts run in order (see ../studio.js).
 import './menus.js';
 import { toast, esc, fmtDur, announce } from '/js/vm.js';

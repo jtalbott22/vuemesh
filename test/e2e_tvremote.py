@@ -18,7 +18,7 @@ with sync_playwright() as p:
     host = ctx.new_page(); host.on('pageerror', lambda e: errors.append(f'studio: {e}')); host.on('dialog', lambda d: d.accept())
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Hall'})})).json()""")
-    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Hall")  # (the show's name rides in the studio link: the server never has it)
     host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=20000)
     host.click('#addLocal'); host.wait_for_selector('#localDlg[open]')
     if host.is_visible('#localAllow'): host.click('#localAllow')

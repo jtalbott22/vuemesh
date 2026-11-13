@@ -1,4 +1,4 @@
-// Studio, part 14 of 26: autopilot and the kiosk.
+// Studio, part 14 of 29: autopilot and the kiosk.
 // Loads after switcher.js: that import comes first, so the parts run in order (see ../studio.js).
 import './switcher.js';
 import { api, toast, esc, now, announce, drawQR, timecodeUrl } from '/js/vm.js';
@@ -22,6 +22,7 @@ import { incoming, outgoing, startPieces, stopPieces } from './phones.js';
 import { download, showWrap } from './export.js';
 import { setLeaveQuietly } from './screens.js';
 import { ProgramRecorder, programRecorderSupport, tidyProgramRecordings } from '/js/progrec.js';
+import { captionsVtt } from './captions.js';
 
 // ---------------------------------------------------------------- autopilot ---
 // A show that runs itself. With no camera, the program sits at black. When a camera arrives
@@ -204,24 +205,26 @@ if (KIOSK && eventId) { // (with no show yet, the launcher is still finding one)
     }
     requestAnimationFrame(drawCode);
   })();
-  const setTitle = (e) => {
-    if (!e) return; // (the event is still loading)
-    const named = !e.kiosk || e.titled !== false;
+  // The show's name comes from the first phone, over its own link (core.js's 'name'): the server
+  // never has it. Until then the screen asks the first to scan to name it.
+  const setTitle = (title) => {
+    const named = !!title;
     $('#kCall').textContent = named ? 'Scan to join' : 'Scan to start a show';
-    $('#kTitle').textContent = named ? e.title : 'The first to scan names it';
-    if (named && e.title !== lastTitle) {
+    $('#kTitle').textContent = named ? title : 'The first to scan names it';
+    if (named && title !== lastTitle) {
+      const e = { title };
       lastTitle = e.title;
-      if (ev) ev.title = e.title;
       $('#title').textContent = e.title;
       document.title = `${e.title} · VUEMesh`;
       if (lastTitle) note(`The show is called \u201c${e.title}\u201d`);
     }
   };
-  setTitle(ev);
-  // the show's name comes from the first phone; a show that's gone (12 hours) makes way for a new one
+  setTitle(ev?.title || '');
+  document.addEventListener('vm-show-title', (e) => setTitle(e.detail));
+  // a show that's gone (12 hours) makes way for a new one
   setInterval(async () => {
     try {
-      setTitle(await api(`events/${eventId}`));
+      await api(`events/${eventId}`);
     } catch (e) {
       if (/404|No event/.test(e.message)) nextShow('the show expired');
     }
@@ -318,7 +321,10 @@ export function toggleProgramRecording() {
     if (!KIOSK && !ap?.handsFree) download(blob, `${ev.title}-live`); // (hands-free: it's kept here and in Media, no download)
     // ...and keep a copy in this browser too
     const t0 = rec.t0 ?? startedAt; // (its first frame: the steady recorder starts once its encoder is ready)
-    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0, t1: now(), mime, blob }).catch(() => {});
+    // ...with its captions, if Live captions were on: a WebVTT file timed from the recording's first frame
+    const vtt = captionsVtt(t0, now());
+    if (vtt && !KIOSK && !ap?.handsFree) download(new Blob([vtt], { type: 'text/vtt' }), `${ev.title}-live`);
+    idb.put('program', { eventId, id: 'master-' + Math.round(startedAt), kind: 'master', t0, t1: now(), mime, blob, ...(vtt ? { vtt } : {}) }).catch(() => {});
     // ...and in Edit's Media, on the cameras' clock: everything that aired, to use by hand
     const pmeta = { id: 'PGM-' + Math.round(startedAt), kind: 'video', mime, cid: 'PGM', name: 'Program (as aired)', t0: t0 - LIVE_DELAY, dur: Math.round(now() - t0), w: program.width, h: program.height, local: true, program: true, t0Source: 'studio', native: true, audio: 'stereo', orient: [{ t: 0, rot: 0, rect: null, upright: program.width >= program.height ? 'landscape' : 'portrait', ev: 0, ct: 0 }] };
     idb.put('clips', { eventId, ...pmeta, receivedAt: Date.now(), blob }).then(() => addClip({ eventId, ...pmeta, receivedAt: Date.now() }, blob, true)).catch(() => {});

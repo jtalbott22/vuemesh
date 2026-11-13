@@ -3,10 +3,12 @@
 //   2. signaling: relay WebRTC offers/answers/ICE so phones can find the host
 //      laptop and then talk to it directly over the local network
 //   3. publishing: hand out one-time upload URLs for the finished film
+//   4. TURN passwords: short-lived ones for the site's relay (aws/stun), for devices that can't
+//      reach each other directly; the relay forwards their encrypted media, this never sees it
 // Video never passes through here.
 
 import { randomId, sha256hex, b64url, termsText, HttpError, publicEvent } from './common.mjs';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt, createHmac } from 'node:crypto';
 
 const DAY = 86400;
 const EVENT_TTL_DAYS = 30;
@@ -29,6 +31,56 @@ export async function api(req, deps) {
   }
 }
 
+const TURN_TTL = DAY; // a TURN password works for a day: longer than any show's connections need to be set up
+
+/**
+ * The relay's addresses with a password for them (coturn's use-auth-secret: the username is
+ * "<expiry>:<random id>", the password base64(HMAC-SHA1(secret, username))). Nothing about who asked
+ * is in it or kept. None when the site has no relay.
+ * @param {{secret?: string, urls?: string[]}|undefined} turn  @param {number} now ms
+ */
+export function iceServers(turn, now) {
+  if (!turn?.secret || !turn.urls?.length) return { iceServers: [], ttl: 0 };
+  const username = `${Math.floor(now / 1000) + TURN_TTL}:${randomBytes(6).toString('hex')}`;
+  const credential = createHmac('sha1', turn.secret).update(username).digest('base64');
+  return { iceServers: [{ urls: turn.urls, username, credential }], ttl: TURN_TTL };
+}
+
+// Who gets one. There are no accounts, so a password can't be kept from a determined person: anyone
+// who opens the site gets one, and a script can ask like a browser does. What keeps the relay from
+// being worth abusing is everywhere else: each password is only good for a few relays at a few
+// Mbit/s, the server caps everything it relays, never relays into a private network, and is switched
+// off past the month's data (aws/stun, lib/lightsail.mjs). Here:
+// - only this site's pages get one (a browser always says which site is asking, and a page can't
+//   change that), so another site can't put its visitors on our relay;
+// - a few an hour per address (counted under a mark made from the address with the day's random
+//   salt, kept an hour), and a ceiling for everyone, so a script can't collect thousands;
+// - none while the relay is switched off, or once the month's data is nearly used.
+// Each one asked for is counted (given, or why not) in the day's anonymous traffic counts.
+export const TURN_LIMITS = { perAddressHour: 30, allHour: 3000 };
+async function ice(req, deps, now) {
+  const none = (why) => ({ status: 200, body: { iceServers: [], ttl: 0, ...(why ? { why } : {}) } });
+  const t = deps.turn;
+  if (!t?.secret || !t.urls?.length) return none();
+  const count = async (k) => deps.store?.bumpTraffic?.(dayOf(now), { [`turn:${k}`]: 1 }).catch(() => {});
+  const origin = String(req.headers?.origin || '');
+  const allowed = t.origins || (deps.cdn ? [deps.cdn, deps.cdn.replace('://', '://www.')] : []);
+  if (!allowed.includes(origin)) { await count('other_site'); return none('only for this site'); }
+  if (deps.relayState) {
+    const r = await deps.relayState().catch(() => null);
+    if (r && !r.open) { await count('off'); return none('relay off'); }
+    if (r && r.share >= (t.stopAt ?? 0.9)) { await count('budget'); return none("relay off for the rest of the month"); }
+  }
+  if (deps.store?.countUp) {
+    const hour = Math.floor(now / 3600000), day = dayOf(now);
+    const fp = sha256hex(`turn|${hour}|${req.ip || ''}|${await daySalt(deps.store, day)}`).slice(0, 24);
+    const [mine, all] = await Promise.all([deps.store.countUp(`TURN#${hour}#${fp}`, 3600), deps.store.countUp(`TURN#${hour}#all`, 3600)]);
+    if (mine > TURN_LIMITS.perAddressHour || all > TURN_LIMITS.allHour) { await count('limited'); return none('too many, try again later'); }
+  }
+  await count('given');
+  return { status: 200, body: iceServers(t, now) };
+}
+
 const alive = (meta, now) => meta && !(meta.ttl && meta.ttl * 1000 < now);
 
 async function route(req, deps) {
@@ -41,12 +93,16 @@ async function route(req, deps) {
   // day, their address and browser) that's kept two days and never stored as it came.
   if (seg[0] === 'api') seg.shift();
   if (seg[0] === 'hit' && req.method === 'POST' && seg.length === 1) return hit(req, deps);   // (after the /api prefix is gone)
+  if (seg[0] === 'ice' && req.method === 'GET' && seg.length === 1) return ice(req, deps, now);
   if (seg[0] === 'admin') return admin(req, seg.slice(1), deps, now);
   if (seg[0] === 'lan') return lan(req, seg.slice(1), deps, now);
   if (seg[0] !== 'events') throw new HttpError(404, 'Unknown endpoint');
   const m = req.method.toUpperCase();
 
-  if (seg.length === 1 && m === 'POST') return createEvent(req.body || {}, store, now, deps);
+  if (seg.length === 1 && m === 'POST') {
+    if (req.body?.kind === 'call') return createCall(req, deps, now);
+    return createEvent(req.body || {}, store, now, deps);
+  }
 
   // (No location endpoints: VUEMesh never asks where anyone is, and there's no list or map of events.)
 
@@ -55,22 +111,20 @@ async function route(req, deps) {
   const meta = await store.getEvent(id);
   if (!alive(meta, now)) throw new HttpError(404, 'No event with that code');
 
+  // A call: may this device come in? (before it connects, so it can be told why not)
+  if (seg[2] === 'enter' && m === 'POST' && meta.kind === 'call') {
+    const r = await callEntry(meta, req.body || {}, deps, now);
+    if (r.error) throw new HttpError(r.status, r.error);
+    return { status: 200, body: { ok: true, waiting: !r.admitted } };
+  }
+
   if (seg.length === 2 && m === 'GET') {
     return { status: 200, body: { ...publicEvent(meta), live: now - (meta.hostSeenAt || 0) < LIVE_WINDOW_MS } };
   }
 
-  // A kiosk show without a name yet: the first phone to scan in names it (once). Everyone
-  // after joins that show. (Its terms carry the name, so they're made again.)
-  if (seg[2] === 'name' && m === 'POST') {
-    if (!meta.kiosk) throw new HttpError(403, 'Only a kiosk show is named by whoever arrives first');
-    if (meta.titled) return { status: 409, body: { title: meta.title } };
-    const title = String(req.body?.title || '').trim().slice(0, 80);
-    if (!title) throw new HttpError(400, 'Give the show a name');
-    const terms = termsText({ title, poolPct: meta.poolPct || 0 });
-    const won = await (store.updateEventIf ? store.updateEventIf(id, { title, titled: true, terms, termsHash: sha256hex(terms), titledAt: now }, 'titled', false) : store.updateEvent(id, { title, titled: true, terms, termsHash: sha256hex(terms), titledAt: now }));
-    if (!won) return { status: 409, body: { title: (await store.getEvent(id))?.title } };
-    return { status: 200, body: publicEvent(won) };
-  }
+  // (A kiosk show used to be named here by its first phone. Names stay on the devices now: the first
+  // phone tells the kiosk over their own link, and the kiosk says that it's named with titled, below.)
+  if (seg[2] === 'name' && m === 'POST') throw new HttpError(410, "Show names stay on the devices now: reload this page");
 
   // Everything below needs the host key.
   const key = req.headers['x-host-key'] || '';
@@ -108,6 +162,8 @@ async function route(req, deps) {
       fields.public = !!b.public;
       fields.pub = b.public ? 'P' : null;
     }
+    // a kiosk show its first phone has named (over their own link): that it has a name, never the name
+    if (b.titled === true && meta.kiosk) fields.titled = true;
     // contributors the host removed and blocked (their random camera ids for this event)
     if ('blocked' in b) fields.blocked = (Array.isArray(b.blocked) ? b.blocked : []).map(String).filter((x) => /^[\w-]{4,80}$/.test(x)).slice(0, 500);
     const updated = await store.updateEvent(id, fields);
@@ -172,11 +228,11 @@ async function route(req, deps) {
 
 async function createEvent(body, store, now, deps) {
   const poolPct = 0; // (revenue sharing is off for now: whatever a client asks for, new events share none)
-  // a kiosk show can start without a name: the first phone to scan in names it
-  const untitledKiosk = !!body.kiosk && !String(body.title || '').trim();
-  const title = untitledKiosk ? 'New show' : String(body.title || 'Untitled event').trim().slice(0, 120) || 'Untitled event';
+  // No name, whatever a client sends: a show's name stays on the devices (the host's browser has it,
+  // and the studio tells the phones over their own links), so nothing anyone calls a show is kept
+  // here. A kiosk show starts unnamed: its first phone names it, and the kiosk says it's named.
   const kind = String(body.kind || 'other').slice(0, 32);
-  const terms = termsText({ title, poolPct, kind });
+  const terms = termsText({ kind });
   const isPublic = !!body.public;
   const orientation = body.orientation === 'portrait' ? 'portrait' : 'landscape';
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -184,7 +240,6 @@ async function createEvent(body, store, now, deps) {
     const hostKey = b64url(randomBytes(24));
     const meta = {
       id,
-      title,
       kind,
       poolPct,
       terms,
@@ -194,7 +249,7 @@ async function createEvent(body, store, now, deps) {
       orientation,
       createdAt: now,
       ttl: Math.floor(now / 1000) + (body.kiosk ? KIOSK_TTL_HOURS * 3600 : EVENT_TTL_DAYS * DAY),
-      ...(body.kiosk ? { kiosk: true, titled: !untitledKiosk } : {}),
+      ...(body.kiosk ? { kiosk: true, titled: false } : {}),
     };
     if (await store.putEventIfAbsent(meta)) {
       await bump(deps, now, { events: 1, events_public: isPublic ? 1 : 0, [`kind_${kindKey(kind)}`]: 1 });
@@ -203,6 +258,96 @@ async function createEvent(body, store, now, deps) {
   }
   throw new HttpError(500, 'Could not allocate an event code');
 }
+
+// ------------------------------------------------------------------- calls ---
+// A call (/call): a few people on cameras and screens, everyone connected to everyone, no studio.
+// Nobody gets in on the code alone, which a script could guess:
+// - the link carries a room key after the # (the creator's browser made it; it never reaches any
+//   server). Devices prove they have it with its hash (kh); this keeps only a hash of that.
+// - typing the code needs the 6-digit PIN too; 10 wrong PINs and only the link opens it.
+// - then a waiting room: someone already in lets each newcomer in (or the first to arrive, in an
+//   empty call). A waiting device sees nobody and can only knock; its name rides on the knock and
+//   isn't kept. Anyone in can let people in, take them out (and keep them out), and lock the call.
+// - let in once, a device comes back after a dropped connection without waiting again: it proves
+//   that with a pass it made itself (this keeps the pass's hash, ph).
+// Nothing about anyone is kept: no names, the media never comes here, and a call deletes itself a
+// day after it's made.
+// A studio in a call (it proves it's one with its show's host key) can't be taken out by anyone.
+// One a studio started is the studio's to run while it's in it: only it lets people in, takes them
+// out, or locks it (anyone can still leave). In a call a studio joined, the people in it keep those
+// between themselves. With the studio gone from a call it started, they're everyone's again.
+export const CALL = { maxIn: 6, maxWaiting: 4, pinTries: 10, perAddressHour: 20, ttlHours: 24 };
+const isHex64 = (s) => /^[0-9a-f]{64}$/.test(String(s || ''));
+
+/** Is this a studio? Its show's code and host key (sk), checked like the studio's own connection */
+async function isStudio(store, show, sk, now) {
+  const id = String(show || '').toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(id) || !sk) return false;
+  const ev = await store.getEvent(id);
+  return !!(alive(ev, now) && ev.kind !== 'call' && sha256hex(String(sk)) === ev.hostKeyHash);
+}
+
+async function createCall(req, deps, now) {
+  const { store } = deps;
+  const b = req.body || {};
+  const byStudio = await isStudio(store, b.show, b.sk, now);
+  if (!isHex64(b.kh)) throw new HttpError(400, "A call needs its room key's hash (kh)");
+  if (store.countUp) {
+    const hour = Math.floor(now / 3600000);
+    const fp = sha256hex(`call|${hour}|${req.ip || ''}|${await daySalt(store, dayOf(now))}`).slice(0, 24);
+    if ((await store.countUp(`CALL#${hour}#${fp}`, 3600)) > CALL.perAddressHour) throw new HttpError(429, 'Too many calls started from here: try again in an hour');
+  }
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const id = randomId(6);
+    const hostKey = b64url(randomBytes(24));
+    const pin = String(randomInt(0, 1000000)).padStart(6, '0');
+    const terms = 'A call: what you send goes to the others in it, directly, and nothing is recorded unless someone in the call records it.';
+    const meta = {
+      id, kind: 'call', terms, termsHash: sha256hex(terms), hostKeyHash: sha256hex(hostKey),
+      keyCheck: sha256hex(String(b.kh)), pinHash: sha256hex(`${id}|${pin}`), pinFails: 0, passes: [], locked: false, ...(byStudio ? { byStudio: true } : {}),
+      orientation: 'landscape', createdAt: now, ttl: Math.floor(now / 1000) + CALL.ttlHours * 3600,
+    };
+    if (await store.putEventIfAbsent(meta)) {
+      await bump(deps, now, { calls: 1 });
+      return { status: 200, body: { id, hostKey, pin } };
+    }
+  }
+  throw new HttpError(500, 'Could not allocate a call code');
+}
+
+/**
+ * May this device come into the call, and straight in or to wait? Shared by /enter (which says why
+ * not) and the WebSocket's $connect (which checks again: a device could skip /enter).
+ * @param c {kh?, pin?, pass?, k?, cid?} the room key's hash, the PIN, its own pass, the host key, its camera id
+ * @returns {{admitted: boolean} | {status: number, error: string}}
+ */
+async function callEntry(meta, c, deps, now) {
+  const { store } = deps;
+  const conns = (await store.listConns(meta.id)).filter((x) => now - (x.seenAt || 0) < STALE_MS);
+  const inside = conns.filter((x) => !x.waiting);
+  if (c.cid && (meta.blocked || []).includes(String(c.cid))) return { status: 403, error: 'You were taken out of this call' };
+  const back = c.pass && (meta.passes || []).includes(sha256hex(String(c.pass)));
+  const host = c.k && sha256hex(String(c.k)) === meta.hostKeyHash;
+  if (!back && !host) {
+    if (meta.locked) return { status: 423, error: 'This call is locked: nobody new can come in' };
+    if (c.kh) {
+      if (sha256hex(String(c.kh)) !== meta.keyCheck) return { status: 403, error: "That link isn't right for this call" };
+    } else if (c.pin) {
+      if ((meta.pinFails || 0) >= CALL.pinTries) return { status: 429, error: 'Too many wrong PINs: ask for the link instead' };
+      if (sha256hex(`${meta.id}|${String(c.pin).replace(/\D/g, '')}`) !== meta.pinHash) {
+        await store.updateEvent(meta.id, { pinFails: (meta.pinFails || 0) + 1 });
+        return { status: 403, error: 'Wrong code or PIN' };
+      }
+    } else return { status: 403, error: 'This call needs its link, or its code and PIN' };
+  }
+  const admitted = back || host || !inside.length; // (the first into an empty call doesn't wait)
+  if (admitted && inside.length >= CALL.maxIn) return { status: 409, error: `This call is full (${CALL.maxIn} people)` };
+  if (!admitted && conns.length - inside.length >= CALL.maxWaiting) return { status: 409, error: 'Too many people are waiting to come in: try again in a minute' };
+  return { admitted };
+}
+
+/** Let a waiting device's pass in for good (it comes back after a dropped connection without waiting) */
+const keepPass = (meta, ph) => (isHex64(ph) && !(meta.passes || []).includes(ph) ? [...(meta.passes || []), ph].slice(-50) : meta.passes || []);
 
 // ----------------------------------------------------------------- traffic ---
 
@@ -305,6 +450,7 @@ export async function signal(evt, deps) {
     const eventId = String(q.e || '').toUpperCase();
     const meta = /^[A-Z0-9]{6}$/.test(eventId) ? await store.getEvent(eventId) : null;
     if (!alive(meta, now)) return { status: 404 };
+    if (meta.kind === 'call') return callConnect(meta, q, conn, deps, now);
     // (a remote: a phone the studio paired to control the show; it proves itself to the studio, not here)
     // (a display: a TV the studio shows its program on, the Apple TV app or /tv; it's let in by the studio, not here)
     const role = ['host', 'cam', 'mic', 'beacon', 'viewer', 'remote', 'display'].includes(q.role) ? q.role : 'viewer';
@@ -361,7 +507,8 @@ export async function signal(evt, deps) {
           await bump(deps, deps.now?.() ?? Date.now(), { camera_sec: sec });
         }
       }
-      await broadcastPeers(eventId, deps, undefined, gone?.role === 'host');
+      if (gone?.call) await broadcastCall(eventId, deps);
+      else await broadcastPeers(eventId, deps, undefined, gone?.role === 'host');
     }
     return { status: 200 };
   }
@@ -386,6 +533,7 @@ export async function signal(evt, deps) {
     await deps.post(conn, { type: 'rejoin' });
     return { status: 410 };
   }
+  if (me.role === 'guest' || me.call) return callMessage(eventId, msg, me, peers, conn, deps, now);
 
   switch (msg.action) {
     case 'hello':
@@ -418,6 +566,113 @@ export async function signal(evt, deps) {
       break;
   }
   return { status: 200 };
+}
+
+// ---- a call's connections: everyone in it talks to everyone; a waiting device only knocks
+async function callConnect(meta, q, conn, deps, now) {
+  const role = q.role === 'host' ? 'host' : 'guest';
+  if (role === 'host' && sha256hex(String(q.k || '')) !== meta.hostKeyHash) return { status: 403 };
+  const r = await callEntry(meta, { kh: q.kh, pin: q.pin, pass: q.pass, k: role === 'host' ? q.k : '', cid: q.cid }, deps, now);
+  if (r.error) return { status: r.status };
+  const ph = isHex64(q.ph) ? String(q.ph) : '';
+  if (r.admitted && ph) await deps.store.updateEvent(meta.id, { passes: keepPass(meta, ph) });
+  await deps.store.addConn(meta.id, conn, {
+    peer: String(q.peer || conn).slice(0, 40), role, call: true, waiting: !r.admitted, ph,
+    ...((await isStudio(deps.store, q.show, q.sk, now)) ? { studio: true } : {}),
+    name: '', // (no names here: they go between the devices, and with a knock, never kept)
+    cid: String(q.cid || '').slice(0, 32), rec: false, seenAt: now, at: now, ttl: Math.floor(now / 1000) + DAY,
+  });
+  await bump(deps, now, { call_joins: 1 });
+  await broadcastCall(meta.id, deps, conn);
+  return { status: 200 };
+}
+
+async function callMessage(eventId, msg, me, peers, conn, deps, now) {
+  const { store } = deps;
+  const fresh = peers.filter((p) => now - (p.seenAt || 0) < STALE_MS);
+  const target = msg.to || msg.peer ? fresh.filter((p) => p.peer === (msg.to || msg.peer)).sort((a, b) => (b.at || 0) - (a.at || 0))[0] : null;
+  const tell = async (c, data) => {
+    const ok = await deps.post(c.connId, data);
+    if (!ok && settled(c, now)) await store.removeConn(eventId, c.connId);
+  };
+  const inside = fresh.filter((p) => !p.waiting);
+  // (who may: see the top of calls. A studio's call while it's in it is the studio's to run)
+  const ruledFor = async () => !me.studio && inside.some((c) => c.studio) && !!(await store.getEvent(eventId))?.byStudio;
+  const refuse = (why) => deps.post(conn, { type: 'refused', why });
+  switch (msg.action) {
+    case 'hello':
+    case 'ping':
+      await store.updateConn(eventId, conn, { seenAt: now });
+      await deps.post(conn, me.waiting
+        ? { type: 'peers', you: me.peer, peers: [], waiting: true, pong: true }
+        : await (async () => { const meta = await store.getEvent(eventId); return { type: 'peers', you: me.peer, peers: callPeers(fresh), pong: true, locked: !!meta?.locked, studioRules: studioRules(meta, fresh) }; })());
+      break;
+    case 'knock': // (a waiting device says who it is to the people in the call; the name isn't kept)
+      if (!me.waiting) break;
+      await Promise.all(inside.map((c) => tell(c, { type: 'knock', from: me.peer, name: String(msg.name || '').trim().slice(0, 40) })));
+      break;
+    case 'signal': // (only between people in the call)
+      if (me.waiting || !target || target.waiting) break;
+      await tell(target, { type: 'signal', from: me.peer, fromRole: me.role, data: msg.data });
+      break;
+    case 'admit': {
+      if (me.waiting || !target?.waiting) break;
+      if (await ruledFor()) { await refuse('The studio lets people into this call'); break; }
+      const meta = await store.getEvent(eventId);
+      if (inside.length >= CALL.maxIn) {
+        await deps.post(conn, { type: 'full' });
+        break;
+      }
+      await store.updateConn(eventId, target.connId, { waiting: false });
+      if (target.ph) await store.updateEvent(eventId, { passes: keepPass(meta, target.ph) });
+      await tell(target, { type: 'admitted', by: me.peer });
+      await broadcastCall(eventId, deps);
+      break;
+    }
+    case 'remove': { // (out of the call; with block, kept out: its camera id, and its pass forgotten)
+      if (me.waiting || !target || target.peer === me.peer) break;
+      if (target.studio) { await refuse('Nobody can take the studio out of the call'); break; }
+      if (await ruledFor()) { await refuse('Only the studio takes people out of this call'); break; }
+      const meta = await store.getEvent(eventId);
+      const fields = { passes: (meta.passes || []).filter((h) => h !== target.ph) };
+      if (msg.block && target.cid) fields.blocked = [...new Set([...(meta.blocked || []), target.cid])].slice(-500);
+      await store.updateEvent(eventId, fields);
+      await tell(target, { type: 'removed', block: !!msg.block });
+      for (const c of peers.filter((p) => p.peer === target.peer)) await store.removeConn(eventId, c.connId);
+      await broadcastCall(eventId, deps);
+      break;
+    }
+    case 'leave': // (said just before closing: everyone hears at once, not when the connection's noticed gone)
+      for (const c of peers.filter((p) => p.peer === me.peer)) await store.removeConn(eventId, c.connId);
+      await Promise.all(inside.filter((c) => c.peer !== me.peer).map((c) => tell(c, { type: 'left', peer: me.peer })));
+      await broadcastCall(eventId, deps);
+      break;
+    case 'lock':
+      if (me.waiting) break;
+      if (await ruledFor()) { await refuse('Only the studio locks this call'); break; }
+      await store.updateEvent(eventId, { locked: !!msg.on });
+      await Promise.all(fresh.map((c) => tell(c, { type: 'locked', on: !!msg.on, by: me.peer })));
+      break;
+    default:
+      break;
+  }
+  return { status: 200 };
+}
+
+/** Who's in a call (and who's waiting, without names: those come with their knock) */
+const callPeers = (conns) => conns.map((c) => ({ peer: c.peer, role: c.role, waiting: !!c.waiting, ...(c.studio ? { studio: true } : {}) }));
+/** Is the studio running this call now (one it started, while it's in it)? Said with each list, so pages show who may do what */
+const studioRules = (meta, conns) => !!meta?.byStudio && conns.some((c) => c.studio && !c.waiting);
+/** Everyone in a call hears who's in it; a waiting device hears only that it's waiting */
+async function broadcastCall(eventId, deps, skipConn) {
+  const now = deps.now ? deps.now() : Date.now();
+  const conns = (await deps.store.listConns(eventId)).filter((c) => now - (c.seenAt || 0) < STALE_MS);
+  const peers = callPeers(conns), ruled = studioRules(await deps.store.getEvent(eventId), conns);
+  await Promise.all(conns.map(async (c) => {
+    if (c.connId === skipConn) return; // (can't post during $connect: it says hello instead)
+    const ok = await deps.post(c.connId, c.waiting ? { type: 'peers', you: c.peer, peers: [], waiting: true } : { type: 'peers', you: c.peer, peers, studioRules: ruled });
+    if (!ok && settled(c, now)) await deps.store.removeConn(eventId, c.connId);
+  }));
 }
 
 // Connections ping every 4 minutes (a studio every 30 s); API Gateway drops idle ones at 10. Anything
@@ -495,6 +750,17 @@ async function admin(req, seg, deps, now) {
   });
 
   if (seg[0] === 'whoami' && m === 'GET') return { status: 200, body: { ok: true } };
+
+  // The Lightsail servers (aws/stun): health, the month's data, and the relay's switch
+  if (seg[0] === 'servers' && m === 'GET') {
+    if (!deps.servers) return { status: 200, body: { servers: [], note: 'No Lightsail access on this server' } };
+    return { status: 200, body: { servers: await deps.servers.status(now), limits: TURN_LIMITS } };
+  }
+  if (seg[0] === 'relay' && m === 'POST') {
+    if (!deps.servers) throw new HttpError(503, 'No Lightsail access on this server');
+    if (typeof req.body?.open !== 'boolean') throw new HttpError(400, 'open: true or false');
+    return { status: 200, body: await deps.servers.setRelay(req.body.open) };
+  }
 
   if (seg[0] === 'stats' && m === 'GET') {
     let cursor, events = 0, live = 0, pub = 0, published = 0;
@@ -589,7 +855,6 @@ async function admin(req, seg, deps, now) {
   if (seg.length === 2 && m === 'PATCH') {
     const b = req.body || {};
     const fields = {};
-    if (typeof b.title === 'string' && b.title.trim()) fields.title = b.title.trim().slice(0, 120);
     if ('public' in b) {
       fields.public = !!b.public;
       fields.pub = null;

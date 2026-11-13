@@ -1,4 +1,4 @@
-// Studio, part 26 of 26: picture-in-picture, live: a camera in a corner of the program.
+// Studio, part 26 of 29: picture-in-picture, live: a camera in a corner of the program.
 // Loads after picsync.js: that import comes first, so the parts run in order (see ../studio.js).
 //
 // A shared screen (slides, a demo) on air with the presenter in a corner, live: the camera

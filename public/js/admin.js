@@ -18,7 +18,8 @@ async function signIn(key) {
     $('#signOut').hidden = false;
     await load(true);
     loadGrowth().catch((e) => toast(`Growth: ${e.message}`, 5000));
-    loadTraffic().catch((e) => toast(`Web traffic: ${e.message}`, 5000));
+    loadTraffic().catch((e) => toast(`Web traffic: ${e.message}`, 5000))
+      .then(loadServers).catch((e) => ($('#servers').innerHTML = `<p class="note">Couldn't read the servers: ${esc(e.message)}</p>`));
   } catch (e) {
     sessionStorage.removeItem('vm_admin');
     adminKey = '';
@@ -66,19 +67,18 @@ function timeUsed(e) {
 }
 function render() {
   const q = $('#filter').value.trim().toLowerCase();
-  const list = events.filter((e) => !q || e.title.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || (q === 'kiosk' && e.surface === 'kiosk') || (q === 'studio' && e.surface !== 'kiosk'));
+  // (no names: a show's name stays on its devices, and the server never has it)
+  const list = events.filter((e) => !q || e.id.toLowerCase().includes(q) || (q === 'kiosk' && e.surface === 'kiosk') || (q === 'studio' && e.surface !== 'kiosk') || String(e.kind || '').includes(q));
   $('#list').innerHTML = list.length
-    ? `<table><thead><tr><th scope="col">Code</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Created</th><th scope="col">Days left</th><th scope="col">Time used</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+    ? `<table><thead><tr><th scope="col">Code</th><th scope="col">Kind</th><th scope="col">Created</th><th scope="col">Days left</th><th scope="col">Time used</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
       <tbody>${list.map((e) => `<tr data-id="${e.id}">
-        <td class="code">${e.id}</td>
-        <th scope="row">${esc(e.title)}</th>
+        <th scope="row" class="code">${e.id}</th>
         <td><span class="tag ${e.surface === 'kiosk' ? 'kiosk' : 'studio'}">${e.surface === 'kiosk' ? 'KIOSK' : 'STUDIO'}</span></td>
         <td>${new Date(e.createdAt).toLocaleString()}</td>
         <td>${daysLeft(e)}</td>
         <td class="times">${timeUsed(e)}</td>
         <td>${e.live ? '<span class="tag live">LIVE</span> ' : ''}${e.published ? '<span class="tag">FILM</span> ' : ''}${e.orientation === 'portrait' ? '<span class="tag">PORTRAIT</span>' : ''}</td>
         <td><div class="acts">
-          <button type="button" data-act="rename">Rename</button>
           <button type="button" data-act="days">Set expiry</button>
           ${e.published ? '<button type="button" data-act="films">Delete film</button>' : ''}
           <button type="button" class="danger" data-act="delete">Delete</button>
@@ -96,20 +96,16 @@ $('#list').addEventListener('click', async (e) => {
   const id = b.closest('tr').dataset.id;
   const ev = events.find((x) => x.id === id);
   try {
-    if (b.dataset.act === 'rename') {
-      const title = prompt('New title', ev.title);
-      if (!title) return;
-      Object.assign(ev, (await call(`events/${id}`, { method: 'PATCH', body: { title } })).event);
-    } else if (b.dataset.act === 'days') {
+    if (b.dataset.act === 'days') {
       const d = prompt('Delete this event in how many days? (0–30)', String(daysLeft(ev)));
       if (d === null) return;
       Object.assign(ev, (await call(`events/${id}`, { method: 'PATCH', body: { daysLeft: Number(d) } })).event);
     } else if (b.dataset.act === 'films') {
-      if (!confirm(`Delete the published film for "${ev.title}"? This can't be undone.`)) return;
+      if (!confirm(`Delete the published film for ${id}? This can't be undone.`)) return;
       await call(`events/${id}/films`, { method: 'DELETE' });
       ev.published = null;
     } else if (b.dataset.act === 'delete') {
-      if (!confirm(`Delete "${ev.title}" (${id}) and everything stored for it? This can't be undone.`)) return;
+      if (!confirm(`Delete ${id} and everything stored for it? This can't be undone.`)) return;
       const r = await call(`events/${id}`, { method: 'DELETE' });
       events = events.filter((x) => x.id !== id);
       toast(`Deleted ${id}${r.removedFilms ? ` and ${r.removedFilms} file(s)` : ''}`);
@@ -374,4 +370,66 @@ $('#tCsv')?.addEventListener('click', () => {
   a.href = URL.createObjectURL(new Blob([rows.map((r) => r.join(',')).join('\n')], { type: 'text/csv' }));
   a.download = `vuemesh-traffic-${dayStr(Date.now())}.csv`;
   a.click();
+});
+
+// ------------------------------------------------------------------ servers --
+// The Lightsail servers (aws/stun): health, the month's data against the allowance, and the relay's
+// switch. And how many TURN passwords the site gave out (or didn't, and why), from the traffic counts.
+const gb = (bytes) => bytes / 1e9;
+function spark(points, fmt) {
+  if (!points.length) return '<p class="note">No numbers yet</p>';
+  const w = 300, h = 48, max = Math.max(...points.map((p) => p.v), 1e-9);
+  const xy = points.map((p, i) => `${((i / Math.max(points.length - 1, 1)) * w).toFixed(1)},${(h - 2 - (p.v / max) * (h - 4)).toFixed(1)}`);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Peak ${esc(fmt(max))}"><polyline fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" points="${xy.join(' ')}"/></svg>`;
+}
+function turnCounts(days) {
+  const sum = (k) => days.reduce((s, d) => s + (d[`turn:${k}`] || 0), 0);
+  return { given: sum('given'), limited: sum('limited'), other: sum('other_site'), off: sum('off') + sum('budget') };
+}
+async function loadServers() {
+  const r = await call('servers');
+  const kpi = (v, label) => `<div class="kpi"><b>${v}</b><span>${esc(label)}</span></div>`;
+  const week = trafficAll.filter((d) => d.day >= dayStr(Date.now() - 6 * DAY_MS));
+  const t = turnCounts(week);
+  const cards = (r.servers || []).map((s) => {
+    const byHour = new Map();
+    for (const p of [...s.day.netIn, ...s.day.netOut]) byHour.set(p.t, (byHour.get(p.t) || 0) + p.v);
+    const net = [...byHour].sort((a, b) => a[0] - b[0]).map(([t, v]) => ({ t, v }));
+    const dayGb = gb(net.reduce((a, p) => a + p.v, 0));
+    const peakMbps = Math.max(0, ...net.map((p) => (p.v * 8) / 3600 / 1e6));
+    const cpu = s.day.cpu.length ? Math.max(...s.day.cpu.map((p) => p.v)) : null;
+    const burst = s.day.burst.at(-1)?.v ?? null;
+    const failed = s.day.failed.reduce((a, p) => a + p.v, 0);
+    const pct = s.month.pct ?? 0;
+    return `<article class="server">
+      <header><b>${esc(s.name)}</b><span class="tag ${s.state === 'running' ? 'ok' : 'bad'}">${esc(s.state)}</span>
+        <span class="note">${esc(s.ip || '')} · ${esc(s.bundle || '')} · ${esc(s.region || '')}</span>
+        ${s.relay ? `<span class="tag ${s.relayOpen ? 'ok' : 'bad'}">relay ${s.relayOpen ? 'on' : 'off'}</span>
+        <button type="button" data-relay="${s.relayOpen ? 'off' : 'on'}" class="${s.relayOpen ? 'danger' : 'primary'}">${s.relayOpen ? 'Switch the relay off' : 'Switch the relay on'}</button>` : ''}
+        ${failed ? `<span class="tag bad">${failed} failed status check${failed > 1 ? 's' : ''} today</span>` : ''}
+      </header>
+      <div><div class="note">This month's data: ${s.month.usedGb.toFixed(2)} of ${s.month.allowanceGb ?? '?'} GB (${pct}%)${s.relay ? '. New TURN passwords stop at 90%; the relay switches itself off at 100%.' : ''}</div>
+        <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Data this month"><i class="${pct >= 100 ? 'over' : pct >= 75 ? 'warn' : ''}" style="width:${Math.min(100, pct)}%"></i></div></div>
+      <div class="kpis">${kpi(`${dayGb.toFixed(2)} GB`, 'Data, last 24 hours (in and out)')}${kpi(`${peakMbps.toFixed(1)} Mbit/s`, 'Busiest hour, on average')}${kpi(cpu === null ? '—' : `${cpu.toFixed(0)}%`, 'Processor, busiest hour')}${kpi(burst === null ? '—' : `${burst.toFixed(0)}%`, 'Burst capacity left')}</div>
+      <figure class="gchart">${spark(net, (v) => `${((v * 8) / 3600 / 1e6).toFixed(1)} Mbit/s`)}<figcaption>Data an hour, the last 24 hours</figcaption></figure>
+    </article>`;
+  });
+  const turn = `<div class="kpis">${kpi(t.given.toLocaleString(), 'TURN passwords given, last 7 days')}${kpi(t.limited.toLocaleString(), `Refused: too many from one address (over ${r.limits?.perAddressHour ?? '?'} an hour) or in all`)}${kpi(t.other.toLocaleString(), 'Refused: asked by another site or a script')}${kpi(t.off.toLocaleString(), 'Refused: relay off')}</div>`;
+  $('#servers').innerHTML = (cards.join('') || `<p class="note">${esc(r.note || 'No Lightsail servers in this region.')}</p>`) + turn;
+}
+$('#sRefresh')?.addEventListener('click', () => loadTraffic().then(loadServers).catch((e) => toast(e.message, 5000)));
+$('#servers')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-relay]');
+  if (!b) return;
+  const open = b.dataset.relay === 'on';
+  if (!open && !confirm('Switch the relay off? Devices relayed through it lose their connection now, and no new ones get through until it\'s on again. STUN keeps working.')) return;
+  b.disabled = true;
+  try {
+    await call('relay', { method: 'POST', body: { open } });
+    announce(`Relay switched ${open ? 'on' : 'off'}`);
+    await loadServers();
+  } catch (err) {
+    toast(err.message, 5000);
+    b.disabled = false;
+  }
 });

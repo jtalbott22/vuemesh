@@ -12,17 +12,18 @@ export const sha256hex = (s) => createHash('sha256').update(s).digest('hex');
 export const b64url = (buf) => Buffer.from(buf).toString('base64url');
 
 // (what a camera or microphone agrees to on joining; kept with the event when it's made, so an
-// event's terms never change under it)
-export function termsText({ title, kind }) {
+// event's terms never change under it. No show's name in them: names stay on the devices, and the
+// cloud never has them)
+export function termsText({ kind }) {
   // (a TV showing cameras itself, with no studio: nothing's recorded or kept there)
   if (kind === 'tv') {
     return [
-      `"${title}" is a TV screen. While you're connected, your camera or screen shows on it live, for everyone in the room.`,
+      `This is a TV screen. While you're connected, your camera or screen shows on it live, for everyone in the room.`,
       `Nothing is recorded on the TV or sent anywhere else.`,
     ].join(' ');
   }
   return [
-    `By joining "${title}" you add your angle to one shared production.`,
+    `By joining this show you add your angle to one shared production.`,
     `The host may use your clips in cuts of this event and publish them.`,
     `Your phone signs every clip you send, so your contribution is provably yours.`,
   ].join(' ');
@@ -97,6 +98,9 @@ export function km(lat1, lon1, lat2, lon2) {
 
 export function publicEvent(meta) {
   if (!meta) return null;
-  const { pk, sk, hostKeyHash, gh, pub, ttl, joined, usage, activeDay, lat: _lat, lon: _lon, ...rest } = meta; // (counting details stay private; no location, even on an old event)
+  // (counting details stay private; no location, even on an old event; and no name, which an event
+  // made before names stayed on the devices may still have till it deletes itself)
+  // (a call's checks too: its key's and PIN's hashes, wrong PINs so far, the passes of those let in)
+  const { pk, sk, hostKeyHash, gh, pub, ttl, joined, usage, activeDay, lat: _lat, lon: _lon, title: _title, keyCheck: _kc, pinHash: _ph, pinFails: _pf, passes: _ps, byStudio: _bs, ...rest } = meta;
   return rest;
 }

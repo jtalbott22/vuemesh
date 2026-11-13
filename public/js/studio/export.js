@@ -1,4 +1,4 @@
-// Studio, part 22 of 26: render and export, wrap.
+// Studio, part 22 of 29: render and export, wrap.
 // Loads after sync.js: that import comes first, so the parts run in order (see ../studio.js).
 import './sync.js';
 import { api, toast, fmtDur } from '/js/vm.js';
@@ -15,7 +15,7 @@ import { credits, soundCredits } from './edit.js';
 export function download(blob, base) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${base.replace(/[^\w-]+/g, '-')}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+  a.download = `${base.replace(/[^\w-]+/g, '-')}.${blob.type.includes('vtt') ? 'vtt' : blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
   document.body.append(a);
   a.click();
   a.remove();
@@ -171,7 +171,7 @@ $('#publishBtn').onclick = async () => {
     for (const tr of seq.tracks) for (const it of tr.items) if (it.type === 'clip') used.add(it.src);
     const manifest = {
       v: 2,
-      event: { id: eventId, title: ev.title, terms: ev.terms, termsHash: ev.termsHash, poolPct: ev.poolPct },
+      event: { id: eventId, terms: ev.terms, termsHash: ev.termsHash, poolPct: ev.poolPct }, // (not the show's name: that stays on the devices)
       credits: credits(),
       sound: soundCredits()[0] || null,
       clips: clips.filter((c) => used.has(c.id)).map(({ id, cid, name, jwk, joinSig, root, sig, t0, dur, kind }) => ({ id, cid, name, jwk, joinSig, root, sig, t0, dur, kind: kind || 'video' })),

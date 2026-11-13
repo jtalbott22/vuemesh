@@ -40,6 +40,8 @@ Browsers on Linux (Chromium and Chrome) can't record H.264 and fall back to VP9.
 
 Bring your own router and keep everyone on it. Venue and guest Wi-Fi often stop devices from reaching each other ("client isolation"), and then nothing connects locally.
 
+Devices that can't reach each other directly, on the network or over the internet (a phone on mobile data, a strict office network), connect through the site's relay (TURN, `aws/stun`) instead. It works, but it's the slowest path (pictures drop to the lowest live quality, "Mobile data or a relay" in the README), and it's there as a fallback, not a plan.
+
 - **Router:** Wi-Fi 6 on 5 GHz, in the room. A travel router works.
 - **Studio laptop:** plugged into the router by cable, and plugged into power.
 - **Live pictures:** about 1.2 Mbps per camera (light).
@@ -50,6 +52,21 @@ Bring your own router and keep everyone on it. Venue and guest Wi-Fi often stop 
 ### Record-only overflow
 
 The studio shows up to a set number of live pictures (12 by default; *Live → Output*). Phones that join beyond that are **recording only**: no live picture, but they record and send every clip as usual, and their phone tells them so. When a live camera leaves, the phone that has waited longest moves up automatically, and the director can **Swap in** any waiting phone (the live camera that has been off air longest steps back).
+
+### Calls
+
+A call (`/call`) has no studio: up to 6 people, each connected to each of the others (a "mesh": everyone sends their picture to everyone, which is why it stops at 6). Each pair has one connection, with three places in it from the start (sound, camera, screen), and only one of the two ever makes an offer, so a shared screen, or another camera (Switch camera), just fills its place. Pictures play muted, and each person's sound in a player of its own, started by hand (Tap to hear the call, if the browser wants a tap first); if someone's microphone is on and no sound has come from them for 8 seconds, they're asked to send it again.
+
+Keeping people out who weren't asked, with no accounts:
+- **The link carries the room's key after the `#`**, which browsers never send to a server. The page proves it has the key with the key's hash; the server keeps only a hash of that. The code alone gets nobody in.
+- **Typing the code needs the 6-digit PIN** (whoever started the call has it). Ten wrong PINs and only the link opens it.
+- **A waiting room.** Someone already in lets each newcomer in (or the first to arrive, in an empty call). Waiting, a device sees nobody and can only knock; its name goes with the knock and isn't kept. Anyone in the call can let people in, take them out (and keep them out), and lock it, with two exceptions: **nobody can take a studio out** (it proves it's one with its show's host key), and **a call a studio started is the studio's to run** while it's in it (only it lets people in, takes them out and locks it; with the studio gone, it's everyone's again). Anyone can leave.
+- **Coming back** after a dropped connection doesn't mean waiting again: the page made itself a pass, and the server keeps the pass's hash.
+- Calls delete themselves a day after they're made, and an address can start 20 an hour.
+
+Joining a call is the same code wherever it runs (`callmesh.js`): the call page, another computer's screen (`/share` with the call's link: one more in the call, sending only its screen and its sound), and the studio.
+
+**The studio in a call** (Add → People on a call, `studio/callin.js`) is one of its people. It starts a call (its link and PIN to send the guests) or joins one, and lets people in like anyone in it. Each person in the call is a source in the studio: their camera with their sound (ON in the mixer from the start: they're talking), and a screen they share as a source of its own. They're recorded on the studio computer as they arrive while they're on air, for Edit, as another computer's screen is; nothing is kept on their devices. The call sees the program as the studio's camera, and hears the program without its own people (a second sound bus every channel but theirs feeds): they already hear each other straight, and sent back to them they'd hear themselves late.
 
 ### Satellite studios (planned)
 

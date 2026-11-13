@@ -71,6 +71,12 @@ export const DEFAULTS = {
   betterFor: 1500, // ...steadily, for this long (scores are noisy; no twitchy cuts)
   goodAbove: 0.75, // a shot this good is fine on air: it isn't cut away from just because another is better
   breakBelow: 0.2, // if nothing is above this, go to the break slate
+  // with face tracking on (a step's ctx): who's talking, and who each camera sees
+  speakerFor: 1000,  // someone new has been talking this long before cutting to them...
+  speakerHold: 2000, // ...and the shot on air has been up at least this long
+  reactionHold: 3500, // a listener's face (a reaction shot) is held at least this long
+  pauseWait: 2500,   // a change of angle waits up to this long for a pause in the talking
+  blinkWait: 400,    // a cut to a face with its eyes shut waits up to this long for them to open
 };
 
 export class Director {
@@ -81,6 +87,8 @@ export class Director {
     this.badSince = null;
     this.better = null; // {id, since}: a candidate that has been clearly better
     this.lastOn = new Map();
+    this.reaction = false; // on a listener's face, not the speaker's
+    this.blinkSince = null;
   }
 
   /** Tell the director what's on air (after a manual cut, say). */
@@ -91,20 +99,28 @@ export class Director {
     this.since = now;
     this.badSince = null;
     this.better = null;
+    this.reaction = false;
+    this.blinkSince = null;
   }
 
   /**
    * @param now ms
-   * @param sources [{id, score, parts?, upright?}]
+   * @param sources [{id, score, parts?, upright?, sees?}]: sees (face tracking on) is
+   *   { speaker 0..1 (the one talking, well framed), faces 0..1 (someone facing it), size (the
+   *   speaker's face, 0..1 of the height), blink (eyes shut now) }
+   * @param ctx (face tracking on) { speaker (a number, or null), since (ms: talking from), name, pause (no one heard now) }
    * @returns {{cut?:string, reason?:string, breakOn?:boolean}}
    */
-  step(now, sources, output) {
+  step(now, sources, output, ctx = null) {
     const o = this.o;
+    // (face tracking: a shot of whoever's talking counts for more, a face for a little)
+    const subj = (s) => (s?.sees ? 0.25 * s.sees.speaker + 0.06 * s.sees.faces : 0);
+    sources = sources.map((s) => (s.sees ? { ...s, score: Math.min(1.3, s.score + subj(s)), raw: s.score } : s));
     const usable = sources.filter((s) => s.score >= o.breakBelow);
     if (!usable.length) return { breakOn: true, reason: 'No camera is usable right now' };
     const cur = sources.find((s) => s.id === this.current);
     const curScore = cur ? cur.score : -1;
-    if (cur && curScore < o.badBelow) this.badSince ??= now;
+    if (cur && (cur.raw ?? curScore) < o.badBelow) this.badSince ??= now;
     else this.badSince = null;
     const variety = (id) => Math.min(0.1, ((now - (this.lastOn.get(id) ?? now - 60000)) / 60000) * 0.1);
     const ranked = usable
@@ -121,6 +137,39 @@ export class Director {
       .filter((s) => s.score >= o.goodAbove || s.score >= curScore - 0.05)
       .sort((a, b) => offFor(b.id) - offFor(a.id) || b.score - a.score)[0];
     let reason = null;
+    const speaking = ctx?.speaker != null;
+    const showsSpeaker = (s) => (s?.sees?.speaker || 0) >= 0.5;
+    if (speaking && cur?.sees) {
+      // whoever's talking: on the shot that shows them best. For variety, another angle on them
+      // (a different size of shot, not a jump cut), or for a moment a listener's face
+      const onThem = ranked.filter(showsSpeaker);
+      const size = cur.sees.size || 0;
+      const angle = onThem
+        .map((s) => ({ ...s, adj: s.adj - (size && Math.abs((s.sees.size || 0) / size - 1) < 0.25 ? 0.05 : 0) }))
+        .sort((a, b) => offFor(b.id) - offFor(a.id) || b.adj - a.adj)[0];
+      const listener = ranked.filter((s) => !showsSpeaker(s) && (s.sees?.faces || 0) >= 0.5).sort((a, b) => b.adj - a.adj)[0];
+      const waitedForPause = ctx.pause || held >= o.maxHold + o.pauseWait;
+      if (!showsSpeaker(cur) && onThem.length && now - ctx.since >= o.speakerFor && held >= (this.reaction ? o.reactionHold : o.speakerHold)) {
+        best = onThem[0];
+        reason = `${ctx.name || 'The speaker'} is talking`;
+      } else if (showsSpeaker(cur) && held >= o.maxHold && waitedForPause && (angle || listener)) {
+        // (every third change, a listener if there is one: the rest, another angle on the speaker)
+        this.changes = (this.changes || 0) + 1;
+        best = angle && (!listener || this.changes % 3) ? angle : listener;
+        reason = best === angle ? `Another angle on ${ctx.name || 'the speaker'}` : 'A listener, for a moment';
+      }
+      if (reason) {
+        if (best?.sees?.blink) {
+          this.blinkSince ??= now;
+          if (now - this.blinkSince < o.blinkWait) return { breakOn: false }; // (not on a blink)
+        }
+        const toListener = !showsSpeaker(best);
+        this.set(best.id, now);
+        this.reaction = toListener;
+        return { cut: best.id, reason, breakOn: false };
+      }
+    }
+    if (!reason && speaking && cur?.sees && showsSpeaker(cur) && this.badSince === null) return { breakOn: false }; // (on the speaker, a good shot: stay)
     if (!cur) reason = best ? 'Starting on the best shot' : null;
     else if (best && this.badSince !== null && now - this.badSince >= o.badFor && best.score > curScore) {
       reason = `Cut away: on-air camera is ${whatsWrong(cur.parts, cur.upright, output, cur.fixed) || 'struggling'}`;

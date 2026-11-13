@@ -215,6 +215,12 @@
   .tile .who { position: absolute; left: 6px; right: 6px; bottom: 4px; font-size: .74rem; font-weight: 600; text-align: left; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .route { position: absolute; right: 6px; top: 4px; font-size: .64rem; font-weight: 700; padding: .05em .4em; border-radius: 3px; background: #000a; color: #fff; }
   .tile .route.lan { background: var(--preview); }
+  .tile .spktag { position: absolute; left: 6px; right: 6px; bottom: 20px; font-size: .66rem; font-weight: 700; text-align: left; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .speakers .spk { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; padding: 4px 6px; border-radius: 6px; margin: 0 0 4px; }
+  .speakers .spk.on { background: color-mix(in srgb, var(--preview) 18%, transparent); }
+  .speakers .spkn { margin: 0; font-weight: 700; font-size: .8rem; white-space: nowrap; }
+  .speakers input { margin: 0; min-width: 0; }
+  .speakers .spkw { grid-column: 1 / -1; margin: 0; }
   .tile .route.internet { background: var(--amber); color: #3b2500; }
   .tile .rec { position: absolute; right: 7px; bottom: 7px; }
   .tile.off { opacity: .4; }
@@ -1132,6 +1138,34 @@
         <label class="check" style="margin:0"><input type="checkbox" id="ltAuto" checked> Hide after 8 s</label>
       </div>
       <div class="ltrecent" id="ltRecent" role="group" aria-label="Recent lower thirds"></div>
+      </div>
+    </details>
+    <details class="card" id="cardCap" open data-mode="live">
+      <summary><span class="sT">Captions</span><span class="sD">What's said on the program, as text, worked out on this computer</span></summary>
+      <div class="sIn">
+      <label class="check" style="margin:0 0 6px"><input type="checkbox" id="capOn" aria-describedby="capState"> <b>Live captions</b> of the program's sound</label>
+      <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+        <label style="margin:0">Language <select id="capLang"></select></label>
+        <label class="check" style="margin:0"><input type="checkbox" id="capShow" checked> On the program</label>
+        <label style="margin:0">Listen to <select id="capSrc"><option value="program">The program's sound</option><option value="mic">This computer's microphone</option></select></label>
+      </div>
+      <p class="fine" style="margin:4px 0 0">Recognised by the browser on this computer: the sound isn't sent anywhere. Record program saves them beside the video as a captions file (.vtt).</p>
+      <p class="fine" id="capState" role="status" style="margin:4px 0 0"></p>
+      </div>
+    </details>
+    <details class="card" id="cardFaces" open data-mode="live">
+      <summary><span class="sT">Faces and speakers</span><span class="sD">Framing, cutting to whoever's talking, and who's who</span></summary>
+      <div class="sIn">
+      <label class="check" style="margin:0 0 6px"><input type="checkbox" id="facesOn" aria-describedby="facesState"> <b>Face tracking</b> on the cameras</label>
+      <div id="facesOpts" hidden>
+        <label class="check" style="margin:0 0 4px"><input type="checkbox" id="facesFollow" checked> Keep faces framed <span class="fine">(the shot on air is cropped to its subject and follows them, like a camera operator)</span></label>
+        <label class="check" style="margin:0 0 4px"><input type="checkbox" id="facesTalk" checked> Auto director cuts to whoever's talking <span class="fine">(and changes angle on them at a pause)</span></label>
+        <label class="check" style="margin:0 0 6px"><input type="checkbox" id="facesNames"> Show a speaker's name the first time they're on air <span class="fine">(a lower third, once you've named them)</span></label>
+        <div class="row" style="justify-content:space-between;align-items:center;margin:6px 0 2px"><h3 class="sub" style="margin:0">Speakers</h3><button type="button" class="small" id="speakersClear" title="Forget everyone: numbering starts again at Speaker 1">Start again</button></div>
+        <div id="speakers" class="speakers" aria-live="off"></div>
+      </div>
+      <p class="fine" style="margin:6px 0 0">Faces are found on this computer and nothing is sent anywhere. No face recognition: people are told apart by who's talking and where they are in each shot. People are also found by their pose, side-on or looking down; telling who's talking needs a face in view (or their own microphone).</p>
+      <p class="fine" id="facesState" role="status" style="margin:4px 0 0"></p>
       </div>
     </details>
     <details class="card" id="cardStream" open data-mode="live">

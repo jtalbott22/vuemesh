@@ -8,7 +8,7 @@
 // this screen's lag); or the event card. The studio chooses, or this screen does (the bar at the
 // top); PIP puts the live program in a corner while browsing or beaconing.
 
-import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc } from '/js/vm.js';
+import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc, showName } from '/js/vm.js';
 import { pathOf } from '/js/rtc.js';
 import { ProgramSound } from '/js/progsound.js';
 import { listen, stopListening } from '/js/tvdirect.js';
@@ -119,6 +119,7 @@ async function join(code) {
   $('#joinErr').textContent = '';
   try {
     ev = await api(`events/${code}`);
+    ev = { ...ev, title: showName(code) || undefined }; // (the name: the studio says it; the server never has it)
     // (a TV's own code, this one's or another's: that's for phones and computers to show on a TV)
     if (ev?.kind === 'tv') throw Object.assign(new Error('tv'), { tv: true });
     tvSound.setMeta(ev?.title || code, 'Live program');

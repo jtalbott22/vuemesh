@@ -1,4 +1,4 @@
-import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally } from '/js/vm.js';
+import { $, api, rememberEvent, myEvents, esc, toast, drawQR, now, fmtClock, themeButton, updateRemembered, forgetEventLocally, withShowName } from '/js/vm.js';
 import * as idb from '/js/idb.js';
 import { makeZip, ZIP_LIMIT } from '/js/zip.js';
 import { BRAND, TERMS_VERSION } from '/js/brand.js';
@@ -219,13 +219,14 @@ $('#create').addEventListener('submit', async (e) => {
   try {
     const title = $('#title').value.trim();
     const orientation = new FormData($('#create')).get('orientation') === 'portrait' ? 'portrait' : 'landscape';
-    // (nothing about where you are or what kind of event it is: a name and a shape, that's all)
-    const body = { title, orientation };
+    // (nothing about where you are or what kind of event it is, and not its name: just a shape. The
+    // name stays on this computer, and in the studio link after the #, which no server sees)
+    const body = { orientation };
     const { id, hostKey } = await api('events', { method: 'POST', body });
     localStorage.setItem('vm_terms', TERMS_VERSION);
     localStorage.setItem('vm_host_' + id, hostKey);
     rememberEvent({ id, title });
-    const studio = `${location.origin}/studio?e=${id}#k=${hostKey}`;
+    const studio = withShowName(`${location.origin}/studio?e=${id}#k=${hostKey}`, title);
     $('#madeCode').textContent = id;
     $('#beaconLink').href = `/beacon?e=${id}`;
     $('#studioLink').href = studio;
@@ -262,7 +263,7 @@ function renderMine() {
     const host = ev.role !== 'guest';
     const href = host ? `/studio?e=${ev.id}` : `/cam?e=${ev.id}`;
     return `<li data-ev="${ev.id}">
-      <a class="t" href="${href}">${esc(ev.title)}</a>
+      <a class="t" href="${href}">${esc(ev.title || `Show ${ev.id}`)}</a>
       <span class="m"><span class="badge">${host ? 'Host' : 'Guest'}</span><span>${ev.id}</span><span data-size>…</span><span data-status></span></span>
       <span class="acts">
         <a class="btn" href="${href}">Open</a>

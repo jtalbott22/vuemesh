@@ -70,7 +70,9 @@ every angle, already cut on the timeline and ready to re-cut.
   phones are all sources of the same kind, with the same switcher, mixer, recording and edit.
 - **LAN-first.** Remote devices find the studio through a tiny cloud handshake, then send everything
   **directly over the local network** with WebRTC. The cloud never carries raw video, so there's no
-  upload bottleneck and no bandwidth bill.
+  upload bottleneck and no bandwidth bill. Only devices that can't reach each other any other way
+  (a phone on mobile data, a strict office network) fall back to a small relay, which forwards
+  their media still encrypted end to end.
 - **Frame-accurate sync with no timecode hardware.** Sources on the studio computer share its clock.
   Phones read an optical clock off the beacon screen through their cameras, so angles from different
   devices line up to the frame.
@@ -130,6 +132,8 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Auto director** and **autopilot**, which can run a whole show alone: an intro clip, fade up, record, cut, and wrap up.
 - **Breaks your way:** six built-in slates (color bars, static, please stand by, test card, VHS, station clock) with your own message and an optional tone, your sponsors' stills and videos rotating through it, or your own clip on air instead. It goes up by itself if the camera on air drops (a setting, on by default).
 - **Lower thirds** and a **rundown** with cues.
+- **Faces and speakers:** face tracking on the cameras (on the studio's computer, no face recognition) keeps the shot on air framed like a camera operator would, lets the auto director cut to whoever's talking and change angle on them at a pause, and labels Speaker 1, Speaker 2… across cameras, for you to name: the names go on captions, tiles and lower thirds.
+- **Live captions** of the program's sound, recognised on the studio's computer (Chrome 139+ or Edge; the sound isn't sent anywhere): on the picture, and saved with Record program as a `.vtt` captions file.
 - **Picture-in-picture**: a camera in the corner over a shared screen, the presenter beside their slides.
 - **Live picture quality follows the show**: sharp on air, light on standby (see [the table](#live-picture-quality)).
 - **Record-only overflow:** past 12 live pictures, more phones still record and wait to swap in.
@@ -175,6 +179,8 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
 - **Show log:** frame rate, sound and alerts for each session, saved for later.
 - **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
+- **Calls** (`/call`): up to 6 people on cameras and shared screens, everyone connected to everyone. Send a link or a code and PIN; a waiting room lets nobody in until someone in the call does, and the call can be locked. Nothing recorded, no names on our server. Another computer can join just to show its screen (`/share` with the call's link).
+- **Guests from anywhere** (Add → People on a call): the studio starts or joins a call, and each person in it is a source (their camera and sound, and any screen they share), recorded here while on air. The call sees the program and hears it without themselves.
 - **Admin:** every event, its expiry and film, plus anonymous growth numbers and web traffic.
 
 </td>
@@ -449,12 +455,15 @@ screens that go on air or hang on a wall, or in automated test browsers). The [P
   the events you made or joined with their keys, names you typed, and settings (local storage keys
   starting `vm_`), plus a saved copy of the app for working offline. The page shows what this browser
   holds now and clears all of it with one button.
-- **On the server, for 30 days:** each event's name, code, shape and settings, a hash of the host key,
+- **On the server, for 30 days:** each event's code, shape and settings, a hash of the host key,
   and the agreed terms; connection records (a random device ID, its name and role) for under a day.
+  **Never a show's name:** it stays on the host's computer, the studio tells the devices in the show
+  over their own links, and a copied link carries it after the `#` (which no server sees). A call
+  keeps hashes of its checks for a day, and no names at all.
 - **Kept as anonymous daily totals:** events, joins, recordings and hours, and page views, with
   nothing that names a person, device, place or event. Page views aren't sent at all when the browser
   asks not to be tracked (Do Not Track or Global Privacy Control).
-- **Other services:** AWS hosts it, including our own STUN server (`aws/stun`) that helps devices find a path to each other.
+- **Other services:** AWS hosts it, including our own STUN and TURN server (`aws/stun`): it helps devices find a path to each other, and relays, encrypted and unrecorded, for the few that can't reach each other directly.
   Every font, script and image is served from the site itself.
 
 **If you change what's stored, change the Privacy page and [notice.js](public/js/notice.js) in the
@@ -565,7 +574,8 @@ stripped down: the cameras, the program, and its own join code beside them, puls
 the screen's height, with "Scan to start a show". No buttons, no inputs, and it asks the
 browser for nothing (no camera, microphone or screen): it only receives phones.
 
-- **The first phone to scan in names the show** ("You're first here: name the show"), and once
+- **The first phone to scan in names the show** ("You're first here: name the show"; the name goes
+  to the kiosk over the phone's own link, never to our server), and once
   it's locked in to the code gets **Go live**: a tap counts in 3-2-1 on the phone and on the
   kiosk, then the program fades up and records. (If that phone leaves, the next one gets Go
   live; after 3 minutes the show starts anyway.) Everyone after joins that show; the autopilot
@@ -699,5 +709,7 @@ VUEMesh name: a changed copy you run for others should have a name of its own.
 Bundled third-party code keeps its own license: the QR code generator (`public/vendor/qrcode.js`,
 MIT, Kazuhiko Arase), jsQR (`public/vendor/jsQR.js`, Apache 2.0), mp4-muxer
 (`public/vendor/mp4-muxer.js`, MIT), mp4box.js (`public/vendor/mp4box.min.js`, BSD 3-Clause, GPAC),
+MediaPipe Tasks Vision and its face and pose landmarker models (`public/vendor/mediapipe/`, Apache 2.0, Google;
+modified so it sends no usage counts, see its [README](public/vendor/mediapipe/README.md)),
 and the Barlow fonts (`public/fonts/`, SIL Open Font License, see
 [LICENSE-Barlow-OFL.txt](public/fonts/LICENSE-Barlow-OFL.txt)).

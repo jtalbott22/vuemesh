@@ -17,7 +17,7 @@ with sync_playwright() as p:
     host = ctx.new_page(); host.on('pageerror', lambda e: errors.append(f'host: {e}')); host.on('dialog', lambda d: d.accept())   # ("Leave site?" while recording: yes)
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Breaks'})})).json()""")
-    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Breaks")  # (the name rides in the studio link)
     host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=15000)
     host.evaluate("document.querySelector('#recProgBtn').click()")   # (the director records the show: cameras on air record only then)
     ph = {}

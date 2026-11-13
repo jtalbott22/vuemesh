@@ -18,7 +18,7 @@ with sync_playwright() as p:
     host.goto(BASE + '/')
     ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Mic night'})})).json()""")
     host.evaluate("localStorage.setItem('vm_autorec_default', '0')")  # (this suite predates recording on air)
-    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+    host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Mic%20night")  # (the name rides in the studio link; the phone hears it from the studio)
     host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=10000)
     ctx = b.new_context(viewport={'width': 412, 'height': 915}, user_agent=ANDROID, permissions=['camera', 'microphone'])
     mic = ctx.new_page(); mic.on('pageerror', lambda e: errors.append(f'mic: {e}')); mic.on('dialog', lambda d: d.accept())

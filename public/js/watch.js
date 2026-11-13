@@ -13,8 +13,10 @@ init().catch((e) => {
 
 async function init() {
   const ev = await api(`events/${eventId}`);
-  document.title = ev.title;
-  $('#title').textContent = ev.title;
+  // (the show's name never reaches the server: a published film has the name its host gave it)
+  const name = ev.published?.title || `Show ${eventId}`;
+  document.title = name;
+  $('#title').textContent = name;
   $('#camLink').href = `/cam?e=${eventId}`;
   if (!ev.published) {
     $('#film').hidden = true;

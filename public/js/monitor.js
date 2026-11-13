@@ -256,6 +256,11 @@ function render(d) {
   // (each phone remote's own link: the show's state and the cameras' pictures, while it's open; its Program out is above, as a TV)
   for (const r of d.remotes || []) liveOut.push(stream(r.name, `Phone remote · control${r.visible ? ', open on its screen (with camera pictures)' : ', in the background'}${r.since ? ` · joined ${since(r.since)} ago` : ''}${r.heard && Date.now() - r.heard > 15000 ? ` · last heard ${since(r.heard)} ago` : ''}`, r.kbps));
   if (d.stream) liveOut.push(stream(d.stream.name || 'Stream', 'the program, streaming out', d.stream.kbps));
+  // (the studio's call: the program, and its sound without the call's own people, to each in it)
+  if (d.call) {
+    if (!d.call.in) liveOut.push(stream(`Call ${d.call.id}`, 'waiting to be let in', null, false));
+    for (const g of d.call.to || []) liveOut.push(stream(g.name || 'A guest', `Call ${d.call.id} · the program and its sound${g.w ? ` ${g.w}×${g.h}` : ''}${g.codec ? ` ${g.codec}` : ''}${g.relayed ? ' · through the relay' : ''}`, g.kbps, g.connected));
+  }
   const xin = [...liveIn, ...inc.map((x) => row(x.name, 'recording', x))], xout = [...liveOut, ...out.map((x) => row(x.name, `part ${x.part} of the live cut`, x))];
   $('#nXfer').textContent = inc.length + out.length || '';
   $('#xfIn').innerHTML = xin.length ? xin.join('') : '<p class="empty">Nothing coming in.</p>';

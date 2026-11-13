@@ -37,7 +37,7 @@ try:
         host.goto(BASE + '/')
         ev = host.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Offline show'})})).json()""")
         host.evaluate("localStorage.setItem('vm_autorec_default', '0')")
-        host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+        host.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Offline%20show")  # (the name rides in the studio link; this computer keeps it)
         host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=15000)
         ph = {}
         for name in ['Rosa', 'Dev']:

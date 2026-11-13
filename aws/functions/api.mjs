@@ -4,11 +4,26 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Route53Client, ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand } from '@aws-sdk/client-route-53';
 import { api } from './lib/core.mjs';
 import { dynamoStore } from './lib/store-dynamo.mjs';
+import { lightsail } from './lib/lightsail.mjs';
+import { guard } from './lib/relay-guard.mjs';
 
 const store = dynamoStore(process.env.TABLE);
 const s3 = new S3Client({});
 const Bucket = process.env.BUCKET;
 const flags = { globe: process.env.GLOBE_ENABLED === 'true', publish: process.env.PUBLISH_ENABLED === 'true' };
+// The site's relay (aws/stun): the secret its passwords are signed with, and its addresses
+// ("off" when deployed without one: SAM can't be given an empty value)
+const on = (v) => (v && v !== 'off' ? v : '');
+const turn = { secret: on(process.env.TURN_SECRET), urls: on(process.env.TURN_URLS).split(',').map((u) => u.trim()).filter(Boolean) };
+// The Lightsail servers: Admin's health view and the relay's switch; the relay's state, looked at
+// at most every 5 minutes, decides whether /ice gives passwords
+const servers = lightsail();
+let relayCache = { at: 0, value: null };
+const relayState = async () => {
+  // (the guard's check too, in case its schedule isn't running: past the allowance, switched off)
+  if (Date.now() - relayCache.at > 5 * 60_000) relayCache = { at: Date.now(), value: await guard(servers) };
+  return relayCache.value;
+};
 const adminKeyHashes = (process.env.ADMIN_KEY_HASHES || '').split(',').map((h) => h.trim()).filter(Boolean);
 
 async function listFilms(Prefix) {
@@ -64,7 +79,7 @@ export async function handler(event) {
   try { body = body ? JSON.parse(body) : undefined; } catch { body = undefined; }
   const res = await api(
     { method: event.requestContext.http.method, path: event.rawPath, query: event.queryStringParameters || {}, headers: event.headers || {}, body, ip: event.requestContext.http.sourceIp || '' },
-    { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN },
+    { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN, turn, servers: { status: servers.status, setRelay: async (open) => { relayCache.at = 0; return servers.setRelay(open); } }, relayState: turn.secret ? relayState : null },
   );
   return { statusCode: res.status, headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(res.body) };
 }

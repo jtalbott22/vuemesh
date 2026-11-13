@@ -1,4 +1,4 @@
-// Studio, part 11 of 26: the full screen control room, crew messages and rundown, moments.
+// Studio, part 11 of 29: the full screen control room, crew messages and rundown, moments.
 // Loads after stream.js: that import comes first, so the parts run in order (see ../studio.js).
 import './stream.js';
 import { toast, esc, now, announce } from '/js/vm.js';
@@ -90,6 +90,9 @@ export function dmRow(peer, l, i) {
     row.querySelector('button').onclick = () => openDm(peer);
     (l.card || l.tile.parentNode).append(row);
   }
+  // (the name as it is now: one can come after the source, a call's guest's, a moment after her picture)
+  const label = `Message ${l.name}`;
+  if (row.firstElementChild.getAttribute('aria-label') !== label) row.firstElementChild.setAttribute('aria-label', label);
   renderDmStat(peer);
 }
 /** Another computer's screen (or anything that can't show a message) has no message box. */

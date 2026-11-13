@@ -1,4 +1,4 @@
-// Studio, part 25 of 26: one timeline for every camera and microphone on this computer.
+// Studio, part 25 of 29: one timeline for every camera and microphone on this computer.
 // Loads after showlog.js: that import comes first, so the parts run in order (see ../studio.js).
 import './showlog.js';
 import { toast, esc } from '/js/vm.js';

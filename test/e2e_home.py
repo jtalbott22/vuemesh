@@ -34,7 +34,7 @@ with sync_playwright() as p:
     step('Kiosk opened a kiosk show straight away')
     # the Edit page without its event code: the last event edited here
     ev = pg.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Edit me'})})).json()""")
-    pg.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}")
+    pg.goto(f"{BASE}/studio?e={ev['id']}#k={ev['hostKey']}&n=Edit%20me")  # (the name rides in the studio link)
     pg.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=60000)
     with ctx.expect_page() as pop: pg.evaluate("document.querySelector('#editTab').click()")
     pop.value.close()

@@ -19,10 +19,10 @@ Video only reaches AWS once: when the host publishes the finished film.
 ## What it costs
 
 - **Per request, scale to zero:** Lambda, API Gateway (HTTP + WebSocket), DynamoDB on-demand. An event with 50 phones is a few thousand small messages.
-- **No TURN server.** A TURN server relays video when two devices can't reach each other directly, and you pay for every byte. VUEMesh skips it: phones join the venue Wi-Fi and connect straight to the host laptop. Discovery and handshakes (what you described as "act as a TURN or something") are signaling, which is cheap.
+- **TURN only as a last resort.** A TURN server relays video when two devices can't reach each other directly, and every byte it relays counts. Phones on the venue Wi-Fi connect straight to the host laptop and never use it; discovery and handshakes are signaling, which is cheap. The relay is the same small server as STUN (below), for the devices that can't connect any other way (a phone on mobile data, a strict office network).
 - **The one thing that grows with success** is people watching published films through CloudFront. CloudFront's always-free allowance is 1 TB of data out and 10 million requests per month.
 - **S3** stores the site and published films only. Raw clips stay on the host laptop.
-- **Our own STUN server** (`aws/stun`, optional): one small Lightsail server, about $5 a month, so devices ask us for their public address instead of Google. STUN is UDP, so it can't be a Lambda. See [stun/README.md](stun/README.md).
+- **Our own STUN and TURN server** (`aws/stun`, optional): one small Lightsail server, about $5 a month, so devices ask us for their public address instead of Google, and the few that can't reach each other directly connect through it (relayed media uses its data allowance). STUN and TURN are UDP, so it can't be a Lambda. See [stun/README.md](stun/README.md), which also says how the relay is kept from being abused without accounts (Admin → Servers shows it, and switches it off and on).
 
 ## One-time setup
 
@@ -35,7 +35,7 @@ Video only reaches AWS once: when the host publishes the finished film.
 From the project folder:
 
 ```bash
-./aws/stun/deploy.sh   # once: the STUN server (or skip it and run the next line with STUN=google)
+./aws/stun/deploy.sh   # once: the STUN and TURN server (or skip it and run the next line with STUN=google)
 ./aws/deploy.sh
 ```
 
@@ -106,7 +106,7 @@ The deploy also publishes the server's own code (`relay/lib/`) and a list of the
 
 - **Campus and hotel Wi-Fi usually block devices from talking to each other** ("client isolation"). Bring a small travel router, plug or tether it to the internet, and have everyone join that network. This is the fix 9 times out of 10.
 - Phones on cellular can often still connect over the internet (amber badge), but carrier networks frequently block it. Their clips stay safely on the phone and send when they join the Wi-Fi, and guests can always tap **Save** to keep a copy.
-- If you ever need to reach people who can't be on the local network, add a TURN server (for example, coturn on a small EC2 instance) and list it in `config.js` as `iceServers`. That's the point where video starts costing you bandwidth.
+- With the relay (`aws/stun`) deployed, devices that can't reach each other over the internet connect through it. It's the slowest path and the one that costs data, so the travel router is still the better fix.
 
 ## Tear it down
 

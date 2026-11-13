@@ -80,7 +80,7 @@ let offlinePages = false; // (and the pages too: as for a phone with no internet
 // (tests: a connection that has quietly died on the way, as a network blip can leave one: the server
 // takes it for gone, nothing reaches it and nothing from it arrives, but its page never hears it close)
 const roles = new Map(), silenced = new Set();
-const TYPES = { '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.webp': 'image/webp' };
+const TYPES = { '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.webp': 'image/webp', '.wasm': 'application/wasm', '.task': 'application/octet-stream' };
 
 const post = async (connId, data) => {
   const ws = sockets.get(connId);

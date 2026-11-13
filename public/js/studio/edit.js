@@ -1,4 +1,4 @@
-// Studio, part 16 of 26: Edit mode, transforms, Program monitor handles, dissolves, the export range.
+// Studio, part 16 of 29: Edit mode, transforms, Program monitor handles, dissolves, the export range.
 // Loads after phones.js: that import comes first, so the parts run in order (see ../studio.js).
 import './phones.js';
 import { toast, esc, fmtDur, announce } from '/js/vm.js';

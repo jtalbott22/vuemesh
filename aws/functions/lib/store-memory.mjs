@@ -6,6 +6,7 @@ export function memoryStore() {
   const stats = new Map(); // day -> counts (kept)
   const snaps = [];
   const lans = new Map(); // slug -> a local show's address and its owner
+  const counters = new Map(); // rate counts (TURN passwords an hour)
   const clone = (o) => (o ? JSON.parse(JSON.stringify(o)) : null);
   return {
     async getEvent(id) { return clone(events.get(id)); },
@@ -78,6 +79,10 @@ export function memoryStore() {
     async daySalt(day, fresh) {
       if (!salts.has(day)) salts.set(day, fresh);
       return salts.get(day);
+    },
+    async countUp(key) { // (expiry isn't kept here: dev and tests only)
+      counters.set(key, (counters.get(key) || 0) + 1);
+      return counters.get(key);
     },
     async markOnce(key) {
       if (seen.has(key)) return false;

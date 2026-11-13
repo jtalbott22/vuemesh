@@ -1,12 +1,13 @@
 // Unit tests for the cloud core (the same code the Lambdas run), using the in-memory store.
 import assert from 'node:assert/strict';
-import { api, signal } from '../aws/functions/lib/core.mjs';
+import { api, signal, iceServers, TURN_LIMITS, CALL } from '../aws/functions/lib/core.mjs';
+import { guard } from '../aws/functions/lib/relay-guard.mjs';
 import { memoryStore } from '../aws/functions/lib/store-memory.mjs';
 import { geohash, nearbyCells } from '../aws/functions/lib/common.mjs';
 
 const store = memoryStore();
 let clock = Date.now();
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 const ADMIN_KEY = 'test-admin-key';
 const films = new Map([['films/ZZZZZZ/old.mp4', 5]]);
 const deps = {
@@ -29,7 +30,9 @@ const a = await call('POST', '/events', { title: 'Garage show', kind: 'show', po
 assert.equal(a.status, 200);
 const { id, hostKey } = a.body;
 const got = await call('GET', `/events/${id}`);
-assert.equal(got.body.title, 'Garage show');
+assert.equal(got.body.kind, 'show');
+assert.ok(!('title' in got.body) && !('title' in (await store.getEvent(id))), "a show's name sent with an event is never kept (names stay on the devices)");
+assert.ok(!got.body.terms.includes('Garage show') && got.body.terms.includes('this show'), 'nor is it in the terms');
 assert.ok(!('lat' in got.body) && !('lon' in got.body), 'a location sent with an event is never kept');
 assert.ok(!('hostKeyHash' in got.body) && !('gh' in got.body), 'secrets hidden');
 ok('create and read an event');
@@ -198,14 +201,14 @@ assert.ok(list.body.next, 'admin list pages');
 const one = await call('GET', `/admin/events/${id}`, null, A);
 assert.equal(one.body.films.length, 2);
 const renamed = await call('PATCH', `/admin/events/${id}`, { title: 'Renamed', daysLeft: 2 }, A);
-assert.equal(renamed.body.event.title, 'Renamed');
+assert.ok(!('title' in renamed.body.event) && !('title' in (await store.getEvent(id))), 'admin can’t give a show a name either');
 assert.ok(Math.abs(renamed.body.event.expiresAt - (clock + 2 * 86400000)) < 2000);
 await call('DELETE', `/admin/events/${id}/films`, null, A);
 assert.equal(films.size, 1, 'deleting films leaves other events alone');
 assert.equal((await call('GET', `/events/${id}`)).body.published, undefined, 'film link removed');
 await call('DELETE', `/admin/events/${id}`, null, A);
 assert.equal((await call('GET', `/events/${id}`)).status, 404, 'event gone');
-ok('admin: stats, paging, rename, set expiry, delete films, delete event');
+ok('admin: stats, paging, no names, set expiry, delete films, delete event');
 
 // expiry: past its ttl an event is gone immediately, even before DynamoDB's TTL sweep
 const exp = await call('POST', '/events', { title: 'Short lived' });
@@ -225,18 +228,19 @@ ok('events expire after 30 days for the API and signaling');
   assert.equal((await call('DELETE', `/events/${k2.id}`, undefined, { 'x-host-key': k2.hostKey })).status, 200);
   assert.equal((await call('GET', `/events/${k2.id}`)).status, 404, 'deleted now');
   ok('kiosk: a show started at a kiosk deletes itself after 12 hours; its host can delete it now (and only its host)');
-  // an untitled kiosk show: the first phone names it, once
+  // an unnamed kiosk show: its first phone names it over their own link (the server never has the
+  // name); the kiosk says only that it's named
   const k3 = (await call('POST', '/events', { kiosk: true })).body;
   const before = (await call('GET', `/events/${k3.id}`)).body;
-  assert.deepEqual([before.title, before.titled, before.joined, before.usage], ['New show', false, undefined, undefined]);
-  const named = await call('POST', `/events/${k3.id}/name`, { title: 'Open mic night' });
-  assert.equal(named.status, 200);
-  assert.ok(named.body.title === 'Open mic night' && named.body.titled && named.body.termsHash !== before.termsHash && named.body.terms.includes('Open mic night'), 'named, with terms that say so');
-  const late = await call('POST', `/events/${k3.id}/name`, { title: 'Something else' });
-  assert.deepEqual([late.status, late.body.title], [409, 'Open mic night'], 'the second phone gets the name that stuck');
-  const plain = (await call('POST', '/events', { title: 'Plain' })).body;
-  assert.equal((await call('POST', `/events/${plain.id}/name`, { title: 'Hijack' })).status, 403, 'an ordinary event isn\u2019t named by whoever arrives');
-  ok('kiosk: an untitled kiosk show is named by the first phone (terms remade with the name); the next gets that name; ordinary events can\u2019t be renamed this way');
+  assert.deepEqual([before.title, before.titled, before.joined, before.usage], [undefined, false, undefined, undefined]);
+  assert.equal((await call('POST', `/events/${k3.id}/name`, { title: 'Open mic night' })).status, 410, 'the old naming route is gone');
+  assert.equal((await call('PATCH', `/events/${k3.id}`, { titled: true })).status, 403, 'only the kiosk says it');
+  const named = await call('PATCH', `/events/${k3.id}`, { titled: true, title: 'Open mic night' }, { 'x-host-key': k3.hostKey });
+  assert.ok(named.body.titled === true && !('title' in named.body) && !('title' in (await store.getEvent(k3.id))), 'named, without the name');
+  assert.equal(named.body.termsHash, before.termsHash, 'terms unchanged: they never had the name');
+  const plain = (await call('POST', '/events', {})).body;
+  assert.equal((await call('PATCH', `/events/${plain.id}`, { titled: true }, { 'x-host-key': plain.hostKey })).body.titled, undefined, 'only a kiosk show is named that way');
+  ok('kiosk: an unnamed kiosk show says it is named (never the name); the old naming route is gone');
 }
 
 // admin: what kind of event, and the time used on each part
@@ -400,11 +404,239 @@ ok('events expire after 30 days for the API and signaling');
   const tv = await call('POST', '/events', { title: 'Lobby TV', kind: 'tv' });
   const got = await call('GET', `/events/${tv.body.id}`);
   assert.equal(got.body.kind, 'tv');
-  assert.ok(/is a TV screen/.test(got.body.terms) && /Nothing is recorded/.test(got.body.terms) && !/publish/.test(got.body.terms), got.body.terms);
+  assert.ok(/is a TV screen/.test(got.body.terms) && /Nothing is recorded/.test(got.body.terms) && !/publish/.test(got.body.terms) && !/Lobby TV/.test(got.body.terms), got.body.terms);
   const other = await call('POST', '/events', { title: 'Band night', kind: 'show' });
   const show = await call('GET', `/events/${other.body.id}`);
   assert.ok(/publish them/.test(show.body.terms), show.body.terms);
   ok("a TV's own code: its terms say it's a TV and nothing is recorded; a show's are as before");
+}
+
+{
+  // TURN passwords for the relay (aws/stun): coturn's use-auth-secret, a day long, nothing about who asked
+  const none = await call('GET', '/api/ice');
+  assert.deepEqual(none.body, { iceServers: [], ttl: 0 }, 'no relay set up: none handed out');
+  const turn = { secret: 'test-turn-secret', urls: ['turn:stun.example:3478?transport=udp', 'turn:stun.example:3478?transport=tcp'] };
+  const site = { origin: 'https://cdn.example' };
+  const ask = (headers = site, ip = '203.0.113.7', more = {}) => api({ method: 'GET', path: '/api/ice', headers, query: {}, ip }, { ...deps, turn, ...more });
+  const r = await ask();
+  const [srv] = r.body.iceServers;
+  assert.deepEqual(srv.urls, turn.urls);
+  const [expiry, id] = srv.username.split(':');
+  assert.equal(Number(expiry), Math.floor(clock / 1000) + 86400, 'good for a day');
+  assert.match(id, /^[0-9a-f]{12}$/, 'a random id, nothing about the device');
+  assert.equal(srv.credential, createHmac('sha1', turn.secret).update(srv.username).digest('base64'));
+  assert.notEqual(iceServers(turn, clock).iceServers[0].username, srv.username, 'a new one each time');
+  assert.equal(r.body.ttl, 86400);
+  ok('TURN passwords: none without a relay; HMAC-SHA1 of "<expiry>:<id>", a day long');
+
+  // only this site's pages: another site (its visitors' browsers say so) or a script without an origin gets none
+  assert.equal((await ask({ origin: 'https://freeloader.example' })).body.iceServers.length, 0);
+  assert.equal((await ask({})).body.why, 'only for this site');
+  assert.equal((await ask({ origin: 'https://www.cdn.example' })).body.iceServers.length, 1, 'www. is this site too');
+  ok("TURN passwords: only for this site's pages, not another site's or a script without an origin");
+
+  // a few an hour per address, then none (another address still gets one); the next hour, again
+  let given = 0;
+  for (let i = 0; i < 40; i++) given += (await ask(site, '198.51.100.9')).body.iceServers.length;
+  assert.equal(given, TURN_LIMITS.perAddressHour, `${TURN_LIMITS.perAddressHour} an hour from one address`);
+  assert.equal((await ask(site, '198.51.100.9')).body.why, 'too many, try again later');
+  assert.equal((await ask(site, '198.51.100.10')).body.iceServers.length, 1, 'another address still gets one');
+  clock += 3600_000;
+  assert.equal((await ask(site, '198.51.100.9')).body.iceServers.length, 1, 'the next hour, again');
+  ok(`TURN passwords: ${TURN_LIMITS.perAddressHour} an hour per address, then none`);
+
+  // switched off, or the month's data nearly used: none
+  assert.equal((await ask(site, '192.0.2.1', { relayState: async () => ({ open: false, share: 0 }) })).body.why, 'relay off');
+  assert.equal((await ask(site, '192.0.2.1', { relayState: async () => ({ open: true, share: 0.95 }) })).body.iceServers.length, 0, 'over 90% of the month');
+  assert.equal((await ask(site, '192.0.2.1', { relayState: async () => ({ open: true, share: 0.5 }) })).body.iceServers.length, 1);
+  assert.equal((await ask(site, '192.0.2.1', { relayState: async () => { throw new Error('Lightsail down'); } })).body.iceServers.length, 1, "Lightsail not answering doesn't stop shows");
+  const t = (await store.listTraffic(new Date(clock).toISOString().slice(0, 10), new Date(clock).toISOString().slice(0, 10)))[0];
+  assert.ok(t['turn:given'] >= 1 && t['turn:off'] === 1 && t['turn:budget'] === 1, JSON.stringify(t));
+  ok('TURN passwords: none while the relay is off or past 90% of the month; counted, given or why not');
+}
+
+{
+  // Admin: the Lightsail servers and the relay's switch
+  const admin = { 'x-admin-key': ADMIN_KEY };
+  assert.deepEqual((await call('GET', '/admin/servers', undefined, admin)).body.servers, [], 'none without Lightsail access');
+  let open = true;
+  const servers = { status: async () => [{ name: 'vuemesh-stun-2', relay: true, relayOpen: open }], setRelay: async (o) => ((open = o), { name: 'vuemesh-stun-2', open }) };
+  const a = (method, path, body, headers = admin) => api({ method, path, body, headers, query: {} }, { ...deps, servers });
+  assert.equal((await a('GET', '/admin/servers', undefined, {})).status, 403, 'admin only');
+  assert.equal((await a('GET', '/admin/servers')).body.servers[0].name, 'vuemesh-stun-2');
+  assert.equal((await a('POST', '/admin/relay', { open: 'no' })).status, 400);
+  assert.equal((await a('POST', '/admin/relay', { open: false }, {})).status, 403, 'only admin switches it');
+  assert.deepEqual((await a('POST', '/admin/relay', { open: false })).body, { name: 'vuemesh-stun-2', open: false });
+  assert.equal(open, false);
+
+  // the guard: past the allowance the relay is switched off; under it, left alone
+  const fake = (share, isOpen = true) => { const calls = []; return { calls, relay: async () => ({ name: 'r', open: isOpen, usedGb: share * 1024, allowanceGb: 1024, share }), setRelay: async (o) => calls.push(o) }; };
+  const over = fake(1.01), under = fake(0.8), closed = fake(1.2, false);
+  assert.equal((await guard(over, clock, () => {})).switchedOff, true); assert.deepEqual(over.calls, [false]);
+  await guard(under, clock, () => {}); assert.deepEqual(under.calls, []);
+  await guard(closed, clock, () => {}); assert.deepEqual(closed.calls, [], 'already off');
+  ok('admin: the servers and the relay switch, admin only; the guard switches the relay off past the allowance');
+}
+
+{
+  // Calls: a room key after the # (only its hash reaches the server), a PIN for typing the code,
+  // a waiting room, and everyone in the call talking to everyone
+  const sha = (s) => createHash('sha256').update(s).digest('hex');
+  const roomKey = 'room-key-only-the-link-has', kh = sha(roomKey);
+  assert.equal((await call('POST', '/events', { kind: 'call' })).status, 400, 'a call needs its key hash');
+  const made = (await call('POST', '/events', { kind: 'call', kh, title: 'Family call' })).body;
+  const { id: cid, hostKey: chk, pin } = made;
+  assert.match(pin, /^\d{6}$/);
+  const stored = await store.getEvent(cid);
+  assert.ok(!JSON.stringify(stored).includes(roomKey) && !JSON.stringify(stored).includes(kh) && !JSON.stringify(stored).includes(pin) && !('title' in stored), 'the server keeps no key, no key hash, no PIN, no name');
+  const pub = (await call('GET', `/events/${cid}`)).body;
+  assert.ok(!('keyCheck' in pub) && !('pinHash' in pub) && !('passes' in pub) && !('pinFails' in pub), 'nor shows its checks');
+  ok('calls: made with a key hash; the server keeps neither key nor PIN nor name');
+
+  const enter = (body) => call('POST', `/events/${cid}/enter`, body);
+  assert.equal((await enter({})).status, 403, 'not on the code alone');
+  assert.equal((await enter({ kh: sha('a guess') })).status, 403, 'not with the wrong key');
+  assert.deepEqual((await enter({ kh })).body, { ok: true, waiting: false }, 'the first into an empty call goes straight in');
+  assert.equal((await enter({ pin: '000000' === pin ? '111111' : '000000' })).status, 403);
+  assert.equal((await enter({ pin })).status, 200, 'or with the code and PIN');
+  ok('calls: in with the link or the code and PIN, never the code alone');
+
+  // the room: A first (straight in), then B (waits)
+  const cconnect = (conn, q) => connect(conn, { e: cid, ...q });
+  const ph = (p) => sha(p);
+  assert.equal((await cconnect('A', { role: 'guest', peer: 'PA', kh: sha('nope') })).status, 403, 'the socket checks too');
+  assert.equal((await cconnect('A', { role: 'guest', peer: 'PA', kh, ph: ph('passA'), cid: 'devA', name: 'Ann' })).status, 200);
+  await sig('$default', 'A', { body: JSON.stringify({ action: 'hello' }) });
+  assert.equal(last('A', 'peers').waiting, undefined, 'A is in');
+  assert.equal((await cconnect('B', { role: 'guest', peer: 'PB', kh, ph: ph('passB'), cid: 'devB', name: 'Bob' })).status, 200);
+  await sig('$default', 'B', { body: JSON.stringify({ action: 'hello' }) });
+  assert.deepEqual([last('B', 'peers').waiting, last('B', 'peers').peers], [true, []], 'B waits, and sees nobody');
+  assert.ok((await store.listConns(cid)).every((c) => c.name === ''), 'no names kept on the connections');
+  assert.deepEqual(last('A', 'peers').peers.map((p) => [p.peer, p.waiting]), [['PA', false], ['PB', true]], 'A sees someone waiting');
+  await sig('$default', 'B', { body: JSON.stringify({ action: 'knock', name: 'Bob' }) });
+  assert.deepEqual(last('A', 'knock'), { type: 'knock', from: 'PB', name: 'Bob' }, "B's knock, with the name it gave, reaches A");
+  assert.ok(!JSON.stringify(await store.listConns(cid)).includes('Bob') && !JSON.stringify(await store.getEvent(cid)).includes('Bob'), 'and the name is not kept');
+  await sig('$default', 'B', { body: JSON.stringify({ action: 'signal', to: 'PA', data: { kind: 'offer' } }) });
+  assert.equal(last('A', 'signal'), undefined, 'a waiting device can’t signal anyone');
+  await sig('$default', 'B', { body: JSON.stringify({ action: 'admit', peer: 'PB' }) });
+  assert.equal(last('B', 'admitted'), undefined, "a waiting device can't let itself in");
+  await sig('$default', 'A', { body: JSON.stringify({ action: 'admit', peer: 'PB' }) });
+  assert.deepEqual(last('B', 'admitted'), { type: 'admitted', by: 'PA' });
+  assert.deepEqual(last('B', 'peers').peers.map((p) => p.waiting), [false, false], 'B in, and hears who is');
+  await sig('$default', 'B', { body: JSON.stringify({ action: 'signal', to: 'PA', data: { kind: 'offer', sdp: 'o' } }) });
+  assert.deepEqual(last('A', 'signal'), { type: 'signal', from: 'PB', fromRole: 'guest', data: { kind: 'offer', sdp: 'o' } }, 'people in a call talk to each other');
+  ok('calls: a waiting room (waiting sees nobody, can only knock); someone in lets them in; then everyone signals everyone');
+
+  // back after a dropped connection: no waiting again, with its own pass
+  await sig('$disconnect', 'B');
+  open.delete('B');
+  assert.equal((await cconnect('B2', { role: 'guest', peer: 'PB', pass: 'passB', ph: ph('passB'), cid: 'devB' })).status, 200);
+  await sig('$default', 'B2', { body: JSON.stringify({ action: 'hello' }) });
+  assert.equal(last('B2', 'peers').waiting, undefined, 'straight back in with its pass');
+  assert.equal((await enter({ pass: 'not-a-pass' })).status, 403);
+  ok('calls: back in after a dropped connection with its own pass, without waiting');
+
+  // leaving says so: everyone's list goes without them at once (before the connection's even closed)
+  assert.equal((await cconnect('L1', { role: 'guest', peer: 'PL', pass: 'passB', cid: 'devL' })).status, 200);
+  assert.ok(last('A', 'peers').peers.some((p) => p.peer === 'PL'));
+  await sig('$default', 'L1', { body: JSON.stringify({ action: 'leave' }) });
+  assert.ok(!last('A', 'peers').peers.some((p) => p.peer === 'PL') && !(await store.listConns(cid)).some((c) => c.peer === 'PL'), 'gone from the list at once');
+  open.delete('L1');
+  await sig('$disconnect', 'L1');
+  ok('calls: leaving takes them off everyone’s list at once');
+
+  // lock: nobody new, even with the link; those let in still come back
+  await sig('$default', 'A', { body: JSON.stringify({ action: 'lock', on: true }) });
+  assert.equal(last('B2', 'locked').on, true, 'everyone hears it');
+  assert.equal((await enter({ kh })).status, 423, 'locked: not even with the link');
+  assert.equal((await enter({ pass: 'passB' })).status, 200, 'but someone let in before comes back');
+  await sig('$default', 'A', { body: JSON.stringify({ action: 'lock', on: false }) });
+  ok('calls: locked, nobody new comes in (even with the link); those let in come back');
+
+  // remove and keep out: its pass forgotten and its camera id blocked
+  await sig('$default', 'A', { body: JSON.stringify({ action: 'remove', peer: 'PB', block: true }) });
+  assert.deepEqual(last('B2', 'removed'), { type: 'removed', block: true });
+  assert.ok(!(await store.listConns(cid)).some((c) => c.peer === 'PB'), 'out of the call');
+  assert.equal((await enter({ pass: 'passB', cid: 'devB' })).status, 403, 'and kept out');
+  assert.equal((await enter({ kh, cid: 'devB' })).status, 403, 'even with the link');
+  ok('calls: taken out and kept out (pass forgotten, device blocked)');
+
+  // full at 6; the PIN closes after 10 wrong tries
+  for (let i = 0; i < 5; i++) {
+    await cconnect(`F${i}`, { role: 'guest', peer: `PF${i}`, kh });
+    await sig('$default', 'A', { body: JSON.stringify({ action: 'admit', peer: `PF${i}` }) });
+  }
+  assert.equal((await store.listConns(cid)).filter((c) => !c.waiting).length, CALL.maxIn);
+  assert.equal((await enter({ pass: 'passA' })).status, 409, 'full: six people');
+  for (let i = 0; i < CALL.pinTries; i++) await enter({ pin: pin === '123456' ? '654321' : '123456' });
+  assert.equal((await enter({ pin })).status, 429, 'the right PIN too, after ten wrong ones: the link only');
+  ok(`calls: full at ${CALL.maxIn}; the PIN closes after ${CALL.pinTries} wrong tries`);
+
+  // the creator's host key gets in without waiting; a call deletes itself after a day
+  const h = await enter({ k: chk });
+  assert.equal(h.status, 409, 'host key counts as in, and the call is full');
+  const later = clock + 25 * 3600 * 1000;
+  assert.equal((await api({ method: 'GET', path: `/events/${cid}`, headers: {}, query: {} }, { ...deps, now: () => later })).status, 404, 'gone after a day');
+  ok('calls: a call deletes itself after a day');
+
+  // made too often from one address: refused
+  let refused = 0;
+  for (let i = 0; i < CALL.perAddressHour + 2; i++) if ((await api({ method: 'POST', path: '/events', body: { kind: 'call', kh }, headers: {}, query: {}, ip: '203.0.113.50' }, deps)).status === 429) refused++;
+  assert.equal(refused, 2, `${CALL.perAddressHour} calls an hour from one address`);
+  ok(`calls: ${CALL.perAddressHour} an hour from one address`);
+
+  // A studio in a call: nobody takes it out; a call it started is its to run while it's in it
+  const show = (await call('POST', '/events', { kind: 'show' })).body;
+  const sCall = (await api({ method: 'POST', path: '/events', body: { kind: 'call', kh, show: show.id, sk: show.hostKey }, headers: {}, query: {}, ip: '198.51.100.70' }, deps)).body;
+  const fake = (await api({ method: 'POST', path: '/events', body: { kind: 'call', kh, show: show.id, sk: 'not-its-key' }, headers: {}, query: {}, ip: '198.51.100.70' }, deps)).body;
+  assert.ok((await store.getEvent(sCall.id)).byStudio && !(await store.getEvent(fake.id)).byStudio, 'started by a studio only with its show key');
+  const into = (id) => (conn, q) => connect(conn, { e: id, kh, ...q });
+  const s1 = into(sCall.id);
+  await s1('ST', { role: 'host', k: sCall.hostKey, peer: 'PS', show: show.id, sk: show.hostKey });
+  await s1('G1', { role: 'guest', peer: 'P1' });
+  await s1('G2', { role: 'guest', peer: 'P2' });
+  await sig('$default', 'ST', { body: JSON.stringify({ action: 'admit', peer: 'P1' }) });
+  await sig('$default', 'ST', { body: JSON.stringify({ action: 'admit', peer: 'P2' }) });
+  assert.ok((await store.listConns(sCall.id)).every((c) => !c.waiting), 'the studio lets them in');
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'hello' }) });
+  assert.equal(last('G1', 'peers').studioRules, true, 'everyone hears the studio runs it');
+  assert.equal(last('G1', 'peers').peers.find((p) => p.peer === 'PS').studio, true, 'and which one is the studio');
+  await s1('G3', { role: 'guest', peer: 'P3' });
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'admit', peer: 'P3' }) });
+  assert.ok((await store.listConns(sCall.id)).find((c) => c.peer === 'P3').waiting && /studio lets/.test(last('G1', 'refused').why), "a guest can't let people in");
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'remove', peer: 'P2', block: true }) });
+  assert.ok((await store.listConns(sCall.id)).some((c) => c.peer === 'P2'), "nor take one out");
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'lock', on: true }) });
+  assert.ok(!(await store.getEvent(sCall.id)).locked, 'nor lock it');
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'remove', peer: 'PS', block: true }) });
+  assert.ok((await store.listConns(sCall.id)).some((c) => c.peer === 'PS') && /Nobody can take the studio out/.test(last('G1', 'refused').why), 'nor the studio');
+  await sig('$default', 'ST', { body: JSON.stringify({ action: 'remove', peer: 'P2', block: true }) });
+  assert.ok(!(await store.listConns(sCall.id)).some((c) => c.peer === 'P2'), 'the studio takes people out');
+  // with the studio gone from it, it's everyone's again: a guest lets someone in
+  await sig('$default', 'ST', { body: JSON.stringify({ action: 'leave' }) });
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'admit', peer: 'P3' }) });
+  assert.ok(!(await store.listConns(sCall.id)).find((c) => c.peer === 'P3').waiting, 'with the studio gone, guests let people in');
+  await sig('$default', 'G1', { body: JSON.stringify({ action: 'leave' }) });
+  assert.ok(!(await store.listConns(sCall.id)).some((c) => c.peer === 'P1'), 'and anyone can leave');
+  ok("calls: a studio's call is the studio's to run (only it lets in, takes out, locks); nobody takes the studio out; anyone can leave");
+
+  // a call the studio joined: the people in it keep their say over each other, but not the studio
+  const gCall = (await api({ method: 'POST', path: '/events', body: { kind: 'call', kh }, headers: {}, query: {}, ip: '198.51.100.71' }, deps)).body;
+  const g = into(gCall.id);
+  await g('A1', { role: 'host', k: gCall.hostKey, peer: 'QA' });
+  await g('B1', { role: 'guest', peer: 'QB' });
+  await g('S2', { role: 'guest', peer: 'QS', show: show.id, sk: show.hostKey });
+  await sig('$default', 'A1', { body: JSON.stringify({ action: 'admit', peer: 'QB' }) });
+  await sig('$default', 'A1', { body: JSON.stringify({ action: 'admit', peer: 'QS' }) });
+  await sig('$default', 'A1', { body: JSON.stringify({ action: 'hello' }) });
+  assert.equal(last('A1', 'peers').studioRules, false, 'not the studio’s to run');
+  await sig('$default', 'A1', { body: JSON.stringify({ action: 'remove', peer: 'QS', block: true }) });
+  assert.ok((await store.listConns(gCall.id)).some((c) => c.peer === 'QS'), 'still nobody takes the studio out');
+  await sig('$default', 'A1', { body: JSON.stringify({ action: 'remove', peer: 'QB', block: true }) });
+  assert.ok(!(await store.listConns(gCall.id)).some((c) => c.peer === 'QB'), 'they can take each other out');
+  await sig('$default', 'S2', { body: JSON.stringify({ action: 'lock', on: true }) });
+  assert.ok((await store.getEvent(gCall.id)).locked, 'and the studio can lock it too');
+  ok('calls: in a call the studio joined, people still take each other out, never the studio');
 }
 
 console.log('\nAll core tests passed.');

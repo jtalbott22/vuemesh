@@ -1,4 +1,4 @@
-// Studio, part 5 of 26: tally, the AI technical director, direct links to phones.
+// Studio, part 5 of 29: tally, the AI technical director, direct links to phones.
 // Loads after usage.js: that import comes first, so the parts run in order (see ../studio.js).
 import './usage.js';
 import { toast, announce } from '/js/vm.js';
@@ -13,6 +13,7 @@ import { renderBus } from './room.js';
 import { breakManual, mediaOn, onBreak, syncBreakUi } from './graphics.js';
 import { airCovered, progRec, pvw, sw, swActive } from './switcher.js';
 import { ap } from './autopilot.js';
+import { facesCtx, facesSees } from './faces.js';
 
 // ---- tally: the phone that's on air lights up --------------------------------------------
 let tallied = null;
@@ -100,10 +101,11 @@ export function directorTick() {
     // (nothing measured, ever: this computer's own camera, or a shared screen. Neither shakes, so
     // it's taken as a good shot, not a middling one the phones always beat. A phone whose
     // reports have stopped coming is middling until they're back.)
-    return { id: peer, score: scoreOfLive(l) ?? (l.qa ? 0.5 : 0.8), parts: l.qa?.parts, upright: l.qa?.upright, fixed: !!l.qa?.fixed };
+    // (with face tracking cutting: who it shows, and whether they're talking: see faces.js)
+    return { id: peer, score: scoreOfLive(l) ?? (l.qa ? 0.5 : 0.8), parts: l.qa?.parts, upright: l.qa?.upright, fixed: !!l.qa?.fixed, sees: facesSees(peer) };
   });
   if (!sources.length) return;
-  const r = director.step(Date.now(), sources, orientation);
+  const r = director.step(Date.now(), sources, orientation, facesCtx());
   if (r.breakOn !== directorBreak) {
     directorBreak = r.breakOn;
     syncBreakUi();

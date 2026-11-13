@@ -1,4 +1,4 @@
-// Studio, part 21 of 26: optical sync and lining clips up by sound.
+// Studio, part 21 of 29: optical sync and lining clips up by sound.
 // Loads after library.js: that import comes first, so the parts run in order (see ../studio.js).
 import './library.js';
 import { toast, decodeQR, parseTimecode } from '/js/vm.js';

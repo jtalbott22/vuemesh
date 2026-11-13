@@ -7,7 +7,7 @@
 // Nothing but the handshake touches the cloud.
 
 import { bitrateHints, LINK_MAX_KBPS, LIVE_QUALITY, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
-import { ICE, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
+import { ICE, iceReady, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
 
 export const PART_SIZE = 8 * 1024 * 1024;
 const CHUNK = 64 * 1024;
@@ -235,6 +235,7 @@ export class CamLink {
 
   /** @param {{over?: boolean}} o  over: arrange the new link over the one that's working, keeping it until the new one's up */
   async connect(o = {}) {
+    await iceReady; // (the relay's password, where the site has one: at most 2 s, once per page)
     const keep = o.over && this.pc?.connectionState === 'connected' && this.dc?.readyState === 'open' ? { pc: this.pc, dc: this.dc, ctl: this.ctl } : null;
     if (keep) {
       clearInterval(this.qTimer);
@@ -996,7 +997,7 @@ export class HostHub {
           this.links.get(peer)?.fileOffers?.get(m.id)?.(m);
           return;
         }
-        if (m.t === 'reply' || m.t === 'seen' || m.t === 'paused' || m.t === 'leaving' || m.t === 'go') {
+        if (m.t === 'reply' || m.t === 'seen' || m.t === 'paused' || m.t === 'leaving' || m.t === 'go' || m.t === 'name') {
           this.onPhoneMessage?.(peer, m);
           return;
         }

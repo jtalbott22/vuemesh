@@ -1,5 +1,164 @@
 # Changelog
 
+## 0.76.2 — a shared screen in a call has a place of its own
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.1.
+
+**A screen shared in a call was drawn under everyone's cameras** on a phone, its name on the wrong picture: its box took its height from a stretchy row, which collapsed in a phone's scrolling column. Now it's a box of the screen's own shape (16:9 until its picture says otherwise), at most about 60% of the height, with the cameras in a smaller grid under it; on a wide screen, the cameras go in a column beside it.
+
+**The call's buttons sat partway up the screen** with nothing below them when nothing else was showing (a studio's notice or a message makes a row of its own): the call is a column now, the pictures taking everything between the top and the buttons.
+
+**Tests:** `e2e_call`: with a screen shared, nothing is drawn over it and the buttons are at the bottom.
+
+## 0.76.1 — messages to a call's people
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.0.
+
+**Message… to someone in a call failed to send.** The studio's messages go over its link to each phone, and a call's people have none. Now a message to one of them goes over the call's own link (its encrypted data channel): it shows on their call page under the top bar, from the studio by name (to everyone, when it went to all cameras), with a reply box and OK. The studio sees ✓✓ seen when it's shown and their reply beside their tile, as with a phone. A call page takes such messages only from a studio, by the server's word, so nobody else in the call can send one as the studio.
+
+**Message… named a call's guest "A guest"** to screen readers: its label was set once, before her name had come. It follows the name now.
+
+**Tests:** `e2e_studiocall`: the studio messages a guest, she sees it, the studio sees it seen, and her reply comes back.
+
+## 0.76.0 — captions in calls, and a studio in a call says so
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.75.3.
+
+**Captions in calls** (Captions, in a call's bar). Anyone who turns them on sees each person's words on that person's picture. Each device recognises its own microphone's speech with its browser's on-device model (“on this device only” asked for: the sound goes to nobody for it), while anyone in the call wants captions, and sends the words to the others over the call's own encrypted links: nothing is kept. **Aa** sets their size (four), **↕** puts them at the bottom or top of the pictures, and full screen shows them bigger. They come only from browsers that can recognise speech on the device (Chrome 139 or later, or Edge, on a computer); a picture whose browser can't says "no captions from this browser". The first time, turning them on fetches the browser's speech model.
+
+**A studio in a call says so.** Everyone's page says plainly that it's there and that what they send (their picture, sound and screen) can be put on its show, recorded or streamed by it, with **● Recording** and **● Live** while it is, as it changes (and to screen readers). It's a studio by the server's word (it proved it with its show's key); what it's doing, by its own.
+
+**Asking a browser whether it can recognise speech** is guarded for every page now (the studio's captions and a call's): some Chromium builds crash the page when asked, and a browser where it did isn't asked again.
+
+**The call page passes axe (WCAG 2.2 AA)** in each of its views; its red buttons are a darker red, for contrast. The Accessibility page has a part for calls, and the Privacy page says how a call's captions are made and that a studio in a call says so.
+
+**Tests:** `e2e_call`: captions, from a browser that recognises speech on the device and one that can't; size and position. `e2e_studiocall`: the studio notice, and Recording while it records.
+
+## 0.75.3 — calls on an iPhone: full screen that comes back playing, the same picture after a switch, clear of the top
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.75.2.
+
+**Full screen on an iPhone came back paused, for good.** An iPhone has full screen only for its own video player (with its playback controls), and the picture it handed back was left paused with no way to start it. Now, where the browser can't make part of a page full screen, the picture fills the page itself: no player, no controls, the picture whole; ⛶ again (or Escape) and it's back. And any picture the system pauses (from full screen, or coming back from another app) starts again by itself; so does the sound, or Tap to hear the call says it needs a tap.
+
+**A switched camera sometimes came out square.** When the other camera couldn't be opened exactly as asked, it was opened asking for nothing but a camera, and a phone then gives a square. Every camera is now asked for the same 16:9, 720p picture, the first and any switched to; if the other one can't be opened, the one it had comes back.
+
+**Clear of the top on an iPhone app from the home screen:** the call page's pages, its top bar and a picture full screen keep their content below the status bar and the blur iOS puts over it, and above the home bar.
+
+**Tests:** `e2e_call`: the switched camera has the same 16:9 shape; full screen as on an iPhone fills the page with the picture, playing, starts again after a pause, and comes back playing.
+
+## 0.75.2 — calls: sound both ways, a big picture, another camera, and the studio runs its call
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.75.1.
+
+**One person in a call couldn't hear the other** (both saw each other). Each person's sound played through their picture, and some browsers (Safari, notably) don't play a track that arrives after the picture's started, or won't start sound without a tap, and say nothing. Now pictures play muted (they always start), each person's sound plays in a player of its own, given its tracks afresh whenever they change and started by hand; if the browser wants a tap first, **Tap to hear the call** says so. And if someone's microphone is on but no sound has come from them for 8 seconds, they're asked to send it again (their tracks put back in, the link started again), and their tile says "no sound coming" meanwhile.
+
+**Tap someone's picture to make it big** (the others in a row under it); tap again for the grid. **Full screen** (⛶) on every picture and on a shared screen; on an iPhone, the picture itself full screen.
+
+**Switch camera**, on a phone its front and back, on a computer the next camera, before joining and in the call: into everyone's link, no new offer. A back camera isn't shown as in a mirror.
+
+**Who runs a call with a studio in it:** nobody can take a studio out (it proves it's one with its show's host key). A call a studio started is the studio's to run while it's in it: only it lets people in, turns them away, takes them out or locks it, and the guests are told so (no buttons for it; someone waiting isn't announced to them). In a call a studio joined, the people in it keep that between themselves, but can't take the studio out. With the studio gone from its call, it's everyone's again. Anyone can always leave. The server enforces it.
+
+**The Monitor shows the studio's call** under going out (the program and its sound to each guest: rate, size, codec, through the relay or not; waiting to be let in, while it is), and each guest under coming in, measured.
+
+**Tests:** `core.test`: a studio's call is the studio's to run; nobody takes the studio out; in a call it joined, people still take each other out; anyone can leave. `e2e_call`: they hear each other; a tap makes a picture big and back; switching camera keeps the picture going. `e2e_studiocall`: the guest has no Take out or Lock in the studio's call; the Monitor lists the call going out.
+
+## 0.75.1 — someone waiting for the studio's call is on the bell
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.75.0.
+
+**Someone waiting to come into the studio's call shows under Notifications (the bell)**, counted and red until it's looked at, with **Let in** and **Turn away** right there, so nobody waits unseen with the call panel closed. While the studio is hidden (behind a slideshow, another window), it's the computer's own alert too, as a TV asking is; starting or joining a call asks the browser for that. Let in or turned away, it goes from the bell.
+
+**Notifications opened with nothing in them for a moment** (or with what they had last time): the list was drawn after the panel had opened. It's drawn as it opens now.
+
+**Tests:** `e2e_studiocall`: the guest waiting is on the bell, counted and new, let in from it, and gone from it once in. `e2e_aired`: "Cameras record their time on air" on, as it is by default (since 0.67.0 it applies to this computer's cameras too; the test still turned it off and expected them to record anyway). `e2e_showlog` passes again (it read the list while it was still empty).
+
+## 0.75.0 — guests from anywhere: the studio in a call
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.74.1.
+
+**People on a call, as sources** (Add → People on a call). The studio starts a call (its link and PIN to send the guests) or joins one by its link, or its code and PIN, and is one of its people:
+- **Each person in the call is a source:** their camera with their sound, on a tile like a phone's, to cut to, put in a corner, mix and stream. Their sound is ON in the mixer from the start (they're talking). A screen one of them shares is a source of its own ("Maya's screen"), there while they share it. They're recorded on this computer as they arrive while they're on air, for Edit, as another computer's screen is.
+- **The call sees the program** as the studio's camera, named for the show ("Pod show (studio)"), and **hears it without themselves**: a second sound bus that every channel but the call's feeds, through its own fade to black. They already hear each other straight; sent back, they'd hear themselves late.
+- **The waiting room from the studio:** the panel shows the link and PIN, who's waiting (**Let in**, **Turn away**), who's in (**Take out**), **Lock**, and **Leave the call**. Someone knocking is said in the studio too.
+- Not at a kiosk or in the Edit window.
+
+**Another computer's screen into a call:** `/share` with the call's link (the call page's Invite shows it), or the call's code and PIN: one more in the call, sending only its screen and the screen's sound, let in from the waiting room like anyone; it goes when it stops.
+
+**One way of joining a call** for the call page, the studio and the share page (`callmesh.js`): the waiting room, the links, a dropped connection or a changed network, goodbyes, all the same everywhere.
+
+**Tests:** `e2e_studiocall` (new): the studio starts a call; a guest waits and is let in from the studio; she's a source with picture and sound ON; she sees the program named for the show; her screen is a source of its own; she leaves and her source goes at once; the studio leaves. `e2e_call`: another computer's screen joins the call with the share page. `e2e_editbreaks`, `e2e_micpick`, `e2e_mymedia`, `e2e_offline`, `e2e_tvremote`: the show's name from the studio link, as real links carry it (since 0.74.0 the server has none to give them).
+
+## 0.74.1 — calls: leaving seen at once, and quick back after a network change
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.74.0.
+
+**Someone leaving a call is gone from everyone's screen at once** (about a tenth of a second), with "Bob left" said: the page says goodbye over each link itself, and to the server, which passes it on. Closing the tab says it too. Someone who vanishes without a goodbye (a laptop shut) goes after 10 s. And "Bob joined" when someone comes in.
+
+**Back faster after a network change** (Wi-Fi to mobile data, say): the page notices the change and makes its server link again at once, and every link starts again with fresh candidates once it's back; a link that drops starts again after 2 s, not the half minute a browser waits to call it failed; the call's server link checks itself every 20 s (not 4 minutes), so one that died quietly is noticed. Before, the others took the device off their screen while its server link was being remade, and built a new link to it from scratch; now someone off the server's list for a moment stays while their link is up or coming back. An offer nobody answered (sent while the other's server link was being remade) is sent again.
+
+**Messages show on the call page** (someone waiting, joined, left): they were there, but unseen behind the call.
+
+**The server reads who's connected consistently**, so the list everyone's sent right after someone leaves no longer has them in it (all shows, not only calls).
+
+**Tests:** `core.test`: leaving takes someone off everyone's list at once. `e2e_call`: Bob's network changes and he's back with Ann, not announced gone; Bob leaves and Ann sees it in under 2 s.
+
+## 0.74.0 — calls, and show names that never leave your devices
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.73.0. Events made before keep the name they were given on the server until they delete themselves (30 days at most); nothing shows it any more.
+
+**Calls** (`/call`): up to 6 people on cameras and shared screens, everyone connected to everyone, like a video call app. Start one and send the link, or the code and PIN. Microphone and camera on and off, **Share screen** (shown big above everyone, with whose it is), and who's in the call. Nothing is recorded, and names, pictures and sound go straight between the devices (through our relay only when there's no other way, still encrypted).
+- **Nobody gets in on the code alone.** The link carries the call's key after the `#`, which browsers never send to a server; the page proves it has it with the key's hash, and our server keeps only a hash of that. Typing the code needs the PIN too, and ten wrong PINs leave only the link.
+- **A waiting room:** someone already in the call lets each newcomer in (the first to arrive in an empty call goes straight in). Waiting, a device sees nobody and can only knock; the name it gives goes with the knock to the people in the call and isn't kept. **Let in** or **Turn away**.
+- **Anyone in the call can** take someone out (they can't come back to that call, even with the link) and **lock** it (nobody new, even with the link).
+- **A dropped connection comes back without waiting again** (a pass the page made for itself; the server keeps its hash).
+- A call deletes itself a day after it's made; an address can start 20 an hour; 6 people in and 4 waiting at most.
+- How it connects: one connection per pair, only one side of each ever making an offer, with three places from the start (sound, camera, screen), so sharing a screen needs no new offer; candidates that arrive before the offer they belong to are kept for it; a connection that never starts is started again.
+
+**A show's name never reaches our server.** The host's computer keeps it; the studio tells each device in the show over its own link as it joins (and again when it's renamed: click the name in the studio's bar); a link someone copies (the studio's, a shared screen's, a TV's) carries it after the `#`. A phone that joins by the beacon shows "Show K7Q2MX" until the studio says the name, a moment after it connects. The Terms say "this show" rather than its name. A kiosk show's first phone names it over its own link, and the kiosk tells the server only that it's named. Admin lists events by code and kind, and can't rename them.
+
+**The Privacy page, the notice and the README** say what's kept for a call, and that a show's name isn't kept at all.
+
+**Tests:** `core.test`: no name kept, in the terms or from admin; a kiosk show says only that it's named; calls (made with a key hash only; in with the link or code and PIN, never the code alone; the waiting room; let in, then everyone signals everyone; back with a pass; locked; taken out and kept out; full at 6; PIN closed after 10 wrong; gone after a day; 20 an hour per address). `e2e_call` (new): three people through the waiting room, a wrong PIN, a shared screen, a lock, someone taken out, and no key or name sent to the server. `e2e_home`, `e2e_qrjoin`, `e2e_eventsapart`, `e2e_admin_monitor`: the name from the studio link (as real links carry it), and admin's columns without a name.
+
+## 0.73.0 — the relay kept from being abused, and watched in Admin
+**Deploy:** `./aws/stun/deploy.sh` (a new server, `vuemesh-stun-3`, at the same address), `node aws/stun/check.mjs stun.vuemesh.com`, then `./aws/deploy.sh` (backend and site). The deploy user needs EventBridge rules for the relay's guard: the new `RelayGuardSchedule` statement in `aws/iam-deploy-policy.json`. It builds on 0.72.0.
+
+**Without accounts, a TURN password can't be kept from a determined person** (a browser has to be given it), so each one is made to be worth little and the whole relay is bounded:
+- **Only the site's own pages get a password** (the browser's `Origin`), so another site can't put its visitors on our relay; **30 an hour per address** and 3,000 an hour in all, counted under a salted mark of the address that's deleted after the hour.
+- **A monthly budget:** no new passwords past 90% of the server's data allowance, and at 100% the relay switches itself off (its ports closed in Lightsail's firewall; STUN keeps working). A function checks every 15 minutes, and the API when it's asked.
+- **Tighter server:** UDP relays only (no TCP relays, the usual way into other machines' services); IPv4 written as IPv6 (`::ffff:127.0.0.1`) refused like the rest of the private addresses (CVE-2026-27624, which Ubuntu's coturn 4.6.1 predates); the relay can't reach the server's own STUN/TURN port or anything else on it (its own firewall); floods of new flows to 3478 dropped; 5 Mbit/s a relay and 50 Mbit/s in all (from 8 and 100).
+
+**Admin → Servers:** each Lightsail server's state, failed status checks, the month's data against its allowance (and where passwords stop and the relay switches off), the last day's data hour by hour, the processor and burst capacity, and TURN passwords given or refused (and why) over the last week. **Switch the relay off** (or on) from there.
+
+**`aws/stun/check.mjs` tries the ways round the rules:** 13 private addresses in every spelling, a TCP relay, two relays meeting on the server, and a relay sent at the server's own port.
+
+**Tests:** `core.test`: passwords only for the site's own pages, 30 an hour per address, none while the relay is off or past 90%, counted; Lightsail not answering doesn't stop passwords; Admin's servers and switch (admin only); the guard switches the relay off past the allowance.
+
+## 0.72.0 — a relay for devices that can't reach each other
+**Deploy:** `./aws/stun/deploy.sh` (it makes `aws/.turn-secret`, and a new server, `vuemesh-stun-2`, in place of the old one, at the same address: a server only runs its start-up script on its first boot, so the name is bumped to make a new one), `node aws/stun/check.mjs stun.vuemesh.com`, then `./aws/deploy.sh` (backend and site). It builds on 0.71.0.
+
+**Our STUN server is a TURN relay too.** Devices that can't reach each other directly (a phone on mobile data behind its carrier, a strict office or hotel network) used to never connect; now they connect through `stun.vuemesh.com`. Their pictures and sound stay encrypted between the two devices, so the relay passes on what it can't read, and it keeps no logs. Browsers use it only when nothing else works: a show on one network never touches it, and a relayed camera gets the "Mobile data or a relay" live quality.
+- **Not an open relay:** it relays only for devices with a password from the site's API (`GET /api/ice`: coturn's `use-auth-secret`, an HMAC of `<expiry>:<random id>`, good for a day, with nothing about the device in it), refuses to relay into private networks or the cloud's metadata service, and has limits per password, per connection and for the whole server.
+- **Pages fetch the password where the site has a relay** (`config.js`'s `turn`), and a phone or computer joining a show waits up to 2 s for it before connecting. A copy without the relay, a local show and the dev server work as before.
+- **`aws/stun/check.mjs` checks TURN too**, with `aws/.turn-secret`: a relay with the API's kind of password, a wrong one refused, nothing relayed to `169.254.169.254`.
+
+**Documentation:** the Privacy page says what the relay carries and keeps; the README, `aws/README.md`, `aws/stun/README.md` and How it fits together say when it's used and what it costs (the server's data allowance).
+
+**Tests:** `core.test`: no TURN password without a relay; with one, coturn's HMAC of `<expiry>:<id>`, a day long, a new one each time.
+
+## 0.71.0 — live captions, faces and speakers
+**Deploy:** `./aws/deploy.sh` (site only; it now gives the face model's WebAssembly its own type). It builds on 0.70.1.
+
+**Faces and speakers** (a new card in the studio's Live inspector). With **Face tracking** on, the studio finds the faces in its cameras' pictures, on this computer: MediaPipe's face landmarker in a worker (the graphics card where it can, the processor where WebGL is drawn in software), the cameras on air and in preview about ten times a second, the rest three or four. Cameras, viewers and TVs never load it. A face that's small in a wide shot is looked for in parts of the picture in turn (the face finder sees each picture at about 128 pixels), and once found, in a region around it. **People are found by their pose too** (MediaPipe's pose landmarker, lite): where a head is when its face can't be seen (side-on, looking down at an instrument, small in a wide shot), so framing follows them and the face finder looks there. Upright people only, and a face that never moves (a painting on the wall) isn't a person. Tried on a minute of a guitarist singing, filmed from three angles: someone was in the shot (and framed) 94% of the time from the front-wide angle, 98% over the shoulder and 88% side-on, against 0–17% from faces alone; talking still needs a face to be seen (or a microphone of their own).
+- **Keep faces framed:** the shot on air (and in preview) is cropped to its subject, the person talking or the group facing the camera: eyes about a third of the way down, one face a medium close-up, room in front of a face turned to one side. It moves like an operator: still while they're about where they should be, eased when they move, straight there on a cut, back to the whole shot when nobody's been in it for a few seconds. It goes in as far as the camera's resolution allows and up to 1.4 times past it (2 at most); a shot shown whole (a screen, or Whole shot) isn't cropped.
+- **Auto director cuts to whoever's talking:** a second after someone starts, to a camera that shows them; while they go on, it stays, and after the usual hold it changes to another camera on them (a different size of shot, not a jump cut), and every third change for a moment a listener, waiting for a pause in the talking; a cut to a face with its eyes shut waits up to 0.4 s. A shot that goes bad is still cut away from at once, and with nobody talking the director is as it was.
+- **Speaker 1, Speaker 2…, and names:** people are numbered as they're seen talking, the same person across cameras, listed with the cameras they're on, and labelled on their cameras' tiles. Type a name and it's used everywhere: in captions (a new speaker's words start with their name; the `.vtt` file says who with voice tags), on the tiles, in the show log, and, if you like, on a lower third the first time they're on air. **Start again** forgets them.
+- **No face recognition.** Nothing describes what anyone looks like: two cameras show the same person when that person's mouth moves in both at the same moments while talking is heard; a microphone loud while one person talks becomes theirs (and then says who's talking, even off camera); someone back in the same place in a shot is the same person. The studio keeps each number, name and where they were last seen, in this browser (`vm_speakers_…`).
+- **Nothing sent to Google.** MediaPipe's own build sends usage counts to Google every minute; the copy in `public/vendor/mediapipe` (1.1.1, with the face landmarker and the lite pose landmarker, Apache 2.0) has that taken out, and a test checks it has no address to send to. Faces need to be a good size in the picture (within a few metres of the camera): a wide shot of a room is too small for it, and a face side-on often isn't found.
+
+**Live captions don't crash the studio in some Chromium builds:** asking whether a browser can recognise speech on the device crashes the page in some Chromium builds (Playwright's, for one). It's asked only when captions are turned on, and a browser where the page died asking isn't asked again.
+
+**Live captions of the program's sound** (Captions, in the studio's Live inspector). The browser's own speech recognition, on the device only: the studio asks for on-device recognition (`processLocally`) and listens to the program's mix, not a microphone, so the sound never leaves the computer, and if the browser can't promise that, there are no captions. Chrome 139 or later, or Edge, on a computer; the first time, turning them on fetches the browser's speech model for the language (once). Pick the language; captions roll up in two lines near the bottom of the program, under a lower third, so they're on TVs, the stream and the recording too (or turn off **On the program** to keep them only in the file). The fade to black takes them with the picture.
+
+**Listen to: the program's sound or this computer's microphone.** The program's sound is handed to the browser's recogniser as a track, a newer way some browsers may not hear; the microphone is the way browsers have recognised speech for years. What the recogniser says it's doing goes in the show log (getting sound, hearing sound, hearing speech, the first words, any error by name, each time it stops), and if there's sound on the program but nothing recognised for 20 s, the Captions card says so and what to try.
+
+**Record program saves the captions beside the video** as a WebVTT file (`.vtt`), timed from the recording's first frame: each phrase from when its first words were heard, cut into captions of two lines, each up long enough to read. Ready for YouTube, Vimeo, or a video player. A kiosk or hands-free show keeps them with the recording in the browser instead.
+
+**The Accessibility and Privacy pages** say what live captions do, where they're made, and their limits (machine-made, a moment behind, not in every browser or language).
+
+**Tests:** `faces.test`: faces followed from picture to picture; small faces looked for in parts of the shot; heads from poses merged with faces; a face that never moves isn't a person; talking is a mouth opening and closing, at 10 or 3 pictures a second; Speaker 1 and 2 across cameras, through a pause, named, back in place after leaving the shot or a reload, merged when one person had two numbers; a microphone becoming its talker's; the framing (eye line, size, holding still, easing, lead room, how far in, a portrait slice, a group, back to the whole shot); the director cutting to the speaker, staying, another angle at a pause, not on a blink, still away from a bad shot, and as before without faces; the bundled MediaPipe has no address to send to. `e2e_faces` (needs ffmpeg): a camera on this computer playing the wedding film's close-ups: both faces found in the studio, the shot on air framed to them, off again cleanly, no request to any other server. `captions.test`: phrases cut into two-line captions at words, their times shared out by length; the WebVTT file (only what was recorded, timed from its first frame); line wrapping; the recogniser listens to the given track on the device only, starts again when it ends, and stops, saying why, when it can't go on.
+
 ## 0.70.1 — the TV page on digital signs
 **Deploy:** `./aws/deploy.sh` (CloudFront settings and site). It builds on 0.70.0.
 

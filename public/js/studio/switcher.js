@@ -1,4 +1,4 @@
-// Studio, part 13 of 26: the live program and the switcher; running while covered.
+// Studio, part 13 of 29: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';
@@ -20,6 +20,8 @@ import {
 } from './graphics.js';
 import { buffers, picOf } from './picsync.js';
 import { drawPip, drawPipPreview } from './pip.js';
+import { drawCaptions } from './captions.js';
+import { shotRect } from './faces.js';
 
 // ---- the live program -----------------------------------------------------------------
 
@@ -60,7 +62,7 @@ function drawLiveFrame() {
     pg.fillStyle = '#000';
     pg.fillRect(0, 0, W, H);
     // (a camera here: its frame of the program's moment, so every camera is in time; see picsync.js)
-    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fitFor(live.get(liveActive)), null, live.get(liveActive).view?.rect || null);
+    drawFramed(pg, picOf(liveActive) || live.get(liveActive).video, W, H, fitFor(live.get(liveActive)), null, shotRect(liveActive, fitFor(live.get(liveActive))));
     label = `ON AIR · ${liveNo(liveActive)} ${live.get(liveActive).name}`;
   } else if (!everLive) {
     drawSlate(pg, W, H, { message: 'Starting soon', title: ev?.title || '', brand: BRAND.name, look: slateLook, t: performance.now(), now: now() });
@@ -96,7 +98,7 @@ function drawLiveFrame() {
         pg.fillStyle = '#000';
         pg.fillRect(0, 0, W, H);
       }
-      drawFramed(pg, picOf(sw.to) || b.video, W, H, fitFor(b), null, b.view?.rect || null);
+      drawFramed(pg, picOf(sw.to) || b.video, W, H, fitFor(b), null, shotRect(sw.to, fitFor(b)));
     }
     pg.globalAlpha = 1;
     const SPECIAL = { black: 'BLACK', break: 'BREAK' };
@@ -106,6 +108,7 @@ function drawLiveFrame() {
   }
   drawPip(pg, W, H); // (a camera in the corner, over a screen: see pip.js)
   drawLowerThird(pg, W, H);
+  drawCaptions(pg, W, H); // (under the black, so a fade takes them too: see captions.js)
   slateSound(slateUp);
   label = drawBlack(pg, W, H) || label;
   if (label != null) setTextIfChanged($('#progLabel'), label);
@@ -465,7 +468,7 @@ function drawPreviewBox() {
     // (a camera here: its newest frame, already turned into a picture for the program, rather than
     // the video element's, which was converted again at full size for this small box every frame)
     const pic = buffers.get(pvw)?.frames.at(-1)?.bmp;
-    if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fitFor(l), null, l.view?.rect || null);
+    if (pic || l.video?.readyState >= 2) drawFramed(g, pic || l.video, c.width, c.height, fitFor(l), null, shotRect(pvw, fitFor(l)));
     drawPipPreview(g, c.width, c.height, pvw); // (the corner camera it would get on air)
   }
 }
