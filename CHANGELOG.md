@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.70.1 — the TV page on digital signs
+**Deploy:** `./aws/deploy.sh` (CloudFront settings and site). It builds on 0.70.0.
+
+**The TV page can be shown in a frame on any site**, like the kiosk and the studio, so a digital sign (Rise Vision and the like) can embed `/tv?e=…`. Every other page still refuses to be framed by another site.
+
+**The frame settings live in the template now.** The kiosk's and the studio's (made by hand in the CloudFront console until now) are in `aws/template.yaml` as the `EmbedHeaders` policy and cache behaviours for `/kiosk*`, `/studio*` and `/tv*`, with the default's security headers, so a deploy can't drop them.
+
+**vuemesh.com and its certificate are now kept by the stack.** They had been set by hand in the CloudFront console, so a deploy that changed the distribution dropped them (vuemesh.com was down for a few minutes during this release's deploy). The stack now has `DomainName` and `CertificateArn`, and later deploys keep them without `DOMAIN` or `CERT_ARN` being set.
+
+**`*.har` files are ignored by git**: a browser's network capture can hold a host key.
+
 ## 0.70.0 — nothing sent to Google, no location code left, a fuller Privacy page, and easier to read
 **Deploy:** update the deploy user's IAM policy from `aws/iam-deploy-policy.json` (log retention and Lightsail), then `./aws/stun/deploy.sh` (new, once), then `./aws/deploy.sh` (functions and site). It builds on 0.69.0.
 
