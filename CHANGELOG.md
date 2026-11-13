@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.76.3 — Call on the home page
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.2.
+
+**Call** is one of the home page's keys now, beside **Start a show** (which no longer takes two places): two full rows of four on a computer, four rows of two on a phone, Start a show and Call side by side. Like the others, it asks once to agree to the terms.
+
+**Tests:** `e2e_home`: the home page's keys, Call among them.
+
 ## 0.76.2 — a shared screen in a call has a place of its own
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.1.
 

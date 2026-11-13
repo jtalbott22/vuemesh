@@ -16,7 +16,7 @@ with sync_playwright() as p:
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errors.append(f'page: {e}'))
     pg.goto(BASE + '/')
     tiles = pg.eval_on_selector_all('.apps .app b', 'e => e.map(x => x.textContent)')
-    assert tiles == ['Camera', 'My media', 'Kiosk', 'Join a show', 'TV', 'Share', 'Start a show'], tiles
+    assert tiles == ['Camera', 'My media', 'Kiosk', 'Join a show', 'TV', 'Share', 'Start a show', 'Call'], tiles
     pg.evaluate("document.querySelector('.apps a[href=\"/cam?go=solo\"]').click()")
     pg.wait_for_selector('#gate[open]', timeout=10000)
     assert pg.is_disabled('#gateGo')
