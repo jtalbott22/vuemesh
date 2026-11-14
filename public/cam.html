@@ -33,11 +33,13 @@
   html, body { height: 100%; }
   body { background: var(--bg); overscroll-behavior: none; }
   #camView { background: #000; }
-  .toprow button { width: auto; }
-  .panel { max-width: 440px; margin: 0 auto; padding: calc(28px + env(safe-area-inset-top, 0px)) 22px 32px; }
-  .panel h1 { font-size: 2rem; }
-  .terms { background: var(--stage-2); border-radius: var(--radius); padding: 14px 16px; font-size: .92rem; color: var(--soft); margin: 14px 0 18px; }
-  .panel button { width: 100%; }
+  .panel.setup { max-width: 440px; margin: 0 auto; }
+  .terms { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: .88rem; color: var(--text-2); max-height: 32vh; overflow-y: auto; white-space: pre-line; }
+  .terms:empty { display: none; }
+  .setup button { width: 100%; }
+  .codealt { display: grid; gap: 8px; }
+  .toplib { max-width: min(46vw, 320px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; box-shadow: inset 0 0 0 1px var(--line) !important; }
+  #codeView .vm-story h1 { max-width: 10ch; }
 
   #camView { position: fixed; inset: 0; display: none; }
   #camView.on { display: block; }
@@ -68,7 +70,6 @@
   .aimtext.show { display: block; }
   .uploads { position: absolute; left: 14px; right: 14px; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; }
   .uploads .pill { background: #000c; }
-  .codealt { display: grid; gap: 8px; margin-top: 14px; }
   .codealt button { width: 100%; min-height: 48px; }
   .qjoin { position: fixed; inset: 0; z-index: 31; background: #0b0e17; color: #fff; overflow: auto; text-align: center; padding: max(16px, env(safe-area-inset-top)) 16px 16px; }
   .qjoin canvas { display: block; width: min(86vw, 70vh); height: auto; margin: 12px auto; border-radius: 10px; }
@@ -90,42 +91,18 @@
   /* --- my footage: everything this device shot, its status, and the show's messages --- */
   .library { position: fixed; inset: 0; z-index: 30; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden;
     padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-  .libbar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  .libbar h2 { margin: 0; font-size: 1.05rem; white-space: nowrap; }
-  .libbar button { min-height: 38px; white-space: nowrap; flex: none; }
-  .libbar select { flex: 1; min-width: 0; max-width: none; min-height: 38px; }
   /* while My events is open, messages pop up at the bottom instead of over the list */
   .library:not([hidden]) ~ .toast { top: auto !important; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
-  .libtabs { display: flex; gap: 4px; padding: 8px 12px 0; }
-  .libtabs button { flex: 1; min-height: 38px; background: var(--surface-2); }
-  .libtabs button[aria-selected="true"] { background: var(--text); color: var(--bg); }
-  #libClips, #libShow { flex: 1; overflow-y: auto; padding: 10px 12px 20px; }
-  .libnote { margin: 0 0 10px; color: var(--text-2); font-size: .9rem; }
-  .libclips { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .libclips li { display: grid; grid-template-columns: 112px 1fr; gap: 6px 12px; background: var(--surface); border-radius: 12px; padding: 10px; box-shadow: 0 0 0 1px var(--line); }
-  .libclips .thumb { grid-row: span 2; width: 112px; aspect-ratio: 16 / 9; border-radius: 8px; background: #000 center / cover no-repeat; border: 0; padding: 0; min-height: 0; position: relative; }
-  .libclips .thumb::after { content: "▶"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 1.2rem; text-shadow: 0 1px 3px #000; }
-  .libclips .info b { display: block; }
-  .libclips .info small { color: var(--text-2); }
-  .libclips .acts { display: flex; flex-wrap: wrap; gap: 6px; }
-  .libclips .acts button { min-height: 34px; padding: .2em .7em; font-size: .85rem; }
   .st { display: inline-block; font-size: .72rem; font-weight: 800; letter-spacing: .03em; padding: .1em .5em; border-radius: 4px; margin-top: 4px; }
   .st.ok { background: #1f7a45; color: #fff; }
   .st.wait { background: var(--surface-3); color: var(--text); }
   .st.send { background: var(--preview); color: #fff; }
   .st.bad { background: var(--tally); color: #fff; }
-  .libfoot { display: grid; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
-  .showstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 8px; }
-  .showstats div { background: var(--surface); border-radius: 10px; padding: 10px; box-shadow: 0 0 0 1px var(--line); }
-  .showstats b { display: block; font-size: 1.3rem; }
-  .showstats span { color: var(--text-2); font-size: .8rem; }
-  #libShow h3 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 16px 0 6px; }
   .player { position: fixed; inset: 0; z-index: 31; background: #000; display: flex; flex-direction: column; }
   .playbox { flex: 1; position: relative; overflow: hidden; display: grid; place-items: center; }
   .playbox video { position: absolute; max-width: none; background: #000; }
   .playerr { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); margin: 0; padding: 14px; border-radius: 12px; background: #1d2129; color: #fff; text-align: center; line-height: 1.45; }
   .playerr[hidden] { display: none; }
-  .libclips .why { display: block; margin-top: 4px; font-size: .8rem; color: var(--text-2); }
   .playbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: #111; color: #fff; }
   .playbar button { min-height: 38px; }
   .linkish { background: none; color: var(--text-2); text-decoration: underline; min-height: 36px; padding: 0; font-weight: 600; }
@@ -237,13 +214,6 @@
   .rotate[hidden] { display: none; }
   /* The viewfinder and the microphone screen are always dark, whatever the theme. */
   #camView, #micView, #pocket { --text: #fff; --text-2: #a9acb4; --muted: #8b8e97; --surface: #18191d; --surface-2: #222328; --surface-3: #2d2f35; --line: #2a2c32; color-scheme: dark; color: #fff; }
-  .roles { display: grid; gap: 8px; margin: 0 0 16px; border: 0; padding: 0; }
-  .roles legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
-  .roles label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; font-weight: 600; cursor: pointer; margin: 0; }
-  .roles label input { margin-top: .3em; width: 20px; height: 20px; }
-  .roles label span { grid-column: 2; font-weight: 400; font-size: .9rem; color: var(--text-2); }
-  .roles label:has(input:checked) { box-shadow: inset 0 0 0 2px var(--tally); }
-  .toprow { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
   .help-btn { background: #000a; color: #fff; min-height: 36px; padding: .3em .75em; border-radius: 999px; font-size: .85rem; }
 
   /* microphone mode */
@@ -274,10 +244,8 @@
   .topstack { left: calc(12px + var(--sl)); right: calc(12px + var(--sr)); }
   .uploads, .hintrow { left: calc(14px + var(--sl)); right: calc(14px + var(--sr)); }
   .aimtext { padding-left: var(--sl); padding-right: var(--sr); }
-  .panel { padding-left: calc(22px + var(--sl)); padding-right: calc(22px + var(--sr)); }
+  .panel.setup { padding-left: calc(22px + var(--sl)); padding-right: calc(22px + var(--sr)); }
   .micpanel { padding-left: calc(22px + var(--sl)); padding-right: calc(22px + var(--sr)); }
-  .libbar, .libtabs { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
-  #libClips, #libShow { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
   .playbar { padding-left: calc(12px + var(--sl)); padding-right: calc(12px + var(--sr)); }
   .scanbar { padding-left: calc(18px + var(--sl)); padding-right: calc(18px + var(--sr)); }
   #pocket { padding-left: calc(20px + var(--sl)); padding-right: calc(20px + var(--sr)); }
@@ -285,12 +253,10 @@
   /* Sideways, the screen is short: the beacon guide sits inside the framing square instead of
      below it, where it would run into the record button. */
   @media (max-height: 520px) { .aimtext { top: calc(50% - .7em); } }
-  .permtip { background: var(--surface-2, #ffffff14); border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: .9rem; }
+  .permtip { display: grid; gap: 8px; justify-items: start; }
   .permtip p { margin: 0 0 8px; }
-  .rejoin { background: var(--surface-2, #ffffff14); border-radius: 14px; padding: 14px 14px 16px; margin: 0 0 20px; }
-  .rejoin h2 { margin: .1em 0 .2em; }
-  .rejoin .fine { margin: 0 0 12px; }
-  .libtotals { margin: 4px 16px 0; font-size: .8rem; color: var(--text-2, #aab); }
+  .rejoin { box-shadow: inset 3px 0 0 var(--amber), var(--shadow); }
+  .rejoin h2 { margin: 0; font-size: 1.4rem; }
   .cutwait { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000c; padding: 20px; }
   .cutwait[hidden] { display: none; }
   .cutwait > div { background: var(--surface, #18191d); color: var(--text, #fff); border-radius: 16px; padding: 20px; max-width: 420px; width: 100%; }
@@ -306,19 +272,9 @@
      the sheets keep their size, My events reads as a column, and its clips go two across. A phone
      held sideways (short, touch) keeps the phone layout. */
   @media (min-width: 760px) and (min-height: 560px) and (hover: hover) and (pointer: fine) {
-    .panel:not(.setup):not([hidden]) { min-height: 100dvh; display: grid; align-content: center; padding-top: 32px; padding-bottom: 32px; box-sizing: border-box; }
-    .panel:not(.setup) > * { width: 100%; }
-    #joinView, #codeView { max-width: 520px; }
     #camSettings { max-width: min(520px, calc(100vw - 32px)); }
     #camSettings .toggles { grid-template-columns: repeat(3, 1fr); }
     .sheet { padding: 20px 22px; }
-    .libbar, .libtabs, #libClips, #libShow { padding-left: max(16px, calc((100vw - 960px) / 2)); padding-right: max(16px, calc((100vw - 960px) / 2)); }
-    .libtotals { width: min(960px, calc(100% - 32px)); max-width: none; margin: 4px auto 0; box-sizing: border-box; }
-    .libtabs button { flex: 0 1 200px; }
-    .libclips { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
-    .libclips li { grid-template-columns: 160px 1fr; }
-    .libclips .thumb { width: 160px; }
-    .libfoot { max-width: 520px; }
     .scanframe { width: min(40vh, 340px); }
   }
   .setup { min-height: 100dvh; display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0px)); }
@@ -394,7 +350,8 @@
   .camback > div { max-width: 340px; display: grid; gap: 12px; }
   .camback h2 { margin: 0; }
   .camback p { margin: 0; color: #ddd; }
-  .firstbox { background: #f2c03722; border: 1px solid #f2c037; border-radius: 12px; padding: 10px 12px; }
+  .firstbox { display: grid; gap: 6px; }
+  .firstbox label { margin: 0; }
   .firstbox input { font-size: 1.15rem; }
   /* Go live: the first phone at a kiosk starts the show, with a count-in */
   .golive { position: absolute; inset: 0; z-index: 19; display: grid; place-items: end center; padding: 0 16px calc(120px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent 35%, #000b); pointer-events: none; }
@@ -412,35 +369,117 @@
   .glcount b.live { font-size: 22vmin; color: #fff; background: #e5534b; padding: .1em .35em; border-radius: .15em; text-shadow: none; animation: glpop .9s ease-out both; }
   @keyframes glpop { 0% { transform: scale(1.7); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(.9); opacity: .2; } }
   @media (prefers-reduced-motion: reduce) { .glbtn, .glcount b { animation: none; } }
+
+  /* --- My events: everything this device shot, its status, and the show's messages. The studio's
+     look: a bar along the top, the clips as cards (a column of rows on a phone, a grid of pictures
+     on a computer or a TV), the show's numbers as tiles. --- */
+  .library { --pad: max(var(--gutter), calc((100% - 1200px) / 2)); }
+  .libbar { display: flex; align-items: center; gap: 12px; min-height: 56px; flex: none; background: var(--surface); border-bottom: 1px solid var(--line);
+    padding: 8px max(var(--gutter-r), calc((100% - 1200px) / 2)) 8px var(--pad); }
+  .libbar h2 { margin: 0; font-size: 1.1rem; white-space: nowrap; }
+  .libbar button { min-height: 38px; padding: .35em .9em; font-size: .9rem; white-space: nowrap; flex: none; }
+  .libbar select { flex: 0 1 380px; min-width: 0; min-height: 38px; padding: .35em .7em; margin-left: auto; font-size: .92rem; }
+  .libsub { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding: 14px var(--pad) 4px; flex: none; }
+  .libtotals { margin: 0; font-size: .85rem; color: var(--text-2); }
+  .libtabs button { min-width: 110px; }
+  #libClips, #libShow { flex: 1; overflow-y: auto; padding: 10px var(--pad) calc(28px + env(safe-area-inset-bottom, 0px)); }
+  .libnote { margin: 0 0 12px; color: var(--text-2); font-size: .9rem; }
+  .libclips { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .libclips:empty { min-height: 200px; border: 1.5px dashed var(--line); border-radius: 16px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); font-size: .92rem; }
+  .libclips:empty::before { content: ""; width: 44px; height: 44px; opacity: .7; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='13' width='30' height='22' rx='4'/%3E%3Cpath d='M35 21l8-5v16l-8-5'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='13' width='30' height='22' rx='4'/%3E%3Cpath d='M35 21l8-5v16l-8-5'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .libclips:empty::after { content: "What you shoot shows up here"; }
+  .libclips:empty { grid-template-columns: minmax(0, 1fr) !important; justify-items: center; }
+  #libEvent:empty { visibility: hidden; }
+  .libclips li { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 8px 12px; align-content: start; background: var(--surface); border-radius: 14px; padding: 10px; box-shadow: 0 0 0 1px var(--line); }
+  .libclips .thumb { grid-row: span 2; width: 116px; aspect-ratio: 16 / 9; border-radius: 9px; background: #000 center / cover no-repeat; border: 0; padding: 0; min-height: 0; position: relative; overflow: hidden; }
+  .libclips .thumb::after { content: "▶"; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; display: grid; place-items: center;
+    padding-left: 3px; box-sizing: border-box; color: #fff; font-size: .85rem; background: #000a; box-shadow: 0 0 0 1.5px #fff8; transition: transform .15s, background .15s; }
+  .libclips .thumb:hover::after { transform: scale(1.1); background: var(--tally); }
+  .libclips .info { min-width: 0; }
+  .libclips .info b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .libclips .info small { color: var(--text-2); }
+  .libclips .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .libclips .acts button { min-height: 34px; padding: .2em .8em; font-size: .85rem; border-radius: 8px; }
+  @media (min-width: 640px) {
+    .libclips { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+    .libclips li { grid-template-columns: minmax(0, 1fr); padding: 0 0 12px; overflow: hidden; }
+    .libclips .thumb { grid-row: auto; width: 100%; border-radius: 0; }
+    .libclips .info, .libclips .acts { padding: 0 12px; }
+    .libclips .acts { margin-top: auto; }
+  }
+  .libclips .acts .danger { background: transparent; color: var(--err); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tally) 45%, transparent); }
+  .libclips .acts .danger:hover { background: var(--tally); color: #fff; }
+  @media (max-width: 560px) {
+    .libbar { flex-wrap: wrap; row-gap: 8px; }
+    .libbar select { order: 5; flex: 1 1 100%; margin: 0; }
+    .libbar [data-theme-toggle] { margin-left: auto; }
+    .libsub { flex-direction: column; align-items: stretch; }
+    .libtabs button { flex: 1; }
+  }
+  .libfoot { display: grid; gap: 10px; margin-top: 22px; padding: 16px; max-width: 640px; border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+  .libfoot .check { margin: 0; display: flex; gap: 10px; align-items: center; font-weight: 500; }
+  .showstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .showstats div { background: var(--surface); border-radius: 14px; padding: 14px 16px; box-shadow: 0 0 0 1px var(--line); }
+  .showstats b { display: block; font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; font-stretch: 125%; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .showstats span { color: var(--text-2); font-size: .82rem; }
+  .showcols { display: grid; gap: 4px 24px; }
+  @media (min-width: 860px) { .showcols { grid-template-columns: 1fr 1fr; } }
+  #libShow h3 { display: flex; align-items: center; gap: .55em; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); margin: 22px 0 10px; }
+  #libShow h3::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+  .libdanger { max-width: 640px; margin-top: 26px; display: grid; gap: 8px; }
 </style>
 </head>
 <body>
 
-<section class="panel" id="codeView" hidden>
-  <div class="rejoin" id="rejoinCard" hidden>
-    <p class="muted" id="rejoinLabel" style="margin:0">You left</p>
-    <h2 id="rejoinTitle"></h2>
-    <p id="rejoinText" class="fine" aria-live="polite"></p>
-    <div class="rejoinpair" role="group" aria-label="Rejoin">
-      <button type="button" class="primary" id="rejoinBtn">Rejoin as camera</button>
-      <button type="button" id="rejoinMicBtn">Rejoin as microphone</button>
+<section class="panel vm-page" id="codeView" hidden>
+  <header class="vm-top">
+    <a class="vm-mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
+    <span class="vm-spacer"></span>
+    <button type="button" class="openLib ghost toplib" id="codeLib" hidden></button>
+    <button type="button" data-theme-toggle></button>
+  </header>
+  <main class="vm-main">
+    <div class="vm-split">
+      <div class="vm-story vm-rise">
+        <p class="vm-eyebrow">Camera</p>
+        <h1>Join an event</h1>
+        <p class="vm-lead">Scan the code on the screen, or type the event code. No app to install.</p>
+        <ol class="vm-steps">
+          <li><span><b>Scan the beacon</b> on the studio’s screen, or type its code.</span></li>
+          <li><span><b>Join as a camera or a microphone</b>, with your name for the credits.</span></li>
+          <li><span><b>Shoot.</b> Your clips go straight to the director, and you get a copy of the live cut.</span></li>
+        </ol>
+      </div>
+      <div class="vm-stack vm-rise d1">
+        <div class="vm-card rejoin" id="rejoinCard" hidden>
+          <p class="vm-eyebrow amber" id="rejoinLabel">You left</p>
+          <h2 id="rejoinTitle"></h2>
+          <p id="rejoinText" class="vm-fine" aria-live="polite"></p>
+          <div class="rejoinpair" role="group" aria-label="Rejoin">
+            <button type="button" class="primary" id="rejoinBtn">Rejoin as camera</button>
+            <button type="button" id="rejoinMicBtn">Rejoin as microphone</button>
+          </div>
+        </div>
+        <div class="vm-card">
+          <form id="codeForm" class="vm-stack">
+            <div class="vm-codewrap">
+              <label for="codeInput">Event code</label>
+              <input id="codeInput" class="vm-code" maxlength="8" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="ABC234" required>
+            </div>
+            <button class="primary big" type="submit">Continue</button>
+          </form>
+          <p class="vm-or">or</p>
+          <div class="codealt">
+            <button type="button" id="scanJoinBtn">Scan the beacon instead</button>
+            <button type="button" id="soloBtn">Use the camera on my own</button>
+          </div>
+          <p class="vm-fine">On your own, everything works the same as at an event, and your clips are saved to My events.</p>
+        </div>
+      </div>
     </div>
-  </div>
-  <h1>Join an event</h1>
-  <p class="muted">Scan the code on the screen, or type the event code.</p>
-  <form id="codeForm" class="field">
-    <label for="codeInput">Event code</label>
-    <input id="codeInput" maxlength="8" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="ABC234" required style="font-size:1.25rem;letter-spacing:.18em;text-transform:uppercase;font-family:var(--mono)">
-    <p></p>
-    <button class="primary" type="submit">Continue</button>
-  </form>
-  <div class="codealt">
-    <button type="button" id="scanJoinBtn">Scan the beacon instead</button>
-    <button type="button" id="soloBtn">Use the camera on my own</button>
-  </div>
-  <p class="fine">On your own, everything works the same as at an event, and your clips are saved to My events.</p>
-  <p class="fine vmverline"><a data-vm-version="long" class="plain" hidden></a></p>
-  <button type="button" class="openLib" id="codeLib" hidden style="width:100%;margin-top:6px"></button>
+  </main>
 </section>
 <section class="scanjoin" id="scanJoin" hidden aria-labelledby="scanHead" role="dialog" aria-modal="true">
   <video id="scanVideo" playsinline muted autoplay></video>
@@ -472,32 +511,43 @@
 </section>
 <button type="button" class="qrrejoin" id="qrRejoinBtn" hidden>Can’t reach the studio · Reconnect by QR</button>
 
-<section class="panel" id="joinView" hidden>
-  <div class="toprow"><p class="muted" style="margin:0">You're joining</p><button type="button" id="themeBtn"></button></div>
-  <h1 id="joinTitle"></h1>
-  <p class="note" id="blockedNote" hidden role="alert">The host removed you from this event, so you can't rejoin it. What you recorded is still in My events.</p>
-  <a class="watchpill" id="joinWatch" hidden target="_blank" rel="noopener"></a>
-  <button type="button" class="openLib linkish" id="joinLib" hidden></button>
-  <div class="permtip" id="permTip" hidden role="note"><p id="permTipText"></p><button type="button" id="permTipDone">Got it</button></div>
-  <form id="joinForm">
-    <div class="field firstbox" id="nameShowBox" hidden>
-      <label for="showName">You're first here: name the show</label>
-      <input id="showName" maxlength="80" autocomplete="off" placeholder="e.g. Friday open mic">
-      <small class="fine">Everyone who scans in after you joins this show.</small>
+<section class="panel vm-page" id="joinView" hidden>
+  <header class="vm-top">
+    <a class="vm-mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
+    <span class="vm-spacer"></span>
+    <button type="button" id="themeBtn"></button>
+  </header>
+  <main class="vm-main">
+    <div class="vm-split">
+      <div class="vm-story vm-rise">
+        <p class="vm-eyebrow">You’re joining</p>
+        <h1 id="joinTitle" class="long"></h1>
+        <p class="vm-note amber" id="blockedNote" hidden role="alert">The host removed you from this event, so you can’t rejoin it. What you recorded is still in My events.</p>
+        <a class="watchpill" id="joinWatch" hidden target="_blank" rel="noopener"></a>
+        <button type="button" class="openLib vm-link" id="joinLib" hidden></button>
+        <div class="permtip vm-note" id="permTip" hidden role="note"><p id="permTipText"></p><button type="button" id="permTipDone">Got it</button></div>
+      </div>
+      <form id="joinForm" class="vm-card vm-rise d1">
+        <div class="field firstbox vm-note amber" id="nameShowBox" hidden>
+          <label for="showName">You’re first here: name the show</label>
+          <input id="showName" maxlength="80" autocomplete="off" placeholder="e.g. Friday open mic">
+          <small class="vm-fine">Everyone who scans in after you joins this show.</small>
+        </div>
+        <div class="field">
+          <label for="name">Your name for the credits</label>
+          <input id="name" maxlength="40" required autocomplete="nickname" placeholder="First name is fine">
+        </div>
+        <fieldset class="roles vm-choices two">
+          <legend>How are you joining?</legend>
+          <label><input type="radio" name="role" value="cam" checked><span>Camera<small>Shoot video from where you are.</small></span></label>
+          <label><input type="radio" name="role" value="mic"><span>Microphone<small>Set this phone down near the people talking. It records the sound for the whole event.</small></span></label>
+        </fieldset>
+        <div class="terms" id="terms"></div>
+        <label class="agree"><input type="checkbox" id="agreeGuest" required> <span>I agree to the event terms above and the <a href="/terms" target="_blank">VUEMesh Terms of Use</a>. VUEMesh comes with no warranty.</span></label>
+        <button class="primary big" type="submit">Accept and open camera</button>
+      </form>
     </div>
-    <div class="field">
-      <label for="name">Your name for the credits</label>
-      <input id="name" maxlength="40" required autocomplete="nickname" placeholder="First name is fine">
-    </div>
-    <fieldset class="roles">
-      <legend>How are you joining?</legend>
-      <label><input type="radio" name="role" value="cam" checked> Camera <span>Shoot video from where you are.</span></label>
-      <label><input type="radio" name="role" value="mic"> Microphone <span>Set this phone down near the people talking. It records the sound for the whole event.</span></label>
-    </fieldset>
-    <div class="terms" id="terms"></div>
-    <label class="agree"><input type="checkbox" id="agreeGuest" required> <span>I agree to the event terms above and the <a href="/terms" target="_blank">VUEMesh Terms of Use</a>. VUEMesh comes with no warranty.</span></label>
-    <button class="primary" type="submit">Accept and open camera</button>
-  </form>
+  </main>
 </section>
 
 <section id="camView" aria-label="Camera">
@@ -596,11 +646,14 @@
     <h2 id="libTitle">My events</h2>
     <label class="sr-only" for="libEvent">Event</label>
     <select id="libEvent"></select>
+    <button type="button" data-theme-toggle></button>
   </header>
-  <p class="libtotals" id="libTotals"></p>
-  <div class="libtabs" role="tablist" aria-label="My events">
-    <button type="button" role="tab" id="tabClips" aria-selected="true" aria-controls="libClips">Clips</button>
-    <button type="button" role="tab" id="tabShow" aria-selected="false" aria-controls="libShow">Show</button>
+  <div class="libsub">
+    <p class="libtotals" id="libTotals"></p>
+    <div class="libtabs vm-seg" role="tablist" aria-label="My events">
+      <button type="button" role="tab" id="tabClips" aria-selected="true" aria-controls="libClips">Clips</button>
+      <button type="button" role="tab" id="tabShow" aria-selected="false" aria-controls="libShow">Show</button>
+    </div>
   </div>
   <div id="libClips" role="tabpanel" aria-labelledby="tabClips">
     <p class="libnote" id="libSummary"></p>
@@ -608,17 +661,19 @@
     <div class="libfoot">
       <label class="check"><input type="checkbox" id="keepCopies"> Keep a copy of each clip after the host gets it</label>
       <button type="button" id="delDelivered">Delete delivered clips from this device</button>
-      <button type="button" class="diagOpen">Something wrong? Copy diagnostics…</button>
+      <button type="button" class="diagOpen ghost">Something wrong? Copy diagnostics…</button>
     </div>
   </div>
   <div id="libShow" role="tabpanel" aria-labelledby="tabShow" hidden>
     <div class="showstats" id="showStats"></div>
-    <h3>Messages from the director</h3>
-    <ul class="msglist" id="libMsgs"></ul>
-    <h3>Rundown</h3>
-    <ol class="rundown" id="libRundown"></ol>
-    <button type="button" class="danger" id="delEvent" style="width:100%;margin-top:22px">Delete this event</button>
-    <p class="fine">Clears its clips, the live cut, messages and the rundown from here, so it no longer takes up space.</p>
+    <div class="showcols">
+      <div><h3>Messages from the director</h3><ul class="msglist" id="libMsgs"></ul></div>
+      <div><h3>Rundown</h3><ol class="rundown" id="libRundown"></ol></div>
+    </div>
+    <div class="libdanger">
+      <button type="button" class="danger" id="delEvent">Delete this event</button>
+      <p class="vm-fine">Clears its clips, the live cut, messages and the rundown from here, so it no longer takes up space.</p>
+    </div>
   </div>
   <div class="player" id="player" hidden role="dialog" aria-modal="true" aria-label="Clip player">
     <div class="playbox" id="playBox"><video id="playVideo" playsinline controls></video><p class="playerr" id="playErr" hidden role="alert"></p></div>

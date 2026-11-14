@@ -92,7 +92,7 @@ with sync_playwright() as p:
     # remove (can rejoin)
     remove('Ben', 'remove')
     ph['Ben'].wait_for_selector('#rejoinCard:not([hidden])', timeout=45000)
-    assert 'Removed by the host' in ph['Ben'].inner_text('#rejoinLabel') and ph['Ben'].is_visible('#rejoinBtn')
+    assert 'removed by the host' in ph['Ben'].inner_text('#rejoinLabel').lower() and ph['Ben'].is_visible('#rejoinBtn')
     host.wait_for_function("!document.querySelector('.tile[data-peer]') || ![...document.querySelectorAll('.tile[data-peer]')].some(t => t.textContent.includes('Ben'))", timeout=45000)
     ph['Ben'].evaluate("document.querySelector('#rejoinBtn').click()"); host.wait_for_selector('.tile[data-peer]:has-text("Ben")', timeout=30000)
     step(f"Remove: Ben's phone left (\"{ph['Ben'].inner_text('#rejoinText')[:60]}…\") and he could rejoin")

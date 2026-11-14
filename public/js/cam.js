@@ -32,6 +32,7 @@ const pgm = { key: null, view: null, watching: false, ready: false, wanted: null
 // ---------------------------------------------------------------- entry ----
 
 themeButton($('#themeBtn'));
+document.querySelectorAll('[data-theme-toggle]').forEach(themeButton);
 if (localStorage.getItem('vm_terms') === TERMS_VERSION) $('#agreeGuest').checked = true;
 const guestHelp = helpDialog('Shooting tips', [
   { heading: 'Camera', text: IS_PHONE ? 'Hold your phone the way the event asks (the prompt at the top tells you). Point it at the beacon screen once, when you join: the pill turns green (Synced), and from then on every clip lines up with everyone else\'s. Shoot steady, and keep this page open until your clips say delivered.' : 'Point this computer\'s camera at the action and keep it still. When you start recording, show it the beacon screen for a second so your clip lines up with everyone else\'s. Keep this page open until your clips say delivered.' },
