@@ -11,76 +11,188 @@
 <link href="/css/archivo.css" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
-  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  /* chart tokens: dark is the site's default; light by choice or by the device */
+  :root {
+    --chart-surface: var(--surface); --chart-grid: #26282e; --chart-axis: #3a3d45; --chart-text: var(--text); --chart-muted: #8b8e97;
+    --series-1: #3987e5; --series-2: #d95926; --up: #3fb950; --up-bg: #3fb95022; --down: #ff7b72; --down-bg: #ff7b7222;
+    --card-line: #ffffff12; --hero: 2.6rem;
+  }
+  :root[data-theme="light"] {
+    --chart-grid: #e8ebf2; --chart-axis: #c9d1e2; --chart-muted: #5f6889; --series-1: #2a78d6; --series-2: #eb6834;
+    --up: #006300; --up-bg: #00630014; --down: #b42318; --down-bg: #b4231812; --card-line: #151a3014;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --chart-grid: #e8ebf2; --chart-axis: #c9d1e2; --chart-muted: #5f6889; --series-1: #2a78d6; --series-2: #eb6834;
+      --up: #006300; --up-bg: #00630014; --down: #b42318; --down-bg: #b4231812; --card-line: #151a3014;
+    }
+  }
+  body { background: var(--bg); }
+  /* top bar */
+  .bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 10px 20px; padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
   .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
-  .bar h1 { font-size: 1.05rem; margin: 0; }
+  .bar h1 { font-size: .95rem; margin: 0; font-weight: 600; color: var(--text-2); padding-left: 12px; border-left: 1px solid var(--line); }
+  .secnav { display: flex; gap: 2px; margin-left: 8px; }
+  .secnav a { color: var(--text-2); text-decoration: none; font-size: .86rem; font-weight: 600; padding: 6px 10px; border-radius: 8px; }
+  .secnav a:hover { background: var(--surface-2); color: var(--text); }
   .spacer { flex: 1; }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 16px; }
-  .login { max-width: 460px; margin: 10vh auto; background: var(--surface); border-radius: 16px; padding: 24px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .tile { background: var(--surface); border-radius: 12px; padding: 12px 14px; }
-  .tile b { display: block; font-size: 1.6rem; font-stretch: 125%; font-variant-numeric: tabular-nums; }
-  .tile span { color: var(--text-2); font-size: .82rem; }
-  .panel { background: var(--surface); border-radius: 12px; overflow: auto; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; padding: 14px; }
-  .kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
-  .kpi b { display: block; font-size: 1.45rem; font-stretch: 125%; font-variant-numeric: tabular-nums; }
-  .kpi span { color: var(--text-2); font-size: .8rem; }
-  .kpi i { font-style: normal; font-size: .78rem; font-weight: 700; margin-left: .4em; }
-  .kpi i.up { color: #2bb673; } .kpi i.down { color: #e5534b; }
-  .gchart { margin: 0 14px 6px; }
-  #gChart { width: 100%; height: 220px; display: block; }
-  .gchart figcaption { color: var(--text-2); font-size: .8rem; padding: 4px 0; }
-  .gtable { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
-  .gtable th, .gtable td { padding: 6px 14px; text-align: right; border-top: 1px solid var(--line); white-space: nowrap; }
-  .gtable th:first-child, .gtable td:first-child { text-align: left; }
-  .snaps { padding: 6px 14px 12px; } .snaps ul { list-style: none; padding: 0; margin: 6px 0 0; }
-  .snaps li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
-  .tools { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .tools input { max-width: 320px; min-height: 38px; }
-  .tools select { width: auto; min-height: 38px; }
-  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
-  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  thead th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+  .bar .note { font-size: .8rem; }
+  .bar button { min-height: 34px; padding: .3em .8em; font-size: .85rem; }
+  @media (max-width: 900px) { .secnav { display: none; } }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 20px 48px; display: grid; gap: 18px; }
+  .login { max-width: 460px; margin: 10vh auto; background: var(--surface); border-radius: 16px; padding: 24px; border: 1px solid var(--card-line); }
+  /* the period, for everything below it */
+  .toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { min-height: 30px; padding: .2em .85em; font-size: .82rem; font-weight: 700; letter-spacing: .02em; border: 0; background: transparent; color: var(--text-2); border-radius: 7px; }
+  .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); }
+  .seg button:hover:not([aria-pressed="true"]) { color: var(--text); }
+  .now { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: baseline; gap: 6px; background: var(--surface); border: 1px solid var(--card-line); border-radius: 999px; padding: 5px 12px; font-size: .8rem; color: var(--text-2); }
+  .chip b { color: var(--text); font-size: .9rem; font-variant-numeric: tabular-nums; }
+  .chip.live b::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--tally); margin-right: 6px; vertical-align: 1px; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .chip.live b::before { animation: none; } }
+  /* stat tiles: label, value, change against the period before, trend */
+  .ticker { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1180px) { .ticker { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .ticker { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat .val b { font-size: 1.35rem; } }
+  .stat { background: var(--surface); border: 1px solid var(--card-line); border-radius: 14px; padding: 14px 16px 10px; display: grid; gap: 4px; min-width: 0; }
+  .stat .lbl { color: var(--text-2); font-size: .78rem; font-weight: 600; }
+  .stat .val { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .stat .val b { font-size: 1.65rem; font-weight: 700; font-stretch: 110%; letter-spacing: -.01em; line-height: 1.15; }
+  .stat .vs { color: var(--muted); font-size: .72rem; }
+  .spark { width: 100%; height: 34px; display: block; margin-top: 2px; }
+  .delta { display: inline-flex; align-items: center; gap: 3px; font-size: .74rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .delta.up { color: var(--up); background: var(--up-bg); } .delta.down { color: var(--down); background: var(--down-bg); }
+  .delta.flat { color: var(--text-2); background: var(--surface-2); }
+  /* cards */
+  .card { background: var(--surface); border: 1px solid var(--card-line); border-radius: 16px; overflow: hidden; scroll-margin-top: 76px; }
+  .card > header { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; flex-wrap: wrap; }
+  .card > header h2 { margin: 0; font-size: 1.02rem; font-weight: 700; }
+  .card > header .sub { color: var(--muted); font-size: .8rem; }
+  .card > header button, .card > header select { min-height: 34px; font-size: .84rem; padding: .25em .8em; width: auto; }
+  .card .body { padding: 14px 20px 18px; display: grid; gap: 14px; }
+  .card footer { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 20px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 40%, transparent); }
+  .note { color: var(--text-2); font-size: .84rem; }
+  /* the hero figure above a chart */
+  .hero { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .hero .main .lbl { color: var(--text-2); font-size: .8rem; font-weight: 600; }
+  .hero .main b { display: block; font-size: var(--hero); font-weight: 700; font-stretch: 110%; letter-spacing: -.02em; line-height: 1.05; }
+  .hero .main .delta { font-size: .82rem; padding: 2px 9px; vertical-align: middle; }
+  .hero .side { display: flex; gap: 26px; flex-wrap: wrap; padding-bottom: 4px; }
+  .hero .side div { display: grid; gap: 2px; }
+  .hero .side span { color: var(--muted); font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .hero .side b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+  /* charts (charts.js) */
+  .chart { display: grid; gap: 6px; min-width: 0; }
+  .chart-head { display: flex; align-items: center; gap: 14px; min-height: 26px; }
+  .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; flex: 1; }
+  .chart-key { display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; color: var(--text-2); }
+  .sw-bar { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+  .sw-line { display: inline-block; width: 14px; height: 2px; border-radius: 2px; }
+  .chart-tbtn { margin-left: auto; min-height: 26px !important; padding: 0 .7em !important; font-size: .76rem !important; background: transparent; border: 1px solid var(--line); color: var(--text-2); }
+  .chart-plot { position: relative; min-width: 0; outline: none; border-radius: 8px; touch-action: pan-y; }
+  .chart-plot:focus-visible { box-shadow: 0 0 0 2px var(--series-1); }
+  .chart-svg { font-family: var(--font); }
+  .chart-svg .cols path { transition: opacity .12s; }
+  .chart-svg .cols path.dim { opacity: .45; }
+  .chart-tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 10px; padding: 8px 10px; min-width: 150px; font-size: .8rem; z-index: 2; }
+  .chart-tip .tip-h { color: var(--text-2); font-size: .74rem; margin-bottom: 4px; }
+  .chart-tip .tip-r { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .chart-tip .tip-r b { font-size: .95rem; font-variant-numeric: tabular-nums; }
+  .chart-tip .tip-r span { color: var(--text-2); }
+  .chart-table { max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .chart-table table { font-size: .82rem; }
+  .chart-table td { text-align: right; font-variant-numeric: tabular-nums; }
+  .chart.small .chart-head { min-height: 0; }
+  /* tables */
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  thead th { font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--surface); position: sticky; top: 0; }
+  tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
   tbody th { font-weight: 700; }
-  td.code { font-family: var(--mono); letter-spacing: .06em; }
-  td .acts { display: flex; gap: 4px; flex-wrap: wrap; }
-  td .acts button { min-height: 30px; padding: .2em .6em; font-size: .8rem; }
-  button.danger { background: var(--tally); color: #fff; }
-  .tag { font-size: .7rem; font-weight: 700; padding: .1em .45em; border-radius: 4px; background: var(--surface-3); }
-  .tag.live { background: var(--tally); color: #fff; }
-  .tag.pub { background: var(--preview); color: #fff; }
-  .note { color: var(--text-2); font-size: .88rem; }
-  .tag.kiosk { background: #1fa64a33; color: #2bb673; border-color: #1fa64a; }
-  .tag.studio { background: #3d8bfd22; color: #6ea8fe; border-color: #3d8bfd; }
-  td.times { font-size: .8rem; white-space: nowrap; color: var(--text-2); }
-  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 12px 16px; }
-  .tgrid table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  .tgrid caption { text-align: left; font-weight: 700; padding: 4px 0; }
-  .tgrid td { padding: 3px 4px; border-top: 1px solid var(--line); }
-  .servers { padding: 12px 16px; display: grid; gap: 12px; }
-  .server { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+  .gtable { font-variant-numeric: tabular-nums; }
+  .gtable th, .gtable td { text-align: right; white-space: nowrap; }
+  .gtable th:first-child, .gtable td:first-child { text-align: left; }
+  details.more { border-top: 1px solid var(--line); }
+  details.more > summary { cursor: pointer; padding: 12px 20px; font-weight: 600; font-size: .88rem; color: var(--text-2); }
+  details.more > summary:hover { color: var(--text); }
+  details.more > .inner { padding: 0 20px 16px; overflow-x: auto; }
+  .snaps ul { list-style: none; padding: 0; margin: 0; }
+  .snaps li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row input, .row select { width: auto; min-height: 36px; }
+  /* top lists */
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+  .tlist { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .tlist h3 { margin: 0 0 6px; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .tlist ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .tlist li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: .85rem; }
+  .tlist li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tlist li b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tlist li i { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .tlist li i::after { content: ""; display: block; height: 100%; width: var(--w); background: var(--series-1); border-radius: 2px; }
+  /* servers */
+  .servers { display: grid; gap: 14px; }
+  .server { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px; }
   .server header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .server header b { font-size: 1rem; }
-  .server .kpis { padding: 0; }
-  .server .kpi { background: var(--surface); }
+  .server header b { font-size: .98rem; }
+  .server header button { min-height: 30px; font-size: .8rem; padding: .2em .7em; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font-size: 1.3rem; font-stretch: 110%; font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--text-2); font-size: .76rem; }
   .meter { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
-  .meter i { display: block; height: 100%; background: var(--preview); }
+  .meter i { display: block; height: 100%; background: var(--series-1); border-radius: 4px; }
   .meter i.warn { background: #d99a1e; } .meter i.over { background: var(--tally); }
-  .spark { width: 100%; height: 48px; display: block; color: var(--preview); }
-  .tag.ok { background: #2bb673; color: #fff; } .tag.bad { background: var(--tally); color: #fff; }
-  .tgrid td.n { text-align: right; font-variant-numeric: tabular-nums; width: 5em; }
-  .tgrid td .tbar { display: block; height: 3px; background: var(--accent, #e5534b); opacity: .7; margin-top: 2px; }
+  .sub2 { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; }
+  /* tags */
+  .tag { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .03em; padding: .15em .5em; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }
+  .tag.live { background: var(--tally); color: #fff; }
+  .tag.kiosk { background: #1fa64a26; color: #3fb950; }
+  .tag.studio { background: #3d8bfd22; color: #6ea8fe; }
+  :root[data-theme="light"] .tag.kiosk { color: #116329; } :root[data-theme="light"] .tag.studio { color: #1f5fbf; }
+  .tag.ok { background: #1f883d; color: #fff; } .tag.bad { background: var(--tally); color: #fff; }
+  button.danger { background: var(--tally); color: #fff; }
+  /* events */
+  .etools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .etools input[type="search"] { max-width: 280px; min-height: 36px; }
+  .etools select { width: auto; min-height: 36px; }
+  .elist { overflow-x: auto; }
+  .elist th button.sort { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  .elist th button.sort:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; border-radius: 3px; }
+  .elist th button.sort::after { content: "↕"; opacity: .35; font-size: .9em; }
+  .elist th[aria-sort="ascending"] button.sort::after { content: "↑"; opacity: 1; }
+  .elist th[aria-sort="descending"] button.sort::after { content: "↓"; opacity: 1; }
+  td.code { font-family: var(--mono); letter-spacing: .06em; font-weight: 600; }
+  td.times { font-size: .8rem; white-space: nowrap; color: var(--text-2); }
+  td .acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  td .acts button { min-height: 30px; padding: .2em .6em; font-size: .78rem; }
+  .left { display: inline-flex; align-items: center; gap: 8px; min-width: 110px; font-variant-numeric: tabular-nums; }
+  .left i { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; max-width: 70px; }
+  .left i::after { content: ""; display: block; height: 100%; width: var(--w); background: var(--series-1); }
+  .left.soon i::after { background: #d99a1e; }
+  .pager { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pager button { min-height: 32px; min-width: 34px; padding: 0 .6em; font-size: .82rem; background: transparent; border: 1px solid var(--line); color: var(--text-2); }
+  .pager button[aria-current="page"] { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  .pager button:disabled { opacity: .4; }
+  .pager .gap { color: var(--muted); padding: 0 2px; }
   #gFlags li { margin: 4px 0; }
   #gFlags button { margin-left: 6px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
 <body>
 <header class="bar">
   <a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
   <h1>Admin</h1>
+  <nav class="secnav" aria-label="Sections" id="secnav" hidden><a href="#growth">Growth</a><a href="#traffic">Traffic</a><a href="#serversCard">Servers</a><a href="#eventsCard">Events</a></nav>
   <span class="spacer"></span>
+  <span class="note" id="updated" aria-live="polite"></span>
+  <button type="button" id="refreshAll" hidden>Refresh</button>
   <button type="button" id="themeBtn"></button>
   <button type="button" id="signOut" hidden>Sign out</button>
 </header>
@@ -93,70 +205,94 @@
 </form>
 
 <main class="wrap" id="main" hidden>
-  <section class="tiles" id="tiles" aria-label="Totals"></section>
-  <section class="panel" aria-labelledby="gh">
-    <div class="tools">
-      <h2 id="gh" style="margin:0;font-size:1rem">Growth</h2>
-      <select id="gRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90" selected>Last 90 days</option><option value="365">Last 12 months</option><option value="all">Since counting began</option></select>
+  <div class="toolbar">
+    <div class="seg" id="range" role="group" aria-label="Period for every chart and number below">
+      <button type="button" data-range="7">7D</button><button type="button" data-range="30">30D</button><button type="button" data-range="90">90D</button><button type="button" data-range="365">1Y</button><button type="button" data-range="all">All</button>
+    </div>
+    <span class="note" id="rangeNote"></span>
+    <span class="spacer"></span>
+    <div class="now" id="tiles" aria-label="Right now"></div>
+  </div>
+
+  <section class="ticker" id="gKpis" aria-label="Key numbers for the period"></section>
+
+  <section class="card" id="growth" aria-labelledby="gh">
+    <header>
+      <h2 id="gh">Growth</h2><span class="sub">Anonymous counts by day</span>
+      <span class="spacer"></span>
       <select id="gMetric" aria-label="Chart shows"></select>
-      <span class="spacer"></span>
-      <button type="button" id="gCsv">Download CSV</button>
-      <button type="button" id="gReport" class="primary">Investor snapshot</button>
+      <div class="seg" id="gMode" role="group" aria-label="Show"><button type="button" data-mode="daily" aria-pressed="true">Daily</button><button type="button" data-mode="total" aria-pressed="false">Running total</button></div>
+      <button type="button" id="gCsv">CSV</button>
       <button type="button" id="gSave">Save snapshot</button>
+      <button type="button" id="gReport" class="primary">Investor snapshot</button>
+    </header>
+    <div class="body">
+      <div class="hero" id="gHero"></div>
+      <div id="gChart"></div>
     </div>
-    <div class="kpis" id="gKpis"></div>
-    <figure class="gchart"><svg id="gChart" role="img" aria-labelledby="gCap" preserveAspectRatio="none"></svg><figcaption id="gCap"></figcaption></figure>
-    <div style="overflow-x:auto"><table class="gtable" id="gTable"></table></div>
-    <div class="tools" style="border-bottom:0;border-top:1px solid var(--line)">
-      <span class="note">Anonymous counts by day: no names, phones, places or events in them. Events and everything in them still delete themselves after 30 days; these counts are kept.</span>
-      <span class="spacer"></span>
-      <button type="button" id="gBackfill" title="Count the events still here (the last 30 days) into days from before counting began">Fill in earlier days</button>
-    </div>
-    <details class="snaps"><summary>Saved snapshots</summary><ul id="gSnaps"></ul></details>
-    <details class="snaps" id="gFixBox"><summary>Correct a day <span class="note" id="gFlagCount"></span></summary>
+    <details class="more"><summary>Month by month</summary><div class="inner"><table class="gtable" id="gTable"></table></div></details>
+    <details class="more snaps"><summary>Saved snapshots</summary><div class="inner"><ul id="gSnaps"></ul></div></details>
+    <details class="more" id="gFixBox"><summary>Correct a day <span class="note" id="gFlagCount"></span></summary><div class="inner">
       <p class="note">For a count that's plainly wrong (an old bug once added 83 days of footage in an afternoon). The value that was there is kept beside it, so a correction can be seen and undone.</p>
       <ul id="gFlags"></ul>
-      <div class="tools" style="border:0;padding-left:0">
+      <div class="row">
         <input type="date" id="fxDay" aria-label="Day">
         <select id="fxKey" aria-label="Count"></select>
         <input type="number" id="fxVal" min="0" step="any" aria-label="Correct value" placeholder="Correct value">
         <button type="button" id="fxGo">Correct it</button>
         <span class="note" id="fxSay" role="status"></span>
       </div>
-    </details>
+    </div></details>
+    <footer>
+      <span class="note">No names, phones, places or events in these counts. Events and everything in them delete themselves after 30 days; the day counts are kept.</span>
+      <span class="spacer"></span>
+      <button type="button" id="gBackfill" title="Count the events still here (the last 30 days) into days from before counting began">Fill in earlier days</button>
+    </footer>
   </section>
 
-  <section class="panel" aria-labelledby="th">
-    <div class="tools">
-      <h2 id="th" style="margin:0;font-size:1rem">Web traffic</h2>
-      <select id="tRange" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+  <section class="card" id="traffic" aria-labelledby="th">
+    <header>
+      <h2 id="th">Web traffic</h2><span class="sub">Visitors and page views</span>
       <span class="spacer"></span>
-      <button type="button" id="tCsv">Download CSV</button>
+      <button type="button" id="tCsv">CSV</button>
+    </header>
+    <div class="body">
+      <div class="hero" id="tHero"></div>
+      <div id="tChart"></div>
+      <div class="tgrid" id="tTables"></div>
     </div>
-    <div class="kpis" id="tKpis"></div>
-    <figure class="gchart"><svg id="tChart" role="img" aria-labelledby="tCap" preserveAspectRatio="none"></svg><figcaption id="tCap"></figcaption></figure>
-    <div class="tgrid" id="tTables"></div>
-    <div class="tools" style="border-bottom:0;border-top:1px solid var(--line)">
-      <span class="note">No cookies, nothing stored about anyone. A visitor is counted once a day by an anonymous fingerprint (a salted hash of the day, their address and browser) that's deleted after two days. Bots, these admin pages and browsers that ask not to be tracked aren't counted.</span>
-    </div>
+    <footer><span class="note">No cookies, nothing stored about anyone. A visitor is counted once a day by an anonymous fingerprint (a salted hash of the day, their address and browser) that's deleted after two days. Bots, these admin pages and browsers that ask not to be tracked aren't counted.</span></footer>
   </section>
-  <section class="panel" aria-labelledby="sh">
-    <div class="tools">
-      <h2 id="sh" style="margin:0;font-size:1rem">Servers</h2>
+
+  <section class="card" id="serversCard" aria-labelledby="sh">
+    <header>
+      <h2 id="sh">Servers</h2><span class="sub">STUN and the TURN relay: Lightsail's own numbers and the relay's counts, nothing about the people using them</span>
+      <span class="spacer"></span>
       <button type="button" id="sRefresh">Refresh</button>
-      <span class="note">The Lightsail servers (STUN and the TURN relay): Lightsail's own numbers, nothing about the people using them.</span>
-    </div>
-    <div id="servers" class="servers"><p class="note">Loading…</p></div>
+    </header>
+    <div class="body"><div id="servers" class="servers"><p class="note">Loading…</p></div></div>
   </section>
-  <section class="panel" aria-labelledby="eh">
-    <div class="tools">
-      <h2 id="eh" style="margin:0;font-size:1rem">Events</h2>
-      <input type="search" id="filter" placeholder="Filter by code (or kiosk, studio, tv)" aria-label="Filter events">
+
+  <section class="card" id="eventsCard" aria-labelledby="eh">
+    <header>
+      <h2 id="eh">Events</h2><span class="sub" id="eCount"></span>
       <span class="spacer"></span>
       <button type="button" id="refresh">Refresh</button>
+    </header>
+    <div class="body">
+      <div class="etools">
+        <input type="search" id="filter" placeholder="Find a code" aria-label="Find an event by its code">
+        <div class="seg" id="eKind" role="group" aria-label="Show">
+          <button type="button" data-kind="all" aria-pressed="true">All</button><button type="button" data-kind="studio" aria-pressed="false">Studio</button><button type="button" data-kind="kiosk" aria-pressed="false">Kiosk</button><button type="button" data-kind="call" aria-pressed="false">Calls</button><button type="button" data-kind="live" aria-pressed="false">Live</button>
+        </div>
+        <span class="spacer"></span>
+        <label class="note" for="ePer">Per page</label>
+        <select id="ePer"><option>25</option><option selected>50</option><option>100</option></select>
+      </div>
+      <div class="elist" id="list"></div>
+      <div class="row"><span class="note" id="eShowing" aria-live="polite"></span><span class="spacer"></span><nav class="pager" id="pager" aria-label="Pages of events"></nav></div>
     </div>
-    <div id="list"></div>
-    <div class="tools"><button type="button" id="more" hidden>Load more</button><span class="note">Everything expires on its own 30 days after it was created. Deleting here is immediate and can't be undone.</span></div>
+    <footer><span class="note">Everything expires on its own 30 days after it was created (calls after a day). Deleting here is immediate and can't be undone.</span></footer>
   </section>
 </main>
 <script src="/config.js"></script>
