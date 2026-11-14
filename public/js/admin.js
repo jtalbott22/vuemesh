@@ -3,6 +3,7 @@
 // period just before it.
 import { $, api, esc, toast, themeButton, announce } from '/js/vm.js';
 import { chart, renderSvg, sparkline, compact, bytes, dayLabel, dayFull, hourLabel } from '/js/charts.js';
+import { picker } from '/js/picker.js';
 
 themeButton($('#themeBtn'));
 let adminKey = sessionStorage.getItem('vm_admin') || '';
@@ -258,11 +259,20 @@ const METRICS = [
   ['live_cut_sec', 'Live cut recorded (hours)', 3600], ['stream_sec', 'Streamed live (hours)', 3600], ['films', 'Films published', 1],
   ['studio_sec', 'Studio, live (hours)', 3600], ['edit_sec', 'Editing (hours)', 3600], ['kiosk_sec', 'Kiosks running (hours)', 3600], ['camera_sec', 'Phones in shows (hours)', 3600],
   ['calls', 'Calls started', 1], ['call_people', 'People in calls (each once a call)', 1], ['call_joins', 'Call connections (reconnects too)', 1], ['call_screens', 'Screens shared in calls', 1],
+  ['displays', 'TVs watching (each once a show)', 1], ['display_sec', 'TV watching (hours)', 3600], ['kind_tv', 'TV codes made', 1],
+];
+// (the chart's menu, in groups)
+const METRIC_GROUPS = [
+  ['Shows', ['events', 'active_events', 'cameras', 'screens', 'mics', 'viewers', 'clips', 'films']],
+  ['Time', ['footage_sec', 'live_cut_sec', 'stream_sec', 'studio_sec', 'edit_sec', 'kiosk_sec', 'camera_sec']],
+  ['TVs', ['displays', 'display_sec', 'kind_tv']],
+  ['Calls', ['calls', 'call_people', 'call_joins', 'call_screens']],
 ];
 const METRIC = Object.fromEntries(METRICS.map(([k, label, f]) => [k, { label, f }]));
 let growthAll = [], gMode = 'daily';
-$('#gMetric').innerHTML = METRICS.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('');
+$('#gMetric').innerHTML = METRIC_GROUPS.map(([g, keys]) => `<optgroup label="${esc(g)}">${keys.map((k) => `<option value="${k}">${esc(METRIC[k].label)}</option>`).join('')}</optgroup>`).join('');
 $('#gMetric').value = store.get('vm_admin_metric') && METRIC[store.get('vm_admin_metric')] ? store.get('vm_admin_metric') : 'events';
+for (const id of ['#gMetric', '#ePer', '#fxKey']) picker($(id));
 
 async function loadGrowth() {
   const r = await call(`growth?from=${dayStr(Date.now() - 800 * DAY_MS)}&to=${dayStr(Date.now())}`);
@@ -315,7 +325,7 @@ function renderGrowth() {
       <div><span>Since counting began</span><b>${esc(fmt(S.sinceStart[k], k))}</b></div>
     </div>`;
   const g = growthSeries(S.days, k, gMode);
-  const o = { ...g, height: 280, format: (v) => fmt(v, k), xLabel: (t) => dayLabel(t, p.n > 400), tipLabel: (t) => (g.unit === 'week' ? `Week of ${dayFull(t)}` : dayFull(t)), label: `${METRIC[k].label}, ${p.from} to ${p.to}` };
+  const o = { ...g, height: 280, integers: METRIC[k].f === 1, format: (v) => fmt(v, k), xLabel: (t) => dayLabel(t, p.n > 400), tipLabel: (t) => (g.unit === 'week' ? `Week of ${dayFull(t)}` : dayFull(t)), label: `${METRIC[k].label}, ${p.from} to ${p.to}` };
   if (gChart) gChart.update(o); else gChart = chart($('#gChart'), o);
   // months
   const months = new Map();
@@ -356,7 +366,7 @@ function reportHtml(S, label, asOf) {
   const svg = (k) => {
     const g = growthSeries(S.days, k, 'daily', { a: '#2a78d6', b: '#eb6834' });
     const key = g.series.map((s) => `<span style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;color:#555;font-size:12px"><i style="display:inline-block;width:${s.kind === 'column' ? 10 : 14}px;height:${s.kind === 'column' ? 10 : 2}px;border-radius:2px;background:${s.color}"></i>${esc(s.name)}</span>`).join('');
-    return `<div>${key}</div>${renderSvg({ ...g, height: 220, ink: PRINT_INK, format: (v) => fmt(v, k), xLabel: (t) => dayLabel(t, p.n > 400) }, 760).svg.replace('<svg', '<svg style="width:100%;height:auto"')}`;
+    return `<div>${key}</div>${renderSvg({ ...g, height: 220, integers: METRIC[k].f === 1, ink: PRINT_INK, format: (v) => fmt(v, k), xLabel: (t) => dayLabel(t, p.n > 400) }, 760).svg.replace('<svg', '<svg style="width:100%;height:auto"')}`;
   };
   const pct = (c) => (c == null ? 'new' : `${c >= 0 ? '+' : ''}${Math.round(c * 100)}%`);
   const row = (k, l) => `<tr><th>${l}</th><td>${fmt(S.totals[k], k)}</td><td>${fmt(S.previous[k], k)}</td><td>${pct(S.change[k])}</td><td>${fmt(S.sinceStart[k], k)}</td></tr>`;
@@ -429,6 +439,7 @@ document.addEventListener('click', (e) => {
   if (!day) return;
   $('#fxDay').value = day;
   $('#fxKey').value = 'footage_sec';
+  $('#fxKey')._picker?.sync();
   $('#fxVal').focus();
   $('#fxSay').textContent = 'Enter the footage that day, in hours (your best estimate: the camera hours, say).';
 });
@@ -473,7 +484,7 @@ function renderTraffic() {
     </div>`;
   const b1 = bucket(days, (d) => d.visitors || 0), b2 = bucket(days, (d) => d.pageviews || 0);
   const o = {
-    x: b1.pts.map((x) => x.t), height: 260, label: `Visitors and page views, ${p.from} to ${p.to}`,
+    x: b1.pts.map((x) => x.t), height: 260, integers: true, label: `Visitors and page views, ${p.from} to ${p.to}`,
     xLabel: (t) => dayLabel(t, p.n > 400), tipLabel: (t) => (b1.unit === 'week' ? `Week of ${dayFull(t)}` : dayFull(t)),
     series: [
       { name: `Visitors a ${b1.unit}`, kind: 'area', color: 'var(--series-1)', values: b1.pts.map((x) => x.v) },
@@ -601,7 +612,7 @@ function renderServers() {
   const relay = (r.servers || []).some((s) => s.relay) ? relayPanel(r, week, span) : '';
   $('#servers').innerHTML = (cards.join('') || `<p class="note">${esc(r.note || 'No Lightsail servers in this region.')}</p>`) + turn + relay;
   // the charts, hour by hour
-  const hourly = (values, x, name, format) => ({ x, height: 150, format, xLabel: hourLabel, tipLabel: (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }), endLabels: false, series: [{ name, kind: 'column', color: 'var(--series-1)', values }] });
+  const hourly = (values, x, name, format, integers = false) => ({ x, height: 150, format, integers, xLabel: hourLabel, tipLabel: (t) => new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }), endLabels: false, series: [{ name, kind: 'column', color: 'var(--series-1)', values }] });
   nets.forEach((net, si) => {
     const el = $(`#servers [data-chart="net-${si}"]`);
     if (el) chart(el, hourly(net.map((p) => p.v), net.map((p) => p.t), 'Data', (v) => bytes(v)));
@@ -609,7 +620,7 @@ function renderServers() {
   const relayEl = $('#servers [data-chart="relay"]');
   if (relayEl) {
     const h = relayHours(trafficAll, 'peak');
-    chart(relayEl, hourly(h.map((p) => p.v), h.map((p) => p.t), 'Most open at once', compact));
+    chart(relayEl, hourly(h.map((p) => p.v), h.map((p) => p.t), 'Most open at once', compact, true));
   }
 }
 $('#sRefresh')?.addEventListener('click', () => loadTraffic().then(loadServers).catch((e) => toast(e.message, 5000)));

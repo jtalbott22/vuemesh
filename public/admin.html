@@ -181,6 +181,21 @@
   .pager .gap { color: var(--muted); padding: 0 2px; }
   #gFlags li { margin: 4px 0; }
   #gFlags button { margin-left: 6px; }
+  /* drop-down menus (picker.js) */
+  .picker { display: inline-block; position: relative; }
+  .picker-btn { display: inline-flex; align-items: center; gap: 10px; justify-content: space-between; min-height: 34px; padding: .25em .7em .25em .85em; font-size: .84rem; font-weight: 600;
+    background: var(--field); color: var(--text); border: 1.5px solid var(--line); border-radius: 9px; max-width: 320px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .picker-btn::after { content: ""; flex: none; width: 7px; height: 7px; border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: translateY(-2px) rotate(45deg); }
+  .picker-btn[aria-expanded="true"] { border-color: var(--series-1); }
+  .picker-btn:hover { border-color: var(--muted); }
+  .picker-list { position: fixed; inset: auto; margin: 0; padding: 6px; list-style: none; overflow: auto; background: var(--surface); color: var(--text);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px #0006; font-size: .86rem; outline: none; max-width: min(420px, calc(100vw - 16px)); }
+  .picker-list li[role="option"] { padding: 7px 28px 7px 10px; border-radius: 7px; cursor: pointer; position: relative; white-space: nowrap; }
+  .picker-list li.active { background: var(--surface-2); }
+  .picker-list li[aria-selected="true"] { font-weight: 700; }
+  .picker-list li[aria-selected="true"]::after { content: "✓"; position: absolute; right: 9px; color: var(--series-1); }
+  .picker-group { padding: 10px 10px 4px; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .picker-group:first-child { padding-top: 4px; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>

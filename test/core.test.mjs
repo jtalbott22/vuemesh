@@ -295,6 +295,23 @@ ok('events expire after 30 days for the API and signaling');
   ok('share: a computer\'s screen counted as a screen shared (once an event), not as a camera');
 }
 
+// a TV watching a show: counted once a show (displays), and the time it watched (display_sec)
+{
+  const m = (await call('POST', '/events', { title: 'TV night' })).body;
+  const day = new Date(clock).toISOString().slice(0, 10), before = (await store.listStats(day, day))[0] || {};
+  const tv = (connectionId, route) => signal({ route, connectionId, query: { e: m.id, peer: 'tv-' + connectionId, role: 'display', cid: 'tvA' } }, { store, post: async () => true, now: () => clock });
+  await tv('tv1', '$connect');
+  clock += 600_000;
+  await tv('tv1', '$disconnect');
+  await tv('tv2', '$connect');
+  clock += 300_000;
+  await tv('tv2', '$disconnect');
+  const after = (await store.listStats(day, day))[0];
+  assert.equal((after.displays || 0) - (before.displays || 0), 1, 'one TV, once');
+  assert.equal((after.display_sec || 0) - (before.display_sec || 0), 900, '10 min, then 5 min after it reconnected');
+  ok('TVs: counted once a show, and the time they watched (15 min over two connections)');
+}
+
 // growth: anonymous day counts that outlive the events
 {
   const A = { 'x-admin-key': ADMIN_KEY };
