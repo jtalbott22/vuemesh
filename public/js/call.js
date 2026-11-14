@@ -62,7 +62,7 @@ const tiles = new Map(); // peer id → tile
 function newMesh() {
   return (mesh = new CallMesh({
     id: callId, key: roomKey, pin, name: myName,
-    tracks: () => ({ audio: local?.getAudioTracks()[0], camera: local?.getVideoTracks()[0], screen: screen?.getVideoTracks()[0] }),
+    tracks: () => ({ audio: soundOut(), camera: local?.getVideoTracks()[0], screen: screen?.getVideoTracks()[0] }),
     state: () => ({ mic: micOn, cam: camOn, screen: !!screen }),
     on: {
       waiting: () => show('waitView'),
@@ -186,11 +186,53 @@ function toCall() {
 
 // ---- share a screen: into everyone's third place (no new offer) ----
 const canShare = !!navigator.mediaDevices?.getDisplayMedia;
+const isMac = /Mac/.test(navigator.platform || navigator.userAgent), isLinux = /Linux/.test(navigator.platform || '') && !/Android/.test(navigator.userAgent);
+const soundHow = isMac || isLinux
+  ? `For sound, share a Chrome tab and tick Share tab audio (${isMac ? 'a Mac' : 'Linux'} shares a tab’s sound, not the whole computer’s).`
+  : 'For sound, tick Share tab audio, or Share system audio for the whole screen.';
+$('#shareBtn').title = `A screen, a window or a tab, with its sound. ${soundHow}`;
+
+// A shared screen's sound, mixed with this microphone into the one sound everyone hears from you. A
+// call has one place for each person's sound, so the screen's goes in with the voice: everyone (and a
+// studio in the call, and pages from before this) hears it with nothing new to receive. Mic off still
+// mutes only the voice: a muted microphone is silence going into the mix. It isn't played here: you
+// already hear it from this computer.
+let mix = null; // { ctx, mic, sa, track }
+function soundOut() {
+  const sa = screen?.getAudioTracks()[0], mic = local?.getAudioTracks()[0];
+  if (!sa) {
+    closeMix();
+    return mic;
+  }
+  if (mix?.sa !== sa || mix?.mic !== mic) {
+    closeMix();
+    try {
+      const ctx = new AudioContext();
+      ctx.resume?.().catch(() => {});
+      const dest = ctx.createMediaStreamDestination();
+      for (const t of [mic, sa]) if (t) ctx.createMediaStreamSource(new MediaStream([t])).connect(dest);
+      mix = { ctx, mic, sa, track: dest.stream.getAudioTracks()[0] };
+    } catch {
+      return mic;
+    }
+  }
+  return mix.track;
+}
+function closeMix() {
+  mix?.ctx.close().catch(() => {});
+  mix = null;
+}
 $('#shareBtn').hidden = !canShare;
 $('#shareBtn').onclick = async () => {
   if (screen) return stopShare();
   try {
-    screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15 } }, audio: false });
+    // (with its sound, if they tick Share tab audio or Share system audio in the browser's picker; never
+    // this tab, or the call's own sound, which would send everyone their own voices back)
+    screen = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 15 } },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
+      systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
+    });
   } catch {
     return; // (they chose not to)
   }
@@ -198,6 +240,7 @@ $('#shareBtn').onclick = async () => {
   if (v) v.contentHint = 'detail';
   v?.addEventListener('ended', stopShare);
   mesh?.refill();
+  toast(screen.getAudioTracks().length ? 'Its sound goes to the call too.' : `No sound with it. ${soundHow}`, 6000);
   $('#shareBtn').setAttribute('aria-pressed', 'true');
   $('#shareBtn').textContent = 'Stop sharing';
   renderAll();
@@ -207,6 +250,7 @@ function stopShare() {
   for (const t of screen.getTracks()) t.stop();
   screen = null;
   mesh?.refill();
+  closeMix();
   $('#shareBtn').setAttribute('aria-pressed', 'false');
   $('#shareBtn').textContent = 'Share screen';
   renderAll();
@@ -660,4 +704,4 @@ else if (!roomKey && !hostKey()) {
   $('#pin').focus();
 } else preJoin();
 
-window.vmCall = () => ({ ccWant, ccCan, ccSaid, studioNote: $('#studioNote').hidden ? '' : $('#studioNote').textContent, callId, inCall: !!mesh?.inCall, me: mesh?.me, big, studioRules: !!mesh?.studioRules, peers: [...(mesh?.peers || [])].map(([id, p]) => ({ id, name: p.name, studio: !!p.studio, state: p.pc.connectionState, offers: p.offers, streams: p.cam$.getTracks().length, screen: p.sharing, hearing: p.hearing ?? null, cc: p.cc || '', ccCan: p.ccCan || null, rec: !!p.rec, live: !!p.live, playing: !!sounds.get(id) && !sounds.get(id).paused && !!sounds.get(id).srcObject?.getAudioTracks().length })), waiting: [...(mesh?.waiting.values() || [])], locked: !!mesh?.locked, sharing: !!screen }); // (tests)
+window.vmCall = () => ({ ccWant, ccCan, ccSaid, studioNote: $('#studioNote').hidden ? '' : $('#studioNote').textContent, callId, inCall: !!mesh?.inCall, me: mesh?.me, big, studioRules: !!mesh?.studioRules, peers: [...(mesh?.peers || [])].map(([id, p]) => ({ id, name: p.name, studio: !!p.studio, state: p.pc.connectionState, offers: p.offers, streams: p.cam$.getTracks().length, screen: p.sharing, hearing: p.hearing ?? null, cc: p.cc || '', ccCan: p.ccCan || null, rec: !!p.rec, live: !!p.live, playing: !!sounds.get(id) && !sounds.get(id).paused && !!sounds.get(id).srcObject?.getAudioTracks().length })), waiting: [...(mesh?.waiting.values() || [])], locked: !!mesh?.locked, sharing: !!screen, screenSound: !!mix }); // (tests)

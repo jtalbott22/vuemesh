@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.86.0 — a screen's sound in a call
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.85.0.
+
+**Share screen in a call now sends the screen's sound too,** so everyone hears the video or music you're showing. The browser's picker offers Share tab audio (or Share system audio for the whole screen); tick it and the sound goes with the picture. A message says whether it did, and how to get sound if it didn't. On a Mac or Linux, share a Chrome tab: those share a tab's sound, not the whole computer's.
+
+**It goes in with your voice,** into the one sound everyone already hears from you, so a studio in the call hears it too. Mic off still mutes only your voice, not the screen. The call's own tab can't be picked, and the call's sound is kept out where the browser allows, so nobody hears their own voice come back.
+
+**Tests:** `e2e_call`: with Ann's microphone off, Bob hears her screen's sound while she shares, and nothing once she stops.
+
 ## 0.85.0 — Share works out sharp or smooth by itself
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.84.0.
 
