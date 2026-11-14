@@ -43,8 +43,8 @@
       <p class="vm-lead" id="joinWhat">Into the studio, as a source the director can cut to: slides, a demo, a video.</p>
       <ol class="vm-steps">
         <li><span><b>Enter the code</b> from <span data-place>the studio</span>’s screen, and name this computer.</span></li>
-        <li><span><b>Pick what you’re showing</b>, so it stays sharp or smooth.</span></li>
         <li><span><b>Choose a screen, window or tab</b> in the browser’s picker. Only that is shared.</span></li>
+        <li><span><b>Show anything.</b> Slides and text are sent sharp; when a video plays, it turns smooth by itself.</span></li>
       </ol>
       <p class="vm-note amber" id="cantShare" hidden>This browser can’t share its screen (phones and tablets mostly can’t). Open this page on a computer, in Chrome, Edge, Firefox or Safari.</p>
     </div>
@@ -61,11 +61,6 @@
         <label for="name">What to call it</label>
         <input id="name" maxlength="40" placeholder="Presenter laptop" required>
       </div>
-      <fieldset class="vm-choices two" id="modeBox">
-        <legend>What you’re showing</legend>
-        <label><input type="radio" name="mode" value="detail" checked><span>Slides and text<small>Sharpest: every word stays readable</small></span></label>
-        <label><input type="radio" name="mode" value="motion"><span>Video and motion<small>Smoothest: keeps 30 frames a second</small></span></label>
-      </fieldset>
       <button type="submit" class="primary big" id="shareBtn">Share a screen…</button>
       <p class="vm-err" id="joinErr" role="alert"></p>
       <p class="vm-fine" id="soundTip"></p>
@@ -80,6 +75,7 @@
       <p class="vm-eyebrow pvw">Sharing</p>
       <h1 id="liveName"></h1>
       <p class="vm-status"><span class="dot" id="conn"></span><span id="linkSay">Finding <span data-place>the studio</span>…</span></p>
+      <p class="vm-fine" id="modeSay"></p>
       <p class="vm-fine" id="sendSay" hidden></p>
       <p class="vm-fine" id="soundSay"></p>
       <div class="vm-actions">

@@ -22,6 +22,7 @@ BUSY_SCREEN = """(() => {
     const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
     const g = c.getContext('2d'); let n = 0;
     setInterval(() => {
+      if (window.__still) return; // (a still screen, like a slide: the last frame stays)
       n++;
       g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, 1920, 1080);
       g.fillStyle = '#123'; g.font = '22px monospace';
@@ -30,7 +31,7 @@ BUSY_SCREEN = """(() => {
     }, 33);
     const s = c.captureStream(30);
     const ctx = new AudioContext(), m = ctx.createChannelMerger(2), d = ctx.createMediaStreamDestination();
-    const o = ctx.createOscillator(), gn = ctx.createGain(); o.frequency.value = 440; gn.gain.value = 0.5; o.connect(gn); gn.connect(m, 0, 0); o.start();
+    const o = ctx.createOscillator(), gn = ctx.createGain(); o.frequency.value = 440; gn.gain.value = 0.5; window.__gain = gn; o.connect(gn); gn.connect(m, 0, 0); o.start();
     m.connect(d); ctx.resume();
     s.addTrack(d.stream.getAudioTracks()[0]);
     return s;
@@ -149,14 +150,12 @@ with sync_playwright() as p:
     step('no Message… under the screen (its share page has nowhere to show one)')
     # what's on it: slides keep their size, video keeps its frame rate
     PREF = "() => { for (const pc of window.__pcs) for (const s of pc.getSenders()) if (s.track?.kind === 'video') return [s.getParameters().degradationPreference, s.track.contentHint]; return null; }"
-    # its sound is playing (the tone), so it went to Video and motion by itself, said so, and didn't
-    # remember it; the presenter choosing Slides and text then holds (it isn't changed back)
+    # moving, with its sound playing (the tone): sent smooth by itself, the page says so, and there's
+    # nothing for the presenter to choose
     assert sh.evaluate(PREF) == ['maintain-framerate', 'motion'], sh.evaluate(PREF)
-    assert 'sent as Video and motion' in sh.inner_text('#soundSay'), sh.inner_text('#soundSay')
-    assert sh.evaluate("localStorage.getItem('vm_share_mode')") != 'motion'
-    sh.check('input[name="mode"][value="detail"]'); time.sleep(4)
-    assert sh.evaluate(PREF) == ['maintain-resolution', 'detail'], sh.evaluate(PREF)
-    step('playing sound: sent as Video and motion by itself, said so, not remembered; Slides and text chosen then holds')
+    assert 'smooth' in sh.inner_text('#modeSay'), sh.inner_text('#modeSay')
+    assert sh.locator('input[name="mode"]').count() == 0
+    step(f'moving and playing sound: sent smooth by itself, nothing to choose ("{sh.inner_text("#modeSay")}")')
     # the studio keeps 150 ms of its sound in hand (a stall then a rush isn't hurried through)
     jb = host.evaluate("[...new Set(window.__pcs.flatMap((pc) => pc.getReceivers().filter((r) => r.track?.kind === 'audio').map((r) => r.jitterBufferTarget)))]")
     assert jb == [150], jb
@@ -173,12 +172,16 @@ with sync_playwright() as p:
     assert isinstance(last.get('ajit'), int) and 100 <= last.get('abuf', 0) <= 400, last
     assert len(fresh) < len([s for s in snd if 'ajit' in s]), 'what the browser did is in one sample per reading, not every second'
     step(f"the show log: the screen's sound jitter {last['ajit']} ms, waiting {last['abuf']} ms; per reading {[s['got'] for s in fresh]} ms arrived, {[s['fast'] for s in fresh]} ms hurried, {[s['fill'] for s in fresh]} ms made up")
-    sh.check('input[name="mode"][value="motion"]'); time.sleep(0.5)
-    assert sh.evaluate(PREF) == ['maintain-framerate', 'motion'], sh.evaluate(PREF)
-    assert sh.evaluate("localStorage.getItem('vm_share_mode')") == 'motion'
-    sh.check('input[name="mode"][value="detail"]'); time.sleep(0.5)
-    assert sh.evaluate(PREF) == ['maintain-resolution', 'detail'], sh.evaluate(PREF)
-    step('Slides and text keeps the size (frames give way); Video and motion keeps 30 a second (size gives way), switchable while sharing, remembered')
+    # still and silent (a slide): sharp again within about 10 seconds; moving again, silent: smooth
+    IS = "(want) => { for (const pc of window.__pcs) for (const s of pc.getSenders()) if (s.track?.kind === 'video') return s.getParameters().degradationPreference === want[0] && s.track.contentHint === want[1]; return false; }"
+    sh.evaluate("window.__still = true; window.__gain.gain.value = 0")
+    sh.wait_for_function(IS, arg=['maintain-resolution', 'detail'], timeout=25000)
+    assert 'sharp' in sh.inner_text('#modeSay'), sh.inner_text('#modeSay')
+    sh.evaluate("window.__still = false")
+    sh.wait_for_function(IS, arg=['maintain-framerate', 'motion'], timeout=15000)
+    assert 'moving' in sh.inner_text('#modeSay'), sh.inner_text('#modeSay')
+    sh.evaluate("window.__gain.gain.value = 0.5")
+    step('still and silent: sent sharp (the size kept, frames give way); moving again with no sound: smooth (30 a second, the size gives way), each by itself')
     # the studio's log has what the screen says about its own sending
     host.wait_for_function("(() => { const r = window.vmShowLog?.()?.rows?.at(-1); return (r?.s || []).some((s) => s.n === 'Presenter' && typeof s.tx === 'number'); })()", timeout=15000)
     row = next(s for s in host.evaluate("window.vmShowLog().rows.at(-1).s") if s['n'] == 'Presenter')

@@ -75,7 +75,7 @@ const SETUPS = [
       { icon: 'stream', name: 'Online audience', job: 'stream', note: 'Live, or the camera in a video call' },
       { icon: 'file', name: 'The talk, recorded', job: 'keep', note: 'Slides and speaker, and each on its own' },
     ],
-    steps: ['Open the studio; add the webcam and the mic with + This computer.', 'Send the presenter the share link; they pick Slides and text.', 'Cut between them, or put the speaker in the corner over the slides.'],
+    steps: ['Open the studio; add the webcam and the mic with + This computer.', 'Send the presenter the share link; they share their slides.', 'Cut between them, or put the speaker in the corner over the slides.'],
   },
   {
     id: 'phones',
