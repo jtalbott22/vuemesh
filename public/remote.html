@@ -12,44 +12,60 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/js/theme-boot.js"></script>
+<link href="/css/archivo.css" rel="stylesheet">
 <style>
-  @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); font-display: swap; }
-  @font-face { font-family: 'Barlow Condensed'; font-weight: 500; src: url('/fonts/barlow-condensed-latin-500-normal.woff2') format('woff2'); font-display: swap; }
-  :root { color-scheme: dark; --bg: #0f1013; --panel: #1a1d23; --line: #2c313a; --ink: #f3f4f6; --dim: #a7adb8; --tally: #ff2f2a; --preview: #2fd56b; --amber: #ffb21e; }
+  /* The studio's look (vm.css's dark colours, Archivo), always dark: it's a control surface. Labels
+     and buttons are Archivo narrowed (font-stretch), so they fit where the old condensed face did. */
+  :root { color-scheme: dark; --bg: #0f1013; --panel: #18191d; --panel-2: #222328; --key: #2d2f35; --line: #2a2c32; --ink: #ececef; --dim: #a9acb4;
+    --tally: #e5372c; --preview: #2bd36b; --amber: #f0a82b; --cond: 'Archivo', system-ui, sans-serif; --narrow: 80%; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 'Archivo', system-ui, -apple-system, Segoe UI, sans-serif; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
   body { padding: env(safe-area-inset-top, 0) 12px calc(env(safe-area-inset-bottom, 0) + 12px); min-height: 100vh; }
-  h1, .big, button, .cam b { font-family: 'Barlow Condensed', system-ui, sans-serif; }
+  h1, .big, button, .cam b { font-family: var(--cond); font-stretch: var(--narrow); }
+  h1, .big { font-weight: 800; }
   header { display: flex; align-items: center; gap: 8px; padding: 12px 0 8px; }
-  header h1 { font-size: 1.35rem; margin: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header h1 { font-size: 1.2rem; font-weight: 700; font-stretch: 100%; color: var(--dim); margin: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7280; flex: none; }
   /* the time of day, at the title bar's other end: as the studio's program monitor shows it, top right */
   .clock { flex: none; background: #000b; color: #fff; font: 700 .95rem/1.2 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; padding: .25em .55em; border-radius: 4px; white-space: nowrap; }
   .clock:empty { display: none; }
   .dot.on { background: var(--preview); }
-  .mark { font-weight: 700; letter-spacing: .02em; }
-  .mark i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); margin-right: 5px; }
+  .mark { font-weight: 800; font-stretch: 125%; letter-spacing: -.005em; display: inline-flex; align-items: center; white-space: nowrap; }
+  .mark i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--tally); margin-right: 7px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tally) 22%, transparent); }
   [hidden] { display: none !important; }
-  button.linkbtn { background: none; border: 0; min-height: 0; padding: 8px 0; width: auto; color: var(--dim); text-decoration: underline; font: 500 .95rem system-ui, sans-serif; }
-  .scanbox { position: relative; margin-top: 10px; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 1; }
+  button.linkbtn { background: none; border: 0; min-height: 0; padding: 8px 0; width: auto; color: var(--dim); text-decoration: underline; text-underline-offset: .2em; font: 600 .95rem 'Archivo', system-ui, sans-serif; }
+  .scanbox { position: relative; margin-top: 10px; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 1; }
   .scanbox video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .scanbox i { position: absolute; inset: 18%; border: 3px solid var(--amber); border-radius: 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 10px 0; }
-  label { display: block; color: var(--dim); font-size: .9rem; margin: 10px 0 4px; }
-  input { width: 100%; font: 600 1.2rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: .08em; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: #0b0c0f; color: var(--ink); text-transform: uppercase; }
-  input#name { text-transform: none; letter-spacing: 0; font: 500 1.05rem/1.2 system-ui, sans-serif; }
-  button { font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; border: 1px solid #00000080; border-radius: 10px; padding: 14px; min-height: 56px; background: linear-gradient(#2b313b, #1c2027); color: var(--ink); width: 100%; cursor: pointer; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin: 10px 0; box-shadow: 0 1px 0 #0003, 0 8px 24px #0004; }
+  label { display: block; color: var(--dim); font-size: .85rem; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; font: 600 1.2rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: .08em; padding: 12px; border-radius: 10px; border: 1.5px solid var(--line); background: #121316; color: var(--ink); text-transform: uppercase; }
+  input:focus { outline: none; border-color: var(--amber); }
+  input#name { text-transform: none; letter-spacing: 0; font: 500 1.05rem/1.2 'Archivo', system-ui, sans-serif; }
+  button { font-weight: 700; font-size: 1.12rem; letter-spacing: 0; border: 1px solid transparent; border-radius: 12px; padding: 14px; min-height: 56px; background: var(--key); box-shadow: inset 0 1px 0 #ffffff0d; color: var(--ink); width: 100%; cursor: pointer; }
+  button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
   button:active { transform: translateY(1px); }
-  button.primary { background: var(--preview); color: #04120a; }
+  button.primary { background: var(--tally); color: #fff; }
   button[aria-pressed="true"] { background: var(--amber); color: #2b1d00; }
   button.rec[aria-pressed="true"] { background: var(--tally); color: #fff; }
   button.rec.armed { outline: 3px solid #fff; outline-offset: -6px; }
   .say { color: var(--dim); margin: 8px 0 0; }
+  #pairView h1 { margin: 6px 0 6px; font-size: 1.7rem; font-stretch: 100%; line-height: 1.1; }
+  .eyebrow { display: flex; align-items: center; gap: .55em; margin: 0; font: 800 .7rem 'Archivo', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--tally); }
+  /* the show's code: one cell per character, as on the other pages (one input, the cells its background) */
+  input.cells { --pitch: 1.62ch; --gap: 6px; width: calc(6 * var(--pitch)); max-width: 100%; height: 1.9em; padding: 0 0 0 calc((var(--pitch) - 1ch) / 2); border: 0; border-radius: 0;
+    font: 700 2rem/1 ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: calc(var(--pitch) - 1ch); caret-color: var(--amber);
+    background: repeating-linear-gradient(90deg, #2d2f35 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)) left bottom / 100% 3px no-repeat,
+      repeating-linear-gradient(90deg, #222328 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)); }
+  input.cells:focus { background: repeating-linear-gradient(90deg, var(--amber) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)) left bottom / 100% 3px no-repeat,
+      repeating-linear-gradient(90deg, #222328 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)); }
+  input.cells::placeholder { color: var(--dim); opacity: .4; }
   .say.err { color: #ff8a80; }
-  .status { display: flex; align-items: center; gap: 10px; background: #000; border-radius: 10px; padding: 12px 14px; margin: 6px 0 10px; border: 2px solid var(--line); }
+  .status { display: flex; align-items: center; gap: 10px; background: var(--panel); border-radius: 14px; padding: 12px 14px; margin: 6px 0 10px; border: 2px solid var(--line); }
   .status.air { border-color: var(--tally); }
   /* Program out: what's on air, from the studio, above the cameras */
-  .pgm { position: relative; background: #000; border: 2px solid var(--tally); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; margin: 0 0 8px; }
+  .pgm { position: relative; background: #000; border: 2px solid var(--tally); border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; margin: 0 0 8px; }
   .pgm[hidden] { display: none; }
   .pgm video { width: 100%; height: 100%; object-fit: contain; display: block; }
   .pgm .pgmsay { position: absolute; inset: auto 8px 8px 8px; color: var(--dim); font-size: .85rem; text-align: center; }
@@ -68,17 +84,18 @@
   .sndbtn.wait { border-color: var(--amber); }
   .sndbtn[aria-pressed="false"] .on, .sndbtn[aria-pressed="true"] .off { display: none; }
   .status .big { font-size: 1.5rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .status .rec { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--tally); }
+  .status .rec { font-family: var(--cond); font-stretch: var(--narrow); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tally); }
   .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .cam { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px solid #3b434f; background: #000; border-radius: 8px; aspect-ratio: 16 / 9; }
+  .cam { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px solid var(--key); background: #000; border-radius: 10px; aspect-ratio: 16 / 9; }
   .cam img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .cam b { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; background: linear-gradient(transparent, #000c); font-size: 1.05rem; }
   .cam .nopic { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: .85rem; }
   .cam.air { border-color: var(--tally); }
   .cam.pvw { border-color: var(--preview); }
-  .cam .tag { position: absolute; top: 6px; left: 6px; font: 700 .8rem 'Barlow Condensed', sans-serif; background: var(--tally); color: #fff; padding: 1px 6px; border-radius: 2px; }
+  .cam .tag { position: absolute; top: 6px; left: 6px; font: 800 .68rem 'Archivo', sans-serif; letter-spacing: .08em; text-transform: uppercase; background: var(--tally); color: #fff; padding: 2px 6px; border-radius: 4px; }
   .cam .rdot { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--tally); }
-  h2.sub { font: 700 .85rem 'Barlow Condensed', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 14px 0 6px; }
+  h2.sub { display: flex; align-items: center; gap: .55em; font: 800 .7rem 'Archivo', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin: 16px 0 8px; }
+  h2.sub::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
   .cams.sound .cam { aspect-ratio: auto; min-height: 64px; background: radial-gradient(circle at 50% 40%, #15203f, #04060c); }
   .cam .snd { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; }
   .cams.sound .cam b { position: static; display: block; padding: 18px 10px 18px 46px; background: none; }
@@ -87,15 +104,15 @@
   .status .big { white-space: normal; line-height: 1.15; }
   /* this phone's own camera: + This phone at the end of the cameras, and once it's in, its own
      picture to frame with, its lenses, its microphone and Remove, under them */
-  .camadd { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px dashed #3b434f; background: #0b0c0f; border-radius: 8px; aspect-ratio: 16 / 9; }
+  .camadd { position: relative; padding: 0; min-height: 0; overflow: hidden; text-align: left; border: 3px dashed var(--key); background: #121316; border-radius: 10px; aspect-ratio: 16 / 9; }
   .camadd b { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 1.05rem; }
-  .camadd .plus { position: absolute; inset: 0 0 1.6em; display: grid; place-items: center; font: 500 2.4rem/1 system-ui, sans-serif; color: var(--dim); }
+  .camadd .plus { position: absolute; inset: 0 0 1.6em; display: grid; place-items: center; font: 500 2.4rem/1 'Archivo', system-ui, sans-serif; color: var(--dim); }
   .camadd .nopic { position: absolute; inset: 0 0 1.6em; display: grid; place-items: center; color: var(--dim); font-size: .85rem; }
   .camadd.wait { opacity: .75; }
   .cam .tag.me { background: var(--amber); color: #2b1d00; }
   .cam.mine { border-color: var(--amber); }
   .cam.mine.air { border-color: var(--tally); }
-  .mycam { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 8px; margin-top: 8px; }
+  .mycam { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 8px; margin-top: 8px; }
   .mycam.air { border-color: var(--tally); }
   .mycam.pvw { border-color: var(--preview); }
   /* (its picture on the left; its name and state, then Mic and Remove, beside it: in one row, a phone
@@ -104,7 +121,7 @@
   .mycam video { grid-area: pic; width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; }
   .mycam video.mirror { transform: scaleX(-1); }
   .mycaminfo { grid-area: info; min-width: 0; display: flex; align-items: baseline; gap: 8px; line-height: 1.2; }
-  .mycaminfo b { flex: none; font: 700 1.05rem 'Barlow Condensed', sans-serif; }
+  .mycaminfo b { flex: none; font: 800 1.05rem 'Archivo', sans-serif; font-stretch: var(--narrow); }
   .mycaminfo span { min-width: 0; color: var(--dim); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mycam.air .mycaminfo span { color: var(--tally); font-weight: 700; }
   .mycam button.mini { width: 100%; min-height: 44px; padding: 4px 8px; font-size: 1rem; white-space: nowrap; }
@@ -120,10 +137,10 @@
   .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   /* the mixer: each live channel, its sound mode, its level and how loud it is now */
   .mix { display: grid; gap: 8px; margin-top: 8px; }
-  .mixrow { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+  .mixrow { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
   .mixrow.open { border-color: var(--tally); }
   .mixrow .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mixrow .db { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; color: var(--dim); min-width: 4.5ch; text-align: right; }
+  .mixrow .db { font-family: var(--cond); font-stretch: var(--narrow); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--dim); min-width: 4.5ch; text-align: right; }
   .mixrow .lv { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #000; overflow: hidden; }
   .mixrow .lv i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--preview) 0 70%, var(--amber) 70% 90%, var(--tally) 90%); transition: width .25s; }
   .mixrow input[type=range] { grid-column: 1 / -1; width: 100%; height: 36px; }
@@ -135,8 +152,8 @@
   .mixrow.prog { grid-template-columns: 1fr auto; }
   .fine { color: var(--dim); font-size: .85rem; }
   #pipBtn .sh { display: none; }
-  #pipBtn small { display: block; font: 600 .8rem/1.15 system-ui, sans-serif; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .toast { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0) + 12px); background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+  #pipBtn small { display: block; font: 600 .8rem/1.15 'Archivo', system-ui, sans-serif; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toast { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0) + 12px); background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px #0008; border-radius: 12px; padding: 12px; text-align: center; }
   /* A phone held sideways (an iPhone Pro Max is 956 x 440): the whole show on one screen, with no
      page to scroll. Program out, as big as the height allows, with what's on air above it and the
      quick actions in one row under it, on the left; the cameras, sounds, clips and the mixer on the
@@ -205,7 +222,7 @@
   #pgmBox.full video { grid-area: 1 / 1; width: min(100cqw, 100cqh * 16 / 9); height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 0; }
   #pgmBox.full .fsico { display: none; }
   #pgmBox.full .pgmsay { grid-area: 1 / 1; position: static; align-self: end; margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
-  #pgmBox.full .fshint { display: block; position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #000b; color: #fff; font: 600 .95rem system-ui, sans-serif; padding: 8px 14px; border-radius: 999px; pointer-events: none; animation: fshint 2.6s ease forwards; }
+  #pgmBox.full .fshint { display: block; position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #000b; color: #fff; font: 600 .95rem 'Archivo', system-ui, sans-serif; padding: 8px 14px; border-radius: 999px; pointer-events: none; animation: fshint 2.6s ease forwards; }
   @keyframes fshint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   body.pgmfull { overflow: hidden; }
   .toast { z-index: 60; }
@@ -215,12 +232,13 @@
   <header><span class="mark"><i aria-hidden="true"></i>VUEMesh</span><h1 id="title">Remote</h1><span class="clock" id="clock" aria-hidden="true"></span><span class="dot" id="conn" role="status" title="Connection to the studio" aria-label="Not connected"></span></header>
 
   <section id="pairView" class="card" aria-labelledby="pairH">
-    <h1 id="pairH" style="margin:0 0 4px;font-size:1.4rem">Run the show from this phone</h1>
+    <p class="eyebrow">Phone remote</p>
+    <h1 id="pairH">Run the show from this phone</h1>
     <p class="fine" style="margin:0">The first time: in the studio, <b>Phone remote</b> &gt; <b>Add a phone</b>, then scan its code here, or type the two codes. After that, the show's code is enough, for every show on that studio computer.</p>
     <button type="button" id="scanBtn" style="margin-top:12px">Scan the studio’s code</button>
     <div class="scanbox" id="scanBox" hidden><video id="scanVideo" muted playsinline autoplay></video><i aria-hidden="true"></i></div>
     <label for="show">Show</label>
-    <input id="show" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123">
+    <input id="show" class="cells" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123">
     <label for="code">Code from Add a phone <span style="font-weight:400">(the first time)</span></label>
     <input id="code" inputmode="text" autocomplete="one-time-code" maxlength="9" placeholder="ABCD-EFGH">
     <label for="name">Call this phone</label>

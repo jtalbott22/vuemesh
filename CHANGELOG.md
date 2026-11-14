@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.87.0 — the Remote and the home page in the same look
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.86.0.
+
+**The phone remote now looks like the studio:** the same type (narrowed where buttons are tight, so every label still fits), colours, the red dot and wordmark, flat buttons, and section labels with a dot. Connecting: a short label over the title, the show's code typed into cells as on the other pages, and Connect in red. Everything is where it was: sideways, Program out and the quick actions measure the same.
+
+**The home page uses the same type and colours** as the rest of VUEMesh, instead of its own: the headline, the launcher tiles, the multiviewer's labels and the numbered steps. Its colour bars and multiviewer stay.
+
 ## 0.86.0 — a screen's sound in a call
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.85.0.
 

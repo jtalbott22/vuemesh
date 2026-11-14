@@ -26,8 +26,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <script src="/js/theme-boot.js"></script>
-<link rel="preload" href="/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link href="/css/archivo.css" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
   :root { --night: var(--bg); --panel: var(--surface); --panel-2: var(--surface-2); }
@@ -299,86 +299,75 @@
 </style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "VUEMesh", "url": "https://vuemesh.com/", "image": "https://vuemesh.com/og.png", "description": "A browser-native multi-camera production system: cameras and microphones join a coordinated session, an Auto Director can cut the program, and the finished production can be published without installing an app.", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any (runs in a web browser)", "browserRequirements": "A current browser with camera access. The studio runs best in Chrome or Edge on Mac or Windows, or Safari on Mac.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["Browser-native multi-camera production", "Multiple cameras and microphones in one coordinated session", "Auto Director for live production switching", "Optical timecode sync from a QR Beacon screen", "Browser-based editing and finished production output", "No app installation required"]}</script>
 <style id="broadcast">
-  /* Barlow and Barlow Condensed, served from this site (SIL Open Font License: /fonts/LICENSE-Barlow-OFL.txt): no outside requests, and they work on a local network */
-  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-condensed-latin-500-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/barlow-condensed-latin-600-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/barlow-latin-400-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-latin-500-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/barlow-latin-600-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Barlow'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/barlow-latin-700-normal.woff2') format('woff2'); }
   /* The control room. One bold thing: the hero is a multiviewer wall (monitors with their
      on-screen labels, tally red for on air, preview green, timecode in amber). Everything else
-     stays quiet. Type: Barlow Condensed for display and labels, as on broadcast graphics; Barlow
-     for reading. Colour bars once, at the top. */
+     stays quiet. Type and colours are the rest of VUEMesh's (vm.css): Archivo, wide for display and
+     narrowed for on-screen labels, as on broadcast graphics. Colour bars once, at the top. */
   :root, [data-theme="dark"] {
-    --bg: #121519; --surface: #1a1e24; --surface-2: #242a32; --line: #2f3640; --field: #0e1115;
-    --text: #eef2f6; --text-2: #b4bcc8; --soft: #b4bcc8; --muted: #808a98;
-    --tally: #ff2f2a; --tally-fill: #d9241e; --preview: #2fd56b; /* (tally-fill: a red that white text reads on, WCAG AA) */ --amber: #ffb21e; --wall: #05070a;
-    --key: linear-gradient(#2b313a, #1c2128); --key-edge: #00000080; --key-led: #3b434f;
+    --bg: #0f1013; --surface: #18191d; --surface-2: #222328; --line: #2a2c32; --field: #121316;
+    --text: #ececef; --text-2: #a9acb4; --soft: #a9acb4; --muted: #8b8e97;
+    --tally: #e5372c; --tally-fill: #d93025; --preview: #2bd36b; /* (tally-fill: a red that white text reads on, WCAG AA) */ --amber: #f0a82b; --wall: #05070a;
+    --key: var(--surface); --key-edge: var(--line); --key-led: #2d2f35;
   }
   [data-theme="light"] {
-    --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
-    --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #5c6673;
-    --tally: #dc211c; --preview: #129a47; --amber: #a86a08; --wall: #0b0e12;
-    --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
+    --bg: #eef1f7; --surface: #ffffff; --surface-2: #e6eaf3; --line: #c9d1e2; --field: #fff;
+    --text: #151a30; --text-2: #3d466b; --soft: #3d466b; --muted: #5f6889;
+    --tally: #d93025; --tally-fill: #d93025; --preview: #15803d; --amber: #a86a08; --wall: #0b0e1a;
+    --key: var(--surface); --key-edge: var(--line); --key-led: #d6dcea;
   }
   /* Auto (no theme chosen) on a device in light mode: the same light palette (vm.css switches its
      own colours here; these are the page's, so the keys were left dark on a light page) */
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
-      --bg: #e7eaee; --surface: #f6f7f9; --surface-2: #dde2e8; --line: #c6cdd5; --field: #fff;
-      --text: #0f1318; --text-2: #3a434f; --soft: #3a434f; --muted: #5c6673;
-      --tally: #dc211c; --preview: #129a47; --amber: #a86a08;
-      --key: linear-gradient(#ffffff, #eceff3); --key-edge: #8a94a24d; --key-led: #c3cad3;
+      --bg: #eef1f7; --surface: #ffffff; --surface-2: #e6eaf3; --line: #c9d1e2; --field: #fff;
+      --text: #151a30; --text-2: #3d466b; --soft: #3d466b; --muted: #5f6889;
+      --tally: #d93025; --tally-fill: #d93025; --preview: #15803d; --amber: #a86a08;
+      --key: var(--surface); --key-edge: var(--line); --key-led: #d6dcea;
     }
   }
-  body { font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-  h1, h2, h3, .mark, .app b, .kitgrid b, .for p, .made .code, ol.steps li::before, .btn, .qrcap .tc {
-    font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif; font-stretch: normal;
-  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); }
   /* colour bars: the test signal every broadcast starts from */
   body::before { content: ''; display: block; height: 6px; background: linear-gradient(90deg, #bfbfbf 0 14.3%, #bfbf00 0 28.6%, #00bfbf 0 42.9%, #00bf00 0 57.1%, #bf00bf 0 71.4%, #bf0000 0 85.7%, #0000bf 0); }
-  .mark { font-size: 1.5rem; font-weight: 800; letter-spacing: .01em; }
-  .mark i { border-radius: 2px; width: 12px; height: 12px; box-shadow: 0 0 10px var(--tally); }
-  .btn { border-radius: 4px; font-weight: 700; letter-spacing: .02em; font-size: 1.05rem; }
+  .mark { font-size: 1.3rem; font-weight: 800; letter-spacing: -.005em; }
+  .mark i { border-radius: 50%; width: 11px; height: 11px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tally) 22%, transparent); }
+  .btn { border-radius: var(--radius); font-weight: 700; font-size: 1rem; }
   button.primary, .btn.primary { background: var(--tally-fill, var(--tally)); color: #fff; }
 
   /* the headline: big, condensed, one colour */
-  h1.big { font-weight: 800; font-size: clamp(3.1rem, 8.6vw, 7.6rem); line-height: .86; letter-spacing: -.005em; }
+  h1.big { font-weight: 800; font-stretch: 100%; font-size: clamp(2.6rem, 6.4vw, 6rem); line-height: .95; letter-spacing: -.025em; }
   h1.big span + span { color: inherit; }
   .lede { font-size: clamp(1.1rem, 1.7vw, 1.35rem); max-width: 44ch; }
 
   /* the multiviewer wall: monitors in a dark bezel, each with its label strip under the picture */
   .demo { background: var(--wall); padding: 8px; gap: 8px; border-radius: 6px; box-shadow: 0 0 0 1px #ffffff12 inset, 0 30px 60px -30px #000c; }
-  .program { border-radius: 2px; box-shadow: 0 0 0 3px var(--tally); }
+  .program { border-radius: 6px; box-shadow: 0 0 0 3px var(--tally); }
   .tiles { gap: 8px; }
-  .tile { border-radius: 2px; box-shadow: 0 0 0 2px #262c35; }
+  .tile { border-radius: 6px; box-shadow: 0 0 0 2px #262c35; }
   .tile.live { box-shadow: 0 0 0 3px var(--tally); }
   .tile:hover, .tile:focus-visible { box-shadow: 0 0 0 3px var(--preview); }
   .tile.live:hover { box-shadow: 0 0 0 3px var(--tally); }
-  .tile .n { left: 0; top: 0; padding: 0 .4em; background: #000c; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem; line-height: 1.5; text-shadow: none; }
+  .tile .n { left: 0; top: 0; padding: 0 .4em; background: #000c; font-family: var(--font); font-stretch: 80%; font-weight: 800; font-size: 1rem; line-height: 1.5; text-shadow: none; }
   .tile.live .n { background: var(--tally); }
-  .tile .who { left: 0; right: 0; bottom: 0; padding: 2px 8px 3px; background: #000d; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: .86rem; letter-spacing: .02em; text-shadow: none; }
-  .tile .ttc { color: var(--amber); font-variant-numeric: tabular-nums; font-family: 'Barlow Condensed', sans-serif; font-size: .8rem; }
-  .chip { border-radius: 2px; font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; letter-spacing: .03em; background: #000c; padding: .2em .6em; }
+  .tile .who { left: 0; right: 0; bottom: 0; padding: 2px 8px 3px; background: #000d; font-family: var(--font); font-stretch: 80%; font-weight: 600; font-size: .86rem; letter-spacing: .02em; text-shadow: none; }
+  .tile .ttc { color: var(--amber); font-variant-numeric: tabular-nums; font-family: var(--font); font-stretch: 80%; font-size: .8rem; }
+  .chip { border-radius: 5px; font-family: var(--font); font-stretch: 80%; font-size: .95rem; letter-spacing: .03em; background: #000c; padding: .2em .6em; }
   .onair { background: var(--tally-fill, var(--tally)); }
   .ptc { color: var(--amber); font-variant-numeric: tabular-nums; }
   .mode.you { background: var(--preview); color: #04120a; }
   .demo .hint { color: #aab3bf; padding: 2px 4px 4px; margin: 0; }
-  .panel { border-radius: 4px; }
+  .panel { border-radius: 14px; }
   .strip { border-radius: 2px; }
 
   /* the shortcuts: keys on a switcher panel, each with its light; Start a show is the red one */
   .apps { gap: 10px; margin: 22px 0 10px; }
-  .app { position: relative; border-radius: 6px; background: var(--key); border: 1px solid var(--key-edge); box-shadow: inset 0 1px 0 #ffffff1c, 0 2px 0 #00000059; padding: 18px 16px 14px; transition: box-shadow .15s, border-color .15s; }
+  .app { position: relative; border-radius: 14px; background: var(--key); border: 1px solid var(--key-edge); box-shadow: inset 0 1px 0 #ffffff1c, 0 2px 0 #00000059; padding: 18px 16px 14px; transition: box-shadow .15s, border-color .15s; }
   .app:hover, .app:focus-visible { transform: none; border-color: var(--key-edge); box-shadow: inset 0 1px 0 #ffffff1c, 0 2px 0 #00000059; }
   .app::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--key-led); transition: background .15s, box-shadow .15s; }
   .app:hover::before, .app:focus-visible::before { background: var(--preview); box-shadow: 0 0 12px var(--preview); }
   .app:active { box-shadow: inset 0 2px 6px #0007; translate: 0 1px; }
   .app svg { width: 34px; height: 34px; }
-  .app b { font-size: 1.55rem; font-weight: 700; letter-spacing: .01em; }
+  .app b { font-size: 1.35rem; font-weight: 800; font-stretch: 100%; letter-spacing: -.01em; }
+  @media (max-width: 600px) { .app b { font-size: 1.15rem; } }
   .app small { font-size: .9rem; }
   .app.studio { background: linear-gradient(#b3231d, #861611); color: #fff; border-color: #00000080; }
   .app.studio::before { background: #ff7a73; box-shadow: 0 0 14px var(--tally); }
@@ -387,11 +376,11 @@
   /* the rest: quiet, square-shouldered panels */
   .positioning h2, .beacon h2, .start h2, .kit h2 { font-weight: 800; letter-spacing: -.005em; line-height: .9; }
   .positioning h2 span { color: inherit !important; }
-  .kitgrid li { border-radius: 4px; background: var(--surface); }
+  .kitgrid li { border-radius: 14px; background: var(--surface); }
   .kitgrid svg { color: var(--amber); }
   .kitgrid b { font-size: 1.45rem; font-weight: 700; }
-  ol.steps li::before { font-weight: 800; font-size: 2rem; }
-  .qrbox { border-radius: 4px; }
+  ol.steps li::before { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .9rem; font-stretch: 100%; font-variant-numeric: tabular-nums; color: var(--text); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .qrbox { border-radius: 14px; }
   .qrcap .tc { color: var(--amber); font-weight: 700; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
   .for p { font-weight: 800; font-size: clamp(1.9rem, 5.4vw, 4.2rem); line-height: .95; }
   form.create, .minelist li { border-radius: 6px; }
@@ -417,12 +406,12 @@
   .filmlayer .chip { position: absolute; }
   .filmlayer #filmOn { top: 12px; left: 12px; }
   .filmlayer #filmOf { bottom: 12px; left: 12px; }
-  .filmlayer .soundbtn { bottom: 12px; right: 12px; border: 0; cursor: pointer; font: inherit; font-family: 'Barlow Condensed', sans-serif; font-size: .95rem; letter-spacing: .03em; color: #fff; background: #000c; padding: .35em .8em; border-radius: 2px; }
+  .filmlayer .soundbtn { bottom: 12px; right: 12px; border: 0; cursor: pointer; font: inherit; font-family: var(--font); font-stretch: 80%; font-size: .95rem; letter-spacing: .03em; color: #fff; background: #000c; padding: .35em .8em; border-radius: 2px; }
   .filmlayer .soundbtn[aria-pressed="true"] { background: var(--preview); color: #04120a; }
   .bus { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .bus .key { position: relative; display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px 14px; border-radius: 4px; border: 1px solid #00000080; background: linear-gradient(#262c35, #181c22); color: #eef2f6; cursor: pointer; overflow: hidden; box-shadow: inset 0 1px 0 #ffffff14; font: inherit; }
   .bus .key i { position: absolute; left: 12px; right: 12px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: #3b434f; }
-  .bus .key b { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.25rem; line-height: 1.1; }
+  .bus .key b { font-family: var(--font); font-stretch: 80%; font-weight: 700; font-size: 1.25rem; line-height: 1.1; }
   .bus .key small { color: #aab3bf; font-size: .82rem; }
   .bus .key .prog { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 100%); background: var(--tally); }
   .bus .key:hover i, .bus .key:focus-visible i { background: var(--preview); box-shadow: 0 0 10px var(--preview); }
