@@ -42,13 +42,13 @@ function sayWhere() {
     : `Into ${ev.title ? `“${ev.title}”` : 'the studio'}, as a source the director can cut to: slides, a demo, a video.`;
   for (const el of document.querySelectorAll('[data-place]')) el.textContent = el.dataset.place === 'P' ? Place() : place();
 }
-// What's on it: slides and text keep every word sharp (frames give way first); video and motion
-// keep 30 frames a second (the size gives way first). Remembered on this computer.
-const modeOf = () => document.querySelector('input[name="mode"]:checked')?.value === 'motion' ? 'motion' : 'detail';
-try {
-  const m = localStorage.getItem('vm_share_mode');
-  if (m === 'motion' || m === 'detail') document.querySelector(`input[name="mode"][value="${m}"]`).checked = true;
-} catch {}
+// What's on it, worked out from the picture and its sound, so nobody has to choose: a still
+// picture (slides, a document, a page) is sent sharp, every word readable (frames give way first);
+// a moving one (a video, a demo, scrolling) is sent smooth, 30 frames a second (the size gives
+// way first). It used to be a choice on this page, and people didn't know which to pick.
+let mode = 'detail', modeWhy = '';
+const modeOf = () => mode;
+try { localStorage.removeItem('vm_share_mode'); } catch {} // (what the old choice kept)
 const applyMode = () => {
   const v = stream?.getVideoTracks()[0];
   if (v && 'contentHint' in v) v.contentHint = modeOf();
@@ -57,53 +57,92 @@ const applyMode = () => {
     link.applyQuality();
   }
 };
-document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
-  try { localStorage.setItem('vm_share_mode', modeOf()); } catch {}
-  stopSoundWatch(); // (the presenter chose: it's not changed for them)
-  applyMode();
-}));
-
-// A share whose sound is playing is almost always a video. Sent as Slides and text, a Mac's encoder
-// spent about 1 Mbit/s on one on air, blocky, and sent 2 frames a second for a minute, with
-// nothing held back that would have shown the tip. So after 3 s of sound it's sent as Video and
-// motion, once per share, and the page says so (not remembered: the next share starts as chosen).
-let soundWatch = null;
-function stopSoundWatch() {
-  if (!soundWatch) return;
-  clearInterval(soundWatch.timer);
-  soundWatch.ctx.close().catch(() => {});
-  soundWatch = null;
+function sayMode() {
+  const el = $('#modeSay');
+  if (el) el.textContent = mode === 'motion' ? `Sent smooth, 30 frames a second: ${modeWhy}.` : 'Sent sharp, so every word stays readable. It turns smooth by itself when a video plays.';
 }
-function watchSound(s) {
-  stopSoundWatch();
-  const a = s.getAudioTracks()[0];
-  if (!a || modeOf() === 'motion') return;
-  let ctx;
-  try {
-    ctx = new AudioContext();
-  } catch {
-    return;
-  }
-  ctx.resume?.().catch(() => {});
-  const an = ctx.createAnalyser();
-  an.fftSize = 2048;
-  ctx.createMediaStreamSource(new MediaStream([a])).connect(an);
-  const buf = new Float32Array(an.fftSize);
-  let loud = 0;
-  const w = { ctx, timer: 0 };
-  w.timer = setInterval(() => {
-    if (stream !== s || modeOf() === 'motion') return stopSoundWatch();
-    an.getFloatTimeDomainData(buf);
-    let pk = 0;
-    for (const x of buf) pk = Math.max(pk, Math.abs(x));
-    loud = pk > 0.01 ? loud + 1 : Math.max(0, loud - 1); // (above -40 dB: sound, not a quiet room)
-    if (loud < 12) return;
-    stopSoundWatch();
-    document.querySelector('input[name="mode"][value="motion"]').checked = true;
+function setMode(m, why = '') {
+  modeWhy = why;
+  if (m !== mode) {
+    mode = m;
     applyMode();
-    $('#soundSay').textContent += ' It’s playing sound, so it’s sent as Video and motion, for smooth pictures. Showing slides? Choose Slides and text.';
+  }
+  sayMode();
+}
+
+// The watch: twice a second, the picture small (64 × 36) against the one before, and the sound's
+// level. Moving most of 3 seconds, or sound for 3 (a share playing sound is almost always a video:
+// sent sharp, a Mac's encoder once spent a minute at 2 frames a second on one), and it's sent
+// smooth; still for 10 seconds with no sound, sharp again. By the clock, not by counting ticks, so
+// it still decides (more slowly) when the browser slows this tab's timers behind the slides.
+let watch = null;
+function stopWatch() {
+  if (!watch) return;
+  clearInterval(watch.timer);
+  watch.ctx?.close().catch(() => {});
+  watch = null;
+}
+function watchContent(s) {
+  stopWatch();
+  setMode('detail');
+  const w = { timer: 0, ctx: null, an: null, buf: null, loud: 0, prev: null, seen: [], picAt: 0, switchAt: Date.now() };
+  const a = s.getAudioTracks()[0];
+  if (a) {
+    try {
+      w.ctx = new AudioContext();
+      w.ctx.resume?.().catch(() => {});
+      w.an = w.ctx.createAnalyser();
+      w.an.fftSize = 2048;
+      w.ctx.createMediaStreamSource(new MediaStream([a])).connect(w.an);
+      w.buf = new Float32Array(w.an.fftSize);
+    } catch {
+      w.an = null;
+    }
+  }
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 36;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  const v = $('#preview');
+  w.timer = setInterval(() => {
+    if (stream !== s) return stopWatch();
+    const now = Date.now();
+    if (w.an) {
+      w.an.getFloatTimeDomainData(w.buf);
+      let pk = 0;
+      for (const x of w.buf) pk = Math.max(pk, Math.abs(x));
+      w.loud = pk > 0.01 ? Math.min(w.loud + 1, 40) : Math.max(0, w.loud - 1); // (above -40 dB: sound, not a quiet room)
+    }
+    if (now - w.picAt >= 450 && v.readyState >= 2) {
+      w.picAt = now;
+      g.drawImage(v, 0, 0, 64, 36);
+      const d = g.getImageData(0, 0, 64, 36).data;
+      if (w.prev) {
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (Math.abs(d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11 - (w.prev[i] * 0.3 + w.prev[i + 1] * 0.59 + w.prev[i + 2] * 0.11)) > 12) n++;
+        }
+        w.seen.push({ t: now, moving: n > 9 }); // (more than a mouse pointer or a blinking cursor)
+      }
+      w.prev = d;
+      while (w.seen.length && now - w.seen[0].t > 10000) w.seen.shift();
+    }
+    if (now - w.switchAt < 4000) return; // (no flicking back and forth)
+    const last3 = w.seen.filter((x) => now - x.t <= 3000);
+    const movingNow = last3.length >= 3 && last3.filter((x) => x.moving).length >= last3.length * 0.8;
+    const sound = w.loud >= 12;
+    if (mode === 'detail' && (sound || movingNow)) {
+      w.switchAt = now;
+      setMode('motion', sound ? 'it’s playing sound' : 'the picture is moving');
+    } else if (mode === 'motion' && !sound && w.loud === 0 && w.seen.length >= 5 && now - w.seen[0].t >= 8000 && w.seen.filter((x) => x.moving).length <= w.seen.length * 0.15) {
+      w.switchAt = now;
+      setMode('detail');
+    } else if (mode === 'motion') {
+      const why = sound ? 'it’s playing sound' : 'the picture is moving';
+      if (why !== modeWhy && (sound || movingNow)) setMode('motion', why);
+    }
   }, 250);
-  soundWatch = w;
+  watch = w;
 }
 const show = (v) => {
   for (const id of ['joinView', 'liveView', 'stoppedView']) $('#' + id).hidden = id !== v;
@@ -197,9 +236,8 @@ async function start(e) {
   }
   await revealAddress();
   showStream();
-  watchSound(stream);
+  watchContent(stream);
   show('liveView');
-  $('#sendSay').after($('#modeBox')); // (the choice comes along: it can change while sharing)
   $('#liveName').textContent = ev?.title ? `${name} \u2192 ${ev.title}` : name;
   wakeLock(true);
   if (toCall()) return joinCall();
@@ -289,8 +327,7 @@ function connect() {
       } catch {}
     }
     const held = { cpu: "this computer's processor is busy", bandwidth: 'the network is busy', other: 'the browser' }[s.limit];
-    const tip = held && modeOf() === 'detail' && s.fps != null && s.fps < 24 ? ' Showing a video? Choose Video and motion for smoother pictures.' : '';
-    el.textContent = `Sending ${s.w} × ${s.h} at ${s.fps ?? '?'} frames a second${link.codec ? ` (${link.codec}${s.hw ? ', on the graphics hardware' : ''})` : ''}${s.tier === 'idle' ? ', smaller until the studio needs it' : ''}${held ? `. Held back: ${held}.` : '.'}${tip}`;
+    el.textContent = `Sending ${s.w} × ${s.h} at ${s.fps ?? '?'} frames a second${link.codec ? ` (${link.codec}${s.hw ? ', on the graphics hardware' : ''})` : ''}${s.tier === 'idle' ? ', smaller until the studio needs it' : ''}${held ? `. Held back: ${held}.` : '.'}`;
     el.hidden = false;
   }, 2000);
 }
@@ -327,7 +364,7 @@ async function joinCall() {
 function stopped(why) {
   for (const t of stream?.getTracks() || []) t.stop();
   stream = null;
-  stopSoundWatch();
+  stopWatch();
   mesh?.leave();
   mesh = null;
   link?.leave();
@@ -355,7 +392,7 @@ $('#againBtn').onclick = async () => {
   stream = s;
   for (const t of old?.getTracks() || []) t.stop();
   showStream();
-  watchSound(s);
+  watchContent(s);
   if (mesh) return mesh.refill(); // (a call: into the same places, no new link)
   // (the same kinds of track: swap them in place; a sound that wasn't there before needs a new link)
   const same = !!old?.getAudioTracks().length === !!s.getAudioTracks().length;

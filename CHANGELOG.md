@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.85.0 — Share works out sharp or smooth by itself
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.84.0.
+
+**The Share page no longer asks "What you're showing".** It watches the picture and its sound instead: moving for most of 3 seconds, or playing sound, and it's sent smooth (30 frames a second); still and silent for about 10 seconds, and it's sent sharp again, every word readable. It waits a few seconds between switches, and a moving mouse pointer or a blinking cursor doesn't count. While sharing, the page says which it's sending and why. Before, only sound switched it, so a silent video or a demo stayed blurry and slow unless the presenter knew to pick the other option.
+
+**Nothing kept for it any more:** the old choice was remembered on the computer (`vm_share_mode`); the page now clears it.
+
+**Tests:** `e2e_sharequality`: moving with sound is sent smooth with nothing to choose; still and silent goes sharp; moving again goes smooth.
+
 ## 0.84.0 — the QR Beacon, and Join by QR under Network
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.83.0.
 
