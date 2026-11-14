@@ -16,7 +16,7 @@
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
   <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
   <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
-  <img alt="Serverless on AWS" src="https://img.shields.io/badge/AWS-serverless%2C%20scales%20to%20zero-232f3e?style=flat-square">
+  <img alt="On AWS: serverless, plus one small relay server" src="https://img.shields.io/badge/AWS-serverless%20%2B%20one%20small%20relay%20server-232f3e?style=flat-square">
 </p>
 
 <p align="center">
@@ -83,8 +83,10 @@ every angle, already cut on the timeline and ready to re-cut.
   keeps, and [/privacy](public/privacy.html) lists every item and clears it all with one button.
 - **Free and open.** MIT licensed, plain HTML, CSS and JavaScript with no build step. Fork it, run it,
   change it.
-- **Serverless and nearly free to run.** CloudFront, S3, API Gateway, Lambda and DynamoDB with TTLs.
-  Every piece scales to zero, and event data deletes itself after 30 days.
+- **Nearly free to run.** The site and its API are serverless (CloudFront, S3, API Gateway, Lambda and
+  DynamoDB with TTLs): they scale to zero, and event data deletes itself after 30 days. The one
+  server is a small Lightsail machine (about $5 a month) for STUN and the TURN relay, which are UDP
+  and can't run on Lambda. It keeps no logs; it counts what it does and reports the counts to Admin.
 
 ### Three ways to use it
 
@@ -222,7 +224,8 @@ from a desk with USB webcams and shared screens and a phone joining as a camera.
 Everything plugged into the studio computer goes straight into the studio tab. Devices elsewhere in
 the room (other computers, phones, tablets, TVs) use the cloud only to find each other, then send
 pictures and sound **directly over the local network**. The cloud side is CloudFront and S3 for the
-app, an HTTP API and a WebSocket API on Lambda, and DynamoDB with a 30-day TTL, all scaling to zero.
+app, an HTTP API and a WebSocket API on Lambda, and DynamoDB with a 30-day TTL, all scaling to zero,
+plus one small always-on server for STUN and the TURN relay (below).
 
 How two devices find a path to each other is WebRTC's **ICE**: each gathers its possible addresses
 (its own on the local network, and its public one, which it learns by asking our **STUN** server),
@@ -231,7 +234,9 @@ network the local address wins. Across the internet most devices connect straigh
 routers; the few that can't (a phone on mobile data behind its carrier, a strict office or hotel
 network) fall back to our **TURN** relay, which passes their media on still encrypted end to end,
 so it can't read it. STUN and TURN are one small server (`aws/stun`), the relay only for devices
-with a short-lived password from the API.
+with a short-lived password from the API. Each browser counts how its connections went (same
+network, direct, or relayed), and the server reports its own counts every minute (relays, data,
+what it turned away), so Admin → Servers shows how much the relay is needed, with no addresses kept.
 
 ```mermaid
 flowchart LR
@@ -375,7 +380,7 @@ flowchart LR
 | **Privacy** (`/privacy`) | Exactly what the browser and the server keep, and for how long, what this browser holds right now, and one button to clear all of it. |
 | **Landing** (`/`) | Quick starts (Camera, My media, Kiosk, Join a show, TV, Share, Start a show), the live multi-angle demo, how-tos for the TV and Share pages, and starting an event with just a name and a shape (landscape or portrait). No event type, no public listing, no location. |
 | **Work with VUEMesh** (`/sponsors`) | Collaborating, gear to try, sponsoring the breaks in local shows, and hosting your shows on the site, with the house rules. Its buttons write to `sponsorEmail` in `public/js/brand.js`, or Patreon if that's empty. |
-| **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL. All scale to zero. |
+| **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL, all scaling to zero; and one Lightsail server for STUN and the TURN relay (`aws/stun`). |
 
 Live cuts made on the host are stamped on the shared clock, so when the full-quality clips arrive
 the cut is already there. Put the beacon on a second screen of the host laptop to keep one clock for

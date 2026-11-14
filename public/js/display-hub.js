@@ -29,7 +29,7 @@
 // the phone is in the room, recording, and the program's sound would go back into its microphone.
 
 import { ICE, now } from '/js/vm.js';
-import { pathOf } from '/js/rtc.js';
+import { pathOf, countRoute } from '/js/rtc.js';
 import { bgInterval } from '/js/bgclock.js';
 import { tvLink, adapt } from '/js/tvquality.js';
 
@@ -208,6 +208,7 @@ export class DisplayHub {
     const l = this.links.get(peer);
     this.teardown(l);
     const pc = new RTCPeerConnection({ iceServers: ICE });
+    countRoute(pc, 'tv');
     Object.assign(l, { pc, ctl: null, pendingIce: [], remoteSet: false, lastSeen: Date.now(), state: { status: 'connecting' }, hosts: null });
     // Not connected in 12 s: say so, once a link, and why if it looks like the hidden address. A phone
     // remote's Program out hung at "connecting" for a whole show until the phone's camera was added

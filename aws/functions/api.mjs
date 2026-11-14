@@ -76,9 +76,10 @@ export async function handler(event) {
   if (event.requestContext.http.method === 'OPTIONS') return { statusCode: 204, headers: CORS };
   let body = event.body;
   if (body && event.isBase64Encoded) body = Buffer.from(body, 'base64').toString('utf8');
+  const raw = body || ''; // (as it came: the relay's report is signed over it)
   try { body = body ? JSON.parse(body) : undefined; } catch { body = undefined; }
   const res = await api(
-    { method: event.requestContext.http.method, path: event.rawPath, query: event.queryStringParameters || {}, headers: event.headers || {}, body, ip: event.requestContext.http.sourceIp || '' },
+    { method: event.requestContext.http.method, path: event.rawPath, query: event.queryStringParameters || {}, headers: event.headers || {}, body, raw, ip: event.requestContext.http.sourceIp || '' },
     { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN, turn, servers: { status: servers.status, setRelay: async (open) => { relayCache.at = 0; return servers.setRelay(open); } }, relayState: turn.secret ? relayState : null },
   );
   return { statusCode: res.status, headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(res.body) };

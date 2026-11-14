@@ -89,8 +89,8 @@ however good they are otherwise. Ask if you're unsure.
 ## Running your own copy
 
 You're free to run VUEMesh yourself, for your venue, your school, your collective, under the MIT
-License. [aws/README.md](aws/README.md) deploys it to your own AWS account; it scales to zero and
-costs very little when nobody's using it. Please give a changed copy a name of its own so people can
+License. [aws/README.md](aws/README.md) deploys it to your own AWS account; it's serverless apart from
+one small relay server (about $5 a month, optional), and costs very little when nobody's using it. Please give a changed copy a name of its own so people can
 tell it apart from vuemesh.com, and keep the license notice. We'd love to hear what you build.
 
 ## Be good to each other

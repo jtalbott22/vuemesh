@@ -3,7 +3,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   VUEMesh (LAN-first). The cloud only does event discovery, WebRTC signaling and
   film publishing. Video moves phone-to-laptop over the local network.
-  Everything here scales to zero when nobody is using it.
+  Everything here scales to zero when nobody is using it (the STUN and TURN relay, aws/stun, is the
+  one server, in its own stack).
 
 Parameters:
   StageName:

@@ -8,7 +8,7 @@
 // Video never passes through here.
 
 import { randomId, sha256hex, b64url, termsText, HttpError, publicEvent } from './common.mjs';
-import { randomBytes, randomInt, createHmac } from 'node:crypto';
+import { randomBytes, randomInt, createHmac, timingSafeEqual } from 'node:crypto';
 
 const DAY = 86400;
 const EVENT_TTL_DAYS = 30;
@@ -94,6 +94,7 @@ async function route(req, deps) {
   if (seg[0] === 'api') seg.shift();
   if (seg[0] === 'hit' && req.method === 'POST' && seg.length === 1) return hit(req, deps);   // (after the /api prefix is gone)
   if (seg[0] === 'ice' && req.method === 'GET' && seg.length === 1) return ice(req, deps, now);
+  if (seg[0] === 'relay' && seg[1] === 'report' && req.method === 'POST' && seg.length === 2) return relayReport(req, deps, now);
   if (seg[0] === 'admin') return admin(req, seg.slice(1), deps, now);
   if (seg[0] === 'lan') return lan(req, seg.slice(1), deps, now);
   if (seg[0] !== 'events') throw new HttpError(404, 'Unknown endpoint');
@@ -730,6 +731,46 @@ async function lan(req, seg, deps) {
   throw new HttpError(405, 'PUT or DELETE');
 }
 
+// ------------------------------------------------------------- relay report ---
+// The relay server (aws/stun) reports every minute, signed with the TURN secret: what it counted
+// since the last report (relays started, data relayed, what it turned away) and how many relays
+// are open. Counts only, into the day's anonymous traffic counts: no addresses ever come here.
+// The answer tells it whether Admin's troubleshooting log is on, and until when.
+export const RELAY_COUNTS = ['started', 'bad_password', 'forbidden', 'tcp', 'full', 'errors', 'flood', 'self', 'bytes_in', 'bytes_out', 'relay_min'];
+export const RELAY_LOG_MAX_HOURS = 24;
+export function relaySig(secret, at, raw) {
+  return createHmac('sha256', `vuemesh-relay-report|${secret}`).update(`${at}.${raw}`).digest('hex');
+}
+async function relayReport(req, deps, now) {
+  const secret = deps.turn?.secret;
+  if (!secret) throw new HttpError(404, 'No relay here');
+  const raw = typeof req.raw === 'string' ? req.raw : '', b = req.body || {}, at = Number(b.at);
+  const sig = String(req.headers?.['x-relay-sig'] || '');
+  const want = relaySig(secret, at, raw);
+  if (!raw || sig.length !== want.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(want))) throw new HttpError(403, 'Not signed by the relay');
+  if (!Number.isFinite(at) || Math.abs(now - at) > 5 * 60_000) throw new HttpError(400, 'Too old (or this clock is off)');
+  const { store } = deps;
+  if (store.markOnce && !(await store.markOnce(`RELAYREP#${at}`))) throw new HttpError(409, 'Already counted');
+  const counts = {};
+  for (const k of RELAY_COUNTS) {
+    const v = Number(b.counts?.[k]);
+    if (Number.isFinite(v) && v > 0) counts[`relay:${k}`] = Math.round(Math.min(v, 1e13));
+  }
+  const day = dayOf(now), hour = new Date(now).toISOString().slice(11, 13);
+  if (counts['relay:relay_min']) counts[`relayh:${hour}:min`] = counts['relay:relay_min'];
+  const bytes = (counts['relay:bytes_in'] || 0) + (counts['relay:bytes_out'] || 0);
+  if (bytes) counts[`relayh:${hour}:bytes`] = bytes;
+  if (counts['relay:started']) counts[`relayh:${hour}:started`] = counts['relay:started'];
+  const peak = Math.round(Number(b.peak));
+  await Promise.all([
+    Object.keys(counts).length && store.bumpTraffic?.(day, counts),
+    peak > 0 && store.maxTraffic?.(day, { 'relay:peak': peak, [`relayh:${hour}:peak`]: peak }),
+    store.setFlag?.('relayReport', { at: now, open: Math.max(0, Math.round(Number(b.open)) || 0), v: String(b.v || '').slice(0, 20) }),
+  ]);
+  const log = (await store.getFlag?.('relayLog')) || {};
+  return { status: 200, body: { logUntil: log.until > now ? log.until : 0 } };
+}
+
 // ------------------------------------------------------------------- admin ---
 // For you (and anyone you give a key): look at, change, or delete anything in
 // the cloud without opening DynamoDB or S3. Keys are checked against SHA-256
@@ -754,7 +795,17 @@ async function admin(req, seg, deps, now) {
   // The Lightsail servers (aws/stun): health, the month's data, and the relay's switch
   if (seg[0] === 'servers' && m === 'GET') {
     if (!deps.servers) return { status: 200, body: { servers: [], note: 'No Lightsail access on this server' } };
-    return { status: 200, body: { servers: await deps.servers.status(now), limits: TURN_LIMITS } };
+    const [servers, report, log] = await Promise.all([deps.servers.status(now), store.getFlag?.('relayReport'), store.getFlag?.('relayLog')]);
+    return { status: 200, body: { servers, limits: TURN_LIMITS, relayReport: report || null, relayLog: log?.until > now ? log : null } };
+  }
+  // The relay's troubleshooting log: its own log, addresses and all, written to the server's memory
+  // (never its disk, never sent here) for up to a day, then deleted. Off by default.
+  if (seg[0] === 'relay-log' && m === 'POST') {
+    const hours = Number(req.body?.hours);
+    if (!Number.isFinite(hours) || hours < 0 || hours > RELAY_LOG_MAX_HOURS) throw new HttpError(400, `hours: 0 (off) to ${RELAY_LOG_MAX_HOURS}`);
+    const log = hours ? { until: now + Math.round(hours * 3600_000), since: now } : { until: 0 };
+    await store.setFlag('relayLog', log);
+    return { status: 200, body: { relayLog: log.until ? log : null } };
   }
   if (seg[0] === 'relay' && m === 'POST') {
     if (!deps.servers) throw new HttpError(503, 'No Lightsail access on this server');

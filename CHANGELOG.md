@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.77.0 — the relay counts what it does, and a troubleshooting log for when it misbehaves
+**Deploy:** `./aws/deploy.sh` (backend and site), then `./aws/stun/deploy.sh` (a new server, `vuemesh-stun-4`, at the same address: its start-up script changed), then `node aws/stun/check.mjs stun.vuemesh.com`. It builds on 0.76.4.
+
+**How often is the relay needed?** Once a connection between two devices is up (a call, a phone to the studio, a TV, a remote's picture), the browser counts how it went: on the same network, straight across the internet, or through the relay. One anonymous count with the page views (not sent when the browser asks not to be tracked), nothing about the devices or the show. Admin → Servers shows the share relayed over the last week.
+
+**The relay counts, and forgets.** It still keeps no logs: coturn's log goes only to a small counter on the server that counts relays started, wrong or expired passwords, requests to reach a private address, TCP relay requests and the relay being full, and drops each line. The firewall counts floods dropped, the relay stopped at the server's own ports, and data through the relay ports. Every minute the server sends what's new, and how many relays are open, to the API (`POST /api/relay/report`, signed with the TURN secret); a report that doesn't get through is sent with the next. No addresses leave the server. Admin → Servers shows them for the last week: relays started, the most open at once (and hour by hour for the last day), relay hours, data relayed, and what was turned away, with when the server last reported.
+
+**A troubleshooting log, off unless it's needed.** Admin → Servers can switch on the relay's own log for an hour or a day (never longer). The server hears of it within a minute and writes its log, addresses and all, to its memory only (never its disk, never sent anywhere), and deletes it when the time's up, the switch goes off or coturn restarts. Read it in the Lightsail console's browser terminal: `sudo tail -f /run/vuemesh/turn.log`. **The Privacy page says so**, with the counts and the connection counts, and the reason for the log (finding a fault or an attack on the relay).
+
+**The README and the AWS docs say there's a server now:** the site is serverless, and STUN and the TURN relay are one small Lightsail server (about $5 a month), which is UDP and can't be a Lambda.
+
+**Tests:** `core.test`: the relay's report is counted only when signed with the TURN secret, fresh and once; only the counts it knows get in; the most open at once only goes up; the troubleshooting log is admin only, a day at most, and the relay hears it in its next report.
+
 ## 0.76.4 — Start a show at the bottom right
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.76.3.
 

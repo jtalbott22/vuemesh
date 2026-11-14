@@ -7,6 +7,7 @@ export function memoryStore() {
   const snaps = [];
   const lans = new Map(); // slug -> a local show's address and its owner
   const counters = new Map(); // rate counts (TURN passwords an hour)
+  const flags = new Map(); // small settings (the relay's troubleshooting log, its last report)
   const clone = (o) => (o ? JSON.parse(JSON.stringify(o)) : null);
   return {
     async getEvent(id) { return clone(events.get(id)); },
@@ -69,6 +70,13 @@ export function memoryStore() {
       for (const [k, v] of Object.entries(counts)) d[k] = (d[k] || 0) + v;
       traffic.set(day, d);
     },
+    async maxTraffic(day, counts) {
+      const d = traffic.get(day) || { day };
+      for (const [k, v] of Object.entries(counts)) d[k] = Math.max(d[k] || 0, v);
+      traffic.set(day, d);
+    },
+    async getFlag(name) { return clone(flags.get(name) || null); },
+    async setFlag(name, value) { flags.set(name, clone(value)); },
     async listTraffic(from, to) { return [...traffic.values()].filter((d) => d.day >= from && d.day <= to).sort((a, b) => a.day.localeCompare(b.day)).map(clone); },
     async getLan(slug) { return clone(lans.get(slug) || null); },
     async putLanIfAbsent(rec) {

@@ -386,6 +386,47 @@ function turnCounts(days) {
   const sum = (k) => days.reduce((s, d) => s + (d[`turn:${k}`] || 0), 0);
   return { given: sum('given'), limited: sum('limited'), other: sum('other_site'), off: sum('off') + sum('budget') };
 }
+// What the relay server reports every minute (counts only), and how browsers' connections went:
+// on the same network, direct, or through the relay (each end of a connection counts its own)
+function relayCounts(days) {
+  const sum = (k) => days.reduce((s, d) => s + (d[`relay:${k}`] || 0), 0);
+  const route = { lan: 0, direct: 0, relay: 0 };
+  for (const d of days) for (const [k, v] of Object.entries(d)) { const m = /^ev:route:[a-z]+:(lan|direct|relay)$/.exec(k); if (m) route[m[1]] += v; }
+  return {
+    started: sum('started'), hours: sum('relay_min') / 60, bytes: sum('bytes_in') + sum('bytes_out'), peak: Math.max(0, ...days.map((d) => d['relay:peak'] || 0)),
+    badPassword: sum('bad_password'), forbidden: sum('forbidden'), tcp: sum('tcp'), flood: sum('flood'), self: sum('self'), full: sum('full'), errors: sum('errors'), route,
+  };
+}
+/** The last 24 hours, hour by hour, from today's and yesterday's counts (relayh:HH:*) */
+function relayHours(days, field, now = Date.now()) {
+  const byDay = new Map(days.map((d) => [d.day, d]));
+  return Array.from({ length: 24 }, (_, i) => {
+    const t = now - (23 - i) * 3600000, iso = new Date(t).toISOString();
+    return { t, v: byDay.get(iso.slice(0, 10))?.[`relayh:${iso.slice(11, 13)}:${field}`] || 0 };
+  });
+}
+const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 120 ? `${m} min ago` : `${Math.round(m / 60)} hours ago`; };
+const until = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+function relayPanel(r, week) {
+  const kpi = (v, label) => `<div class="kpi"><b>${v}</b><span>${esc(label)}</span></div>`;
+  const c = relayCounts(week), routes = c.route.lan + c.route.direct + c.route.relay;
+  const share = routes ? `${((c.route.relay / routes) * 100).toFixed(1)}%` : '—';
+  const rep = r.relayReport;
+  const fresh = rep && Date.now() - rep.at < 5 * 60000;
+  const report = rep
+    ? `<span class="tag ${fresh ? 'ok' : 'bad'}">reported ${esc(ago(rep.at))}</span> <span class="note">${fresh ? `${rep.open} relay${rep.open === 1 ? '' : 's'} open now` : "The server hasn't reported for a while: its counts here stop until it does."}</span>`
+    : `<span class="note">No report from the relay server yet. A server made before 0.77 doesn't send them: bump the number in InstanceName in aws/stun/template.yaml and deploy aws/stun.</span>`;
+  const log = r.relayLog
+    ? `<p><span class="tag bad">troubleshooting log on</span> until ${esc(until(r.relayLog.until))}. <button type="button" data-relaylog="0" class="primary">Switch it off now</button></p>`
+    : `<p><span class="tag ok">troubleshooting log off</span> <button type="button" data-relaylog="1">Log for 1 hour</button> <button type="button" data-relaylog="24">Log for 24 hours</button></p>`;
+  return `<article class="server"><header><b>Relay, last 7 days</b>${report}</header>
+    <div class="kpis">${kpi(share, `Of ${routes.toLocaleString()} connections, through the relay (${c.route.lan.toLocaleString()} on one network, ${c.route.direct.toLocaleString()} direct)`)}${kpi(c.started.toLocaleString(), 'Relays started')}${kpi(c.peak.toLocaleString(), 'Most open at once')}${kpi(c.hours.toFixed(1), 'Relay hours')}${kpi(`${gb(c.bytes).toFixed(2)} GB`, 'Through the relay ports')}</div>
+    <figure class="gchart">${spark(relayHours(trafficAll, 'peak'), (v) => `${v} open`)}<figcaption>Most relays open at once, hour by hour, the last 24 hours</figcaption></figure>
+    <div class="kpis">${kpi(c.badPassword.toLocaleString(), 'Turned away: wrong or expired password')}${kpi(c.forbidden.toLocaleString(), 'Turned away: asked to reach a private address')}${kpi(c.tcp.toLocaleString(), 'Turned away: asked for a TCP relay')}${kpi(c.flood.toLocaleString(), 'Flood packets dropped')}${kpi(c.self.toLocaleString(), "Stopped reaching this server's own ports")}${kpi((c.full + c.errors).toLocaleString(), 'Relay full, or other errors')}</div>
+    <div class="note">Counts only: the server counts its own log and forgets it. No addresses come here.</div>
+    <div><b>Troubleshooting log</b>${log}<div class="note">While it's on, the relay writes its own log, with the addresses of the devices using it, to the server's memory only (never its disk, never sent here), for a day at most, then deletes it. Switching it on or off takes up to a minute to reach the server. Read it in the Lightsail console's browser terminal: <code>sudo tail -f /run/vuemesh/turn.log</code></div></div>
+  </article>`;
+}
 async function loadServers() {
   const r = await call('servers');
   const kpi = (v, label) => `<div class="kpi"><b>${v}</b><span>${esc(label)}</span></div>`;
@@ -415,10 +456,26 @@ async function loadServers() {
     </article>`;
   });
   const turn = `<div class="kpis">${kpi(t.given.toLocaleString(), 'TURN passwords given, last 7 days')}${kpi(t.limited.toLocaleString(), `Refused: too many from one address (over ${r.limits?.perAddressHour ?? '?'} an hour) or in all`)}${kpi(t.other.toLocaleString(), 'Refused: asked by another site or a script')}${kpi(t.off.toLocaleString(), 'Refused: relay off')}</div>`;
-  $('#servers').innerHTML = (cards.join('') || `<p class="note">${esc(r.note || 'No Lightsail servers in this region.')}</p>`) + turn;
+  const relay = (r.servers || []).some((s) => s.relay) ? relayPanel(r, week) : '';
+  $('#servers').innerHTML = (cards.join('') || `<p class="note">${esc(r.note || 'No Lightsail servers in this region.')}</p>`) + turn + relay;
 }
 $('#sRefresh')?.addEventListener('click', () => loadTraffic().then(loadServers).catch((e) => toast(e.message, 5000)));
 $('#servers')?.addEventListener('click', async (e) => {
+  const lg = e.target.closest('[data-relaylog]');
+  if (lg) {
+    const hours = Number(lg.dataset.relaylog);
+    if (hours && !confirm(`Log the relay for ${hours} hour${hours > 1 ? 's' : ''}? Its log has the addresses of the devices it relays. It stays in the server's memory, and is deleted when the time's up.`)) return;
+    lg.disabled = true;
+    try {
+      await call('relay-log', { method: 'POST', body: { hours } });
+      announce(hours ? `Relay log on for ${hours} hour${hours > 1 ? 's' : ''}` : 'Relay log off');
+      await loadServers();
+    } catch (err) {
+      toast(err.message, 5000);
+      lg.disabled = false;
+    }
+    return;
+  }
   const b = e.target.closest('[data-relay]');
   if (!b) return;
   const open = b.dataset.relay === 'on';

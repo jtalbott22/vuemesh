@@ -7,7 +7,7 @@
 // Nothing but the handshake touches the cloud.
 
 import { bitrateHints, LINK_MAX_KBPS, LIVE_QUALITY, opusStereo, qualityFor, screenCodecs, sendStats } from '/js/quality.js';
-import { ICE, iceReady, sha256hex, hexConcat, thumbprint, verifyStatement } from '/js/vm.js';
+import { ICE, iceReady, sha256hex, hexConcat, thumbprint, verifyStatement, trackEvent } from '/js/vm.js';
 
 export const PART_SIZE = 8 * 1024 * 1024;
 const CHUNK = 64 * 1024;
@@ -91,6 +91,24 @@ export async function pathOf(pc) {
 
 export async function routeOf(pc) {
   return (await pathOf(pc)).route;
+}
+
+/**
+ * Once a connection is up, count how it went: on this network (lan), straight across the internet
+ * (direct), or through our relay (relay). One anonymous day count (`route:<kind>:<how>`), for how
+ * often the relay is needed at all; no addresses, nothing about the devices or the show.
+ * @param {RTCPeerConnection} pc  @param {string} kind call, cam, tv, view
+ */
+export function countRoute(pc, kind) {
+  let counted = false;
+  pc.addEventListener('connectionstatechange', () => {
+    if (counted || pc.connectionState !== 'connected') return;
+    counted = true;
+    setTimeout(async () => {
+      const route = (await pathOf(pc)).route;
+      if (route !== 'unknown') trackEvent(`route:${kind}:${route === 'lan' || route === 'relay' ? route : 'direct'}`);
+    }, 1000);
+  });
 }
 
 /** How much sound the studio keeps in hand from each phone or computer, ms (see accept). */
@@ -245,6 +263,7 @@ export class CamLink {
     this.old = keep;
     this.onState('connecting');
     const pc = new RTCPeerConnection({ iceServers: ICE });
+    countRoute(pc, 'cam');
     this.pc = pc;
     this.remoteSet = false;
     this.pendingIce = [];
@@ -712,6 +731,7 @@ export class HostHub {
     if (prev) clearInterval(prev.away);
     else this.drop(peer, 'reconnect');
     const pc = new RTCPeerConnection({ iceServers: ICE });
+    countRoute(pc, 'cam');
     const link = { pc, pendingIce: [], remoteSet: false, stream: null, prev };
     this.links.set(peer, link);
     const sig = (d) => {
