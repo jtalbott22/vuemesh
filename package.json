@@ -1,7 +1,7 @@
 {
   "name": "vuemesh",
   "private": true,
-  "version": "0.78.0",
+  "version": "0.79.0",
   "description": "A live production studio in the browser: cameras, screens, phones and sound, switched, mixed, recorded, streamed and edited.",
   "license": "MIT",
   "repository": {

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.79.0 — calls in Admin
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.78.0.
+
+**Calls were counted but Admin never showed them.** Now:
+- **People in calls,** a new count: each device counted once per call, when it's let in (not while it waits, and not again after a dropped connection, a reload or a network change), by a one-way code of its random device ID kept on the call and deleted with it after a day. The old count of connections to calls (`call_joins`) goes on, and counts every reconnect.
+- **Admin:** Calls started and People in calls are headline tiles, all three are in Growth's chart and CSV, and calls started and people in them are in the month table. The relay panel shows what share of call connections went through the relay, apart from cameras and TVs.
+- **The Privacy page says so:** calls among the day's anonymous counts, and the one-way code a call keeps.
+
+People in calls starts the day this is deployed; days before have only calls started and connections.
+
+**Tests:** `core.test`: each person counted once per call, when in, and kept only as one-way codes on the call.
+
 ## 0.78.0 — Admin, redesigned: one period for everything, real charts, and events a page at a time
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.77.0.
 

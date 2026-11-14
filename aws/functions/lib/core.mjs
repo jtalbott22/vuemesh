@@ -569,6 +569,17 @@ export async function signal(evt, deps) {
   return { status: 200 };
 }
 
+// A person in a call, counted once per call however often their connection drops and comes back:
+// by a one-way code of their device's random ID, kept on the call (and deleted with it, after a
+// day). Counted when they're in, not while they wait. Nothing about who.
+async function countCallPerson(meta, id, deps, now) {
+  const tag = sha256hex(`callp|${id}`).slice(0, 16), joined = meta.callJoined || [];
+  if (joined.includes(tag) || joined.length >= 200) return;
+  meta.callJoined = [...joined, tag];
+  await deps.store.updateEvent(meta.id, { callJoined: meta.callJoined });
+  await bump(deps, now, { call_people: 1 });
+}
+
 // ---- a call's connections: everyone in it talks to everyone; a waiting device only knocks
 async function callConnect(meta, q, conn, deps, now) {
   const role = q.role === 'host' ? 'host' : 'guest';
@@ -584,6 +595,7 @@ async function callConnect(meta, q, conn, deps, now) {
     cid: String(q.cid || '').slice(0, 32), rec: false, seenAt: now, at: now, ttl: Math.floor(now / 1000) + DAY,
   });
   await bump(deps, now, { call_joins: 1 });
+  if (r.admitted) await countCallPerson(meta, q.cid || q.peer || conn, deps, now);
   await broadcastCall(meta.id, deps, conn);
   return { status: 200 };
 }
@@ -626,6 +638,7 @@ async function callMessage(eventId, msg, me, peers, conn, deps, now) {
       }
       await store.updateConn(eventId, target.connId, { waiting: false });
       if (target.ph) await store.updateEvent(eventId, { passes: keepPass(meta, target.ph) });
+      await countCallPerson(meta, target.cid || target.peer || target.connId, deps, now);
       await tell(target, { type: 'admitted', by: me.peer });
       await broadcastCall(eventId, deps);
       break;

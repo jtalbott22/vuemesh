@@ -113,7 +113,7 @@ function renderTicker() {
   const trendOf = (days, value) => bucket(days, value).pts.map((x) => x.v);
   const gt = (k) => tile(METRIC[k].label.replace(/ \(.*\)$/, ''), g.totals[k], g.totals[k], g.previous[k], trendOf(g.days, (d) => val(d, k)), (v) => fmt(v, k));
   $('#gKpis').innerHTML = [
-    gt('events'), gt('active_events'), gt('cameras'), gt('footage_sec'),
+    gt('events'), gt('active_events'), gt('cameras'), gt('footage_sec'), gt('calls'), gt('call_people'),
     tile('Visitors', tsum(tNow, 'visitors'), tsum(tNow, 'visitors'), tsum(tPrev, 'visitors'), trendOf(tNow, (d) => d.visitors || 0)),
     tile('Page views', tsum(tNow, 'pageviews'), tsum(tNow, 'pageviews'), tsum(tPrev, 'pageviews'), trendOf(tNow, (d) => d.pageviews || 0)),
   ].join('');
@@ -257,6 +257,7 @@ const METRICS = [
   ['clips', 'Recordings received', 1], ['footage_sec', 'Footage recorded (hours)', 3600],
   ['live_cut_sec', 'Live cut recorded (hours)', 3600], ['stream_sec', 'Streamed live (hours)', 3600], ['films', 'Films published', 1],
   ['studio_sec', 'Studio, live (hours)', 3600], ['edit_sec', 'Editing (hours)', 3600], ['kiosk_sec', 'Kiosks running (hours)', 3600], ['camera_sec', 'Phones in shows (hours)', 3600],
+  ['calls', 'Calls started', 1], ['call_people', 'People in calls (each once a call)', 1], ['call_joins', 'Call connections (reconnects too)', 1],
 ];
 const METRIC = Object.fromEntries(METRICS.map(([k, label, f]) => [k, { label, f }]));
 let growthAll = [], gMode = 'daily';
@@ -323,7 +324,7 @@ function renderGrowth() {
     for (const [key] of METRICS) acc[key] = (acc[key] || 0) + val(d, key);
     months.set(m, acc);
   }
-  const cols = ['events', 'active_events', 'cameras', 'mics', 'clips', 'footage_sec', 'live_cut_sec', 'stream_sec', 'films'];
+  const cols = ['events', 'active_events', 'cameras', 'mics', 'clips', 'footage_sec', 'live_cut_sec', 'stream_sec', 'films', 'calls', 'call_people'];
   $('#gTable').innerHTML = `<thead><tr><th scope="col">Month</th>${cols.map((c) => `<th scope="col">${esc(METRIC[c].label)}</th>`).join('')}</tr></thead><tbody>${[...months]
     .reverse()
     .map(([m, a]) => `<tr><th scope="row">${new Date(`${m}-01T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', year: 'numeric' })}</th>${cols.map((c) => `<td>${fmt(a[c] || 0, c)}</td>`).join('')}</tr>`)
@@ -515,11 +516,18 @@ function turnCounts(days) {
 // on the same network, direct, or through the relay (each end of a connection counts its own)
 function relayCounts(days) {
   const sum = (k) => days.reduce((s, d) => s + (d[`relay:${k}`] || 0), 0);
-  const route = { lan: 0, direct: 0, relay: 0 };
-  for (const d of days) for (const [k, v] of Object.entries(d)) { const m = /^ev:route:[a-z]+:(lan|direct|relay)$/.exec(k); if (m) route[m[1]] += v; }
+  const route = { lan: 0, direct: 0, relay: 0 }, call = { lan: 0, direct: 0, relay: 0 };
+  for (const d of days) {
+    for (const [k, v] of Object.entries(d)) {
+      const m = /^ev:route:([a-z]+):(lan|direct|relay)$/.exec(k);
+      if (!m) continue;
+      route[m[2]] += v;
+      if (m[1] === 'call') call[m[2]] += v;
+    }
+  }
   return {
     started: sum('started'), hours: sum('relay_min') / 60, bytes: sum('bytes_in') + sum('bytes_out'), peak: Math.max(0, ...days.map((d) => d['relay:peak'] || 0)),
-    badPassword: sum('bad_password'), forbidden: sum('forbidden'), tcp: sum('tcp'), flood: sum('flood'), self: sum('self'), full: sum('full'), errors: sum('errors'), route,
+    badPassword: sum('bad_password'), forbidden: sum('forbidden'), tcp: sum('tcp'), flood: sum('flood'), self: sum('self'), full: sum('full'), errors: sum('errors'), route, call,
   };
 }
 /** The last 24 hours, hour by hour, from today's and yesterday's counts (relayh:HH:*) */
@@ -536,6 +544,7 @@ function relayPanel(r, week, span) {
   const kpi = (v, label) => `<div class="kpi"><b>${v}</b><span>${esc(label)}</span></div>`;
   const c = relayCounts(week), routes = c.route.lan + c.route.direct + c.route.relay;
   const share = routes ? `${((c.route.relay / routes) * 100).toFixed(1)}%` : '—';
+  const calls = c.call.lan + c.call.direct + c.call.relay, callShare = calls ? `${((c.call.relay / calls) * 100).toFixed(1)}%` : '—';
   const rep = r.relayReport;
   const fresh = rep && Date.now() - rep.at < 5 * 60000;
   const report = rep
@@ -545,7 +554,7 @@ function relayPanel(r, week, span) {
     ? `<p><span class="tag bad">troubleshooting log on</span> until ${esc(until(r.relayLog.until))}. <button type="button" data-relaylog="0" class="primary">Switch it off now</button></p>`
     : `<p><span class="tag ok">troubleshooting log off</span> <button type="button" data-relaylog="1">Log for 1 hour</button> <button type="button" data-relaylog="24">Log for 24 hours</button></p>`;
   return `<article class="server"><header><b>Relay · ${esc(span)}</b>${report}</header>
-    <div class="kpis">${kpi(share, `Of ${routes.toLocaleString()} connections, through the relay (${c.route.lan.toLocaleString()} on one network, ${c.route.direct.toLocaleString()} direct)`)}${kpi(c.started.toLocaleString(), 'Relays started')}${kpi(c.peak.toLocaleString(), 'Most open at once')}${kpi(c.hours.toFixed(1), 'Relay hours')}${kpi(`${gb(c.bytes).toFixed(2)} GB`, 'Through the relay ports')}</div>
+    <div class="kpis">${kpi(share, `Of ${routes.toLocaleString()} connections, through the relay (${c.route.lan.toLocaleString()} on one network, ${c.route.direct.toLocaleString()} direct)`)}${kpi(callShare, `Of ${calls.toLocaleString()} call connections, through the relay (${c.call.direct.toLocaleString()} direct, ${c.call.lan.toLocaleString()} on one network)`)}${kpi(c.started.toLocaleString(), 'Relays started')}${kpi(c.peak.toLocaleString(), 'Most open at once')}${kpi(c.hours.toFixed(1), 'Relay hours')}${kpi(`${gb(c.bytes).toFixed(2)} GB`, 'Through the relay ports')}</div>
     <p class="sub2">Most relays open at once, hour by hour, the last 24 hours</p><div data-chart="relay"></div>
     <div class="kpis">${kpi(c.badPassword.toLocaleString(), 'Turned away: wrong or expired password')}${kpi(c.forbidden.toLocaleString(), 'Turned away: asked to reach a private address')}${kpi(c.tcp.toLocaleString(), 'Turned away: asked for a TCP relay')}${kpi(c.flood.toLocaleString(), 'Flood packets dropped')}${kpi(c.self.toLocaleString(), "Stopped reaching this server's own ports")}${kpi((c.full + c.errors).toLocaleString(), 'Relay full, or other errors')}</div>
     <div class="note">Counts only: the server counts its own log and forgets it. No addresses come here.</div>

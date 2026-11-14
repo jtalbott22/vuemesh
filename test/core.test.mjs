@@ -577,6 +577,14 @@ ok('events expire after 30 days for the API and signaling');
   assert.equal(last('B2', 'peers').waiting, undefined, 'straight back in with its pass');
   assert.equal((await enter({ pass: 'not-a-pass' })).status, 403);
   ok('calls: back in after a dropped connection with its own pass, without waiting');
+  {
+    const today = new Date(clock).toISOString().slice(0, 10), d = (await store.listStats(today, today))[0] || {};
+    assert.equal(d.call_people, 2, 'Ann and Bob: each counted once (Bob when let in, not while waiting, and not again when back)');
+    assert.ok(d.call_joins >= 3, 'connections, reconnects among them');
+    const kept = (await store.getEvent(cid)).callJoined;
+    assert.ok(kept.length === 2 && !JSON.stringify(kept).includes('devA') && !JSON.stringify(kept).includes('devB'), 'kept on the call as one-way codes only');
+    ok('calls: each person counted once per call, when in; codes kept on the call only');
+  }
 
   // leaving says so: everyone's list goes without them at once (before the connection's even closed)
   assert.equal((await cconnect('L1', { role: 'guest', peer: 'PL', pass: 'passB', cid: 'devL' })).status, 200);

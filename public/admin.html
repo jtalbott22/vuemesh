@@ -56,8 +56,7 @@
   @keyframes pulse { 50% { opacity: .35; } }
   @media (prefers-reduced-motion: reduce) { .chip.live b::before { animation: none; } }
   /* stat tiles: label, value, change against the period before, trend */
-  .ticker { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-  @media (max-width: 1180px) { .ticker { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .ticker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 620px) { .ticker { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat .val b { font-size: 1.35rem; } }
   .stat { background: var(--surface); border: 1px solid var(--card-line); border-radius: 14px; padding: 14px 16px 10px; display: grid; gap: 4px; min-width: 0; }
   .stat .lbl { color: var(--text-2); font-size: .78rem; font-weight: 600; }
