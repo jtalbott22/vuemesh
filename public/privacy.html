@@ -19,37 +19,11 @@
 <link href="/css/archivo.css" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
-  /* The studio's look (vm.css): the bar along the top, a reading column, the short version and the
-     storage table in cards, each section with its own address (#browser, #server, #relay…) */
-  .doc { width: 100%; max-width: 860px; margin: 0 auto; padding: clamp(24px, 5vh, 56px) var(--gutter-r) calc(56px + env(safe-area-inset-bottom, 0px)) var(--gutter); }
-  .doc h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); margin: 10px 0 .3em; }
-  .doc h2 { margin: 2.4em 0 .6em; font-size: 1.4rem; scroll-margin-top: 20px; }
-  .doc h3 { margin: 1.6em 0 .4em; font-size: 1.05rem; }
-  .doc p, .doc li, .doc td { color: var(--text-2); }
-  .doc b, .doc strong, .doc th { color: var(--text); }
-  .doc ul { padding-left: 1.2em; }
-  .doc li { margin: .45em 0; }
-  .lead { font-size: 1.1rem; max-width: 62ch; }
-  .updated { color: var(--muted); font-size: .88rem; margin: 0 0 18px; }
-  .doc .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 26px; padding: 0; list-style: none; }
-  .toc li { margin: 0; }
-  .toc a { display: inline-block; padding: .35em .85em; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); text-decoration: none; font-size: .88rem; font-weight: 600; }
-  .toc a:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--muted); }
-  .checks { list-style: none; padding: 0 !important; margin: 0; display: grid; gap: 12px; }
-  .checks li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; margin: 0; }
-  .checks li::before { content: "✓"; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); margin-top: 1px; }
-  .tbl { overflow-x: auto; margin: 12px 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); }
-  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
-  th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  tr:last-child td { border-bottom: 0; }
-  th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2) !important; }
-  code { font-family: var(--mono); font-size: .86em; overflow-wrap: anywhere; }
+  /* The studio's look (vm.css, its documents block): the bar along the top, a reading column, the
+     short version and the storage table in cards, each section with its own address (#relay…) */
   .here { margin: 18px 0; }
   .here .row { display: flex; gap: 10px; flex-wrap: wrap; }
   .here button { width: auto !important; }
-  .callout { margin: 14px 0; }
-  footer.foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
-  footer.foot a { color: inherit; }
 </style>
 </head>
 <body class="vm-page">
@@ -58,12 +32,12 @@
   <span class="vm-spacer"></span>
   <button type="button" id="themeBtn"></button>
 </header>
-<main class="doc">
+<main class="vm-doc">
   <p class="vm-eyebrow pvw">Privacy</p>
   <h1>What VUEMesh keeps</h1>
   <p class="lead">Exactly what VUEMesh keeps, where, and for how long. This page describes the site at vuemesh.com. VUEMesh is open source (MIT), so anyone can run their own copy; a copy run by someone else is theirs, and so is what it keeps.</p>
   <p class="updated">Updated 14 November 2026 (VUEMesh 0.90.0): calls, the relay and when it may be off, captions and face tracking, the logs that can be switched on, and streaming and publishing.</p>
-  <ul class="toc" aria-label="On this page">
+  <ul class="vm-toc" aria-label="On this page">
     <li><a href="#short">The short version</a></li>
     <li><a href="#browser">In this browser</a></li>
     <li><a href="#server">On our server</a></li>
@@ -79,7 +53,7 @@
 
   <section class="vm-card" id="short" aria-labelledby="shortH">
     <h2 id="shortH" style="margin:0">The short version</h2>
-    <ul class="checks">
+    <ul class="vm-checks">
       <li><span><b>No cookies, no accounts, no ads, no trackers, no third-party analytics.</b> There's nothing to accept.</span></li>
       <li><span><b>Never your location.</b> VUEMesh doesn't ask where you are, and there's no public list or map of events.</span></li>
       <li><span><b>Your recordings stay on your devices.</b> Video and sound go from device to device. Our server never receives them, and nothing is uploaded to be published (<a href="#publish">not yet</a>).</span></li>
@@ -95,7 +69,7 @@
 
   <h2 id="browser">In this browser</h2>
   <p>VUEMesh is an app that runs in your browser, and it keeps its work there, on this device only, the way a document editor keeps files. None of this is a cookie and none of it is sent anywhere by itself. It's grouped here by what it's for; every key starts with <code>vm_</code>.</p>
-  <div class="tbl"><table>
+  <div class="vm-tbl"><table>
     <thead><tr><th>What</th><th>Where</th><th>Why</th></tr></thead>
     <tbody>
       <tr><td><b>Your recordings and edits</b>: camera and microphone clips, clips waiting to reach the studio, the recorded program and its captions, break-reel images and videos, the show log</td><td>IndexedDB, database <code>vuemesh</code> (<code>clips</code>, <code>outbox</code>, <code>program</code>, <code>reel</code>, <code>showlog</code>)</td><td>So footage survives a reload or a dropped connection, and you can export it later. Delete or export it from <a href="/#start">Your events on this device</a> on the home page, or from My events on a phone.</td></tr>
@@ -218,7 +192,7 @@
   <h2 id="changes">Changes and questions</h2>
   <p>If what VUEMesh keeps changes, this page changes with it, in the same release (it's in the <a href="https://github.com/jtalbott22/vuemesh">public repository</a>, so every change is visible). Questions: <a id="contactLink" target="_blank" rel="noopener">get in touch</a>, or open an issue.</p>
 
-  <footer class="foot"><a href="/">Home</a><a href="/terms">Terms</a><a href="/accessibility">Accessibility</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
+  <footer class="vm-foot"><a href="/">Home</a><a href="/terms">Terms</a><a href="/accessibility">Accessibility</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
 </main>
 <script src="/js/version.js" type="module"></script>
 <script type="module">

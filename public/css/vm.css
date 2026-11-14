@@ -316,3 +316,31 @@ button.danger { background: var(--tally); color: #fff; }
   .vm-rise.d1 { animation-delay: .06s; }
   @keyframes vmRise { from { opacity: 0; transform: translateY(10px); } }
 }
+
+/* ---- documents: Privacy, Terms, Accessibility, What's new. A reading column under the top bar,
+   links to its sections as pills, short versions and tables in cards, a quiet footer. ---- */
+.vm-doc { width: 100%; max-width: 860px; margin: 0 auto; padding: clamp(24px, 5vh, 56px) var(--gutter-r) calc(56px + env(safe-area-inset-bottom, 0px)) var(--gutter); }
+.vm-doc h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); margin: 10px 0 .3em; }
+.vm-doc h2 { margin: 2.4em 0 .6em; font-size: 1.4rem; scroll-margin-top: 20px; }
+.vm-doc h3 { margin: 1.6em 0 .4em; font-size: 1.05rem; }
+.vm-doc p, .vm-doc li, .vm-doc td { color: var(--text-2); }
+.vm-doc b, .vm-doc strong, .vm-doc th { color: var(--text); }
+.vm-doc ul, .vm-doc ol { padding-left: 1.2em; }
+.vm-doc li { margin: .45em 0; }
+.vm-doc code { font-family: var(--mono); font-size: .86em; overflow-wrap: anywhere; }
+.vm-doc .lead { font-size: 1.1rem; max-width: 62ch; }
+.vm-doc .updated { color: var(--muted); font-size: .88rem; margin: 0 0 18px; }
+.vm-doc .vm-toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 26px; padding: 0; list-style: none; }
+.vm-toc li { margin: 0; }
+.vm-toc a { display: inline-block; padding: .35em .85em; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); text-decoration: none; font-size: .88rem; font-weight: 600; }
+.vm-toc a:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--muted); }
+.vm-doc .vm-checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.vm-checks li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; margin: 0; }
+.vm-checks li::before { content: "✓"; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); margin-top: 1px; }
+.vm-tbl { overflow-x: auto; margin: 12px 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); }
+.vm-tbl table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+.vm-tbl th, .vm-tbl td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.vm-tbl tr:last-child td { border-bottom: 0; }
+.vm-tbl th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+.vm-foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.vm-foot a { color: inherit; }

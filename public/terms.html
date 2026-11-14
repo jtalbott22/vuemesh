@@ -27,33 +27,37 @@
 <link href="/css/archivo.css" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
-  .wrap { max-width: 780px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(48px + env(safe-area-inset-bottom, 0px)); }
-  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
-  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
-  h1 { font-size: clamp(2rem, 6vw, 3.2rem); }
-  h2 { margin-top: 2em; font-size: 1.25rem; }
-  p, li { color: var(--text-2); }
-  .beta { background: var(--amber); color: #3b2500; border-radius: 12px; padding: 14px 18px; font-weight: 600; }
-  .beta p { color: #3b2500; margin: 0; }
+  /* The studio's look (vm.css, its documents block), as on Privacy: the bar along the top, a reading
+     column, the beta note and the contents in cards */
+  .beta { margin: 4px 0 18px; }
+  .beta p { margin: 0; color: var(--text) !important; font-weight: 600; }
   .caps { text-transform: uppercase; font-size: .92rem; letter-spacing: .01em; }
-  nav.toc { background: var(--surface); border-radius: 12px; padding: 12px 18px; margin: 20px 0; }
-  nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; }
-  @media (max-width: 600px) { nav.toc ol { columns: 1; } }
+  .contents { margin: 18px 0 8px; gap: 8px; }
+  .contents h2 { margin: 0 !important; font-size: .72rem !important; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
+  .contents ol { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 28px; }
+  .contents li { margin: .3em 0; break-inside: avoid; }
+  .contents li::marker { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .contents a { color: var(--text-2); text-decoration: none; }
+  .contents a:hover { color: var(--text); text-decoration: underline; }
+  @media (max-width: 600px) { .contents ol { columns: 1; } }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
-  <main>
+<body class="vm-page">
+<header class="vm-top">
+  <a class="vm-mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
+  <span class="vm-spacer"></span>
+  <button type="button" id="themeBtn"></button>
+</header>
+  <main class="vm-doc">
+    <p class="vm-eyebrow amber">Terms of Use</p>
     <h1>Terms of Use</h1>
-    <p>Version <span id="ver"></span>. These terms apply to everyone who uses VUEMesh: people who host events, people who join them with a camera or microphone, and people who watch.</p>
+    <p class="lead">Version <span id="ver"></span>. These terms apply to everyone who uses VUEMesh: people who host events, people who join them with a camera or microphone, and people who watch.</p>
 
-    <div class="beta" role="note">
+    <div class="beta vm-note amber" role="note">
       <p>VUEMesh is an experimental beta. It may break, lose recordings, or change without notice. It is provided as is, with no warranty, and we accept no liability for its use. Keep your own copy of anything that matters to you.</p>
     </div>
 
-    <nav class="toc" aria-label="Contents"><ol>
+    <nav class="contents vm-card" aria-labelledby="contentsH"><h2 id="contentsH">Contents</h2><ol>
       <li><a href="#beta">Beta software</a></li>
       <li><a href="#who">Who can use it</a></li>
       <li><a href="#platform">What VUEMesh is</a></li>
@@ -187,8 +191,8 @@
 
     <h2 id="contact">21. Contact</h2>
     <p>Questions, legal notices, or removal requests: <a id="contactLink" target="_blank" rel="noopener">contact us</a>.</p>
+    <footer class="vm-foot"><a href="/">Home</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
   </main>
-</div>
 <script type="module">
   import { $, themeButton } from '/js/vm.js';
   import { TERMS_VERSION, sponsorContactHref } from '/js/brand.js';
