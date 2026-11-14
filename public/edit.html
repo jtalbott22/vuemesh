@@ -824,7 +824,7 @@
   <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span></div>
   <span class="spacer"></span>
   <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software (choose Edit in it to show this edit)">Program out ↗</button>
-  <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">Beacon</a>
+  <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">QR Beacon</a>
   <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen (F)">Full screen <kbd>F</kbd></button>
   <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
   <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
@@ -865,7 +865,7 @@
     </dialog>
     <dialog id="localDlg" class="localdlg" aria-labelledby="localH">
       <h2 id="localH">Cameras and microphones on this computer</h2>
-      <p class="fine">They run on the studio's own clock, so they're in sync without the beacon. A camera brings its sound (its own microphone, or this computer's: change it under Sound) and records while it's on air; a microphone records the whole time it's in the show.</p>
+      <p class="fine">They run on the studio's own clock, so they're in sync without the QR Beacon. A camera brings its sound (its own microphone, or this computer's: change it under Sound) and records while it's on air; a microphone records the whole time it's in the show.</p>
       <div id="localList"></div>
       <form method="dialog"><button class="primary">Done</button></form>
     </dialog>
@@ -1016,7 +1016,7 @@
         <button type="button" id="rangeClear" class="small" hidden style="margin:0 0 6px">Clear in/out</button>
         <button type="button" id="renderBtn" class="primary" style="width:100%;margin-bottom:6px">Render MP4</button>
         <div class="tools">
-          <button type="button" id="syncBtn" title="Check every clip is locked to the beacon, fine-tune any with the beacon in shot, and say which phones never synced">Auto-sync</button>
+          <button type="button" id="syncBtn" title="Check every clip is locked to the QR Beacon, fine-tune any with the QR Beacon in shot, and say which phones never synced">Auto-sync</button>
           <button type="button" id="autoCutBtn" title="Cut between the angles by itself">Auto-cut</button>
           <button type="button" id="rebuildBtn" title="Rebuild the Program track from your live cuts">Rebuild cuts</button>
           <button type="button" id="exportBtn" title="Record the program in real time (works everywhere)">Real-time export</button>

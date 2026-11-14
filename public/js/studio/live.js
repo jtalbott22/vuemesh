@@ -122,7 +122,7 @@ export function renderLive() {
   box.querySelectorAll('.tile[data-angle]').forEach((t) => t.remove());
   $('#srcCount').textContent = cams.length ? `${cams.length} live` : '';
   if (!cams.length && !micPeers().length) {
-    box.insertAdjacentHTML('afterbegin', `<div class="empty">${KIOSK ? 'No cameras yet: scan the code to join.' : 'No phones yet. Put the beacon on a screen; phones on this Wi-Fi that scan it show up here.'}</div>`);
+    box.insertAdjacentHTML('afterbegin', `<div class="empty">${KIOSK ? 'No cameras yet: scan the code to join.' : 'No phones yet. Put the QR Beacon on a screen; phones on this Wi-Fi that scan it show up here.'}</div>`);
   }
   cams.forEach((peer, i) => {
     const l = live.get(peer);
@@ -169,7 +169,7 @@ export function renderLive() {
     // a camera that hasn't synced with the beacon: its clips would be placed by its own clock
     let ns = l.tile.querySelector('.nosync');
     const unsynced = l.tele?.synced === false;
-    if (unsynced && !ns) l.tile.insertAdjacentHTML('beforeend', '<span class="nosync" title="This phone hasn’t synced with the beacon yet: ask them to point it at the beacon screen once">NO SYNC</span>');
+    if (unsynced && !ns) l.tile.insertAdjacentHTML('beforeend', '<span class="nosync" title="This phone hasn’t synced with the QR Beacon yet: ask them to point it at the QR Beacon screen once">NO SYNC</span>');
     else if (!unsynced) ns?.remove();
     let pcTag = l.tile.querySelector('.pctag');
     if (l.fixed && !pcTag) l.tile.insertAdjacentHTML('beforeend', '<span class="pctag" title="A computer camera: fixed, no gyro">PC</span>');
@@ -177,7 +177,7 @@ export function renderLive() {
     const r = l.tile.querySelector('.route');
     r.textContent = { lan: 'LAN', nat: 'LAN·NAT', cellular: 'CELL', internet: 'NET', relay: 'RELAY', local: 'THIS PC' }[l.route] || '…';
     r.className = 'route ' + (l.route === 'nat' || l.route === 'local' ? 'lan' : l.route);
-    r.title = { local: 'A camera on this computer: on the studio\u2019s own clock, no beacon needed', lan: 'Direct over the local network', nat: 'Same network, through the router', cellular: 'On mobile data — ask this guest to join the venue Wi-Fi' }[l.route] || 'Not on the local network — ask this guest to join the venue Wi-Fi';
+    r.title = { local: 'A camera on this computer: on the studio\u2019s own clock, no QR Beacon needed', lan: 'Direct over the local network', nat: 'Same network, through the router', cellular: 'On mobile data — ask this guest to join the venue Wi-Fi' }[l.route] || 'Not on the local network — ask this guest to join the venue Wi-Fi';
     l.tile.querySelector('.rec').hidden = !l.rec;
     l.tile.classList.toggle('live', peer === liveActive && !onBreak());
     l.tile.classList.toggle('pvw', peer === pvw);

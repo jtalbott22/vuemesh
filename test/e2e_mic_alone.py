@@ -108,10 +108,10 @@ with sync_playwright() as p:
     }})()""")
     host.reload(); host.wait_for_function("document.querySelector('#presence').textContent.includes('recording')", timeout=15000); time.sleep(1)
     ed = edit_window(host.context, host, errors); time.sleep(1); ed.click('#syncBtn')
-    ed.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('locked to the beacon'))", timeout=90000)
+    ed.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('locked to the QR Beacon'))", timeout=90000)
     t0s = ed.evaluate(f"(async () => Object.fromEntries((await ({IDB_ALL})('clips')).map(c => [c.name, [c.t0, c.t0Source]])))()")
     diff = t0s['Echo'][0] - t0s['Rosa'][0]
-    msg = next(t for t in ed.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)') if 'locked to the beacon' in t)
+    msg = next(t for t in ed.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)') if 'locked to the QR Beacon' in t)
     assert abs(diff) <= 3 and 'audio' in (t0s['Echo'][1], t0s['Rosa'][1]) and 'by sound' in msg, (t0s, msg)
     step(f"Auto-sync lined the two recordings up by their sound: 350 ms apart → {diff} ms (\"{msg}\")")
     host.bring_to_front(); time.sleep(0.5)

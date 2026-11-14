@@ -895,8 +895,7 @@
   <div class="status"><span class="pill"><span class="dot" id="recDot"></span><span id="presence">0 phones in</span></span><span class="streamdot" id="streamDot" hidden>● STREAMING</span><span class="localdot" id="localDot" hidden title="This computer's own Wi-Fi and server are running the show (vuemesh-local.mjs): click for its codes">HOTSPOT</span><span class="offlinedot" id="offlineDot" hidden title="No server: everyone already in the show carries on, over this network. A phone joins (or one that dropped out comes back) by swapping QR codes: click here, or Join by QR. Don't reload this page meanwhile.">OFFLINE · THIS NETWORK ONLY</span></div>
   <span class="spacer"></span>
   <button type="button" class="ghost" id="progOutBtn" title="Open the program in its own window, for a TV, projector or streaming software">Program out ↗</button>
-  <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">Beacon</a>
-  <button type="button" class="ghost" id="qrJoinBtn" title="A phone with no internet joins by swapping QR codes with the studio">Join by QR</button>
+  <a class="btn ghost" id="beaconBtn" target="_blank" rel="noopener">QR Beacon</a>
  <button type="button" class="ghost" id="fsBtn" aria-keyshortcuts="F" title="Full screen control room (F)">Full screen <kbd>F</kbd></button>
   <a class="btn ghost" id="monitorBtn" target="_blank" rel="noopener" title="Open the monitor: phones, transfers and the event log">Monitor ↗<i class="mlight" aria-hidden="true"></i></a>
   <a class="btn ghost" id="watchBtn" target="_blank" rel="noopener">Watch page</a>
@@ -942,7 +941,7 @@
     </dialog>
     <dialog id="localDlg" class="localdlg" aria-labelledby="localH">
       <header class="ldhead">
-        <div><h2 id="localH">Add from this computer</h2><p>On the studio’s own clock, so they’re in sync without the beacon. A camera brings its sound and records while it’s on air; a microphone records the whole time it’s in the show.</p></div>
+        <div><h2 id="localH">Add from this computer</h2><p>On the studio’s own clock, so they’re in sync without the QR Beacon. A camera brings its sound and records while it’s on air; a microphone records the whole time it’s in the show.</p></div>
         <form method="dialog"><button class="ldx" aria-label="Close">✕</button></form>
       </header>
       <div id="localList" class="ldbody" tabindex="-1"></div>
@@ -1248,6 +1247,8 @@
       <p class="fine" id="netState" style="margin-top:0">No phones yet.</p>
       <button type="button" id="directBtn" style="width:100%;margin-bottom:8px" hidden>Help phones connect directly</button>
       <button type="button" id="refreshPics" style="width:100%;margin-bottom:8px" title="Restart every live picture in this window. Right-click a camera for just one, or to reconnect it.">Refresh live pictures</button>
+      <button type="button" id="qrJoinBtn" style="width:100%;margin-bottom:4px" title="A phone with no internet joins by swapping QR codes with the studio">Join by QR</button>
+      <p class="fine" style="margin:0 0 10px">No internet? A phone joins by swapping QR codes with this studio's camera.</p>
       <label class="check"><input type="checkbox" id="localOnly"> Local network only</label>
       <p class="fine">Local only refuses connections that go out through the internet. Phones must be on the same Wi-Fi as this computer.</p>
       </div>
@@ -1323,8 +1324,8 @@
 </dialog>
 <dialog id="tvCalDlg" class="remotedlg" aria-labelledby="tvCalH">
   <h2 id="tvCalH">Calibrate <span id="tvCalName"></span></h2>
-  <p class="fine" style="margin-top:0">The TV is showing its beacon. Scan this code with a phone's camera: it opens a page that measures. Then hold the phone so it sees this code for a few seconds, then the TV's for a few seconds. The result comes back here by itself.</p>
-  <canvas id="tvCalQr" width="360" height="360" aria-label="Reference beacon for calibrating the TV"></canvas>
+  <p class="fine" style="margin-top:0">The TV is showing its QR Beacon. Scan this code with a phone's camera: it opens a page that measures. Then hold the phone so it sees this code for a few seconds, then the TV's for a few seconds. The result comes back here by itself.</p>
+  <canvas id="tvCalQr" width="360" height="360" aria-label="Reference QR Beacon for calibrating the TV"></canvas>
   <p class="fine" id="tvCalSay" aria-live="polite"></p>
   <p class="fine">Turn on the TV's Game mode first if it has one: less lag, and steadier.</p>
   <div class="row" style="justify-content:flex-end"><button type="button" id="tvCalCancel">Cancel</button></div>

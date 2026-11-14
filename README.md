@@ -548,7 +548,7 @@ the computer is struggling, pick a lower quality.
 The **local show helper** makes the studio computer the show's Wi-Fi and its server:
 
 1. On the studio computer, with [Node.js](https://nodejs.org) 18 or later, download `vuemesh-local.mjs` (the studio's **Join by QR** links to it, or use `public/relay/vuemesh-local.mjs` from this repo). Run it and leave the window open: on Linux `sudo node vuemesh-local.mjs`, on Windows `node vuemesh-local.mjs` in a PowerShell opened as administrator. The first time it needs the internet: it fetches the app and gets the show address's certificate, and keeps both.
-2. In the studio, **Join by QR** finds it, gives it the show and joins it. **Start the hotspot** turns this computer's Wi-Fi into the show's.
+2. In the studio, **Join by QR** (in the inspector, under Network) finds it, gives it the show and joins it. **Start the hotspot** turns this computer's Wi-Fi into the show's.
 3. Phones scan two codes: the **Wi-Fi's** (the camera app joins it) and the **show's** (`https://<name>.lan.vuemesh.com/cam?e=…`). They join as usual, through the helper, with no internet. A phone that checks whether it's online gets a welcome page with the show's address, as on a guest network.
 
 Phones that join through the internet still do, beside them. Linux uses NetworkManager (most Wi-Fi cards can be a hotspot; usually on 2.4 GHz). Windows uses Mobile Hotspot, which takes up to 8 devices and can want a network connection to start (an Ethernet cable is enough). A Mac can't make a Wi-Fi hotspot on its own. Options: `--no-hotspot` (a router does the Wi-Fi), `--dry-run` (say what it would run), `--staging` (Let's Encrypt's test certificates).

@@ -399,11 +399,11 @@ export const help = helpDialog('Studio help', [
   { heading: 'Anywhere', rows: [['?', 'Open this help']] },
   {
     heading: 'How it fits together',
-    text: 'This computer is the studio: it switches, mixes, records the program, edits and renders. Program out and Monitor take their picture straight from this tab, so they work only on this computer, in this browser. Phones are cameras or microphones. Any screen can show the beacon (a TV, a tablet, this laptop), but the whole event must use the same one: phones line their recordings up by its clock. A phone is too small to be the studio; an iPad may work but is untested. For files every phone can play, use Chrome or Edge on a Mac or Windows PC, or Safari on a Mac.',
+    text: 'This computer is the studio: it switches, mixes, records the program, edits and renders. Program out and Monitor take their picture straight from this tab, so they work only on this computer, in this browser. Phones are cameras or microphones. Any screen can show the QR Beacon (a TV, a tablet, this laptop), but the whole event must use the same one: phones line their recordings up by its clock. A phone is too small to be the studio; an iPad may work but is untested. For files every phone can play, use Chrome or Edge on a Mac or Windows PC, or Safari on a Mac.',
   },
   {
     heading: 'More screens',
-    text: 'The studio works on one screen, and it\u2019s easier with more. Each part of the control room opens in a window of its own, so plug in a monitor, a TV or a projector and spread out: Program out (what the audience sees: click it once to fill the screen), the Beacon (where the phones can see it), the Monitor (phones, transfers, the event log), Camera control (every camera\u2019s picture, scopes and settings) and the Audio console. Open one, drag it to the other screen, and make it full screen. They all run from this tab, so keep this browser open on this computer. If the browser blocks a window, choose Always allow pop-ups from this site once.',
+    text: 'The studio works on one screen, and it\u2019s easier with more. Each part of the control room opens in a window of its own, so plug in a monitor, a TV or a projector and spread out: Program out (what the audience sees: click it once to fill the screen), the QR Beacon (where the phones can see it), the Monitor (phones, transfers, the event log), Camera control (every camera\u2019s picture, scopes and settings) and the Audio console. Open one, drag it to the other screen, and make it full screen. They all run from this tab, so keep this browser open on this computer. If the browser blocks a window, choose Always allow pop-ups from this site once.',
   },
   {
     heading: 'Recording only (overflow)',
@@ -443,7 +443,7 @@ export const help = helpDialog('Studio help', [
   },
   {
     heading: 'Cameras and microphones on this computer',
-    text: '+ This computer (under the sources) adds this computer\u2019s own cameras (the built-in camera, USB cameras, capture cards) and microphones to the show. The browser asks once for permission. A camera brings its sound, as a phone does: its own microphone (a USB webcam\u2019s), or this computer\u2019s (a built-in camera like the FaceTime camera has none of its own); the picker shows which, under Sound, and you can pick another or No sound. They\u2019re sources like any phone: a tile marked THIS PC with a number, on air or in preview, Camera control (through the camera\u2019s own zoom, brightness and contrast, where it has them), and the mixer. They need no beacon: they run on the studio\u2019s own clock, so their recordings line up in Edit from the start. A camera records its time on air while you Record program, or right-click it for Record until you stop it; a microphone records the whole time it\u2019s in the show. Recordings roll every 5 minutes. Right-click to rename or remove one. The ones you add come back next time this studio opens (if the browser remembers its permission), and one that isn’t plugged in (or wouldn’t open) stays on the list: it comes back into the show when it can, even under a new name (an interface whose own driver was installed), with its settings. + This computer lists it, with Forget to stop that; one you remove by hand isn’t brought back in its place. A USB interface that stops and comes back on its own: if it also shows up as a small drive (a Focusrite Scarlett’s Easy Start), turn that off (open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again).',
+    text: '+ This computer (under the sources) adds this computer\u2019s own cameras (the built-in camera, USB cameras, capture cards) and microphones to the show. The browser asks once for permission. A camera brings its sound, as a phone does: its own microphone (a USB webcam\u2019s), or this computer\u2019s (a built-in camera like the FaceTime camera has none of its own); the picker shows which, under Sound, and you can pick another or No sound. They\u2019re sources like any phone: a tile marked THIS PC with a number, on air or in preview, Camera control (through the camera\u2019s own zoom, brightness and contrast, where it has them), and the mixer. They need no QR Beacon: they run on the studio\u2019s own clock, so their recordings line up in Edit from the start. A camera records its time on air while you Record program, or right-click it for Record until you stop it; a microphone records the whole time it\u2019s in the show. Recordings roll every 5 minutes. Right-click to rename or remove one. The ones you add come back next time this studio opens (if the browser remembers its permission), and one that isn’t plugged in (or wouldn’t open) stays on the list: it comes back into the show when it can, even under a new name (an interface whose own driver was installed), with its settings. + This computer lists it, with Forget to stop that; one you remove by hand isn’t brought back in its place. A USB interface that stops and comes back on its own: if it also shows up as a small drive (a Focusrite Scarlett’s Easy Start), turn that off (open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again).',
   },
   {
     heading: 'Removing a camera',
@@ -483,7 +483,7 @@ export const help = helpDialog('Studio help', [
   },
   {
     heading: 'Sync',
-    text: 'Every phone syncs once with the beacon and keeps that lock, and every clip carries it. Auto-sync (Edit) then fine-tunes clips that show the beacon, and lines every clip up by its sound with the ones around it (a microphone’s recording with the cameras’, cameras with each other), to a fraction of a frame. A phone that never synced is named, and marked NO SYNC on its live tile.',
+    text: 'Every phone syncs once with the QR Beacon and keeps that lock, and every clip carries it. Auto-sync (Edit) then fine-tunes clips that show the QR Beacon, and lines every clip up by its sound with the ones around it (a microphone’s recording with the cameras’, cameras with each other), to a fraction of a frame. A phone that never synced is named, and marked NO SYNC on its live tile.',
   },
   {
     heading: 'The live cut on the phones',
@@ -735,7 +735,7 @@ async function init() {
       const dot = $('#offlineDot'); // (none on the kiosk: nobody there to join phones by QR)
       if (!dot || dot.hidden === !off) return;
       dot.hidden = !off;
-      if (off) toast('No internet: the show carries on over this network. Phones already in stay; a new one joins with Join by QR. Don’t reload this page.', 8000);
+      if (off) toast('No internet: the show carries on over this network. Phones already in stay; a new one joins with Join by QR (under Network). Don’t reload this page.', 8000);
       else toast('Back online', 3000);
     }, 1000);
     window.addEventListener('beforeunload', (e) => {
@@ -850,8 +850,8 @@ async function init() {
         }
         if (was !== t.synced) {
           renderLive(); // the NO SYNC tag
-          if (t.synced === false && was) note(`${l.name} lost its beacon sync`);
-          if (t.synced && was === false) note(`${l.name} synced with the beacon`);
+          if (t.synced === false && was) note(`${l.name} lost its QR Beacon sync`);
+          if (t.synced && was === false) note(`${l.name} synced with the QR Beacon`);
         }
       },
       onPhoneMessage: (peer, m) => {

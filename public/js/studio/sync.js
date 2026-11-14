@@ -16,9 +16,9 @@ import { fmtClock } from './library.js';
 export const syncState = (c) => (c.t0Source === 'optical' ? 'optical' : c.t0Source === 'audio' ? 'audio' : c.t0Source === 'phone' || c.t0Source === 'studio' ? 'locked' : 'clock');
 export function syncLabel(c) {
   const s = syncState(c);
-  if (s === 'optical') return 'Locked to the beacon, fine-tuned from the beacon in shot';
-  if (s === 'audio') return `Locked to the beacon, then lined up by sound with ${clipOf(c.syncRef)?.name || 'another clip'}`;
-  if (s === 'locked') return c.t0Source === 'studio' ? 'On the studio\u2019s own clock (recorded on this computer)' : c.sync?.at ? `Locked to the beacon (read at ${fmtClock(c.sync.at)})` : 'Locked to the beacon by the phone';
+  if (s === 'optical') return 'Locked to the QR Beacon, fine-tuned from the QR Beacon in shot';
+  if (s === 'audio') return `Locked to the QR Beacon, then lined up by sound with ${clipOf(c.syncRef)?.name || 'another clip'}`;
+  if (s === 'locked') return c.t0Source === 'studio' ? 'On the studio\u2019s own clock (recorded on this computer)' : c.sync?.at ? `Locked to the QR Beacon (read at ${fmtClock(c.sync.at)})` : 'Locked to the QR Beacon by the phone';
   return "Not synced: placed by the phone's own clock";
 }
 $('#syncBtn').onclick = async () => {
@@ -54,8 +54,8 @@ $('#syncBtn').onclick = async () => {
   const all2 = clips.filter((c) => c.t0Source && !c.program && !c.reel);
   const loose = all2.filter((c) => syncState(c) === 'clock');
   const who = [...new Set(loose.map((c) => c.name))];
-  const how = [fixed && `${fixed} fine-tuned from the beacon in shot`, sound.lined && `${sound.lined} lined up by sound${sound.moves.length ? `, ${sound.moves.length} of them moved` : ''}`].filter(Boolean).join('; ');
-  const msg = `${all2.length - loose.length} of ${all2.length} clip${all2.length === 1 ? ' is' : 's are'} locked to the beacon${how ? ` (${how})` : ''}.` +
+  const how = [fixed && `${fixed} fine-tuned from the QR Beacon in shot`, sound.lined && `${sound.lined} lined up by sound${sound.moves.length ? `, ${sound.moves.length} of them moved` : ''}`].filter(Boolean).join('; ');
+  const msg = `${all2.length - loose.length} of ${all2.length} clip${all2.length === 1 ? ' is' : 's are'} locked to the QR Beacon${how ? ` (${how})` : ''}.` +
     (loose.length ? ` ${loose.length} ${loose.length === 1 ? "isn't" : "aren't"}: ${who.join(', ')} hadn't synced, so ${loose.length === 1 ? 'it is' : 'those are'} placed by the phone's own clock.` : ' Nothing to fix.');
   toast(msg, 8000);
   note(`Auto-sync: ${msg}`);
