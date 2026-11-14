@@ -40,7 +40,7 @@ Browsers on Linux (Chromium and Chrome) can't record H.264 and fall back to VP9.
 
 Bring your own router and keep everyone on it. Venue and guest Wi-Fi often stop devices from reaching each other ("client isolation"), and then nothing connects locally.
 
-Devices that can't reach each other directly, on the network or over the internet (a phone on mobile data, a strict office network), connect through the site's relay (TURN, `aws/stun`) instead. It works, but it's the slowest path (pictures drop to the lowest live quality, "Mobile data or a relay" in the README), and it's there as a fallback, not a plan.
+Devices that can't reach each other directly, on the network or over the internet (a phone on mobile data, a strict office network), connect through the site's relay (TURN, `aws/stun`) instead. It works, but it's the slowest path (pictures drop to the lowest live quality, "Mobile data or a relay" in the README), and it's there as a fallback, not a plan. It may also be switched off at any time (from Admin, or by itself once the month's data allowance runs out), and then those devices can't connect at all, so for a show that matters, keep everything on one network. **Local network only** in the studio never uses it.
 
 - **Router:** Wi-Fi 6 on 5 GHz, in the room. A travel router works.
 - **Studio laptop:** plugged into the router by cable, and plugged into power.

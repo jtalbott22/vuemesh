@@ -15,7 +15,7 @@
   <img alt="No accounts, no cookies, no trackers" src="https://img.shields.io/badge/privacy-no%20accounts%20%C2%B7%20no%20cookies%20%C2%B7%20no%20trackers-1f6feb?style=flat-square">
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
   <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
-  <img alt="LAN-first: video never goes through the cloud" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
+  <img alt="LAN-first: video goes device to device, never uploaded" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
   <img alt="On AWS: serverless, plus one small relay server" src="https://img.shields.io/badge/AWS-serverless%20%2B%20one%20small%20relay%20server-232f3e?style=flat-square">
 </p>
 
@@ -74,12 +74,13 @@ every angle, already cut on the timeline and ready to re-cut.
   (a phone on mobile data, a strict office network) fall back to a small relay, which forwards
   their media still encrypted end to end.
 - **Frame-accurate sync with no timecode hardware.** Sources on the studio computer share its clock.
-  Phones read an optical clock off the beacon screen through their cameras, so angles from different
+  Phones read an optical clock off the QR Beacon screen through their cameras, so angles from different
   devices line up to the frame.
 - **Signed footage.** Every phone has its own key. Each clip is hashed in parts and signed, and the
-  studio verifies every part before accepting it. Published films carry the signatures.
+  studio verifies every part before accepting it, and exported files carry the signatures.
 - **Private by design.** No accounts, no cookies, no trackers, never your location. Recordings stay on
-  your devices; the server only introduces them. A note on first visit says exactly what the browser
+  your devices; the server only introduces them (and our relay passes media on, encrypted, only when
+  two devices can't reach each other). A note on first visit says exactly what the browser
   keeps, and [/privacy](public/privacy.html) lists every item and clears it all with one button.
 - **Free and open.** MIT licensed, plain HTML, CSS and JavaScript with no build step. Fork it, run it,
   change it.
@@ -94,7 +95,7 @@ every angle, already cut on the timeline and ready to re-cut.
 | --- | --- | --- | --- |
 | **For** | Streams, podcasts, tutorials, talks | Conferences, classes, board meetings, church | Weddings, gigs, sport, parties |
 | **Sources** | USB webcams, a USB interface, this computer's screens, your intro and ads | Room cameras, plus the presenter's laptop over `/share`, and video packages | Guests' phones and tablets (with any of the above), and sponsor spots |
-| **Setup** | Plug in, open the studio, **+ This computer** | Send the presenter the share link | Put the beacon on a screen; people scan it |
+| **Setup** | Plug in, open the studio, **+ This computer** | Send the presenter the share link | Put the QR Beacon on a screen; people scan it |
 | **Out** | Record, stream, or be the webcam in Zoom, Teams or Meet | Projector or TV via Program out or `/tv`, plus a recording | Live on screens, the program file, every angle to edit, and each person's own part |
 
 ## Contents
@@ -203,7 +204,7 @@ from a desk with USB webcams and shared screens and a phone joining as a camera.
 </tr>
 <tr>
 <td align="center"><img src="public/media/screens/monitor.webp" alt="The monitor: summary tiles, a table of every source with link, live picture, camera, battery and device, plus transfers, received recordings and an event log."><br><sub><b>Monitor.</b> The health of every link, transfer and device.</sub></td>
-<td align="center"><img src="public/media/screens/beacon.webp" alt="The beacon: a large QR code, the show's name, a running clock, phones in and recording counts, and a Wi-Fi join code."><br><sub><b>Beacon.</b> Phones scan it to join, and read its clock to sync.</sub></td>
+<td align="center"><img src="public/media/screens/beacon.webp" alt="The QR Beacon: a large QR code, the show's name, a running clock, phones in and recording counts, and a Wi-Fi join code."><br><sub><b>QR Beacon.</b> Phones scan it to join, and read its clock to sync.</sub></td>
 </tr>
 <tr>
 <td align="center"><img src="public/media/screens/camera.webp" alt="A phone camera aimed at the studio's two monitors: Synced badge, record button, zoom lenses 0.5x to 3x and a level meter."><br><sub><b>Camera.</b> Records full quality, sends a live picture, shows its tally.</sub></td>
@@ -237,6 +238,9 @@ so it can't read it. STUN and TURN are one small server (`aws/stun`), the relay 
 with a short-lived password from the API. Each browser counts how its connections went (same
 network, direct, or relayed), and the server reports its own counts every minute (relays, data,
 what it turned away), so Admin → Servers shows how much the relay is needed, with no addresses kept.
+The relay may be switched off at any time, from Admin or by itself once the month's data allowance
+runs out (it stops giving out passwords at 90%); then only devices that can reach each other directly
+connect. **Local network only** in the studio never uses it.
 
 ```mermaid
 flowchart LR
@@ -251,7 +255,7 @@ flowchart LR
   end
 
   Cloud["☁️ AWS handshake<br/>signalling only, no video"]
-  Ice["🧭 STUN / TURN<br/>public addresses; a relay<br/>only when there's no other way"]
+  Ice["🧭 STUN / TURN<br/>public addresses; a relay<br/>only when there's no other way<br/>(may be switched off)"]
 
   Studio["🖥️ <b>VUEMesh studio</b><br/>one browser tab<br/><br/>switch · mix · record<br/>stream · edit"]
 
@@ -271,8 +275,8 @@ flowchart LR
   USBc -- "USB" --> Studio
   USBa -- "USB" --> Studio
   Scr -- "this computer" --> Studio
-  Share == "local network" ==> Studio
-  Cams == "local network" ==> Studio
+  Share == "local network<br/>(or internet)" ==> Studio
+  Cams == "local network<br/>(or internet)" ==> Studio
   Clips -- "files" --> Studio
   Guests == "internet, encrypted" ==> Studio
   Share -.- Cloud
@@ -280,6 +284,8 @@ flowchart LR
   Guests -.- Cloud
   Cloud -.- Studio
   Guests -. "if no direct path" .- Ice
+  Cams -. "off the network,<br/>if no direct path" .- Ice
+  Share -. "if no direct path" .- Ice
   Ice -.- Studio
   Midi --> Studio
   Remote -.-> Studio
@@ -293,13 +299,13 @@ flowchart LR
 ### A phone joining a show
 
 Sources on the studio computer need none of this: they're added from **+ This computer**. Phones and
-tablets join like this; another computer over `/share` does the same without the beacon.
+tablets join like this; another computer over `/share` does the same without the QR Beacon.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant Phone
-  participant Beacon
+  participant Beacon as QR Beacon
   participant Cloud as Cloud (HTTP + WebSocket)
   participant Ice as STUN / TURN
   participant Studio as Studio laptop
@@ -311,11 +317,11 @@ sequenceDiagram
   Phone->>Ice: What's my public address? (STUN)
   Phone->>Studio: WebRTC offer, answer and ICE candidates (passed on by the cloud)
   Note over Phone,Studio: ICE tries the pairs: on one network, straight across it
-  opt No direct path (mobile data, a strict network)
-    Phone->>Ice: A relay, with the API's short-lived password (TURN)
+  opt No direct path (mobile data, a strict network), and the relay is on
+    Phone->>Ice: A relay, with the API's day-long password (TURN)
     Note over Phone,Studio: Media goes through the relay, still encrypted end to end
   end
-  Note over Phone,Studio: From here on, nothing goes through the cloud
+  Note over Phone,Studio: From here on, nothing goes through the cloud (but the relay, if it's needed and on)
   Phone->>Beacon: Read the optical clock through the camera (sync)
   Phone-)Studio: Live picture, its quality set by on air, preview or standby
   Studio-)Phone: Tally (on air or up next) and messages
@@ -360,22 +366,23 @@ flowchart LR
   C -- "cuts stamped on<br/>the shared clock" --> H["Edit: the live cut is<br/>already on the timeline"]
   G --> H
   H --> I["Render MP4"]
-  I -.-> J["Publish (optional):<br/>watch page verifies signatures"]
+  I --> K["Share: upload anywhere,<br/>or stream it live (above)"]
+  I -.-> J["Publish to a watch page<br/>(planned: off for now)"]
 ```
 
 ### The roles
 
 | Where | What happens |
 | --- | --- |
-| **Beacon** (a screen at the venue) | One QR code that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
+| **QR Beacon** (a screen at the venue) | One QR code that is the join link and the master clock, plus an optional Wi-Fi join code. Shows how many phones are in. |
 | **Guest phone** (`/cam`) | Join, sign the terms with the phone's own key, optical sync, record full quality locally. Streams a low-res live preview to the host and sends each finished clip over a WebRTC data channel in 8 MB hashed parts. Unsent clips wait in the phone's outbox (survives reloads) until the host confirms them. |
 | **Host laptop** (`/studio`) | The hub. **Live**: every source's live picture in a multiview, cut with 1–9, clips (ads, b-roll, packages) a click away, a break slate with a sponsor reel, a mixer with meters (and a pop-out audio console with EQ and visualizers), record the program to a file (or point OBS at it). **Edit**: a layered timeline (top track wins) with trims, moves, splits, titles, slates, images and picture-in-picture, a mixer, and **Render MP4** faster than real time. |
 | **This computer** (**+ This computer** in the studio) | USB webcams, USB microphones and audio interfaces, screens, windows and tabs, and the computer's sound, added straight into the studio with a preview of each. Each records its own full-quality file on the studio computer. |
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
-| **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). With no studio, `/tv` shows phones and shared screens itself, tiled as they come and go. |
+| **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the QR Beacon. See [apple-tv/README.md](apple-tv/README.md). With no studio, `/tv` shows phones and shared screens itself, tiled as they come and go. |
 | **Admin** (`/admin`) | For you and your team: growth, web traffic and the servers over one period with charts and change against the period before, and every event a page at a time: change expiry, delete films and events. |
-| **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
+| **Watch page** (`/watch`) | Planned, with publishing: plays the film, shows credits, and verifies every contributor's signature in the browser. Built, and off on vuemesh.com for now. |
 | **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |
 | **Privacy** (`/privacy`) | Exactly what the browser and the server keep, and for how long, what this browser holds right now, and one button to clear all of it. |
 | **Landing** (`/`) | Quick starts (Camera, My media, Kiosk, Join a show, TV, Share, Start a show), the live multi-angle demo, how-tos for the TV and Share pages, and starting an event with just a name and a shape (landscape or portrait). No event type, no public listing, no location. |
@@ -383,7 +390,7 @@ flowchart LR
 | **AWS** (`aws/`) | CloudFront + S3 for the app and films, HTTP API + Lambda for events/discovery/publish URLs, WebSocket API + Lambda for presence and WebRTC handshakes, DynamoDB with TTL, all scaling to zero; and one Lightsail server for STUN and the TURN relay (`aws/stun`). |
 
 Live cuts made on the host are stamped on the shared clock, so when the full-quality clips arrive
-the cut is already there. Put the beacon on a second screen of the host laptop to keep one clock for
+the cut is already there. Put the QR Beacon on a second screen of the host laptop to keep one clock for
 everything. [How VUEMesh fits together](docs/HOW-IT-WORKS.md) covers the one-beacon rule, which
 browser to use for the studio, and network and capacity planning.
 
@@ -410,7 +417,7 @@ desktop. Then:
 
 - **+ This computer** adds your USB cameras, microphones and interfaces, screens and the computer's sound.
 - **Another computer's screen:** send the presenter the link shown under **+ This computer → Screen and sound**.
-- **Phones and tablets:** put the beacon on a screen. People scan it to join.
+- **Phones and tablets:** put the QR Beacon on a screen. People scan it to join.
 
 ### Run it locally
 
@@ -485,7 +492,7 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 | Drag, double-click, Delete | Edit: move, rename or remove a marker or moment on the ruler (right-click for more) |
 | T, Shift + P | Add a lower third; add picture-in-picture |
 | Ctrl/⌘ Z, Esc | Undo (Shift to redo); deselect |
-| [ / ], H, F | Beacon: dim or brighten the code, show controls, full screen |
+| [ / ], H, F | QR Beacon: dim or brighten the code, show controls, full screen |
 
 </details>
 
@@ -493,8 +500,8 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 
 - Each phone makes a P-256 key on first use. Joining signs the event's terms; every clip's fingerprint (hash of its part hashes) is signed off by the phone.
 - The host laptop checks every part hash, the fingerprint, the key, and both signatures before accepting a clip.
-- Published manifests carry the signatures, so anyone can re-verify who shot what.
-- The host key (in the studio link) is required for hosting the signaling room and publishing. Guests can only message the host, never each other.
+- Exported files carry the signatures (and published films will, once publishing is on), so anyone can re-verify who shot what.
+- The host key (in the studio link) is required for hosting the signaling room (and, once it's on, publishing). Guests can only message the host, never each other.
 - Nothing asks for or stores anyone's location. There is no public listing of events: people join by the code or QR the host shares.
 
 ## Privacy
@@ -719,7 +726,7 @@ These are the limits known today, and what has and hasn't been tested on real ha
 - A browser can't stop a phone from sleeping on its own. VUEMesh holds a wake lock (supported on current iPhone and Android browsers) and recovers the microphone if it's interrupted, but for long events keep phones plugged in with the screen on.
 - RTMP was tested end to end through the relay to an ffmpeg RTMP server standing in for YouTube; the service URLs filled in for YouTube, Facebook, Twitch and Vimeo are their published defaults, so check them against your dashboard. Chrome may ask permission before a website can reach the relay on your computer.
 - Stream out (WHIP) was tested end to end against a stand-in WHIP endpoint (another browser), not against Twitch or the other services: the sandbox can't reach them. Whether a service accepts a stream from a browser page (CORS) is up to the service; the studio says so plainly if it refuses.
-- Sound sync needs a few seconds of shared sound between overlapping clips; silence or very different sound (a mic in another room) is left on the beacon's timing.
+- Sound sync needs a few seconds of shared sound between overlapping clips; silence or very different sound (a mic in another room) is left on the QR Beacon's timing.
 - The left-only microphone fix was tested with a simulated left-only microphone in desktop Chrome (it reproduced the fault, and the fix fills both sides); it still needs a check on a real iPhone.
 - Break reel videos play silent on the program; sound for commercials is a next step. Slate sound (tone or hiss) plays at a fixed level.
 - The live-picture watchdog was tested by simulating each kind of freeze in a desktop browser; the freezes seen at real events haven't been reproduced in testing yet. The Monitor log says which kind it fixed each time, which will show where they come from.
@@ -738,7 +745,7 @@ These are the limits known today, and what has and hasn't been tested on real ha
 - Render MP4 holds decoded audio in memory; for films over about 30 minutes it writes straight to disk when the browser allows it, but very long events may be better split.
 - The Terms are a starting point, not legal advice. Have a lawyer review them before you charge money or turn publishing on.
 - Export renders in real time on the host laptop (keep the tab in front).
-- Remote viewers get the published director's cut. Watching any single angle remotely would mean hosting every clip, which is the expensive thing this design avoids.
+- Remote viewers watch the live stream for now (and, once publishing is on, the published director's cut). Watching any single angle remotely would mean hosting every clip, which is the expensive thing this design avoids.
 
 </details>
 
