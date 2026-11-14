@@ -13,7 +13,7 @@ export const FEATURES = {
 };
 
 // Bump this when the Terms change; people are asked to agree again.
-export const TERMS_VERSION = '2026-11-12';
+export const TERMS_VERSION = '2026-11-14';
 
 export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
   BRAND.sponsorEmail
@@ -21,4 +21,4 @@ export const sponsorContactHref = (subject = 'Hello from the VUEMesh site') =>
     : BRAND.patreon;
 
 /** Shown in diagnostics reports (keep in step with package.json). */
-export const APP_VERSION = '0.91.1';
+export const APP_VERSION = '0.92.0';

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.92.0 — the Terms on copyright
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.91.1.
+
+**A new section 5 in the Terms: Copyright, and not working around it** (Terms version 2026-11-14, so everyone agrees again the next time they host or join):
+- Don't use any part of VUEMesh (a camera, a shared screen, a call, a TV, a recording, a stream out) to rebroadcast, restream, record or pass on films, broadcasts, sports, concerts, music, games, courses or other work you don't have the rights to. Pointing a camera at a screen doesn't change who owns what's on it.
+- Don't use it to get around copy protection, DRM, paywalls, logins or region locks, such as sharing a screen to get past a streaming service's protection.
+- Music and performances at a show are the host's to license; streaming services' own copyright rules apply to what's sent to them; fair use depends on the law and the facts, and we can't decide it for anyone.
+- **How to report infringement** (what to include, sent to info@vuemesh.com), and **what we can do**: since pictures and recordings stay on people's devices, we may end an event or call code, refuse new connections, remove anything we host, and block devices or addresses that repeatedly infringe.
+
+**What we store (now section 11) is corrected:** the server keeps an event's code and settings, not its name, which stays on the host's devices (as the Privacy page says).
+
+The sections after 4 are renumbered (Event hosts is now 6, Contact 22).
+
 ## 0.91.1 — screenshots of the new look
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.91.0.
 
