@@ -245,10 +245,11 @@ $('#create').addEventListener('submit', async (e) => {
 
 // ---- your events on this device ----------------------------------------------------------
 // Everything VUEMesh keeps locally: open it, export it (one ZIP of every recording plus
-// the edit), archive it out of the way, or delete it from this device. We show when the
-// server no longer has an event, but never delete anyone's footage on their behalf.
+// the edit), archive it out of the way, or delete it from this device. The size is what's in
+// this browser; the badge beside it is only whether the server still has the event's code (it
+// never has its video). We show when the code has ended, but never delete anyone's footage.
 
-const fmtSize = (b) => (b >= 1e9 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : b ? Math.max(1, Math.round(b / 1024)) + ' KB' : 'nothing stored');
+const fmtSize = (b) => (b >= 1e9 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : b ? Math.max(1, Math.round(b / 1024)) + ' KB' : 'nothing saved');
 let showArchived = false;
 
 function renderMine() {
@@ -283,15 +284,17 @@ async function fillMine(ev) {
   try {
     const u = await idb.usage(ev.id);
     const n = u.clips + u.outbox;
-    if (li()) li().querySelector('[data-size]').textContent = `${fmtSize(u.bytes)}${n ? ` · ${n} recording${n > 1 ? 's' : ''}` : ''}`;
+    if (li()) li().querySelector('[data-size]').textContent = `${fmtSize(u.bytes)}${n ? ` · ${n} recording${n > 1 ? 's' : ''}` : ''} in this browser`;
   } catch {}
   try {
     const live = await api(`events/${ev.id}`);
     const el = li()?.querySelector('[data-status]');
-    if (el) el.innerHTML = live.live ? '<span class="badge live">LIVE</span>' : '<span>on the server</span>';
+    if (el) el.innerHTML = live.live
+      ? '<span class="badge live" title="On air now. Pictures and sound go device to device, never through our server.">LIVE</span>'
+      : '<span class="badge code" title="Its code still works, so devices can join it. Our server keeps only the code, never the video.">Code active</span>';
   } catch (e) {
     const el = li()?.querySelector('[data-status]');
-    if (el) el.innerHTML = /No event|404/.test(e.message) ? '<span class="badge gone" title="It ended or was deleted on the server. Everything on this device is still here.">Ended on server</span>' : '';
+    if (el) el.innerHTML = /No event|404/.test(e.message) ? '<span class="badge gone" title="Its code has ended, so nobody new can join. Everything in this browser is still here.">Code ended</span>' : '';
   }
 }
 
