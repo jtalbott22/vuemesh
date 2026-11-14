@@ -24,10 +24,11 @@ export function compact(v) {
 export const bytes = (b) => (b >= 1e12 ? `${trim(b / 1e12)} TB` : b >= 1e9 ? `${trim(b / 1e9)} GB` : b >= 1e6 ? `${trim(b / 1e6)} MB` : b >= 1e3 ? `${trim(b / 1e3)} KB` : `${Math.round(b)} B`);
 export const pct = (x) => `${x >= 0.1 || x === 0 ? Math.round(x * 100) : trim(x * 100)}%`;
 
-/** Round ticks from 0 to at least max: steps of 1, 2, 2.5 or 5 × a power of ten */
-export function niceTicks(max, count = 4) {
+/** Round ticks from 0 to at least max: steps of 1, 2, 2.5 or 5 × a power of ten (at least minStep:
+ * 1 for whole counts, so 2 events don't get ticks at 0.5, 1.5) */
+export function niceTicks(max, count = 4, minStep = 0) {
   if (!(max > 0)) return [0, 1];
-  const raw = max / count, p = 10 ** Math.floor(Math.log10(raw));
+  const raw = Math.max(max / count, minStep), p = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw);
   const out = [];
   for (let v = 0; v <= max + step * 1e-9 || out.length < 2; v += step) out.push(Math.round(v * 1e6) / 1e6);
@@ -50,14 +51,14 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
  * @param {{
  *   series: {name: string, kind: 'column'|'line'|'area', color: string, values: number[]}[],
  *   x: number[], height?: number, format?: (v:number)=>string, xLabel?: (t:number)=>string,
- *   ink?: object, endLabels?: boolean,
+ *   ink?: object, endLabels?: boolean, integers?: boolean (whole counts: no ticks between them),
  * }} o  x: one time (ms) per value
  */
 export function renderSvg(o, width) {
   const { series, x } = o, H = o.height || 240, n = x.length, ink = { ...TOKENS, ...(o.ink || {}) };
   const fmt = o.format || compact, xLabel = o.xLabel || ((t) => dayLabel(t));
   const max = Math.max(0, ...series.flatMap((s) => s.values));
-  const ticks = niceTicks(max), top = ticks[ticks.length - 1] || 1;
+  const ticks = niceTicks(max, 4, o.integers ? 1 : 0), top = ticks[ticks.length - 1] || 1;
   const yw = Math.max(...ticks.map((t) => fmt(t).length)) * 6.6 + 10;
   const ends = o.endLabels !== false && series.some((s) => s.kind !== 'column');
   const m = { l: Math.round(yw), r: ends ? 52 : 10, t: 10, b: 24 };

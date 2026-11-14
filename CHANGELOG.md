@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.81.0 — TVs in Admin, and menus that stay open
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.80.0.
+
+**Admin's menus closed as the mouse button came up** (Chrome on Linux: the browser's own drop-down pop-up), so picking meant holding the button down and dragging. The chart's menu, Per page and Correct a day's are drawn in the page now (`public/js/picker.js`): a click opens them and they stay open; arrow keys, a letter to jump, Enter and Escape work too. The chart's menu is in groups: Shows, Time, TVs, Calls.
+
+**TVs in the chart's menu:**
+- **TVs watching:** each TV (the /tv page or the Apple TV app) once a show. This was counted all along and never shown.
+- **TV watching (hours),** a new count: how long TVs were connected to a show, added up when each connection ends (as phones' time in shows is).
+- **TV codes made:** TVs set up to show phones and screens straight, with no studio.
+
+**Charts of whole counts tick at whole numbers:** two events no longer get an axis of 0, 0.5, 1, 1.5, 2 shown as 0, 1, 1, 2, 2.
+
+**The Privacy page says so:** TVs, and how long they watched, in the list of the day's anonymous counts.
+
+**Tests:** `core.test`: a TV counted once a show, and its time over two connections.
+
 ## 0.80.0 — shared screens counted
 **Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.79.0.
 

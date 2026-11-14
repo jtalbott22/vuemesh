@@ -510,6 +510,11 @@ export async function signal(evt, deps) {
           await bump(deps, deps.now?.() ?? Date.now(), { camera_sec: sec });
         }
       }
+      // and how long a TV watched (the /tv page or the Apple TV app): counted on the day only
+      if (gone && gone.role === 'display' && gone.at) {
+        const sec = Math.max(0, Math.min(86400, Math.round(((deps.now?.() ?? Date.now()) - gone.at) / 1000)));
+        if (sec) await bump(deps, deps.now?.() ?? Date.now(), { display_sec: sec });
+      }
       if (gone?.call) await broadcastCall(eventId, deps);
       else await broadcastPeers(eventId, deps, undefined, gone?.role === 'host');
     }
