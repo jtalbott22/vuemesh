@@ -1,6 +1,6 @@
 // Unit tests for the cloud core (the same code the Lambdas run), using the in-memory store.
 import assert from 'node:assert/strict';
-import { api, signal, iceServers, TURN_LIMITS, CALL } from '../aws/functions/lib/core.mjs';
+import { api, signal, iceServers, TURN_LIMITS, CALL, relaySig, RELAY_LOG_MAX_HOURS } from '../aws/functions/lib/core.mjs';
 import { guard } from '../aws/functions/lib/relay-guard.mjs';
 import { memoryStore } from '../aws/functions/lib/store-memory.mjs';
 import { geohash, nearbyCells } from '../aws/functions/lib/common.mjs';
@@ -476,6 +476,48 @@ ok('events expire after 30 days for the API and signaling');
   await guard(under, clock, () => {}); assert.deepEqual(under.calls, []);
   await guard(closed, clock, () => {}); assert.deepEqual(closed.calls, [], 'already off');
   ok('admin: the servers and the relay switch, admin only; the guard switches the relay off past the allowance');
+}
+
+{
+  // The relay's minute report: signed with the TURN secret, counts only, into the day's counts
+  const turn = { secret: 'test-turn-secret', urls: ['turn:stun.example:3478?transport=udp'] };
+  const send = (body, { secret = turn.secret, raw = JSON.stringify(body), sig } = {}) =>
+    api({ method: 'POST', path: '/api/relay/report', body: JSON.parse(raw), raw, headers: { 'x-relay-sig': sig ?? relaySig(secret, body.at, raw) }, query: {} }, { ...deps, turn });
+  const report = { at: clock, v: '1', open: 3, peak: 5, counts: { started: 2, bad_password: 1, forbidden: 4, tcp: 1, flood: 7, bytes_in: 1000, bytes_out: 900, relay_min: 3, ip: 9 } };
+  assert.equal((await send(report, { secret: 'wrong' })).status, 403, 'not signed with the secret');
+  assert.equal((await send(report, { sig: '' })).status, 403, 'not signed at all');
+  assert.equal((await send({ ...report, at: clock - 10 * 60_000 })).status, 400, 'too old');
+  assert.equal((await api({ method: 'POST', path: '/api/relay/report', body: report, raw: JSON.stringify(report), headers: {}, query: {} }, deps)).status, 404, 'no relay, no reports');
+  const r = await send(report);
+  assert.deepEqual(r.body, { logUntil: 0 }, 'the troubleshooting log is off');
+  assert.equal((await send(report)).status, 409, 'the same report twice is counted once');
+  await send({ ...report, at: clock + 1, peak: 2, counts: { started: 1 } });
+  const day = new Date(clock).toISOString().slice(0, 10), hour = new Date(clock).toISOString().slice(11, 13);
+  const t = (await store.listTraffic(day, day))[0];
+  assert.equal(t['relay:started'], 3);
+  assert.equal(t['relay:forbidden'], 4);
+  assert.equal(t['relay:bytes_in'], 1000);
+  assert.equal(t['relay:peak'], 5, 'the most at once only goes up');
+  assert.equal(t[`relayh:${hour}:peak`], 5);
+  assert.equal(t[`relayh:${hour}:bytes`], 1900);
+  assert.ok(!Object.keys(t).some((k) => /ip/.test(k)), 'only the counts it knows: nothing else gets in');
+  ok('relay report: signed with the TURN secret, once each, fresh; counts only, into the day');
+
+  // Admin's troubleshooting switch: on for up to a day, the relay hears it in its next report
+  const admin = { 'x-admin-key': ADMIN_KEY };
+  const servers = { status: async () => [], setRelay: async () => ({}) };
+  const a = (method, path, body, headers = admin) => api({ method, path, body, headers, query: {} }, { ...deps, servers, turn });
+  assert.equal((await a('POST', '/admin/relay-log', { hours: 1 }, {})).status, 403, 'admin only');
+  assert.equal((await a('POST', '/admin/relay-log', { hours: RELAY_LOG_MAX_HOURS + 1 })).status, 400, 'a day at most');
+  const on = (await a('POST', '/admin/relay-log', { hours: 1 })).body.relayLog;
+  assert.equal(on.until, clock + 3600_000);
+  assert.equal((await send({ ...report, at: clock + 2, counts: {} })).body.logUntil, clock + 3600_000, 'the relay is told');
+  const seen = (await a('GET', '/admin/servers')).body;
+  assert.equal(seen.relayLog.until, clock + 3600_000);
+  assert.equal(seen.relayReport.open, 3, 'when it last reported, and how many relays were open');
+  assert.equal((await a('POST', '/admin/relay-log', { hours: 0 })).body.relayLog, null);
+  assert.equal((await send({ ...report, at: clock + 3, counts: {} })).body.logUntil, 0, 'off again');
+  ok('relay troubleshooting log: admin only, a day at most, the relay hears it in its next report');
 }
 
 {

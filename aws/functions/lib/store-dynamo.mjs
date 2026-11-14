@@ -187,6 +187,28 @@ export function dynamoStore(TableName) {
         ExpressionAttributeNames: names, ExpressionAttributeValues: values,
       }));
     },
+    // The highest seen (the most relays open at once): each key only goes up
+    async maxTraffic(day, counts) {
+      await Promise.all(Object.entries(counts).map(async ([k, v]) => {
+        try {
+          await db.send(new UpdateCommand({
+            TableName, Key: { pk: 'TRAFFIC', sk: `DAY#${day}` },
+            UpdateExpression: 'SET #day = :day, #k = :v', ConditionExpression: 'attribute_not_exists(#k) OR #k < :v',
+            ExpressionAttributeNames: { '#day': 'day', '#k': k }, ExpressionAttributeValues: { ':day': day, ':v': v },
+          }));
+        } catch (e) {
+          if (e.name !== 'ConditionalCheckFailedException') throw e;
+        }
+      }));
+    },
+    // Small settings that stay (the relay's troubleshooting log, its last report)
+    async getFlag(name) {
+      const item = (await db.send(new GetCommand({ TableName, Key: { pk: 'FLAG', sk: name } }))).Item;
+      return item ? item.value : null;
+    },
+    async setFlag(name, value) {
+      await db.send(new PutCommand({ TableName, Item: { pk: 'FLAG', sk: name, value } }));
+    },
     async listTraffic(from, to) {
       const out = [];
       let ExclusiveStartKey;

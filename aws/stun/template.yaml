@@ -4,7 +4,9 @@ Description: >
   devices can find a path to each other. TURN relays a connection when they can't (a phone on a
   mobile network, a strict office or hotel network): it forwards the encrypted media without being
   able to read it, and only for devices with a short-lived password from the site's API. It keeps
-  no logs. One small Lightsail server with a fixed address. Its own stack.
+  no logs: its log is only counted (relays, data, what it turned away) and the counts sent to the
+  site's API every minute, except while Admin's troubleshooting log is on (in memory, a day at
+  most). One small Lightsail server with a fixed address. Its own stack.
 
 Parameters:
   Domain:
@@ -31,7 +33,7 @@ Resources:
     Type: AWS::Lightsail::Instance
     Properties:
       # UserData only runs on a server's first boot: bump this number when it (or TurnSecret) changes
-      InstanceName: vuemesh-stun-3
+      InstanceName: vuemesh-stun-4
       AvailabilityZone: !Sub '${AWS::Region}a'
       BlueprintId: ubuntu_24_04
       BundleId: !Ref BundleId
@@ -48,7 +50,7 @@ Resources:
         set -e
         export DEBIAN_FRONTEND=noninteractive
         apt-get update
-        apt-get install -y coturn unattended-upgrades nftables
+        apt-get install -y coturn unattended-upgrades nftables python3
         install -d -m 755 /etc/vuemesh
         cat > /etc/vuemesh/turnserver.conf.in <<'CONF'
         # STUN for everyone; TURN only with a password from the site's API (use-auth-secret: the
@@ -102,9 +104,11 @@ Resources:
         denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
         denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
         denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-        # No logs: addresses are answered and forgotten, relays aren't recorded.
-        no-stdout-log
-        log-file=/dev/null
+        # No logs: its log goes out on stdout to vuemesh-turn-count (below), which only counts it and
+        # writes nothing down, except while Admin's troubleshooting log is on. (verbose: the line for
+        # each request, so relays started and requests turned away can be counted)
+        log-file=stdout
+        verbose
         CONF
         chmod 600 /etc/vuemesh/turnserver.conf.in
         # Lightsail puts the server behind a one-to-one NAT: TURN must tell devices its public address
@@ -114,7 +118,9 @@ Resources:
         # - the relay may reach this server's own public address only on its relay ports (two
         #   relayed devices meet there), never its STUN/TURN port or anything else on it;
         # - a source opening more than 20 new flows a second to 3478 (an allocation flood, or
-        #   spoofed requests to bounce answers at someone) is dropped past a burst of 40.
+        #   spoofed requests to bounce answers at someone) is dropped past a burst of 40;
+        # - counters (no addresses): flood packets dropped, the relay turned away from this server,
+        #   and bytes through the relay ports, for vuemesh-turn-report.
         cat > /usr/local/sbin/vuemesh-turn-config <<'SH'
         #!/bin/bash
         set -e
@@ -131,17 +137,23 @@ Resources:
         rm -f "$new"
         want="$(cat <<NFT
         table inet vuemesh {
+          counter flood_drop { }
+          counter self_drop { }
+          counter relay_in { }
+          counter relay_out { }
           set flood { type ipv4_addr; flags dynamic; timeout 1m; }
           set flood6 { type ipv6_addr; flags dynamic; timeout 1m; }
           chain input {
             type filter hook input priority 0; policy accept;
-            udp dport 3478 ct state new add @flood { ip saddr limit rate over 20/second burst 40 packets } drop
-            udp dport 3478 ct state new add @flood6 { ip6 saddr limit rate over 20/second burst 40 packets } drop
+            udp dport 3478 ct state new add @flood { ip saddr limit rate over 20/second burst 40 packets } counter name flood_drop drop
+            udp dport 3478 ct state new add @flood6 { ip6 saddr limit rate over 20/second burst 40 packets } counter name flood_drop drop
+            udp dport 49152-49999 counter name relay_in
           }
           chain output {
             type filter hook output priority 0; policy accept;
-            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } udp dport != 49152-49999 drop
-            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } meta l4proto != udp drop
+            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } udp dport != 49152-49999 counter name self_drop drop
+            meta skuid turnserver ip daddr { $priv${!pub:+, $pub} } meta l4proto != udp counter name self_drop drop
+            meta skuid turnserver udp sport 49152-49999 counter name relay_out
           }
         }
         NFT
@@ -153,7 +165,198 @@ Resources:
         fi
         SH
         chmod 755 /usr/local/sbin/vuemesh-turn-config
-        echo '* * * * * root /usr/local/sbin/vuemesh-turn-config' > /etc/cron.d/vuemesh-turn
+        # coturn's log, counted and forgotten. Only while Admin's troubleshooting log is on
+        # (/run/vuemesh/log-until, which vuemesh-turn-report writes from the API's answer) is it
+        # written down: to /run/vuemesh/turn.log, in memory (never the disk), 20 MB at most, deleted
+        # when the time's up or coturn restarts. Read it in the Lightsail console's browser terminal:
+        # sudo tail -f /run/vuemesh/turn.log
+        cat > /usr/local/sbin/vuemesh-turn-count <<'PY'
+        #!/usr/bin/python3
+        import json, os, re, select, sys, time
+        RUN = '/run/vuemesh'
+        COUNTS, UNTIL, LOG, CAP = RUN + '/counts.json', RUN + '/log-until', RUN + '/turn.log', 20 * 1024 * 1024
+        # (each line counts once, the first that fits)
+        KINDS = [
+            ('started', re.compile(r'incoming packet ALLOCATE processed, success')),
+            ('bad_password', re.compile(r'credentials are incorrect|Cannot find credentials|credentials are expired|processed, error 441')),
+            ('forbidden', re.compile(r'processed, error 403')),
+            ('tcp', re.compile(r'processed, error 442')),
+            ('full', re.compile(r'processed, error (486|508)')),
+        ]
+        ERROR = re.compile(r'processed, error (\d+)')
+        USUAL = ('401', '438')  # (the first ask, before the password, and a renewed nonce: the usual handshake)
+        boot = os.urandom(6).hex()
+        n = dict((k, 0) for k, _ in KINDS)
+        n['errors'] = 0
+        state = {'until': 0, 'checked': 0, 'log': None, 'full': False}
+
+        def write_counts():
+            with open(COUNTS + '.new', 'w') as f:
+                json.dump({'boot': boot, 'n': n}, f)
+            os.replace(COUNTS + '.new', COUNTS)
+
+        def check(now):
+            state['checked'] = now
+            try:
+                with open(UNTIL) as f:
+                    until = float(f.read().strip() or 0)
+            except (OSError, ValueError):
+                until = 0
+            state['until'] = until if now < until <= now + 86400 + 600 else 0
+            if not state['until']:
+                if state['log']:
+                    state['log'].close()
+                    state['log'] = None
+                if os.path.exists(LOG):
+                    os.remove(LOG)
+                state['full'] = False
+            write_counts()
+
+        def line(text):
+            for k, pattern in KINDS:
+                if pattern.search(text):
+                    n[k] += 1
+                    break
+            else:
+                m = ERROR.search(text)
+                if m and m.group(1) not in USUAL:
+                    n['errors'] += 1
+            if state['until'] and not state['full']:
+                if state['log'] is None:
+                    fd = os.open(LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+                    state['log'] = os.fdopen(fd, 'a')
+                if state['log'].tell() >= CAP:
+                    state['log'].write('(20 MB: nothing more is written until the log is switched off and on again)\n')
+                    state['full'] = True
+                else:
+                    state['log'].write(text + '\n')
+                state['log'].flush()
+
+        check(time.time())
+        fd, rest = sys.stdin.fileno(), b''
+        while True:
+            ready, _, _ = select.select([fd], [], [], 10)
+            if ready:
+                chunk = os.read(fd, 65536)
+                if not chunk:
+                    break
+                *lines, rest = (rest + chunk).split(b'\n')
+                for raw in lines:
+                    try:
+                        line(raw.decode('utf-8', 'replace'))
+                    except Exception:
+                        pass
+            if time.time() - state['checked'] >= 10:
+                check(time.time())
+        check(time.time())
+        PY
+        # Every minute: the counts since the last report (and how many relays are open), to the
+        # site's API, signed with the TURN secret. No addresses. Its answer says until when the
+        # troubleshooting log is on. A report that doesn't get through is added to the next.
+        cat > /usr/local/sbin/vuemesh-turn-report <<'PY'
+        #!/usr/bin/python3
+        import hashlib, hmac, json, os, re, subprocess, time, urllib.error, urllib.request
+        DOMAIN = '${Domain}'
+        STATE, RUN = '/var/lib/vuemesh/report.json', '/run/vuemesh'
+        KINDS = ['started', 'bad_password', 'forbidden', 'tcp', 'full', 'errors']
+        NFT = {'flood_drop': ('flood', 'packets'), 'self_drop': ('self', 'packets'), 'relay_in': ('bytes_in', 'bytes'), 'relay_out': ('bytes_out', 'bytes')}
+
+        def load(path):
+            try:
+                with open(path) as f:
+                    return json.load(f)
+            except (OSError, ValueError):
+                return {}
+
+        def save(path, data):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path + '.new', 'w') as f:
+                json.dump(data, f)
+            os.replace(path + '.new', path)
+
+        def secret():
+            with open('/etc/vuemesh/turnserver.conf.in') as f:
+                return re.search(r'^static-auth-secret=(.+)$', f.read(), re.M).group(1).strip()
+
+        def api(st, now):
+            if not st.get('api') or now - st.get('api_at', 0) > 86400:
+                with urllib.request.urlopen('https://' + DOMAIN + '/config.js', timeout=10) as r:
+                    st['api'], st['api_at'] = re.search(r"api: '([^']+)'", r.read().decode()).group(1).rstrip('/'), now
+            return st['api']
+
+        def nft():
+            out = {}
+            try:
+                r = subprocess.run(['nft', '-j', 'list', 'counters', 'table', 'inet', 'vuemesh'], capture_output=True, text=True, timeout=10)
+                for o in json.loads(r.stdout or '{}').get('nftables', []):
+                    c = o.get('counter') or {}
+                    if c.get('name') in NFT:
+                        key, field = NFT[c['name']]
+                        out[key] = int(c.get(field, 0))
+            except Exception:
+                pass
+            return out
+
+        def relays_open():
+            try:
+                r = subprocess.run(['ss', '-Huan', '( sport >= :49152 and sport <= :49999 )'], capture_output=True, text=True, timeout=10)
+                return sum(1 for x in r.stdout.splitlines() if x.strip())
+            except Exception:
+                return 0
+
+        def since(cur, was):
+            return cur - was if cur >= was else cur  # (started again from 0: all of it is new)
+
+        now = time.time()
+        st, counted = load(STATE), load(RUN + '/counts.json')
+        pending = st.get('pending', {})
+        same = counted.get('boot') and counted.get('boot') == st.get('boot')
+        last = st.get('last', {}) if same else {}
+        cur = counted.get('n', {})
+        for k in KINDS:
+            pending[k] = pending.get(k, 0) + since(int(cur.get(k, 0)), int(last.get(k, 0)))
+        now_nft, was_nft = nft(), st.get('nft', {})
+        for k, v in now_nft.items():
+            pending[k] = pending.get(k, 0) + since(v, int(was_nft.get(k, 0)))
+        opened = relays_open()
+        pending['relay_min'] = pending.get('relay_min', 0) + opened
+        st.update(boot=counted.get('boot'), last=dict((k, int(cur.get(k, 0))) for k in KINDS), nft=now_nft, pending=pending, peak=max(int(st.get('peak', 0)), opened))
+        at = int(now * 1000)
+        body = json.dumps({'at': at, 'v': '1', 'open': opened, 'peak': st['peak'], 'counts': pending}, separators=(',', ':'))
+        try:
+            sig = hmac.new(('vuemesh-relay-report|' + secret()).encode(), (str(at) + '.' + body).encode(), hashlib.sha256).hexdigest()
+            req = urllib.request.Request(api(st, now) + '/relay/report', data=body.encode(), method='POST',
+                                         headers={'content-type': 'application/json', 'x-relay-sig': sig, 'user-agent': 'vuemesh-relay'})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                st['until'] = float(json.load(r).get('logUntil') or 0) / 1000
+            st['pending'], st['peak'] = {}, 0
+        except urllib.error.HTTPError as e:
+            if e.code == 409:
+                st['pending'], st['peak'] = {}, 0  # (already counted)
+        except Exception:
+            pass  # (kept for the next one; the log switch stays as it was, a day at most)
+        save(STATE, st)
+        if os.path.isdir(RUN):
+            with open(RUN + '/log-until.new', 'w') as f:
+                f.write(str(st.get('until', 0) if st.get('until', 0) > now else 0))
+            os.replace(RUN + '/log-until.new', RUN + '/log-until')
+        PY
+        chmod 755 /usr/local/sbin/vuemesh-turn-count /usr/local/sbin/vuemesh-turn-report
+        # coturn's output (stdout and stderr) goes only to the counter; /run/vuemesh is in memory,
+        # made fresh each time coturn starts and removed when it stops
+        install -d /etc/systemd/system/coturn.service.d
+        cat > /etc/systemd/system/coturn.service.d/vuemesh.conf <<'UNIT'
+        [Service]
+        Type=simple
+        ExecStart=
+        ExecStart=/bin/bash -c 'set -o pipefail; /usr/bin/turnserver -c /etc/turnserver.conf --pidfile= 2>&1 | /usr/local/sbin/vuemesh-turn-count'
+        RuntimeDirectory=vuemesh
+        RuntimeDirectoryMode=0750
+        Restart=always
+        RestartSec=2
+        UNIT
+        systemctl daemon-reload
+        printf '%s\n' '* * * * * root /usr/local/sbin/vuemesh-turn-config' '* * * * * root /usr/local/sbin/vuemesh-turn-report >/dev/null 2>&1' > /etc/cron.d/vuemesh-turn
         sed -i 's/^#\?TURNSERVER_ENABLED=.*/TURNSERVER_ENABLED=1/' /etc/default/coturn 2>/dev/null || true
         systemctl enable coturn
         /usr/local/sbin/vuemesh-turn-config

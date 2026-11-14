@@ -7,6 +7,7 @@
 // A camera watching the program uses it too (cam.js), without the sound, asking for its box's
 // small picture, full screen, or nothing (want()).
 import { meshSocket, ICE } from '/js/vm.js';
+import { countRoute } from '/js/rtc.js';
 
 export class ProgramView {
   /** @param o.eventId  @param o.key  the screen key from the studio  @param o.name  @param o.video  a <video> to show it in  @param o.onState? (text)  @param o.onSound? (track) the program's sound, to play apart from the picture (progsound.js)
@@ -105,6 +106,7 @@ export class ProgramView {
     this.tryingSince ||= Date.now(); // (since the first try, not this one: it asks again every 12 s)
     this.drop();
     const pc = (this.pc = new RTCPeerConnection({ iceServers: ICE }));
+    countRoute(pc, 'view');
     pc.addTransceiver('video', { direction: 'recvonly' });
     if (this.sound) pc.addTransceiver('audio', { direction: 'recvonly' });
     this.ctl = pc.createDataChannel('ctl', { ordered: true });

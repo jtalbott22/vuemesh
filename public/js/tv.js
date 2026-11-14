@@ -9,7 +9,7 @@
 // top); PIP puts the live program in a corner while browsing or beaconing.
 
 import { api, meshSocket, ICE, eventIdFromUrl, now, drawQR, timecodeUrl, fmtClock, fmtDur, esc, showName } from '/js/vm.js';
-import { pathOf } from '/js/rtc.js';
+import { pathOf, countRoute } from '/js/rtc.js';
 import { ProgramSound } from '/js/progsound.js';
 import { listen, stopListening } from '/js/tvdirect.js';
 
@@ -303,6 +303,7 @@ async function offer() {
   lastTry = Date.now();
   drop();
   pc = new RTCPeerConnection({ iceServers: ICE });
+  countRoute(pc, 'tv');
   pc.addTransceiver('video', { direction: 'recvonly' });
   pc.addTransceiver('audio', { direction: 'recvonly' });
   ctl = pc.createDataChannel('ctl', { ordered: true });

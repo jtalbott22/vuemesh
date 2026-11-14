@@ -54,10 +54,31 @@ be worth little, and the whole relay is bounded:
 - **Watched in Admin → Servers:** each Lightsail server's state, failed status checks, the month's
   data against the allowance, the last day's data hour by hour, the processor and burst capacity,
   and how many passwords were given or refused (too many from one address, another site or a
-  script, the relay off), all from Lightsail's own numbers and the anonymous day counts.
+  script, the relay off), all from Lightsail's own numbers and the anonymous day counts. And the
+  relay's own counts (below): what share of connections needed it, relays started, the most open at
+  once and hour by hour, relay hours, data through its ports, and what it turned away (wrong or
+  expired passwords, private addresses, TCP relays, floods dropped, its own ports, full).
 - **Kept up to date:** unattended-upgrades installs Ubuntu's security fixes for coturn and OpenSSL.
   `check.mjs` (below) tries every way round the rules this file lists.
-- **No logs.** Addresses are answered and forgotten; relays aren't recorded.
+- **No logs, only counts.** coturn's log (`verbose`, a line for each request) goes to
+  `vuemesh-turn-count` on stdout, which counts what it's looking for (relays started, wrong or
+  expired passwords, error 403 for a private address, 442 for a TCP relay, 486/508 full, other
+  errors) and forgets the line. The firewall counts floods dropped, the relay stopped from reaching
+  the server's own ports, and bytes through the relay ports. Every minute `vuemesh-turn-report`
+  (cron) sends what's new, and how many relays are open (`ss`), to `POST /api/relay/report`, signed
+  with an HMAC-SHA256 of the TURN secret; a report that doesn't get through is added to the next.
+  The API adds them to the day's anonymous counts (`relay:*`, and `relayh:<hour>:*` for the last
+  day by hour). No addresses leave the server, and none are written down.
+- **Each browser counts its connections:** once a connection is up, the page sends one anonymous
+  count of how it went (`route:<call|cam|tv|view>:<lan|direct|relay>`, with the page views, so not
+  when the browser asks not to be tracked). That's what says how often the relay is needed at all.
+- **A troubleshooting log, off by default.** Admin → Servers can switch on the relay's own log for
+  an hour or a day (never longer; the API refuses more, and the server ignores more). The next
+  minute's report brings the time back to the server (`/run/vuemesh/log-until`), and the counter
+  writes the lines to `/run/vuemesh/turn.log`: memory only, readable only by root, 20 MB at most,
+  deleted when the time's up, the switch goes off, or coturn restarts. It has the addresses of the
+  devices relayed, which is the point: read it in the Lightsail console's browser terminal with
+  `sudo tail -f /run/vuemesh/turn.log`. The Privacy page says so.
 - **One Lightsail server** (Ubuntu 24.04, the smallest size with a public IPv4 address) with a fixed
   address and a DNS record. Security updates install by themselves (unattended-upgrades). SSH is open
   only to the Lightsail console's browser terminal. Lightsail puts it behind a one-to-one NAT, so a
@@ -92,13 +113,20 @@ nothing private can be relayed to, by any spelling (`169.254.169.254`, `127.0.0.
 reach each other; and that a relay can't reach the server's own STUN/TURN port. Then it lets the
 relays go.
 
+A minute or two later, Admin → Servers shows what `check.mjs` was turned away for (a wrong password,
+the private addresses, a TCP relay) under the relay's counts: that's the check that the counter
+reads coturn's log. If they stay at 0, coturn's wording may have changed: switch on the
+troubleshooting log for an hour, run `check.mjs` again, and match the patterns in
+`vuemesh-turn-count` (`template.yaml`) to its lines. The server's reports need the API from 0.77.0
+(`./aws/deploy.sh`); until it's there, they wait and are sent together.
+
 **Keep `aws/.turn-secret` private** (it's in `.gitignore`, like `aws/.admin-keys`). Both deploys need
 it: on another machine, copy it over first.
 
 **The server reads its start-up script (`UserData`, with the secret in it) only on its first boot.**
 CloudFormation changes it on the running server without running it again, so a change there, or a
 new secret, does nothing until there's a new server: bump the number in `InstanceName`
-(`vuemesh-stun-3` → `-4`) in the same deploy. That makes a new server and moves the static IP to it
+(`vuemesh-stun-4` → `-5`) in the same deploy. That makes a new server and moves the static IP to it
 (same address; a minute or two without STUN or TURN while it starts). To change the secret: delete
 `aws/.turn-secret`, bump the name, and run both deploys.
 

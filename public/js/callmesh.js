@@ -16,6 +16,7 @@
 // connection has the same three places from the start (sound, camera, screen); what's sent changes
 // with replaceTrack, never a new offer. A data channel on each says names and what's on.
 import { api, meshSocket, ICE, iceReady, identity, thumbprint, sha256hex } from '/js/vm.js';
+import { countRoute } from '/js/rtc.js';
 
 export const MAX_PEOPLE = 6;
 const te = new TextEncoder();
@@ -208,6 +209,7 @@ export class CallMesh {
 
   connectTo(id) {
     const pc = new RTCPeerConnection({ iceServers: ICE });
+    countRoute(pc, 'call');
     const offers = this.me < id;
     const p = { pc, offers, early: [], name: '', mic: true, cam: true, sharing: false, cam$: new MediaStream(), screen$: new MediaStream(), relayed: false };
     this.peers.set(id, p);
