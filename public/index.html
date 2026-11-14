@@ -262,6 +262,7 @@
   .minelist .acts button, .minelist .acts a { min-height: 32px; padding: .2em .65em; font-size: .8rem; border-radius: 8px; }
   .badge { font-size: .7rem; font-weight: 800; letter-spacing: .04em; padding: .1em .45em; border-radius: 4px; background: var(--surface-2); color: var(--text); }
   .badge.gone { background: var(--amber); color: #3b2500; }
+  .badge.code { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; }
   .badge.live { background: var(--tally-fill, var(--tally)); color: #fff; }
   @media (max-width: 560px) { .minelist li { grid-template-columns: 1fr; } .minelist .acts { grid-column: 1; grid-row: auto; justify-content: flex-start; } }
 
@@ -741,7 +742,7 @@
         <div class="minehead"><h3>Your events on this device</h3><button type="button" class="linkish" id="archToggle" hidden aria-expanded="false"></button></div>
         <ul class="minelist" id="mineList"></ul>
         <ul class="minelist" id="archList" hidden aria-label="Archived events"></ul>
-        <p class="fine" id="mineNote">Recordings and edits live in this browser. Nothing is deleted from here unless you choose to — even if an event has ended on the server.</p>
+        <p class="fine" id="mineNote">Recordings and edits live only in this browser: our server never has your video, just each event’s code so devices can find each other. Nothing is deleted from here unless you choose to, even after a code ends.</p>
       </div>
     </div>
     <form class="create" id="create" autocomplete="off">

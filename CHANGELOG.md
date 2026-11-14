@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.87.1 — "on the server" said what it meant
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.87.0.
+
+**The home page's list of your events no longer reads as if recordings were on our server.** "5.3 GB · 144 recordings on the server" was two things side by side: what's saved in this browser, and whether the server still has the event's code. Now the size says "in this browser", and the code's state is its own badge: **Code active**, **LIVE**, or **Code ended** (it was "Ended on server"), each saying on hover what it means. The note under the list says it plainly: our server never has your video, just each event's code so devices can find each other.
+
+**Tests:** `e2e_events`: the list says "in this browser" and Code active or LIVE, never "on the server"; Code ended once the server deletes the event.
+
 ## 0.87.0 — the Remote and the home page in the same look
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.86.0.
 

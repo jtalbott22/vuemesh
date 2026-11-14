@@ -30,14 +30,14 @@ with sync_playwright() as p:
     row = f'[data-ev="{ev["id"]}"]'
     home.wait_for_function(f"document.querySelector('{row} [data-status]')?.textContent.length > 0", timeout=8000)
     meta = home.inner_text(f'{row} .m').replace('\n', ' ')
-    assert 'recording' in meta and ('on the server' in meta or 'LIVE' in meta), meta
+    assert 'recording' in meta and 'in this browser' in meta and ('Code active' in meta or 'LIVE' in meta) and 'on the server' not in meta, meta
     step(f'home page lists the event: {meta}')
 
     host.evaluate(f"fetch('/api/admin/events/{ev['id']}', {{ method: 'DELETE', headers: {{ 'x-admin-key': 'dev-admin' }} }})"); time.sleep(0.5)
     home.reload()
     home.wait_for_selector(f'{row} .badge.gone', timeout=8000)
     meta = home.inner_text(f'{row} .m').replace('\n', ' ')
-    assert 'recording' in meta, meta
+    assert 'recording' in meta and 'Code ended' in meta, meta
     step(f'deleted on the server: labelled, but the footage here is untouched → {meta}')
 
     with home.expect_download(timeout=60000) as dl:
