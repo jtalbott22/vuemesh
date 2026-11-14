@@ -16,133 +16,210 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <script src="/js/theme-boot.js"></script>
+<link href="/css/archivo.css" rel="stylesheet">
 <link rel="stylesheet" href="/css/vm.css">
 <style>
-  .wrap { max-width: 820px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(48px + env(safe-area-inset-bottom, 0px)); }
-  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-  .mark { font-stretch: 125%; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: .5em; text-decoration: none; }
-  .mark i { width: 11px; height: 11px; border-radius: 50%; background: var(--tally); }
-  h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin-bottom: .2em; }
-  h2 { margin-top: 2em; font-size: 1.25rem; }
-  p, li, td { color: var(--text-2); }
-  b, strong, th { color: var(--text); }
-  .short { background: var(--surface); border-radius: 12px; padding: 16px 20px; }
-  .short ul { margin: .4em 0 0; padding-left: 1.2em; }
-  .short li { margin: .25em 0; }
-  .tbl { overflow-x: auto; margin: 12px 0; }
-  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
-  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-  th { font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; }
-  code { font-family: var(--mono); font-size: .88em; overflow-wrap: anywhere; }
-  .here { background: var(--surface); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
-  .here p { margin: .3em 0; }
-  .here .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  button.danger { background: var(--tally); color: #fff; }
-  footer { margin-top: 48px; font-size: .9rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
-  footer a { color: inherit; }
+  /* The studio's look (vm.css): the bar along the top, a reading column, the short version and the
+     storage table in cards, each section with its own address (#browser, #server, #relay…) */
+  .doc { width: 100%; max-width: 860px; margin: 0 auto; padding: clamp(24px, 5vh, 56px) var(--gutter-r) calc(56px + env(safe-area-inset-bottom, 0px)) var(--gutter); }
+  .doc h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); margin: 10px 0 .3em; }
+  .doc h2 { margin: 2.4em 0 .6em; font-size: 1.4rem; scroll-margin-top: 20px; }
+  .doc h3 { margin: 1.6em 0 .4em; font-size: 1.05rem; }
+  .doc p, .doc li, .doc td { color: var(--text-2); }
+  .doc b, .doc strong, .doc th { color: var(--text); }
+  .doc ul { padding-left: 1.2em; }
+  .doc li { margin: .45em 0; }
+  .lead { font-size: 1.1rem; max-width: 62ch; }
+  .updated { color: var(--muted); font-size: .88rem; margin: 0 0 18px; }
+  .doc .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 26px; padding: 0; list-style: none; }
+  .toc li { margin: 0; }
+  .toc a { display: inline-block; padding: .35em .85em; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); text-decoration: none; font-size: .88rem; font-weight: 600; }
+  .toc a:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--muted); }
+  .checks { list-style: none; padding: 0 !important; margin: 0; display: grid; gap: 12px; }
+  .checks li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; margin: 0; }
+  .checks li::before { content: "✓"; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); margin-top: 1px; }
+  .tbl { overflow-x: auto; margin: 12px 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2) !important; }
+  code { font-family: var(--mono); font-size: .86em; overflow-wrap: anywhere; }
+  .here { margin: 18px 0; }
+  .here .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .here button { width: auto !important; }
+  .callout { margin: 14px 0; }
+  footer.foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+  footer.foot a { color: inherit; }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <header class="nav"><span class="vmbrand"><a class="mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a></span><button type="button" id="themeBtn"></button></header>
-  <main>
-    <h1>Privacy</h1>
-    <p>Exactly what VUEMesh keeps, where, and for how long. This page describes the site at vuemesh.com. VUEMesh is open source (MIT), so anyone can run their own copy; a copy run by someone else is theirs, and so is what it keeps.</p>
+<body class="vm-page">
+<header class="vm-top">
+  <a class="vm-mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
+  <span class="vm-spacer"></span>
+  <button type="button" id="themeBtn"></button>
+</header>
+<main class="doc">
+  <p class="vm-eyebrow pvw">Privacy</p>
+  <h1>What VUEMesh keeps</h1>
+  <p class="lead">Exactly what VUEMesh keeps, where, and for how long. This page describes the site at vuemesh.com. VUEMesh is open source (MIT), so anyone can run their own copy; a copy run by someone else is theirs, and so is what it keeps.</p>
+  <p class="updated">Updated 14 November 2026 (VUEMesh 0.90.0): calls, the relay and when it may be off, captions and face tracking, the logs that can be switched on, and streaming and publishing.</p>
+  <ul class="toc" aria-label="On this page">
+    <li><a href="#short">The short version</a></li>
+    <li><a href="#browser">In this browser</a></li>
+    <li><a href="#server">On our server</a></li>
+    <li><a href="#calls">Calls</a></li>
+    <li><a href="#relay">The relay</a></li>
+    <li><a href="#ondevice">Captions and face tracking</a></li>
+    <li><a href="#logs">Logs</a></li>
+    <li><a href="#publish">Streaming and publishing</a></li>
+    <li><a href="#others">Other services</a></li>
+    <li><a href="#legal">Who's responsible</a></li>
+    <li><a href="#you">Your rights</a></li>
+  </ul>
 
-    <div class="short">
-      <b>The short version</b>
-      <ul>
-        <li><b>No cookies, no accounts, no ads, no trackers, no third-party analytics.</b> There's nothing to accept.</li>
-        <li><b>Never your location.</b> VUEMesh doesn't ask where you are, and there's no public list or map of events.</li>
-        <li><b>Your recordings stay on your devices.</b> Video goes from device to device over your own network. Our server never receives it.</li>
-        <li><b>Face tracking happens on the studio's computer, and isn't face recognition.</b> When a host turns it on, the studio finds faces (and where people are, by their pose) in its cameras' pictures to frame the shot and see who's talking. Nothing describing what anyone looks like is made or kept, and no picture is sent anywhere. People are told apart by who's talking when, and where they are in each shot; the studio keeps only "Speaker 1, Speaker 2…", any names the host types, and where each was last seen in each camera's picture, in this browser (<code>vm_speakers_…</code>). The face finder (Google's MediaPipe) normally reports its own usage to Google; VUEMesh's copy has that taken out.</li>
-        <li><b>Live captions are made on the studio's computer.</b> When a host turns them on, the browser recognises what's said on the program with its own on-device speech model (Chrome or Edge, with "on this device only" asked for). The sound isn't sent to us, Google, Microsoft or anyone else, and if the browser can't promise that, there are no captions. The captions are kept with the program's recording in this browser, and downloaded beside it.</li>
-        <li><b>A show's name never reaches our server.</b> It stays on the host's computer; the studio tells the devices in the show over their own links, and a link someone copies carries it after the <code>#</code>, which browsers never send to a server.</li>
-        <li><b>The server keeps an event's code and settings for 30 days</b> (a call's for a day), so devices can find each other, then deletes them by itself.</li>
-        <li><b>Captions in a call are made on each person's own device.</b> When anyone in a call turns on Captions, each device that can recognise its own microphone's speech with its browser's on-device model (“on this device only” asked for) does, and sends the words to the others in the call over the call's own encrypted links. The sound isn't sent to us, Google, Microsoft or anyone else for it, and nothing is kept: the words are shown and gone.</li>
-        <li><b>A studio in a call says so.</b> Everyone in the call is told plainly when a studio is in it (their picture, sound and screen can be put on its show, recorded or streamed by it), and sees when it's recording or live.</li>
-        <li><b>Calls go from device to device.</b> Names, pictures and sound in a call go straight to the others in it, encrypted, never to us. Nobody gets in without the call's link or its code and PIN, and someone already in lets each person in.</li>
-        <li><b>You can clear everything VUEMesh keeps in this browser</b> with one button, below.</li>
-      </ul>
+  <section class="vm-card" id="short" aria-labelledby="shortH">
+    <h2 id="shortH" style="margin:0">The short version</h2>
+    <ul class="checks">
+      <li><span><b>No cookies, no accounts, no ads, no trackers, no third-party analytics.</b> There's nothing to accept.</span></li>
+      <li><span><b>Never your location.</b> VUEMesh doesn't ask where you are, and there's no public list or map of events.</span></li>
+      <li><span><b>Your recordings stay on your devices.</b> Video and sound go from device to device. Our server never receives them, and nothing is uploaded to be published (<a href="#publish">not yet</a>).</span></li>
+      <li><span><b>Calls go from device to device, encrypted.</b> Names, pictures, sound and shared screens go straight to the others in the call, never to us. Nobody gets in without the link, or the code and PIN, and someone already in lets each person in.</span></li>
+      <li><span><b>When devices can't reach each other, our relay passes on what it can't read.</b> It's encrypted end to end and the relay keeps nothing. It <a href="#relay">may be switched off</a> at any time.</span></li>
+      <li><span><b>Captions and face tracking happen on your own device,</b> with models that run in the browser. No picture or sound is sent anywhere for them, and face tracking isn't face recognition.</span></li>
+      <li><span><b>A show's name never reaches our server.</b> It stays on the host's computer and travels between the show's devices over their own links.</span></li>
+      <li><span><b>The server keeps an event's code and settings for 30 days</b> (a call's for a day), so devices can find each other, then deletes them by itself.</span></li>
+      <li><span><b>Logs are short-lived, and the only one with addresses in it is off</b> unless the maintainer switches it on to fix a problem with the relay, for a day at most.</span></li>
+      <li><span><b>You can clear everything VUEMesh keeps in this browser</b> with one button, <a href="#here">below</a>.</span></li>
+    </ul>
+  </section>
+
+  <h2 id="browser">In this browser</h2>
+  <p>VUEMesh is an app that runs in your browser, and it keeps its work there, on this device only, the way a document editor keeps files. None of this is a cookie and none of it is sent anywhere by itself. It's grouped here by what it's for; every key starts with <code>vm_</code>.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>What</th><th>Where</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><b>Your recordings and edits</b>: camera and microphone clips, clips waiting to reach the studio, the recorded program and its captions, break-reel images and videos, the show log</td><td>IndexedDB, database <code>vuemesh</code> (<code>clips</code>, <code>outbox</code>, <code>program</code>, <code>reel</code>, <code>showlog</code>)</td><td>So footage survives a reload or a dropped connection, and you can export it later. Delete or export it from <a href="/#start">Your events on this device</a> on the home page, or from My events on a phone.</td></tr>
+      <tr><td><b>Your events and calls</b>: the ones you made or joined, their names and codes, and your role</td><td>Local storage: <code>vm_events</code>, <code>vm_last</code>, <code>vm_ev_…</code></td><td>So you can get back to them.</td></tr>
+      <tr><td><b>Keys</b>: a host's key for each event it made; a call's key and PIN for a call you started or joined by its link; a TV's key; this device's own signing key</td><td>Local storage: <code>vm_host_…</code>, <code>vm_callkey_…</code>, <code>vm_callpin_…</code>, <code>vm_tv_key_…</code>, <code>vm_identity</code></td><td>The host key is what lets you run the studio for your event, and a call's key and PIN let you rejoin it and invite others. The signing key lets a phone sign its clips so the studio can check nothing was changed. Keys never leave the device except to prove who you are to the event or call.</td></tr>
+      <tr><td><b>Your streaming settings</b>: the service, its address and your stream key</td><td>Local storage: <code>vm_stream</code></td><td>So you don't have to paste the key again. It goes only to the streaming service you chose, and only while you stream.</td></tr>
+      <tr><td><b>Names you typed</b>: your name when joining, a TV's name, a remote's name, a shared screen's name</td><td>Local storage: <code>vm_name</code>, <code>vm_tv_name</code>, <code>vm_remote_name</code>, <code>vm_share_name</code></td><td>So you don't have to type it again.</td></tr>
+      <tr><td><b>Each event's edit and show</b>: the timeline, live cuts, crew, camera angles, the mixer, lower thirds, speakers' numbers and names, rundown, messages, output and recording choices</td><td>Local storage: <code>vm_seq_…</code>, <code>vm_cut_…</code>, <code>vm_crew_…</code>, <code>vm_angles_…</code>, <code>vm_livemix_…</code>, <code>vm_lt_…</code>, <code>vm_speakers_…</code>, <code>vm_rundown_…</code>, <code>vm_msgs_…</code> and similar</td><td>So the studio comes back as you left it.</td></tr>
+      <tr><td><b>Settings</b>: light or dark, layouts, camera preferences, a call's microphone, camera and caption choices, which tips you've seen, that you agreed to the Terms, and that you've seen the note about this page</td><td>Local storage: <code>vm_theme</code>, <code>vm_layout</code>, <code>vm_camprefs</code>, <code>vm_call_…</code>, <code>vm_terms</code>, <code>vm_privacy_ok</code>, <code>vm_captions</code>, <code>vm_faces</code> and similar</td><td>Preferences.</td></tr>
+      <tr><td><b>This visit only</b>: a phone's clock offset to the QR Beacon, that this tab was let into a call (so a dropped connection comes back without waiting), Admin's key while signed in</td><td>Session storage: <code>vm_off_…</code>, <code>vm_callin…</code>, <code>vm_admin</code></td><td>Gone when the tab closes.</td></tr>
+      <tr><td><b>The app itself</b>: its pages, scripts and pictures</td><td>The browser's cache, through a service worker (<code>vm-app-v1</code>)</td><td>So the app opens with no internet, for a show on a network of its own.</td></tr>
+    </tbody>
+  </table></div>
+
+  <section class="vm-card here" id="here" aria-label="What this browser has now">
+    <b>What this browser has now</b>
+    <p id="hereKeys" class="vm-say">Checking…</p>
+    <p id="hereBytes" class="vm-say"></p>
+    <div class="row">
+      <button type="button" class="danger" id="clearAll">Clear everything VUEMesh keeps here</button>
     </div>
+    <p class="vm-fine">This removes every recording, edit, key and setting VUEMesh has in this browser, and the saved copy of the app. Export anything you want to keep first, from the home page. It can't be undone, and without its host key you can't run the studio for an event again.</p>
+  </section>
 
-    <h2 id="browser">In this browser</h2>
-    <p>VUEMesh is an app that runs in your browser, and it keeps its work there, on this device only, the way a document editor keeps files. None of this is a cookie and none of it is sent anywhere by itself. It's grouped here by what it's for; every key starts with <code>vm_</code>.</p>
-    <div class="tbl"><table>
-      <thead><tr><th>What</th><th>Where</th><th>Why</th></tr></thead>
-      <tbody>
-        <tr><td><b>Your recordings and edits</b>: camera and microphone clips, clips waiting to reach the studio, the recorded program, break-reel images and videos, the show log</td><td>IndexedDB, database <code>vuemesh</code> (<code>clips</code>, <code>outbox</code>, <code>program</code>, <code>reel</code>, <code>showlog</code>)</td><td>So footage survives a reload or a dropped connection, and you can export it later. Delete or export it from <a href="/#start">Your events on this device</a> on the home page, or from My footage on a phone.</td></tr>
-        <tr><td><b>Your events</b>: the ones you made or joined, their names and codes, and your role</td><td>Local storage: <code>vm_events</code>, <code>vm_last</code>, <code>vm_ev_…</code></td><td>So you can get back to them.</td></tr>
-        <tr><td><b>Keys</b>: a host's key for each event it made; a TV's key; this device's own signing key</td><td>Local storage: <code>vm_host_…</code>, <code>vm_tv_key_…</code>, <code>vm_identity</code></td><td>The host key is what lets you run the studio for your event. The signing key lets a phone sign its clips so the studio can check nothing was changed. Keys never leave the device except to prove who you are to the event.</td></tr>
-        <tr><td><b>Names you typed</b>: your name when joining, a TV's name, a remote's name, a shared screen's name</td><td>Local storage: <code>vm_name</code>, <code>vm_tv_name</code>, <code>vm_remote_name</code>, <code>vm_share_name</code></td><td>So you don't have to type it again.</td></tr>
-        <tr><td><b>Each event's edit and show</b>: the timeline, live cuts, crew, camera angles, the mixer, lower thirds, rundown, messages, output and recording choices</td><td>Local storage: <code>vm_seq_…</code>, <code>vm_cut_…</code>, <code>vm_crew_…</code>, <code>vm_angles_…</code>, <code>vm_livemix_…</code>, <code>vm_lt_…</code>, <code>vm_speakers_…</code>, <code>vm_rundown_…</code>, <code>vm_msgs_…</code> and similar</td><td>So the studio comes back as you left it.</td></tr>
-        <tr><td><b>Settings</b>: light or dark, layouts, camera preferences, which tips you've seen, that you agreed to the Terms, and that you've seen the note about this page</td><td>Local storage: <code>vm_theme</code>, <code>vm_layout</code>, <code>vm_camprefs</code>, <code>vm_terms</code>, <code>vm_privacy_ok</code>, <code>vm_captions</code>, <code>vm_faces</code> and similar</td><td>Preferences.</td></tr>
-        <tr><td><b>This visit only</b>: a phone's clock offset to the QR Beacon, Admin's key while signed in</td><td>Session storage: <code>vm_off_…</code>, <code>vm_admin</code></td><td>Gone when the tab closes.</td></tr>
-        <tr><td><b>The app itself</b>: its pages, scripts and pictures</td><td>The browser's cache, through a service worker (<code>vm-app-v1</code>)</td><td>So the app opens with no internet, for a show on a network of its own.</td></tr>
-      </tbody>
-    </table></div>
+  <h2 id="server">On our server</h2>
+  <p>The server is a small switchboard. It helps devices at an event or in a call find each other, then gets out of the way. It keeps:</p>
+  <ul>
+    <li><b>Each event</b>: its code, shape (landscape or portrait), settings, the Terms its people agreed to, a one-way hash of the host's key, when it was made, and when the studio was last open. <b>Not its name</b>: that stays on the devices. A kiosk show keeps only that it has been named. <b>Deleted automatically 30 days after it's made</b> (12 hours for a show started at a kiosk), or sooner when the host deletes it.</li>
+    <li><b>Each call</b>: <a href="#calls">see Calls</a>. <b>Deleted automatically a day after it's made.</b></li>
+    <li><b>Who's connected right now</b>: a random ID for each device in the event, the name it joined with (none in a call), and its role (camera, microphone, studio, TV, a call's guest, and whether it's waiting to be let in). Used to pass the handshake between devices. Deleted within a day.</li>
+    <li><b>How many calls each address started in the hour, and how many relay passwords it asked for</b>, each counted under a mark made from the address with that day's random salt, and deleted after the hour, so nobody can start thousands.</li>
+    <li><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, computer screens (from the Share page), microphones, viewers and TVs joined, recordings made, hours of footage, live cut and streaming, how long TVs watched, calls started, how many people were in them, how many times devices connected to them and how many screens were shared in them (that a screen was shared, never what was on it), and how much the relay passed on. So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event; a call does the same for each device let into it and each that shares its screen, deleted with the call after a day. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
+    <li><b>Anonymous page views</b>: one count per page load, by page, with the site that linked to it, device type (phone, tablet, desktop), browser name, and country if the network provides it. A visitor is counted once a day using a hash of the day, the address and the browser with a random salt made fresh each day. The hash isn't kept with the counts, and the hash and that day's salt are both deleted after two days, after which nobody, us included, can work out an address from it. With them, how each connection between two devices went (on the same network, straight across the internet, or through our relay), counted once by each device when it connects, so we know how often the relay is needed; nothing about the devices or the show. <b>None of this is sent if your browser asks not to be tracked</b> (Do Not Track or Global Privacy Control).</li>
+  </ul>
+  <p><b>Recordings, pictures and sound never go to the server.</b></p>
 
-    <div class="here" id="here">
-      <b>What this browser has now</b>
-      <p id="hereKeys">Checking…</p>
-      <p id="hereBytes"></p>
-      <div class="row">
-        <button type="button" class="danger" id="clearAll">Clear everything VUEMesh keeps here</button>
-      </div>
-      <p class="fine" style="margin-top:10px">This removes every recording, edit, key and setting VUEMesh has in this browser, and the saved copy of the app. Export anything you want to keep first, from the home page. It can't be undone, and without its host key you can't run the studio for an event again.</p>
-    </div>
+  <h2 id="calls">Calls</h2>
+  <p>A call (<a href="/call">/call</a>) is up to six people on cameras, microphones and shared screens, everyone connected straight to everyone else.</p>
+  <ul>
+    <li><b>Device to device, encrypted.</b> Names, pictures, sound, shared screens (and their sound, when you choose to share it), captions and messages go over each pair of devices' own encrypted link, never to our server. When two devices can't reach each other, that link goes through <a href="#relay">our relay</a>, still encrypted.</li>
+    <li><b>Getting in.</b> A call's key is in its link after the <code>#</code>, which browsers never send to a server. Nobody gets in without the link, or the call's code and its PIN, and someone already in the call lets each person in. A name given while waiting goes with the knock to the people in the call, and isn't kept.</li>
+    <li><b>What the server keeps for a call, for a day</b>: its code, a one-way hash of a one-way hash of its key, a one-way hash of its PIN and how many wrong PINs were tried, one-way hashes of the passes of devices let in (so a dropped connection comes back without waiting), the random device IDs taken out of it, and whether it's locked. No names, and nothing anyone said or showed.</li>
+    <li><b>Nothing is recorded by the call.</b> A studio can join a call; when one is in it, everyone is told plainly (their picture, sound and screen can be put on its show, recorded or streamed by it) and sees when it's recording or live.</li>
+    <li><b>Captions in a call</b> are made on each person's own device: see <a href="#ondevice">Captions and face tracking</a>.</li>
+  </ul>
 
-    <h2 id="server">On our server</h2>
-    <p>The server is a small switchboard. It helps devices at an event find each other, then gets out of the way. It keeps:</p>
-    <ul>
-      <li><b>Each event</b>: its code, shape (landscape or portrait), settings, the Terms its people agreed to, a one-way hash of the host's key, when it was made, and when the studio was last open. <b>Not its name</b>: that stays on the devices. A kiosk show keeps only that it has been named. <b>Deleted automatically 30 days after it's made</b> (12 hours for a show started at a kiosk), or sooner when the host deletes it.</li>
-      <li><b>Each call</b>: its code, a one-way hash of a one-way hash of its key (the key itself, in the link after the <code>#</code>, never reaches us), a one-way hash of its PIN and how many wrong PINs were tried, one-way hashes of the passes of devices let in (so a dropped connection comes back without waiting), the random device IDs taken out of it, and whether it's locked. <b>Deleted automatically a day after it's made.</b> No names: a name someone gives while waiting to be let in goes with their knock to the people in the call, and isn't kept.</li>
-      <li><b>Who's connected right now</b>: a random ID for each device in the event, the name it joined with (none in a call), and its role (camera, microphone, studio, TV, a call's guest, and whether it's waiting to be let in). Used to pass the handshake between devices. Deleted within a day.</li>
-      <li><b>How many calls each address started in the hour</b>, counted under a mark made from the address with that day's random salt, deleted after the hour, so nobody can start thousands.</li>
-      <li><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, computer screens (from the Share page), microphones, viewers and TVs joined, recordings made, hours of footage, live cut and streaming, how long TVs watched, and calls started, how many people were in them, how many times devices connected to them and how many screens were shared in them (that a screen was shared, never what was on it). So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event; a call does the same for each device let into it and each that shares its screen, deleted with the call after a day. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
-      <li><b>Anonymous page views</b>: one count per page load, by page, with the site that linked to it, device type (phone, tablet, desktop), browser name, and country if the network provides it. A visitor is counted once a day using a hash of the day, the address and the browser with a random salt made fresh each day. The hash isn't kept with the counts, and the hash and that day's salt are both deleted after two days, after which nobody, us included, can work out an address from it. With them, how each connection between two devices went (on the same network, straight across the internet, or through our relay), counted once by each device when it connects, so we know how often the relay is needed; nothing about the devices or the show. <b>None of this is sent if your browser asks not to be tracked</b> (Do Not Track or Global Privacy Control).</li>
-    </ul>
-    <h2 id="mail">If you email us</h2>
-    <p>Mail to <b>info@vuemesh.com</b> is received by Amazon's email service, checked for viruses and spam, and forwarded to the maintainer's inbox. A copy is kept encrypted on AWS for 30 days, then deleted automatically; the forwarding keeps a one-line record that a message was passed on (its ID, not its contents) for 14 days. Nobody else reads it, and the address isn't added to any list.</p>
+  <h2 id="relay">The relay (TURN), and when it may be off</h2>
+  <p>When devices connect, each asks our STUN server (<code>stun.vuemesh.com</code>) for its own public internet address, so they can find a path to each other. Devices on the same network never need more. When two devices can't reach each other directly (a phone on mobile data, a strict office network), their pictures and sound go through our relay instead (TURN), for a show or a call.</p>
+  <ul>
+    <li><b>It can't read what it passes on.</b> It's encrypted between the two devices. The relay keeps no recordings and, normally, no logs: its log is only counted as it's written (relays started, data relayed, requests it turned away, such as a wrong password or an address it won't relay to) and then forgotten. The counts, with no addresses, go to our server every minute and are kept with the day's anonymous counts.</li>
+    <li><b>A password for the day.</b> To use it, a device gets a password from our server that's good for a day and has nothing about the device in it. Our server counts how many each address asks for in an hour (as above), so nobody can collect thousands.</li>
+    <li><b>It may be switched off at any time, without notice.</b> The maintainer can turn it off from the admin page, and it switches itself off when the month's data allowance runs out (it stops giving out new passwords at 90%, and closes at 100%). While it's off, devices that can't reach each other directly can't connect: a phone on mobile data may not get into a show or a call. Devices on the same Wi-Fi aren't affected, and nothing is sent through anyone else's relay instead.</li>
+    <li>It runs on AWS, like the rest. A copy of VUEMesh run by someone else uses their relay, or none.</li>
+  </ul>
 
-    <p><b>Recordings never go to the server.</b> Film publishing (uploading a finished film for a watch page) exists in the code but is turned off on vuemesh.com. If it's ever turned on, it will be something a host chooses for a film, and this page will say what it keeps.</p>
+  <h2 id="ondevice">Captions and face tracking</h2>
+  <p>Both run on your own device, in the browser, and both are off until someone turns them on.</p>
+  <h3>Captions</h3>
+  <ul>
+    <li><b>In the studio</b>, live captions of the program are made on the studio's computer by the browser's own on-device speech model, with "on this device only" asked for. If the browser can't promise that, there are no captions: there's no fallback to a server. The captions are kept with the program's recording in this browser, and downloaded beside it.</li>
+    <li><b>In a call</b>, each device that can recognise its own microphone's speech that way does, when anyone in the call turns Captions on, and sends the words to the others over the call's encrypted links. Nothing is kept: the words are shown and gone. A device that can't make captions (an iPhone, Safari or Firefox, for now: only Chrome and Edge on a computer can) still shows the words of anyone whose device makes them, and says so.</li>
+    <li><b>The speech model.</b> The first time, the browser downloads its speech model from its maker (Chrome from Google, Edge from Microsoft) and keeps it. That download is between your browser and its maker; no sound goes with it, and VUEMesh sends nothing to them.</li>
+  </ul>
+  <h3>Face tracking</h3>
+  <ul>
+    <li><b>On the studio's computer, and not face recognition.</b> When a host turns it on, the studio finds faces (and where people are, by their pose) in its cameras' pictures to frame the shot and see who's talking. Nothing describing what anyone looks like is made or kept, and no picture is sent anywhere.</li>
+    <li><b>Speakers, not identities.</b> People are told apart by who's talking when, and where they are in each shot; the studio keeps only "Speaker 1, Speaker 2…", any names the host types, and where each was last seen in each camera's picture, in this browser (<code>vm_speakers_…</code>).</li>
+    <li><b>The models come from vuemesh.com.</b> The face finder and pose finder (Google's MediaPipe, Apache-2.0 licensed) and their models are served from vuemesh.com itself and run in the browser. MediaPipe normally reports its own usage to Google; VUEMesh's copy has that taken out, so it has nowhere to send anything.</li>
+  </ul>
 
-    <h2 id="others">Other services your browser talks to</h2>
-    <ul>
-      <li><b>Amazon Web Services</b> hosts the site, the server, and mail to info@. Like any host, it handles your requests. The server's own logs (errors and timings, no page contents) are kept for 14 days. AWS acts for us as a processor under its data processing terms; the servers are in the United States (Ohio), and transfers from the EU and UK rely on the EU–US Data Privacy Framework and the standard contractual clauses in those terms.</li>
-      <li><b>Our STUN and TURN server</b> (<code>stun.vuemesh.com</code>): when devices connect, each asks it for its own public internet address, so they can find a path to each other. When two devices can't reach each other directly (a phone on mobile data, a strict office network), their pictures and sound go through it instead (TURN). They stay encrypted between the two devices, so it passes on what it can't read, and it keeps nothing about either: no recordings, and no logs. Its log is only counted as it's written (relays started, data relayed, requests it turned away, such as a wrong password or an address it won't relay to) and then forgotten; the counts, with no addresses, go to our server every minute and are kept with the day's anonymous counts. Devices on the same network never use it. To use it, a device gets a password from our server that's good for a day and has nothing about the device in it. So that nobody can collect thousands of them, our server counts how many each internet address asks for in an hour, under a mark made from the address with that day's random salt (as the visitor count is), and deletes the count after the hour. It runs on AWS, like the rest.
-        <br><b>The one exception: a troubleshooting log.</b> If the relay misbehaves, the maintainer can switch on its log, for an hour or a day at most, from the admin page. While it's on, the relay writes down what it does, including the internet addresses of the devices it relays, so a problem can be traced. That log is kept only in the server's memory (never on its disk, never sent anywhere), only the maintainer can read it, and it's deleted when the time's up or the server restarts. It's off unless there's a problem to fix.</li>
-      <li><b>Nothing else.</b> No fonts, scripts or images come from anyone else; the typefaces are served from vuemesh.com itself.</li>
-      <li><b>Only when you set them up:</b> a streaming service you stream to (YouTube, Twitch and the like), and Patreon or email if you follow those links.</li>
-    </ul>
+  <h2 id="logs">Logs, and the ones that can be switched on</h2>
+  <ul>
+    <li><b>The server's own logs</b>: errors and timings, no page contents, no recordings. Kept for 14 days, then deleted.</li>
+    <li><b>The relay's troubleshooting log: off unless there's a problem to fix.</b> If the relay misbehaves, the maintainer can switch on its log from the admin page, for an hour or a day at most. While it's on, the relay writes down what it does, including the internet addresses of the devices it relays (not what they send, which it can't read), so a fault or an attack can be traced. That log is kept only in the relay's memory (never on its disk, never sent anywhere), only the maintainer can read it, and it's deleted when the time's up or the relay restarts. Admin shows when it's on.</li>
+    <li><b>The show log, in the studio's browser.</b> While a show runs, the studio keeps a second-by-second record of how it went (frame rate, sound levels, what was on air, devices connecting and dropping) in this browser, so a problem can be traced afterwards. It stays here: it's sent only if you choose <b>Save show log</b> and send the file to someone. It holds no recordings.</li>
+    <li><b>Diagnostics, when you ask for them.</b> Help → Copy diagnostics (or Something wrong? on a phone) makes a short report of this browser's version, what it can record and play, and recent messages and errors, for you to read and paste where you choose. Nothing is sent by itself.</li>
+    <li><b>Mail to info@</b>: see <a href="#mail">If you email us</a>.</li>
+  </ul>
 
-    <h2 id="legal">Who's responsible, and on what basis</h2>
-    <p>vuemesh.com is run by <b>Joshua Allen Talbott</b> (Ohio, United States), who decides what is kept and is responsible for it (the "controller" under the GDPR and UK GDPR). Contact: <b>info@vuemesh.com</b>.</p>
-    <ul>
-      <li><b>Running your event</b> (the event record, who's connected, the handshake between devices): because you asked for it. It's needed to provide the service (GDPR Art. 6(1)(b)).</li>
-      <li><b>What's kept in your browser</b>: it's strictly necessary for the app you're using to work, so it doesn't need a consent banner (ePrivacy Directive Art. 5(3)). You can clear it at any time, above.</li>
-      <li><b>Anonymous counts and page views, server logs</b>: our legitimate interest in keeping the service working, secure, and knowing whether it's used (Art. 6(1)(f)). You can opt out of page views with Do Not Track or Global Privacy Control.</li>
-      <li><b>The relay's troubleshooting log</b>, when it's switched on: our legitimate interest in finding and fixing a fault or an attack on the relay (Art. 6(1)(f)). It's kept for a day at most.</li>
-      <li><b>Mail you send</b>: our legitimate interest in answering you (Art. 6(1)(f)).</li>
-    </ul>
-    <p>Nothing is sold or shared for advertising, and nothing is used for automated decisions about you.</p>
+  <h2 id="publish">Streaming and publishing</h2>
+  <ul>
+    <li><b>Publishing isn't here yet.</b> Uploading a finished film to a VUEMesh watch page is planned as a future feature of the platform. It's built but switched off on vuemesh.com, so nothing you make is uploaded to us. If it's turned on, it will be something a host chooses for each film, and this page will say first what it keeps and for how long.</li>
+    <li><b>For now, share a show through a streaming service.</b> The studio streams the program straight from your computer to the service you choose (YouTube, Twitch, Facebook and the like): directly from the browser, or, for services that need RTMP, through the VUEMesh relay program running on your own computer. It goes to that service only while you're streaming, never through our server, and that service's own privacy terms apply to it. You can also export your recordings and upload them anywhere yourself.</li>
+  </ul>
 
-    <h2 id="you">Your choices and rights</h2>
-    <ul>
-      <li>Delete or export a single event's recordings from the home page, or a phone's from My footage.</li>
-      <li>Clear everything with the button above, or with your browser's own "clear site data".</li>
-      <li>Turn on Do Not Track or Global Privacy Control and no page views are counted.</li>
-      <li>A host can delete an event from the server at any time from the studio; it deletes itself after 30 days anyway.</li>
-      <li>Run your own copy: it's MIT licensed, and your copy keeps only what you choose.</li>
-      <li><b>Your rights:</b> you can ask to see, correct, or delete what we hold about you, to restrict or object to its use, or to get a copy of it. Write to <b>info@vuemesh.com</b>. With no accounts, the server usually can't tell which records are yours, so tell us the event code or the message you sent, and we'll answer within a month.</li>
-      <li>You can also complain to a data protection authority, for example the one where you live (in the UK, the ICO).</li>
-    </ul>
+  <h2 id="mail">If you email us</h2>
+  <p>Mail to <b>info@vuemesh.com</b> is received by Amazon's email service, checked for viruses and spam, and forwarded to the maintainer's inbox. A copy is kept encrypted on AWS for 30 days, then deleted automatically; the forwarding keeps a one-line record that a message was passed on (its ID, not its contents) for 14 days. Nobody else reads it, and the address isn't added to any list.</p>
 
-    <h2 id="changes">Changes and questions</h2>
-    <p>If what VUEMesh keeps changes, this page changes with it, in the same release (it's in the <a href="https://github.com/jtalbott22/vuemesh">public repository</a>, so every change is visible). Questions: <a id="contactLink" target="_blank" rel="noopener">get in touch</a>, or open an issue.</p>
-  </main>
-  <footer><a href="/">Home</a><a href="/terms">Terms</a><a href="/accessibility">Accessibility</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
-</div>
+  <h2 id="others">Other services your browser talks to</h2>
+  <ul>
+    <li><b>Amazon Web Services</b> hosts the site, the server, the STUN server and relay, and mail to info@. Like any host, it handles your requests. AWS acts for us as a processor under its data processing terms; the servers are in the United States (Ohio), and transfers from the EU and UK rely on the EU–US Data Privacy Framework and the standard contractual clauses in those terms.</li>
+    <li><b>Your browser's maker</b>, only if you turn on captions: the one-time download of its speech model (<a href="#ondevice">above</a>).</li>
+    <li><b>Nothing else.</b> No fonts, scripts or images come from anyone else; the typefaces and the face-tracking models are served from vuemesh.com itself.</li>
+    <li><b>Only when you set them up:</b> a streaming service you stream to, and Patreon or email if you follow those links.</li>
+  </ul>
+
+  <h2 id="legal">Who's responsible, and on what basis</h2>
+  <p>vuemesh.com is run by <b>Joshua Allen Talbott</b> (Ohio, United States), who decides what is kept and is responsible for it (the "controller" under the GDPR and UK GDPR). Contact: <b>info@vuemesh.com</b>.</p>
+  <ul>
+    <li><b>Running your event or call</b> (the event or call record, who's connected, the handshake between devices, the relay when it's needed): because you asked for it. It's needed to provide the service (GDPR Art. 6(1)(b)).</li>
+    <li><b>What's kept in your browser</b>: it's strictly necessary for the app you're using to work, so it doesn't need a consent banner (ePrivacy Directive Art. 5(3)). You can clear it at any time, above.</li>
+    <li><b>Anonymous counts and page views, server logs</b>: our legitimate interest in keeping the service working, secure, and knowing whether it's used (Art. 6(1)(f)). You can opt out of page views with Do Not Track or Global Privacy Control.</li>
+    <li><b>The relay's troubleshooting log</b>, when it's switched on: our legitimate interest in finding and fixing a fault or an attack on the relay (Art. 6(1)(f)). It's kept for a day at most.</li>
+    <li><b>Mail you send</b>: our legitimate interest in answering you (Art. 6(1)(f)).</li>
+  </ul>
+  <p>Nothing is sold or shared for advertising, and nothing is used for automated decisions about you.</p>
+
+  <h2 id="you">Your choices and rights</h2>
+  <ul>
+    <li>Delete or export a single event's recordings from the home page, or a phone's from My events.</li>
+    <li>Clear everything with the button above, or with your browser's own "clear site data".</li>
+    <li>Turn on Do Not Track or Global Privacy Control and no page views are counted.</li>
+    <li>A host can delete an event from the server at any time from the studio; it deletes itself after 30 days anyway. A call deletes itself after a day.</li>
+    <li>Leave captions and face tracking off, and nothing runs for them.</li>
+    <li>Run your own copy: it's MIT licensed, and your copy keeps only what you choose.</li>
+    <li><b>Your rights:</b> you can ask to see, correct, or delete what we hold about you, to restrict or object to its use, or to get a copy of it. Write to <b>info@vuemesh.com</b>. With no accounts, the server usually can't tell which records are yours, so tell us the event or call code, or the message you sent, and we'll answer within a month.</li>
+    <li>You can also complain to a data protection authority, for example the one where you live (in the UK, the ICO).</li>
+  </ul>
+
+  <h2 id="changes">Changes and questions</h2>
+  <p>If what VUEMesh keeps changes, this page changes with it, in the same release (it's in the <a href="https://github.com/jtalbott22/vuemesh">public repository</a>, so every change is visible). Questions: <a id="contactLink" target="_blank" rel="noopener">get in touch</a>, or open an issue.</p>
+
+  <footer class="foot"><a href="/">Home</a><a href="/terms">Terms</a><a href="/accessibility">Accessibility</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
+</main>
 <script src="/js/version.js" type="module"></script>
 <script type="module">
   import { $, themeButton } from '/js/vm.js';

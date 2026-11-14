@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.90.0 — the Privacy page, brought up to date
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.89.0.
+
+**The Privacy page says what's changed,** in sections of their own you can link to:
+- **Calls:** what goes device to device (names, pictures, sound, shared screens and their sound, captions), how people get in, and what the server keeps for a call, for a day.
+- **The relay (TURN), and when it may be off:** what it can and can't see, the day's password, and that it may be switched off at any time, by the maintainer or by itself when the month's data runs out. While it's off, devices that can't reach each other directly can't connect.
+- **Captions and face tracking:** made on your own device; the browser's one-time speech-model download from its maker (no sound goes with it); the face and pose models served from vuemesh.com, with MediaPipe's reporting to Google taken out.
+- **Logs, and the ones that can be switched on:** the server's 14-day logs, the relay's troubleshooting log (off unless there's a problem, an hour or a day at most, in memory only), and the show log and diagnostics, which stay in your browser unless you send them.
+- **Streaming and publishing:** publishing to a VUEMesh watch page is planned for the future; for now, share a show through a streaming service, straight from your computer.
+- **In this browser:** now lists a call's key and PIN, the stream key (sent only to the service you chose), a call's choices and its pass for the tab.
+
+**It looks like the rest of VUEMesh:** the same bar along the top, the short version as a card with checks, links to each section at the top, the storage table in a card.
+
 ## 0.89.0 — muted at a glance, honest captions, and a knock you can't miss
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.88.0.
 
