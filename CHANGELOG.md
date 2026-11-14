@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.91.0 — Terms, Accessibility and What's new in the same look
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.90.1.
+
+**Terms, Accessibility and What's new now look like the Privacy page:** the same bar along the top, a short label over the title, a reading column, and a footer to the other pages. The styles are shared, so the four stay alike.
+- **Terms:** the beta note as an amber card, and the contents as a numbered card in two columns.
+- **Accessibility:** links to each section, and a new **In a call** section: every control has a word, muted is a struck microphone read out as "muted", someone waiting gets a bar that's announced, and captions never look on when nothing's coming. The captions limit says which browsers can make them, and that others can still see them.
+- **What's new:** the newest versions as cards, each version a pill (the newest red), the older ones folded into rows.
+
 ## 0.90.1 — the drawings say how it works now
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.90.0.
 
