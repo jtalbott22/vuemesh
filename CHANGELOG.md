@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.83.0 — the TV page in the same look
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.82.0.
+
+**The TV page now looks like the rest of VUEMesh:** the studio's type and colours, the red dot and wordmark, always dark. Its two ways in, a studio's program or phones straight to the TV, are each a card with a short label over it, and Connect is red like every page's next step. The code's cells, the mode switch (Program, Browse, Beacon, PIP), the recordings, and the buttons over the picture all match the other pages.
+
+**It fits more screens:** a laptop-sized window no longer runs off the side, and a TV or monitor turned upright puts the two cards one above the other with type sized to its height.
+
 ## 0.82.0 — one look for the pages people join from
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.81.0.
 
