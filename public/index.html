@@ -129,6 +129,7 @@
   .where .k.dash { height: 0; border-top: 2px dashed var(--muted); }
   .where .k.keep { background: #8a8f99; }
   .where .k.live { background: #a46fe0; }
+  .where .k.relay { height: 0; border-top: 2px dashed var(--tally); }
   @keyframes wire { to { background-position: 16px 0; } }
   .flow.fresh li, .flow.fresh .hubcard { animation: rigin .35s ease-out both; }
   .flow.fresh li:nth-child(2) { animation-delay: .04s; } .flow.fresh li:nth-child(3) { animation-delay: .08s; } .flow.fresh li:nth-child(4) { animation-delay: .12s; } .flow.fresh li:nth-child(5) { animation-delay: .16s; }
@@ -531,7 +532,7 @@
 
   <section class="kit positioning" aria-labelledby="ph">
     <h2 id="ph">Not a video upload service.<br><span style="color:var(--soft)">A production system.</span></h2>
-    <p>Nothing you shoot is uploaded to be processed somewhere else. VUEMesh coordinates your cameras, microphones and controls in the browser; the cloud only introduces your devices to each other, and the pictures go straight between them on your own network.</p>
+    <p>Nothing you shoot is uploaded to be processed somewhere else. VUEMesh coordinates your cameras, microphones and controls in the browser; the cloud introduces your devices to each other, and the pictures go straight between them, on your own network or, when they can't reach each other at all, through our relay, encrypted so it can't read them.</p>
     <ul class="kitgrid two">
       <li>
         <b>Browser-native</b>
@@ -552,7 +553,7 @@
       <div><h3>Sees and hears</h3><ul id="rigIn"></ul></div>
       <div class="wire" aria-hidden="true"><span>your network</span></div>
       <div class="hub">
-        <div class="cloudchip" id="rigCloud" title="The cloud introduces your devices to each other. Your pictures and sound never go through it."><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 36h21a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-1 18z"/></svg><span><b>VUEMesh cloud</b><small>Introductions only</small></span></div>
+        <div class="cloudchip" id="rigCloud" title="The cloud introduces your devices to each other. Pictures and sound go through it only when two devices can&#39;t reach each other at all (our relay), encrypted so it can&#39;t read them."><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 36h21a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-1 18z"/></svg><span><b>VUEMesh cloud</b><small>Introductions, and a relay if needed</small></span></div>
         <div class="cloudline" aria-hidden="true"></div>
         <div class="hubcard" id="rigStudio"></div><div class="remotechip" id="rigRemote" hidden></div>
       </div>
@@ -562,8 +563,9 @@
     <div class="where" aria-labelledby="whereH">
       <h3 id="whereH">Where everything goes</h3>
       <ul>
-        <li><i class="k solid" aria-hidden="true"></i><span><b>Pictures and sound go device to device,</b> over your own Wi‑Fi or network. They're never uploaded, and there's no server in the middle to pass them through.</span></li>
-        <li><i class="k dash" aria-hidden="true"></i><span><b>The cloud only makes introductions:</b> the event's code and name, who's in it, and the handshake that lets your devices find each other. Turn on <b>Local network only</b> in the studio and that's all that ever leaves the room.</span></li>
+        <li><i class="k solid" aria-hidden="true"></i><span><b>Pictures and sound go device to device,</b> over your own Wi‑Fi or network, or straight across the internet. They're never uploaded or stored anywhere else.</span></li>
+        <li><i class="k relay" aria-hidden="true"></i><span><b>Only when two devices can't reach each other at all</b> (a phone on mobile data, a strict office network) do they go through our relay, encrypted end to end so it can't read them, and it keeps nothing. It may be switched off at any time; <b>Local network only</b> never uses it.</span></li>
+        <li><i class="k dash" aria-hidden="true"></i><span><b>The cloud makes introductions:</b> the event's code, who's in it, and the handshake that lets your devices find each other. Never the show's name, which stays on your devices. Turn on <b>Local network only</b> in the studio and that's all that ever leaves the room.</span></li>
         <li><i class="k keep" aria-hidden="true"></i><span><b>Recordings stay yours.</b> Each camera records itself in full quality and hands the file straight to your studio computer, where it stays in the browser until you export or delete it. The camera keeps its own copy.</span></li>
         <li><i class="k live" aria-hidden="true"></i><span><b>Going live is your call.</b> The show goes to YouTube or wherever you choose straight from your studio computer, and only while you're streaming.</span></li>
       </ul>
@@ -766,7 +768,7 @@
         <a class="btn primary" id="beaconLink" target="_blank" rel="noopener">Open the QR Beacon</a>
         <a class="btn" id="studioLink" target="_blank" rel="noopener">Open the studio</a>
         <button type="button" class="ghost" id="copyStudio">Copy studio link</button>
-        <p class="hintline">The studio link carries your host key. Keep it private — it's the only way to publish cuts.</p>
+        <p class="hintline">The studio link carries your host key. Keep it private: it's the only way to run the studio for this show.</p>
       </div>
     </form>
   </section>

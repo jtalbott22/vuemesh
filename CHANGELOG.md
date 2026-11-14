@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.90.1 — the drawings say how it works now
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.90.0.
+
+**The home page's setup drawing and its key no longer say pictures never go through a server.** They go device to device, on your network or straight across the internet; only when two devices can't reach each other at all do they go through our relay, encrypted so it can't read them, and it may be switched off at any time. The cloud's chip says "Introductions, and a relay if needed". The key no longer says the cloud gets the show's name (it never does), and the studio link's note no longer talks about publishing, which isn't on.
+
+**The README's diagrams match too:** phones and other computers can need the relay, not only people on a call; the relay may be switched off; publishing to a watch page is planned, not an option today (share the file, or stream it); the beacon is the QR Beacon. How it fits together says the relay may be off, and to keep a show that matters on one network.
+
 ## 0.90.0 — the Privacy page, brought up to date
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.89.0.
 
