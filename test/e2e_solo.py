@@ -19,7 +19,7 @@ with sync_playwright() as p:
     ev = cam.evaluate("""async () => (await fetch('/api/events', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({title:'Backyard wedding'})})).json()""")
     cam.goto(f"{BASE}/cam?e={ev['id']}")
     tb = cam.locator('#themeBtn').bounding_box()
-    joining = cam.locator('.toprow p').bounding_box()
+    joining = cam.locator('#joinView .vm-eyebrow').bounding_box()
     assert tb['width'] <= 40 and joining['height'] < 40, (tb, joining)
     step(f"theme toggle is a {tb['width']:.0f}px symbol (\"{cam.inner_text('#themeBtn')}\", labelled \"{cam.get_attribute('#themeBtn', 'aria-label')}\"); \"You're joining\" stays on one line")
 

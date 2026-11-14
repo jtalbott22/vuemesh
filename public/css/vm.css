@@ -156,3 +156,163 @@ kbd {
 .agree input { width: 20px; height: 20px; margin-top: .15em; flex: none; }
 
 button.danger { background: var(--tally); color: #fff; }
+
+/* ===========================================================================================
+   The pages people join from: Camera, Share, Call and My events. One look, the studio's: the
+   tally-red dot and wordmark on a surface bar, Archivo, cards on the page colour, red for the one
+   thing to do next, green for "you're in", amber for "look at this". Everything here is vm-
+   prefixed, so the pages that already use vm.css don't change.
+   =========================================================================================== */
+:root { --err: #ff8a80; --ok: #2bd36b; --card-r: 18px; --gutter: max(16px, env(safe-area-inset-left, 0px)); --gutter-r: max(16px, env(safe-area-inset-right, 0px)); }
+:root[data-theme="light"] { --err: #b3261e; --ok: #15803d; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) { --err: #b3261e; --ok: #15803d; } }
+.dot.on { background: var(--ok); }
+
+/* the bar along the top: the mark, the version, then whatever the page needs, the theme last */
+.vm-top { display: flex; align-items: center; gap: 12px; min-height: 56px; flex: none;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) var(--gutter-r) 8px var(--gutter);
+  background: var(--surface); border-bottom: 1px solid var(--line); position: relative; z-index: 5; }
+.vm-top h2 { margin: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vm-spacer { flex: 1; }
+.vm-mark { display: inline-flex; align-items: center; gap: .5em; font-weight: 800; font-stretch: 125%; font-size: 1.02rem;
+  letter-spacing: -.005em; color: var(--text); text-decoration: none; white-space: nowrap; flex: none; }
+.vm-mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tally) 22%, transparent); }
+.vm-top .vmver { color: var(--text-2); }
+.vm-top button { min-height: 38px; padding: .35em .9em; font-size: .9rem; }
+
+/* the page under it: the content in the middle of whatever's left of the window */
+.vm-page { min-height: 100dvh; display: flex; flex-direction: column; }
+.vm-main { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; display: grid; align-content: center;
+  padding: clamp(20px, 4vh, 56px) var(--gutter-r) calc(clamp(24px, 5vh, 64px) + env(safe-area-inset-bottom, 0px)) var(--gutter); }
+.vm-narrow { max-width: 520px; }
+
+/* Story beside the card on a computer, a TV or a phone held sideways; one above the other on a
+   phone held upright or a narrow window. */
+.vm-split { display: grid; gap: clamp(20px, 4vw, 40px); align-items: center; }
+.vm-split > * { min-width: 0; }
+@media (min-width: 860px), (orientation: landscape) and (min-width: 600px) and (max-height: 560px) {
+  .vm-split { grid-template-columns: minmax(0, 1fr) minmax(340px, 460px); gap: clamp(32px, 6vw, 96px); }
+  .vm-split.wide-left { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 420px); }
+}
+/* a phone held upright: the form is what matters, so the story stays short above it */
+@media (max-width: 599px) {
+  .vm-steps { display: none; }
+  .vm-story { gap: 10px; }
+  .vm-story h1 { font-size: clamp(1.9rem, 9vw, 2.5rem); }
+  .vm-main { align-content: start; padding-top: 22px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .vm-main { align-content: start; }
+  .vm-story h1 { font-size: 1.9rem; }
+  .vm-steps { display: none; }
+}
+
+.vm-story { display: grid; gap: 14px; justify-items: start; }
+.vm-story h1 { font-size: clamp(2rem, 4.6vw, 3.6rem); margin: 0; text-wrap: balance; max-width: 14ch; }
+.vm-story h1.long { max-width: 20ch; }
+.vm-lead { font-size: clamp(1rem, 1.3vw, 1.15rem); color: var(--text-2); margin: 0; max-width: 44ch; }
+.vm-eyebrow { display: inline-flex; align-items: center; gap: .55em; margin: 0; font-size: .72rem; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-2); }
+.vm-eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--tally); }
+.vm-eyebrow.pvw::before { background: var(--ok); }
+.vm-eyebrow.amber::before { background: var(--amber); }
+
+/* how it works, in three short steps */
+.vm-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; counter-reset: step; max-width: 44ch; }
+.vm-steps li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; color: var(--text-2); counter-increment: step; }
+.vm-steps li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 .82rem/1 var(--font); font-variant-numeric: tabular-nums; color: var(--text); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.vm-steps b { color: var(--text); font-weight: 700; }
+
+.vm-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); box-shadow: var(--shadow);
+  padding: clamp(18px, 2.2vw, 28px); display: grid; gap: 14px; align-content: start; }
+.vm-card > * { margin: 0; }
+.vm-card h2 { font-size: 1.25rem; }
+.vm-card .field { margin: 0; }
+.vm-card button, .vm-card .btn { width: 100%; }
+.vm-card button.inline { width: auto; }
+.vm-stack { display: grid; gap: 14px; align-content: start; }
+.vm-actions { display: grid; gap: 10px; }
+.vm-actions.two { grid-template-columns: 1fr 1fr; }
+.vm-card button.big, .vm-big { min-height: 54px; font-size: 1.05rem; border-radius: 12px; }
+.vm-fine { color: var(--muted); font-size: .86rem; line-height: 1.5; margin: 0; }
+.vm-fine a { color: var(--text-2); }
+.vm-err { color: var(--err); font-weight: 600; margin: 0; }
+.vm-err:empty { display: none; }
+.vm-say { color: var(--text-2); margin: 0; }
+
+/* "or", across the card */
+.vm-or { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; color: var(--muted); font-size: .8rem;
+  font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.vm-or::before, .vm-or::after { content: ""; border-top: 1px solid var(--line); }
+
+/* A code, one cell per character, like the TV's (and a character generator's slots). One real
+   input, so typing, pasting and autofill work as they always did: the cells are its background,
+   one character's pitch apart. */
+.vm-code { --n: 6; --cell: var(--surface-2); --cell-edge: var(--surface-3); --pitch: 1.62ch; --gap: 6px;
+  font: 700 clamp(1.8rem, 7vw, 2.5rem)/1 var(--mono); text-transform: uppercase; letter-spacing: calc(var(--pitch) - 1ch);
+  width: calc(var(--n) * var(--pitch)); max-width: 100%; min-height: 0; height: 1.9em; padding: 0 0 0 calc((var(--pitch) - 1ch) / 2);
+  border: 0; border-radius: 0; color: var(--text); caret-color: var(--amber); text-align: left;
+  background:
+    repeating-linear-gradient(90deg, var(--cell-edge) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)) left bottom / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, var(--cell) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch));
+  box-shadow: none; }
+.vm-code::placeholder { color: var(--muted); opacity: .45; }
+.vm-code:focus { outline: none;
+  background:
+    repeating-linear-gradient(90deg, var(--amber) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)) left bottom / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, var(--cell) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)); }
+.vm-code:user-invalid { background:
+    repeating-linear-gradient(90deg, var(--tally) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)) left bottom / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, var(--cell) 0 calc(var(--pitch) - var(--gap)), transparent 0 var(--pitch)); }
+.vm-code.digits { --pitch: 1.5ch; font-size: clamp(1.4rem, 5.4vw, 1.9rem); }
+.vm-codewrap { display: grid; gap: 8px; }
+.vm-codewrap label { margin: 0; font-size: .82rem; color: var(--text-2); }
+
+/* choices as cards: a radio and its words (what you're showing, how you're joining) */
+.vm-choices { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.vm-choices.two { grid-template-columns: 1fr 1fr; }
+@media (max-width: 480px) { .vm-choices.two { grid-template-columns: 1fr; } }
+.vm-choices legend { padding: 0; margin: 0 0 8px; font-size: .82rem; font-weight: 600; color: var(--text-2); }
+.vm-choices label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; margin: 0; cursor: pointer;
+  padding: 12px 14px; border-radius: 12px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; transition: box-shadow .15s, background .15s; }
+.vm-choices label:hover { box-shadow: inset 0 0 0 1px var(--muted); }
+.vm-choices label:has(input:checked) { box-shadow: inset 0 0 0 2px var(--tally); background: color-mix(in srgb, var(--tally) 8%, var(--surface-2)); }
+.vm-choices input { width: 18px !important; height: 18px; margin: 3px 0 0; grid-row: span 2; }
+.vm-choices small, .vm-choices span > span { display: block; grid-column: 2; font-weight: 400; font-size: .84rem; color: var(--text-2); line-height: 1.4; }
+
+/* a picture with its tally: grey idle, green in preview, red on air */
+.vm-monitor { position: relative; background: #000; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; box-shadow: 0 0 0 3px var(--line), var(--shadow); }
+.vm-monitor.pvw { box-shadow: 0 0 0 3px var(--preview), var(--shadow); }
+.vm-monitor.air { box-shadow: 0 0 0 3px var(--tally), var(--shadow); }
+.vm-monitor video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.vm-tag { display: inline-flex; align-items: center; gap: .4em; padding: .28em .65em; border-radius: 6px; font-size: .72rem; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase; background: #000c; color: #fff; white-space: nowrap; }
+.vm-monitor > .vm-tag { position: absolute; left: 10px; top: 10px; }
+.vm-tag.air, .air > .vm-tag { background: var(--tally); }
+.vm-tag.pvw, .pvw > .vm-tag { background: var(--preview); }
+.vm-tag.lock { background: var(--amber); color: #2b1d00; }
+
+/* a status line: a lamp and what it means */
+.vm-status { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--text-2); }
+.vm-status .dot { flex: none; }
+
+/* tabs as one control */
+.vm-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.vm-seg button { min-height: 36px; padding: .3em 1.1em; font-size: .9rem; border-radius: 8px; background: transparent; color: var(--text-2); }
+.vm-seg button[aria-selected="true"], .vm-seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px #0003, 0 0 0 1px var(--line); }
+
+/* a note in the card's flow: amber for news, the surface for a tip */
+.vm-note { border-radius: 12px; padding: 12px 14px; background: var(--surface-2); font-size: .92rem; }
+.vm-note.amber { background: color-mix(in srgb, var(--amber) 14%, var(--surface)); box-shadow: inset 3px 0 0 var(--amber); }
+
+/* a link that reads as one */
+.vm-link { background: none !important; box-shadow: none !important; color: var(--text-2); text-decoration: underline; text-underline-offset: .2em;
+  min-height: 36px; padding: 0 .2em; font-weight: 600; width: auto !important; }
+.vm-link:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .vm-rise { animation: vmRise .4s cubic-bezier(.2, .7, .2, 1) both; }
+  .vm-rise.d1 { animation-delay: .06s; }
+  @keyframes vmRise { from { opacity: 0; transform: translateY(10px); } }
+}

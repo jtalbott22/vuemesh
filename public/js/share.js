@@ -9,10 +9,11 @@
 // Or into a call (/share?e=CODE#k=KEY, the call's link with /share: callmesh.js): one more in the
 // call, sending only its screen (and the screen's sound), let in from the waiting room like anyone.
 import { CamLink } from '/js/rtc.js';
-import { api, identity, meshSocket, thumbprint, showName, keepShowName } from '/js/vm.js';
+import { api, identity, meshSocket, thumbprint, showName, keepShowName, themeButton } from '/js/vm.js';
 import { CallMesh, MAX_PEOPLE } from '/js/callmesh.js';
 
 const $ = (s) => document.querySelector(s);
+themeButton($('#themeBtn'));
 const q = new URLSearchParams(location.search);
 let eventId = (q.get('e') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 let ev = null, sock = null, link = null, stream = null, cid = null, name = '', sendTimer = null;
@@ -257,7 +258,7 @@ function connect() {
       if (m.t === 'tally') air = !!m.on;
       if (m.t === 'pvw' || m.t === 'tally') {
         tier();
-        $('#pv').className = 'pv' + (air ? ' air' : pvw ? ' pvw' : '');
+        $('#pv').className = 'pv vm-monitor' + (air ? ' air' : pvw ? ' pvw' : '');
         $('#tag').textContent = toTv() ? (air ? 'ON THE TV' : 'Waiting for a place') : air ? 'ON AIR' : pvw ? 'Up next' : 'In the studio';
       }
     },

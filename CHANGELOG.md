@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.82.0 — one look for the pages people join from
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.81.0.
+
+**Camera, Share, Call and My events now look like the studio:** the same bar along the top (the red dot and VUEMesh, the version, the theme switch), the same type, cards and colours, and red for the one thing to do next. Share and Call had their own colours and fonts and no light theme; now they follow Auto, Light and Dark like the rest. The TV page stays as it is: it's read from across a room.
+
+**Codes are typed into cells, one per character, like the TV's.** It's still one box, so pasting and autofill work as before.
+
+**Made for laptops, big screens and phones either way up:**
+- On a computer, a TV or a phone held sideways, what the page is for sits beside its form (how it works in three steps, or what a call keeps private); on a phone held upright, the form comes first.
+- **Call:** before you join, your picture is large beside your name. In the call, everyone's picture is as large as the window allows, two, four or six to a screen, and stacked on a phone held upright.
+- **Share:** while sharing, the picture with its ON AIR or Up next light beside the controls; in a small window in a corner, just the essentials.
+- **My events:** clips are a grid of pictures on a computer and a list on a phone; the show's numbers are big tiles, with messages and the rundown side by side. An event with nothing yet says so with a picture, not a blank page, and each clip's Delete is quieter than Send and Save.
+
 ## 0.81.0 — TVs in Admin, and menus that stay open
 **Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.80.0.
 
