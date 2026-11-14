@@ -89,6 +89,7 @@ function newMesh() {
       refused: (why) => toast(why, 5000),
       knock: (id, name) => {
         if (!mesh?.canRun) return; // (the studio lets people into its call: it's told, not the guests)
+        renderPeople(); // (the bar across the top, with Let in)
         toast(`${name} is waiting to come in`, 6000);
         announce(`${name} is waiting to come in`);
       },
@@ -142,12 +143,20 @@ async function openMedia() {
   showFlip(); // (the cameras' list is only full once one's allowed)
 }
 navigator.mediaDevices?.addEventListener?.('devicechange', () => showFlip());
+// A control's words: in its label when it has an icon (the call's bar), else the button itself
+function setLabel(btn, text) {
+  const lb = btn.querySelector('.lb');
+  if (lb) lb.textContent = text;
+  else btn.textContent = text;
+}
 function applyToggles() {
   for (const t of local?.getAudioTracks() || []) t.enabled = micOn;
   for (const t of local?.getVideoTracks() || []) t.enabled = camOn;
   for (const [id, on, what] of [['#preMic', micOn, 'Microphone'], ['#preCam', camOn, 'Camera'], ['#micBtn', micOn, 'Mic'], ['#camBtn', camOn, 'Camera']]) {
     $(id).setAttribute('aria-pressed', String(on));
-    $(id).textContent = `${what} ${on ? 'on' : 'off'}`;
+    // (in the call's bar, the icon says on or off, slashed and red when off, and the button's pressed
+    // state says it to a screen reader: the word stays short, so six fit across a phone)
+    setLabel($(id), $(id).querySelector('.lb') ? what : `${what} ${on ? 'on' : 'off'}`);
   }
   localStorage.setItem('vm_call_mic', micOn ? '1' : '0');
   localStorage.setItem('vm_call_cam', camOn ? '1' : '0');
@@ -242,7 +251,8 @@ $('#shareBtn').onclick = async () => {
   mesh?.refill();
   toast(screen.getAudioTracks().length ? 'Its sound goes to the call too.' : `No sound with it. ${soundHow}`, 6000);
   $('#shareBtn').setAttribute('aria-pressed', 'true');
-  $('#shareBtn').textContent = 'Stop sharing';
+  setLabel($('#shareBtn'), 'Stop');
+  $('#shareBtn').setAttribute('aria-label', 'Stop sharing your screen');
   renderAll();
 };
 function stopShare() {
@@ -252,7 +262,8 @@ function stopShare() {
   mesh?.refill();
   closeMix();
   $('#shareBtn').setAttribute('aria-pressed', 'false');
-  $('#shareBtn').textContent = 'Share screen';
+  setLabel($('#shareBtn'), 'Share');
+  $('#shareBtn').setAttribute('aria-label', 'Share your screen');
   renderAll();
 }
 
@@ -276,14 +287,20 @@ function setTracks(media, tracks) {
   media.play?.().catch(() => {});
   return true;
 }
-function fillTile(el, { stream, name, mic, cam, state, cc = '', ccNote = '' }) {
-  // (their words, while captions are on here; or why there are none from them)
+function fillTile(el, { stream, name, mic, cam, state, cc = '', ccNote = '', ccOk = false }) {
+  // (their words, while captions are on here; and a small CC on their picture: plain when their
+  // device captions them, struck through when it can't, the reason on hover and to a screen reader)
   const c = el.querySelector('.cc');
   const words = ccWant ? cc : '';
   if (c.textContent !== words) c.textContent = words;
   const n = el.querySelector('.ccnote');
-  n.hidden = !ccWant || !ccNote;
-  n.textContent = ccNote;
+  n.hidden = !ccWant || !(ccNote || ccOk);
+  n.textContent = n.hidden ? '' : 'CC';
+  n.classList.toggle('cant', !!ccNote);
+  const why = ccNote ? ccNote[0].toUpperCase() + ccNote.slice(1) : 'Captions on';
+  n.title = why;
+  n.setAttribute('aria-label', why);
+  n.setAttribute('role', 'img');
   const v = el.querySelector('video');
   setTracks(v, stream?.getVideoTracks() || []);
   v.muted = true;
@@ -292,7 +309,18 @@ function fillTile(el, { stream, name, mic, cam, state, cc = '', ccNote = '' }) {
   const off = el.querySelector('.off');
   off.hidden = showPic;
   off.textContent = (name || '?').trim().slice(0, 1).toUpperCase();
-  el.querySelector('.who span').textContent = `${name || 'Joining…'}${mic ? '' : ' · muted'}`;
+  el.querySelector('.who span').textContent = name || 'Joining…';
+  // (muted: a struck microphone after the name, said in words to a screen reader)
+  let mut = el.querySelector('.who .mut');
+  if (!mic && !mut) {
+    mut = document.createElement('i');
+    mut.className = 'mut';
+    mut.setAttribute('role', 'img');
+    mut.setAttribute('aria-label', 'muted');
+    mut.title = 'Muted';
+    mut.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M3 3l18 18"/></svg>';
+    el.querySelector('.who').append(mut);
+  } else if (mic && mut) mut.remove();
   const st = el.querySelector('.state');
   st.hidden = !state;
   st.textContent = state || '';
@@ -306,7 +334,7 @@ function renderSelf() {
   }
   // (a back camera isn't shown as in a mirror)
   selfTile.classList.toggle('nomirror', local?.getVideoTracks()[0]?.getSettings?.().facingMode === 'environment');
-  fillTile(selfTile, { stream: local, name: `${myName} (you)`, mic: micOn, cam: camOn, cc: ccSaid, ccNote: ccNoteOf(ccCan) });
+  fillTile(selfTile, { stream: local, name: `${myName} (you)`, mic: micOn, cam: camOn, cc: ccSaid, ccNote: ccNoteOf(ccCan), ccOk: ccCan === 'yes' });
   markBig();
 }
 
@@ -436,7 +464,7 @@ function renderAll() {
       $('#grid').append(tiles.get(id));
     }
     const st = p.pc.connectionState;
-    fillTile(tiles.get(id), { cc: p.cc && Date.now() - p.ccAt < 8000 ? p.cc : '', ccNote: ccNoteOf(p.ccCan), stream: p.cam$, name: p.name, mic: p.mic, cam: p.cam, state: st === 'connected' ? [p.relayed ? 'relay' : '', p.mic && p.hearing === false ? 'no sound coming' : ''].filter(Boolean).join(' · ') : st === 'failed' ? 'no connection' : 'connecting…' });
+    fillTile(tiles.get(id), { cc: p.cc && Date.now() - p.ccAt < 8000 ? p.cc : '', ccNote: ccNoteOf(p.ccCan), ccOk: p.ccCan === 'yes', stream: p.cam$, name: p.name, mic: p.mic, cam: p.cam, state: st === 'connected' ? [p.relayed ? 'relay' : '', p.mic && p.hearing === false ? 'no sound coming' : ''].filter(Boolean).join(' · ') : st === 'failed' ? 'no connection' : 'connecting…' });
     if (p.sharing && p.screen$.getVideoTracks().length) shown = { stream: p.screen$, who: p.name };
   }
   for (const [id, el] of tiles) if (!mesh.peers.has(id)) { el.remove(); tiles.delete(id); }
@@ -551,6 +579,10 @@ async function syncCaptioning() {
   syncCaptioning.busy = true;
   try {
     const can = await ccSupport();
+    if (!ccHere) {
+      ccHere = can;
+      applyCcView();
+    }
     const track = local?.getAudioTracks()[0];
     if (can !== 'yes') return setCcCan(can);
     if (!track) return setCcCan('nomic');
@@ -580,9 +612,41 @@ setInterval(() => {
 }, 300);
 setInterval(() => mesh?.inCall && ccWant && renderAll(), 2000); // (words from someone who's gone quiet clear)
 
+// Can this browser make captions? Asked once, the first time anyone wants them (it doesn't change
+// while the page is open, and asking early isn't safe everywhere: see captions.js). Captions
+// are made on each person's own device, and only Chrome and Edge on a computer can (not an iPhone,
+// Safari or Firefox). A device that can't still shows the words of anyone whose device can: so a
+// tap there turns captions on only when someone in the call is making them, and otherwise says
+// why and stays off, struck through. It never looks on with nothing coming.
+let ccHere = null; // null: not asked yet; then 'yes', 'download' or 'no'
+const CC_CANT = 'This browser can’t make captions: they’re made on each device, and only Chrome or Edge on a computer can.';
+async function checkCcHere() {
+  if (!ccHere) {
+    ccHere = await ccSupport();
+    // (left on from before, on a device that can't: off, until a tap finds someone making them)
+    if (ccHere === 'no' && ccWant) {
+      ccWant = false;
+      localStorage.setItem('vm_call_cc', '0');
+    }
+    applyCcView();
+  }
+  return ccHere;
+}
+const othersCaption = () => [...(mesh?.peers.values() || [])].some((p) => p.ccCan === 'yes');
+/** On a device that can't: ask the others, and wait a moment for any of them to say they're captioning */
+async function anyoneCaptions() {
+  if (othersCaption()) return true;
+  mesh?.say({ t: 'ccwant', on: true });
+  for (let i = 0; i < 16 && !othersCaption(); i++) await new Promise((r) => setTimeout(r, 250));
+  if (!othersCaption()) mesh?.say({ t: 'ccwant', on: false });
+  return othersCaption();
+}
 function applyCcView() {
+  const cant = ccHere === 'no' && !ccWant;
+  $('#ccBtn').classList.toggle('cant', cant);
   $('#ccBtn').setAttribute('aria-pressed', String(ccWant));
-  $('#ccBtn').textContent = ccWant ? 'Captions on' : 'Captions';
+  $('#ccBtn').title = ccHere === 'no' ? `${CC_CANT} You see the words of anyone whose device makes them.` : 'Captions: each person’s words, worked out on their own device';
+  setLabel($('#ccBtn'), cant ? 'No captions' : ccWant ? 'Captions on' : 'Captions');
   $('#ccSizeBtn').hidden = $('#ccPosBtn').hidden = !ccWant;
   const sizes = ['0.9rem', '1.05rem', '1.35rem', '1.7rem'];
   const i = Math.min(sizes.length - 1, Math.max(0, +(localStorage.getItem('vm_call_ccsize') ?? 1)));
@@ -593,6 +657,15 @@ function applyCcView() {
   $('#ccPosBtn').setAttribute('aria-label', `Captions at the ${top ? 'top' : 'bottom'} of each picture`);
 }
 $('#ccBtn').onclick = async () => {
+  if (!ccWant && (await checkCcHere()) === 'no') {
+    const b = $('#ccBtn');
+    b.disabled = true;
+    const some = await anyoneCaptions().finally(() => (b.disabled = false));
+    const say = some ? `${CC_CANT} Your words won’t be captioned; you’ll see the others’.` : `No captions. ${CC_CANT} Nobody else in the call can make them right now.`;
+    toast(say, 7000);
+    announce(say);
+    if (!some) return;
+  }
   ccWant = !ccWant;
   localStorage.setItem('vm_call_cc', ccWant ? '1' : '0');
   applyCcView();
@@ -617,8 +690,26 @@ $('#ccPosBtn').onclick = () => {
 applyCcView();
 
 // ---- people: who's in, who's waiting; let in, take out, lock ----
+// Someone waiting: a bar across the top of the call, with their name, Let in and Turn away, for as
+// long as they wait (only for whoever can let them in; in a studio's call that's the studio)
+const BELL = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>';
+function renderKnocks() {
+  const box = $('#knocks'), run = !!mesh?.canRun, list = run ? [...mesh.waiting] : [];
+  box.hidden = !list.length;
+  box.innerHTML = list.map(([id, name]) => `<div class="knock"><span class="bell">${BELL}</span><p><b>${esc(name)}</b> is waiting to come in</p><span class="acts"><button type="button" class="primary" data-admit="${esc(id)}">Let in</button><button type="button" data-deny="${esc(id)}">Turn away</button></span></div>`).join('');
+}
+$('#knocks').onclick = (e) => {
+  const b = e.target.closest('button');
+  if (!b || !mesh) return;
+  if (b.dataset.admit) {
+    announce(`Letting ${mesh.waiting.get(b.dataset.admit) || 'them'} in`);
+    mesh.admit(b.dataset.admit);
+  } else if (b.dataset.deny) mesh.turnAway(b.dataset.deny);
+  renderPeople();
+};
 function renderPeople() {
   if (!mesh) return;
+  renderKnocks();
   // (a studio's call, with the studio in it: the studio lets people in, takes them out and locks it;
   // the guests see who's waiting and who's in. Nobody takes a studio out. Anyone can leave)
   const n = mesh.waiting.size, run = mesh.canRun;
@@ -631,6 +722,20 @@ function renderPeople() {
   $('#peopleRule').textContent = run ? 'Locked: nobody new comes in, even with the link. Anyone in the call can let people in, take them out, or lock it. Nobody can take a studio out.' : 'This is the studio’s call: it lets people in, takes them out and locks it. You can leave whenever you like.';
 }
 $('#peopleBtn').onclick = () => { renderPeople(); $('#peopleBox').showModal(); };
+
+// More (on a phone): the rest of the controls in a panel above the bar. It closes when one of them
+// is used (but not caption size or place, which you tap through), on a tap anywhere else, or Escape.
+const moreOpen = (on) => {
+  $('#bar').classList.toggle('open', on);
+  $('#moreBtn').setAttribute('aria-expanded', String(on));
+};
+$('#moreBtn').onclick = (e) => { e.stopPropagation(); moreOpen(!$('#bar').classList.contains('open')); };
+$('#moreSheet').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b && b.id !== 'ccSizeBtn' && b.id !== 'ccPosBtn') moreOpen(false);
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#bar')) moreOpen(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') moreOpen(false); });
 $('#peopleBox').onclick = (e) => {
   const b = e.target.closest('button');
   if (!b || !mesh) return;

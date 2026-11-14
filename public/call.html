@@ -52,14 +52,37 @@
   .top .say { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
   .tag { display: inline-flex; align-items: center; padding: .28em .65em; border-radius: 6px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--surface-2); }
   .tag.lock { background: var(--amber); color: #1a1200; }
-  /* the controls: one dock along the bottom, Leave apart at its end */
-  .bar { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; padding: 10px var(--gutter-r) calc(10px + env(safe-area-inset-bottom, 0px)) var(--gutter); background: var(--surface); border-top: 1px solid var(--line); }
-  .bar button { font-size: .92rem; min-height: 44px; padding: .5em 1em; position: relative; border-radius: 12px; }
-  .bar #leaveBtn { margin-left: 10px; }
-  @media (max-width: 560px) {
-    .bar { gap: 4px; }
-    .bar button { padding: .5em .7em; font-size: .85rem; }
-    .bar #leaveBtn { margin-left: 0; }
+  /* the controls: one row along the bottom, each an icon with a short word under it. On a computer
+     everything's in the row, Leave apart at its end; on a phone, Mic, Camera, Share, People, More and
+     Leave, and More opens the rest (switch camera, captions, invite) in a panel just above. */
+  .bar { position: relative; display: flex; gap: 4px; justify-content: center; align-items: stretch; padding: 8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom, 0px)) var(--gutter); background: var(--surface); border-top: 1px solid var(--line); }
+  .bar button { position: relative; display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 72px; min-height: 56px; padding: 6px 10px; border-radius: 12px;
+    background: transparent; color: var(--text); font-size: .72rem; font-weight: 600; line-height: 1.1; white-space: nowrap; }
+  .bar button:hover { background: var(--surface-2); filter: none; }
+  .bar .ic { width: 24px; height: 24px; }
+  .bar .txt b { font-size: 1.05rem; line-height: 24px; height: 24px; }
+  .bar .ic .slash { display: none; }
+  .bar button.toggle[aria-pressed="false"] { background: color-mix(in srgb, var(--tally) 16%, transparent); color: var(--err); box-shadow: none; }
+  .bar button.toggle[aria-pressed="false"] .slash { display: inline; }
+  .bar button[aria-pressed="true"]:not(.toggle) { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber); }
+  .bar #leaveBtn { background: var(--tally); color: #fff; margin-left: 12px; }
+  .bar #leaveBtn:hover { filter: brightness(1.1); }
+  .bar .more { display: contents; }
+  #moreBtn { display: none; }
+  /* (in a computer's row: switch camera after the camera, captions after share, invite after people) */
+  #micBtn { order: 1; } #camBtn { order: 2; } #flipBtn { order: 3; } #shareBtn { order: 4; } #ccBtn { order: 5; } #ccSizeBtn { order: 6; } #ccPosBtn { order: 7; }
+  #peopleBtn { order: 8; } #inviteBtn { order: 9; } #moreBtn { order: 10; } #leaveBtn { order: 11; }
+  .badge { position: absolute; top: 2px; right: 10px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--amber); color: #1a1200; font: 800 .7rem/18px var(--font); padding: 0 5px; }
+  @media (max-width: 720px) {
+    .bar { gap: 2px; justify-content: space-between; padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); }
+    .bar > button { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: .68rem; }
+    .bar #leaveBtn { margin-left: 4px; }
+    #moreBtn { display: grid; }
+    .bar .more { display: none; position: absolute; right: 8px; bottom: calc(100% + 8px); z-index: 20; width: min(340px, calc(100% - 16px));
+      grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 8px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 32px #000a; }
+    .bar.open .more { display: grid; }
+    .bar.open #moreBtn { background: var(--surface-2); }
+    .bar .more button { min-width: 0; min-height: 64px; }
     .top .say { display: none; }
   }
   dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--card-r); padding: 20px 22px; width: min(460px, calc(100vw - 24px)); box-shadow: var(--shadow); }
@@ -67,6 +90,24 @@
   dialog h2 { margin: 0 0 12px; }
   dialog .row { margin-top: 14px; }
   dialog .fine { margin-top: 10px; }
+  /* Someone at the door: a bar across the top of the call with their name and Let in, until it's
+     answered (it doesn't fade like a message, so nobody's left waiting because nobody looked) */
+  .knocks { display: grid; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); flex: none; }
+  .knock { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px var(--gutter-r) 10px var(--gutter); background: color-mix(in srgb, var(--amber) 16%, var(--surface)); }
+  .knock .bell { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--amber); color: #1a1200; }
+  .knock .bell svg { width: 18px; height: 18px; }
+  @media (prefers-reduced-motion: no-preference) { .knock .bell { animation: ring 1.6s ease-in-out infinite; } }
+  @keyframes ring { 0%, 60%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--amber) 60%, transparent); } 30% { box-shadow: 0 0 0 8px transparent; } }
+  .knock p { margin: 0; flex: 1 1 12em; min-width: 0; font-weight: 600; }
+  .knock p b { overflow-wrap: anywhere; }
+  .knock .acts { display: flex; gap: 8px; }
+  .knock button { min-height: 40px; padding: .4em 1.1em; font-size: .92rem; }
+  /* muted: a struck microphone after the name (shorter than words, and the same in every language) */
+  .who .mut { display: inline-grid; place-items: center; flex: none; width: 1.25em; height: 1.25em; border-radius: 50%; background: var(--tally); color: #fff; }
+  .who .mut svg { width: .85em; height: .85em; }
+  /* the Captions button where this browser can't make them: struck through, never lit */
+  #ccBtn.cant { color: var(--muted); }
+  #ccBtn.cant .ic .slash { display: inline; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
   /* messages (someone waiting, joined, left): above the controls, over everything */
   .toast { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: min(440px, calc(100% - 32px)); background: #000e; color: #fff; border: 1px solid #2a2c32; border-radius: 12px; padding: 12px 14px; text-align: center; }
@@ -90,7 +131,8 @@
   .tile.fsfake .cc { bottom: calc(52px + env(safe-area-inset-bottom, 0px)); font-size: calc(var(--cc, 1.05rem) * 1.3); }
   #grid.cc-top .tile.fsfake .cc { top: calc(60px + env(safe-area-inset-top, 0px)); }
   .tile .cc:empty { display: none; }
-  .tile .ccnote { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 5px; background: #000c; font-size: .75rem; color: var(--text-2); }
+  .tile .ccnote { position: absolute; left: 8px; top: 8px; padding: 1px 6px; border-radius: 4px; background: #000c; box-shadow: inset 0 0 0 1.5px #fff9; font: 800 .72rem/1.3 var(--font); letter-spacing: .04em; color: #fff; cursor: help; }
+  .tile .ccnote.cant { color: #ffffffb3; box-shadow: inset 0 0 0 1.5px #ffffff59; text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--tally); }
   .stage { overflow: auto; padding: 10px; display: grid; gap: 10px; align-content: start; }
   /* A shared screen: a box of its own shape (16:9 until its picture says otherwise), at most about
      60% of the height, with everyone's cameras in a smaller grid under it; side by side on a wide
@@ -147,7 +189,6 @@
   .tile .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile .off { position: absolute; inset: 0; display: grid; place-items: center; font: 800 2.4rem/1 var(--font); font-stretch: 125%; color: var(--text-2); background: var(--surface); }
   .tile .state { position: absolute; right: 8px; top: 8px; padding: 2px 8px; border-radius: 5px; background: #000c; font-size: .8rem; color: var(--text-2); }
-  .badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--amber); color: #1a1200; font: 700 .8rem/20px var(--font); padding: 0 5px; }
 
   /* side panels: people (and who's waiting), invite */
   dialog ul { list-style: none; padding: 0; margin: 0; }
@@ -264,6 +305,7 @@
     <button type="button" id="hearBtn" hidden>Tap to hear the call</button>
   </header>
   <p class="studionote" id="studioNote" role="status" hidden></p>
+  <section class="knocks" id="knocks" aria-label="Waiting to come in" hidden></section>
   <div class="dirmsg" id="dirMsg" role="alert" hidden>
     <p><b id="dirFrom"></b> <span id="dirText"></span></p>
     <form id="dirForm" class="row"><input id="dirReply" maxlength="200" placeholder="Reply (optional)" aria-label="Reply to the studio" autocomplete="off"><button type="submit">Reply</button><button type="button" id="dirOk">OK</button></form>
@@ -272,17 +314,20 @@
     <div class="screen" id="screenBox" hidden><video id="screenVideo" autoplay playsinline muted></video><span class="who" id="screenWho"></span><button type="button" class="fs" data-fs aria-label="The shared screen full screen">⛶</button></div>
     <div class="grid" id="grid"></div>
   </section>
-  <nav class="bar" aria-label="Call controls">
-    <button type="button" class="toggle" id="micBtn" aria-pressed="true">Mic</button>
-    <button type="button" class="toggle" id="camBtn" aria-pressed="true">Camera</button>
-    <button type="button" id="flipBtn" hidden>Switch camera</button>
-    <button type="button" id="shareBtn" aria-pressed="false">Share screen</button>
-    <button type="button" id="ccBtn" aria-pressed="false" title="Captions: each person's words, worked out on their own device">Captions</button>
-    <button type="button" id="ccSizeBtn" hidden aria-label="Caption size">Aa</button>
-    <button type="button" id="ccPosBtn" hidden aria-label="Captions at the bottom or top of each picture">↕</button>
-    <button type="button" id="peopleBtn">People<span class="badge" id="waitBadge" hidden></span></button>
-    <button type="button" id="inviteBtn">Invite</button>
-    <button type="button" id="leaveBtn" class="danger">Leave</button>
+  <nav class="bar" id="bar" aria-label="Call controls">
+    <button type="button" class="toggle" id="micBtn" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path class="slash" d="M3 3l18 18"/></svg><span class="lb">Mic</span></button>
+    <button type="button" class="toggle" id="camBtn" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2.5"/><path d="M16 10.5l6-3.5v10l-6-3.5"/><path class="slash" d="M3 3l18 18"/></svg><span class="lb">Camera</span></button>
+    <button type="button" id="shareBtn" aria-pressed="false" aria-label="Share your screen"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M12 13.5V8M9 10.5 12 7.5l3 3"/></svg><span class="lb">Share</span></button>
+    <button type="button" id="peopleBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg><span class="lb">People</span><span class="badge" id="waitBadge" hidden></span></button>
+    <div class="more" id="moreSheet" role="group" aria-label="More">
+      <button type="button" id="flipBtn" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a9 9 0 0 1 16.5-3.5L21 7M21 15a9 9 0 0 1-16.5 3.5L3 17"/><path d="M21 3v4h-4M3 21v-4h4"/></svg><span class="lb">Switch camera</span></button>
+      <button type="button" id="ccBtn" aria-pressed="false" title="Captions: each person's words, worked out on their own device"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10.5 10.2a2.6 2.6 0 1 0 0 3.6M17.5 10.2a2.6 2.6 0 1 0 0 3.6"/><path class="slash" d="M3 3l18 18"/></svg><span class="lb">Captions</span></button>
+      <button type="button" id="ccSizeBtn" class="txt" hidden aria-label="Caption size"><b aria-hidden="true">Aa</b><span class="lb">Size</span></button>
+      <button type="button" id="ccPosBtn" class="txt" hidden aria-label="Captions at the bottom or top of each picture"><b aria-hidden="true">↕</b><span class="lb">Place</span></button>
+      <button type="button" id="inviteBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/></svg><span class="lb">Invite</span></button>
+    </div>
+    <button type="button" id="moreBtn" aria-expanded="false" aria-controls="moreSheet"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span class="lb">More</span></button>
+    <button type="button" id="leaveBtn" class="danger"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><path d="M2.6 14.9c5.3-5.2 13.5-5.2 18.8 0 .5.5.5 1.2 0 1.7l-1.9 1.9c-.4.4-1.1.5-1.6.1l-2.4-1.8a1.2 1.2 0 0 1-.5-1v-2.2a12.6 12.6 0 0 0-6 0v2.2c0 .4-.2.8-.5 1l-2.4 1.8c-.5.4-1.2.3-1.6-.1l-1.9-1.9c-.5-.5-.5-1.2 0-1.7z"/></svg><span class="lb">Leave</span></button>
   </nav>
 </div>
 
