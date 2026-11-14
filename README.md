@@ -214,9 +214,9 @@ from a desk with USB webcams and shared screens and a phone joining as a camera.
 
 <table>
 <tr>
-<td width="33%" align="center"><img src="public/media/screens/remote.webp" alt="The phone remote: a tile per camera with its picture, the computer's sound, and Auto-director, Fade to black, Break and Record program buttons." width="240"><br><sub><b>Phone remote</b></sub></td>
+<td width="33%" align="center"><img src="public/media/screens/remote.webp" alt="The phone remote: a tile per camera with its picture, one on air and one in preview, the computer's sound, and Auto-director, Fade to black, Break, Record program and Camera in the corner buttons." width="240"><br><sub><b>Phone remote</b></sub></td>
 <td width="33%" align="center"><img src="public/media/screens/mic.webp" alt="A phone in microphone mode with its level meter." width="240"><br><sub><b>Phone as microphone</b></sub></td>
-<td width="33%" align="center"><img src="public/media/screens/media.webp" alt="My media on a phone: a list of recordings with thumbnails." width="240"><br><sub><b>My media</b></sub></td>
+<td width="33%" align="center"><img src="public/media/screens/media.webp" alt="My events on a phone: a show's clips with their pictures, each delivered, sending or waiting." width="240"><br><sub><b>My media</b></sub></td>
 </tr>
 </table>
 

@@ -39,5 +39,5 @@ for portrait phones.
 
 ## When they're in
 
-All eleven are in (October 2026), taken from a real show. The tour is linked from the home page's
+All eleven are in (October 2026), taken from a real show. Three were retaken in November 2026 for the new look (0.91): `remote.webp`, `media.webp` and `mic.webp` are the pages as they are now, rendered at the same phone size, with their camera and clip pictures cropped from the October screenshots of that real show. Retake them on a real phone at the next show. The tour is linked from the home page's
 "How it works" and from the Work with VUEMesh page.
