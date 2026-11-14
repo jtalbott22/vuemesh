@@ -132,16 +132,21 @@ with sync_playwright() as pw:
 
     # captions: Bob turns them on; Ann's browser recognises her speech on her device and her words are
     # on her picture on Bob's page; Bob's browser can't, so Ann (once she turns them on) is told so
+    # (Bob's browser can't make captions: a tap turns them on only because Ann's device makes them)
     bob.click('#ccBtn')
+    wait(bob, "() => vmCall().ccWant && document.querySelector('#ccBtn').getAttribute('aria-pressed') === 'true' && !document.querySelector('#ccBtn').classList.contains('cant')", "Bob's captions on, since Ann's device makes them", secs=10)
     wait(bob, "() => [...document.querySelectorAll('#grid .tile:not(.self) .cc')].some((c) => /hello from Ann/.test(c.textContent))", "Ann's words on her picture on Bob's page", secs=20)
     assert ann.evaluate("() => vmCall().ccCan") == 'yes' and not ann.evaluate('() => vmCall().ccWant'), "Ann captions herself because Bob asked, without showing captions herself"
     ann.click('#ccBtn')
-    wait(ann, "() => [...document.querySelectorAll('#grid .tile:not(.self) .ccnote')].some((n) => !n.hidden && /no captions from this browser/.test(n.textContent))", "Ann told Bob's browser can't caption", secs=15)
+    # (a small CC on Bob's picture, struck through, the reason in its label and on hover)
+    wait(ann, "() => [...document.querySelectorAll('#grid .tile:not(.self) .ccnote')].some((n) => !n.hidden && n.textContent === 'CC' && n.classList.contains('cant') && /no captions from this browser/i.test(n.getAttribute('aria-label')) && getComputedStyle(n).textDecorationLine.includes('line-through'))", "Ann told Bob's browser can't caption", secs=15)
+    assert ann.evaluate("() => { const n = document.querySelector('#grid .tile.self .ccnote'); return !n.hidden && n.textContent === 'CC' && !n.classList.contains('cant'); }"), "Ann's own picture: CC, not struck through (her device captions her)"
     bob.click('#ccSizeBtn'); bob.click('#ccPosBtn')
     assert bob.evaluate("() => document.querySelector('#grid').classList.contains('cc-top') && getComputedStyle(document.querySelector('#stage')).getPropertyValue('--cc').trim() === '1.35rem'")
     for p in (ann, bob):
         p.click('#ccBtn')
     wait(ann, "() => vmCall().ccSaid === '' || !document.querySelector('#grid .tile.self .cc').textContent", "captions off, Ann's recogniser stopped")
+    assert bob.evaluate("() => document.querySelector('#ccBtn').classList.contains('cant') && document.querySelector('#ccBtn').getAttribute('aria-pressed') === 'false'"), "Bob's Captions off and struck through again" 
     step("captions: Bob turns them on and Ann's words (recognised on her device) are on her picture; Bob's browser can't, and Ann is told; size and position change")
 
     # a tap on Ann's picture makes it big on Bob's page; another, back to the grid; each has a full-screen button
@@ -189,13 +194,15 @@ with sync_playwright() as pw:
     cara.click('#joinBtn')
     visible(cara, '#waitView', 'Cara waiting')
     wait(bob, "() => vmCall().waiting.includes('Cara')", 'Bob sees Cara knock')
-    bob.click('#peopleBtn')
-    bob.click('#waitingList [data-admit]')
-    bob.click('#peopleBox [data-close]')
+    # (a bar across the top of the call, her name and Let in, there until it's answered)
+    bob.wait_for_selector('#knocks .knock', timeout=5000)
+    assert 'Cara is waiting to come in' in bob.inner_text('#knocks'), bob.inner_text('#knocks')
+    bob.click('#knocks [data-admit]')
+    bob.wait_for_selector('#knocks', state='hidden', timeout=10000)
     visible(cara, '#callView', 'Cara let in by Bob')
     for p in (ann, bob, cara):
         wait(p, "() => vmCall().peers.length === 2 && vmCall().peers.every((x) => x.state === 'connected' && x.streams > 0 && x.name)", f'{p.person} connected to both others', secs=40)
-    step('Cara: a wrong PIN refused, the right one lets her wait; Bob lets her in; all three connected to each other')
+    step('Cara: a wrong PIN refused, the right one lets her wait; Bob sees a bar across the top of the call and lets her in from it; all three connected to each other')
 
     ann.click('#shareBtn')
     for p in (bob, cara):
@@ -212,6 +219,8 @@ with sync_playwright() as pw:
     # a screen with sound: Ann's microphone off (and Cara's, so hers isn't counted), so all Bob can hear
     # from Ann is the screen's sound
     ann.click('#micBtn'); cara.click('#micBtn')
+    # (muted: a struck microphone after her name on Bob's page, not the word)
+    wait(bob, "() => [...document.querySelectorAll('#grid .tile:not(.self) .who')].some((w) => /^Ann/.test(w.textContent) && w.querySelector('.mut[aria-label=muted]') && !/muted/.test(w.textContent))", "a struck microphone by Ann's name on Bob's page", secs=10)
     wait(bob, f"async () => (await ({HEARD})()) < 0.01", "Bob hears nothing from Ann with her microphone off", secs=20)
     ann.evaluate("window.__screenTone = true")
     ann.click('#shareBtn')
@@ -284,6 +293,19 @@ with sync_playwright() as pw:
     assert bob.is_visible('#callView'), 'Bob still in the call, without waiting again'
     assert 'Bob left' not in (ann.evaluate("() => document.querySelector('.toast')?.textContent") or ''), "Ann wasn't told Bob left: he didn't"
     step("Bob's network changes: his server link is back at once, the link with Ann starts again, still in the call")
+
+    # on a phone: the controls in one row (Mic, Camera, Share, People, More, Leave), the rest under More
+    bob.set_viewport_size({'width': 390, 'height': 844}); time.sleep(0.3)
+    row = bob.evaluate("() => [...document.querySelectorAll('#bar > button')].filter((b) => b.offsetParent).map((b) => [b.id, Math.round(b.getBoundingClientRect().top), Math.round(b.getBoundingClientRect().right)])")
+    assert [r[0] for r in row] == ['micBtn', 'camBtn', 'shareBtn', 'peopleBtn', 'moreBtn', 'leaveBtn'], row
+    assert len({r[1] for r in row}) == 1 and max(r[2] for r in row) <= 390, row
+    assert not bob.is_visible('#inviteBtn')
+    bob.click('#moreBtn')
+    assert bob.is_visible('#inviteBtn') and bob.is_visible('#ccBtn') and bob.get_attribute('#moreBtn', 'aria-expanded') == 'true'
+    bob.click('#grid')
+    bob.wait_for_selector('#inviteBtn', state='hidden', timeout=3000)
+    bob.set_viewport_size({'width': 1280, 'height': 720}); time.sleep(0.3)
+    step('on a phone: one row of six (Mic, Camera, Share, People, More, Leave); More opens the rest, and a tap elsewhere closes it')
 
     # Bob leaves: Ann sees it at once (his goodbye comes over their own link)
     t0 = time.time()

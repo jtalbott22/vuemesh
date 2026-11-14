@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.89.0 — muted at a glance, honest captions, and a knock you can't miss
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.88.0.
+
+**Muted is a struck microphone after a person's name,** a small red circle, not the words "· muted" (shorter on a phone, and the same in any language). A screen reader still hears "muted".
+
+**Captions never look on when nothing's coming.** They're made on each person's own device, and only Chrome or Edge on a computer can make them (not an iPhone, Safari or Firefox). On a device that can't, tapping Captions asks the others: if someone's device is making captions, they turn on (you see their words; yours aren't captioned) and it says so; if nobody's is, they stay off, the button says **No captions**, struck through, and a message says why. A setting left on from before starts off on such a device.
+
+**Someone waiting to come in gets a bar across the top of the call:** a bell, their name, **Let in** and **Turn away**, there until it's answered, not just a message that fades and a number on People.
+
+**Tests:** `e2e_call`: Bob, whose browser can't caption, turns captions on because Ann's device makes them, and his button is struck through again once off; a struck microphone by a muted name; Cara let in from the bar across the top.
+
+## 0.88.0 — a call's controls in one row
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.87.1.
+
+**In a call, the controls are one row of icons with a word under each,** not a block of buttons that took two or three rows on a phone. On a phone: Mic, Camera, Share, People, More and Leave. More opens the rest (Switch camera, Captions, its size and place, Invite) in a panel just above, which closes when you use one or tap anywhere else. On a computer everything's in the row, Leave on its own at the end in red.
+
+**Mic and Camera show their state by their icon:** slashed and red when off. Sharing your screen turns Share amber ("Stop"), as Captions does when it's on. Someone waiting to come in shows as a number on People.
+
+**"no captions from this browser" is a small CC on that person's picture, struck through in red,** with the reason when you hover or to a screen reader. While captions are on, a plain CC marks the pictures whose words come through.
+
+**Tests:** `e2e_call`: the CC note struck through with its reason, a plain CC on a picture that captions; on a phone, one row of six, More opening the rest and closing again.
+
 ## 0.87.1 — "on the server" said what it meant
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.87.0.
 
