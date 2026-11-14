@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.91.1 — screenshots of the new look
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.91.0.
+
+**The tour's and the README's pictures of the phone remote, My events and a phone as the microphone show them as they look now** (they showed the old type and buttons, and "the beacon"). They're the pages rendered at a phone's size, with the camera and clip pictures from the same real show as before. The other screens haven't changed.
+
 ## 0.91.0 — Terms, Accessibility and What's new in the same look
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.90.1.
 
