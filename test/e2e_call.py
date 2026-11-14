@@ -19,9 +19,21 @@ SCREEN = """(() => {
     const c = document.createElement('canvas'); c.width = 1280; c.height = 720;
     const g = c.getContext('2d'); let n = 0;
     setInterval(() => { n++; g.fillStyle = '#eee'; g.fillRect(0, 0, 1280, 720); g.fillStyle = '#c00'; g.fillRect((n * 17) % 1100, 300, 120, 120); }, 33);
-    return c.captureStream(15);
+    const s = c.captureStream(15);
+    if (window.__screenTone) { // (a screen playing sound, as with Share tab audio ticked: a tone)
+      const ctx = new AudioContext(), o = ctx.createOscillator(), d = ctx.createMediaStreamDestination();
+      o.frequency.value = 440; o.connect(d); o.start(); ctx.resume();
+      s.addTrack(d.stream.getAudioTracks()[0]);
+    }
+    return s;
   };
+  // every link, so the test can read how loud the sound arriving from each person is
+  const PC = window.RTCPeerConnection;
+  window.__pcs = [];
+  window.RTCPeerConnection = class extends PC { constructor(...a) { super(...a); window.__pcs.push(this); } };
 })();"""
+# the loudest sound arriving over any link (0 to 1), as the browser measures it
+HEARD = "async () => { let lv = 0; for (const pc of window.__pcs) { if (pc.connectionState !== 'connected') continue; (await pc.getStats()).forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'audio') lv = Math.max(lv, r.audioLevel || 0); }); } return lv; }"
 
 # A browser that recognises speech on the device (headless Chromium has none): it "hears" a phrase
 # from the track it's given, as the real one would from Ann's microphone
@@ -196,6 +208,22 @@ with sync_playwright() as pw:
     for p in (bob, cara):
         wait(p, "() => document.querySelector('#screenBox').hidden", f"Ann's screen gone from {p.person}'s page")
     step("Ann shares her screen: both see it, with her name; she stops and it's gone")
+
+    # a screen with sound: Ann's microphone off (and Cara's, so hers isn't counted), so all Bob can hear
+    # from Ann is the screen's sound
+    ann.click('#micBtn'); cara.click('#micBtn')
+    wait(bob, f"async () => (await ({HEARD})()) < 0.01", "Bob hears nothing from Ann with her microphone off", secs=20)
+    ann.evaluate("window.__screenTone = true")
+    ann.click('#shareBtn')
+    wait(ann, "() => vmCall().screenSound", "Ann's screen sound mixed into her sound", secs=10)
+    wait(bob, f"async () => (await ({HEARD})()) > 0.05", "Bob hears Ann's screen's sound", secs=20)
+    heard = bob.evaluate(HEARD)
+    ann.click('#shareBtn')
+    wait(ann, "() => !vmCall().screenSound", "the mix closed when Ann stops sharing", secs=10)
+    wait(bob, f"async () => (await ({HEARD})()) < 0.01", "and Bob hears nothing from her again", secs=20)
+    ann.evaluate("window.__screenTone = false")
+    ann.click('#micBtn'); cara.click('#micBtn')
+    step(f"a screen with sound: with Ann's microphone off, Bob hears her screen's sound (level {heard:.2f}) while she shares, and nothing once she stops")
 
     # another computer showing only its screen: the share page with the call's link
     eve = person('Eve')
