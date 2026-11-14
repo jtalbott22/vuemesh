@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>VUEMesh beacon</title>
+<title>VUEMesh QR Beacon</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#0f1013">
@@ -106,7 +106,7 @@
     // (the show's name is this computer's, where the studio keeps it: the server never has it)
     ev.title = showName(id) || unnamedShow(id);
     $('#title').textContent = ev.title;
-    document.title = `${ev.title} — beacon`;
+    document.title = `${ev.title} — QR Beacon`;
   } catch (e) {
     $('#title').textContent = e.message;
   }

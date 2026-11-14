@@ -108,7 +108,7 @@ function warnings(p) {
   if (p.rttMs > 150) w.push(`Slow link (${p.rttMs} ms)`);
   if (p.fps != null && p.role === 'cam' && p.fps < 15) w.push(`Preview ${p.fps} fps`);
   if (t.queue > 0) w.push(`${t.queue} clip${t.queue > 1 ? 's' : ''} waiting (${t.queueMB} MB)`);
-  if (t.synced === false) w.push('Not synced to the beacon');
+  if (t.synced === false) w.push('Not synced to the QR Beacon');
   if (t.link?.limit === 'cpu') w.push("The phone's encoder is at its limit (it's sending less than it could)");
   if (t.link?.limit === 'bandwidth' && t.link.tier === 'program') w.push('The network is holding back the picture on air');
   return w;
@@ -252,7 +252,7 @@ function render(d) {
   const liveIn = d.peers.filter((p) => p.route !== 'local').map((p) => stream(p.name, p.role === 'mic' ? 'sound' : `picture${p.width ? ` ${p.width}×${p.height}` : ''}${p.codec ? ` ${p.codec}` : ''}`, (p.videoKbps || 0) + (p.audioKbps || 0)));
   // (and what each TV says it's getting: frames shown, freezes; its cap, if the studio lowered it)
   const got = (t) => (t.rx ? ` · shows ${t.rx.fps ?? '?'} fps${t.rx.freezes ? `, froze ${t.rx.freezes}×` : ''}${t.rx.dropped ? `, dropped ${t.rx.dropped}` : ''}${t.rx.lost ? `, lost ${t.rx.lost} packets` : ''}` : '') + (t.cap && t.cap < (t.remote ? 1200 : 6000) ? ` · lowered to ${(t.cap / 1000).toFixed(1)} Mbps` : '');
-  const liveOut = (d.displays || []).map((t) => stream(t.name, `${t.cam ? `Camera watching the program${t.big ? ' full screen' : ''}` : t.remote ? 'Phone remote' : 'TV'} · ${{ program: 'program', browse: t.sending ? 'sending a recording' : 'browsing recordings', beacon: 'beacon', idle: 'event card' }[t.mode] || t.mode}${t.pip ? ' + PIP' : ''}${t.w ? ` ${t.w}×${t.h}` : ''}${t.codec ? ` ${t.codec}` : ''}${t.route ? ` · ${t.route === 'lan' ? 'this network' : t.route}` : ''}${got(t)}`, t.kbps, t.status === 'connected'));
+  const liveOut = (d.displays || []).map((t) => stream(t.name, `${t.cam ? `Camera watching the program${t.big ? ' full screen' : ''}` : t.remote ? 'Phone remote' : 'TV'} · ${{ program: 'program', browse: t.sending ? 'sending a recording' : 'browsing recordings', beacon: 'QR Beacon', idle: 'event card' }[t.mode] || t.mode}${t.pip ? ' + PIP' : ''}${t.w ? ` ${t.w}×${t.h}` : ''}${t.codec ? ` ${t.codec}` : ''}${t.route ? ` · ${t.route === 'lan' ? 'this network' : t.route}` : ''}${got(t)}`, t.kbps, t.status === 'connected'));
   // (each phone remote's own link: the show's state and the cameras' pictures, while it's open; its Program out is above, as a TV)
   for (const r of d.remotes || []) liveOut.push(stream(r.name, `Phone remote · control${r.visible ? ', open on its screen (with camera pictures)' : ', in the background'}${r.since ? ` · joined ${since(r.since)} ago` : ''}${r.heard && Date.now() - r.heard > 15000 ? ` · last heard ${since(r.heard)} ago` : ''}`, r.kbps));
   if (d.stream) liveOut.push(stream(d.stream.name || 'Stream', 'the program, streaming out', d.stream.kbps));

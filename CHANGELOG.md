@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.84.0 — the QR Beacon, and Join by QR under Network
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.83.0.
+
+**The beacon is called the QR Beacon now,** everywhere you read it: the studio's button, the TV's mode switch, the camera ("Scan the QR Beacon instead", "Point at the QR Beacon screen"), sync messages, Edit, the home page, the tour and the Privacy page. "Beacon" on its own didn't say what it was. The Apple TV app's buttons say so too, in its next build.
+
+**Join by QR moved from the studio's top bar to the inspector, under Network,** with a line saying what it's for: a phone with no internet joins by swapping QR codes with the studio. The camera's no-internet screen says where to find it.
+
 ## 0.83.0 — the TV page in the same look
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.82.0.
 

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VUEMesh camera</title>
-<meta name="description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta name="description" content="Open the link, scan the QR Beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
 <meta name="robots" content="noindex, follow">
 <meta property="og:site_name" content="VUEMesh">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vuemesh.com/cam">
 <meta property="og:title" content="You're invited to film this event — VUEMesh">
-<meta property="og:description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta property="og:description" content="Open the link, scan the QR Beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
 <meta property="og:image" content="https://vuemesh.com/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -18,7 +18,7 @@
 <meta property="og:image:alt" content="VUEMesh: A production studio. In the browser. A multiviewer with one camera on air, a tablet in preview, and more cameras waiting.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="You're invited to film this event — VUEMesh">
-<meta name="twitter:description" content="Open the link, scan the beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
+<meta name="twitter:description" content="Open the link, scan the QR Beacon, and shoot with your phone. Your clips go straight to the director, and you get a copy of the live cut. No app to install.">
 <meta name="twitter:image" content="https://vuemesh.com/og.png">
 <meta name="twitter:image:alt" content="VUEMesh: A production studio. In the browser. A multiviewer with one camera on air, a tablet in preview, and more cameras waiting.">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -447,7 +447,7 @@
         <h1>Join an event</h1>
         <p class="vm-lead">Scan the code on the screen, or type the event code. No app to install.</p>
         <ol class="vm-steps">
-          <li><span><b>Scan the beacon</b> on the studio’s screen, or type its code.</span></li>
+          <li><span><b>Scan the QR Beacon</b> on the studio’s screen, or type its code.</span></li>
           <li><span><b>Join as a camera or a microphone</b>, with your name for the credits.</span></li>
           <li><span><b>Shoot.</b> Your clips go straight to the director, and you get a copy of the live cut.</span></li>
         </ol>
@@ -472,7 +472,7 @@
           </form>
           <p class="vm-or">or</p>
           <div class="codealt">
-            <button type="button" id="scanJoinBtn">Scan the beacon instead</button>
+            <button type="button" id="scanJoinBtn">Scan the QR Beacon instead</button>
             <button type="button" id="soloBtn">Use the camera on my own</button>
           </div>
           <p class="vm-fine">On your own, everything works the same as at an event, and your clips are saved to My events.</p>
@@ -485,7 +485,7 @@
   <video id="scanVideo" playsinline muted autoplay></video>
   <div class="scanframe" aria-hidden="true"></div>
   <div class="scanbar">
-    <h2 id="scanHead">Point at the beacon screen</h2>
+    <h2 id="scanHead">Point at the QR Beacon screen</h2>
     <p id="scanMsg" aria-live="polite">Looking for its code…</p>
     <button type="button" id="scanClose">Cancel</button>
   </div>
@@ -494,7 +494,7 @@
 <section class="qjoin" id="qrJoinView" hidden role="dialog" aria-modal="true" aria-labelledby="qjHead">
   <div id="qjMineStep">
     <h2 id="qjHead">No internet: join with the studio</h2>
-    <p>In the studio, click <b>Join by QR</b>, then hold this screen up to the camera it shows.</p>
+    <p>In the studio, click <b>Join by QR</b> (under Network), then hold this screen up to the camera it shows.</p>
     <canvas id="qjMine" aria-label="This phone's code, for the studio to read"></canvas>
     <p class="fine" id="qjErr" aria-live="polite"></p>
     <button type="button" class="primary" id="qjNext">Next: scan the studio’s code</button>
@@ -582,7 +582,7 @@
   <div class="levelline" id="levelLine" aria-hidden="true" hidden><i></i></div>
   <div class="focusbox" id="focusBox" aria-hidden="true" hidden></div>
   <div class="aim" id="aim"></div>
-  <div class="aimtext" id="aimText">Point at the beacon screen</div>
+  <div class="aimtext" id="aimText">Point at the QR Beacon screen</div>
   <div class="bar top">
     <button type="button" class="evname evbtn" id="camTitle" aria-haspopup="dialog" aria-label="Event: live sending, rundown, messages, leave"><i class="ldot" id="linkDot" aria-hidden="true"></i><span id="camTitleText"></span></button>
     <span class="timer tc" id="timer" hidden><span class="dot rec"></span> <span id="timerText">00:00</span></span>
@@ -756,15 +756,15 @@
   <div class="micair" id="micOnAir" hidden role="status">ON AIR</div>
   <div class="micpanel">
     <p class="step" id="micStep">Step 1 of 2 · Sync</p>
-    <h1 id="micHead">Point this phone at the beacon</h1>
+    <h1 id="micHead">Point this phone at the QR Beacon</h1>
     <p id="micSub">The code on the screen lines your sound up with every camera, to the frame.</p>
     <div class="bigmeter" role="meter" aria-label="Microphone level" aria-valuemin="0" aria-valuemax="100"><i id="micLevel"></i></div>
     <div class="micpick"><label for="micPick">Microphone</label><select id="micPick"></select></div>
     <p class="elapsed tc" id="micElapsed" hidden>00:00</p>
-    <button type="button" class="go" id="micGo" disabled>Waiting for the beacon…</button>
+    <button type="button" class="go" id="micGo" disabled>Waiting for the QR Beacon…</button>
     <button type="button" class="ghost" id="micSkip">Start without syncing</button>
     <button type="button" id="micDim" hidden>Dim the screen</button>
-    <button type="button" class="ghost" id="micResync" hidden>Re-sync with the beacon</button>
+    <button type="button" class="ghost" id="micResync" hidden>Re-sync with the QR Beacon</button>
     <button type="button" id="micStop" hidden>Stop recording</button>
     <button type="button" class="ghost" id="micLeave" hidden>Leave the event</button>
     <p class="micstate" id="micState" aria-live="polite"></p>

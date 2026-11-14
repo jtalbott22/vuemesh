@@ -297,7 +297,7 @@
   .gate h2 { margin: 0 0 8px; } .gate p { color: var(--soft); }
   .gate .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 </style>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "VUEMesh", "url": "https://vuemesh.com/", "image": "https://vuemesh.com/og.png", "description": "A browser-native multi-camera production system: cameras and microphones join a coordinated session, an Auto Director can cut the program, and the finished production can be published without installing an app.", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any (runs in a web browser)", "browserRequirements": "A current browser with camera access. The studio runs best in Chrome or Edge on Mac or Windows, or Safari on Mac.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["Browser-native multi-camera production", "Multiple cameras and microphones in one coordinated session", "Auto Director for live production switching", "Optical timecode sync from a beacon screen", "Browser-based editing and finished production output", "No app installation required"]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "VUEMesh", "url": "https://vuemesh.com/", "image": "https://vuemesh.com/og.png", "description": "A browser-native multi-camera production system: cameras and microphones join a coordinated session, an Auto Director can cut the program, and the finished production can be published without installing an app.", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any (runs in a web browser)", "browserRequirements": "A current browser with camera access. The studio runs best in Chrome or Edge on Mac or Windows, or Safari on Mac.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["Browser-native multi-camera production", "Multiple cameras and microphones in one coordinated session", "Auto Director for live production switching", "Optical timecode sync from a QR Beacon screen", "Browser-based editing and finished production output", "No app installation required"]}</script>
 <style id="broadcast">
   /* Barlow and Barlow Condensed, served from this site (SIL Open Font License: /fonts/LICENSE-Barlow-OFL.txt): no outside requests, and they work on a local network */
   @font-face { font-family: 'Barlow Condensed'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/barlow-condensed-latin-500-normal.woff2') format('woff2'); }
@@ -599,14 +599,14 @@
 
   <section class="beacon" id="how" aria-labelledby="bh">
     <div>
-      <div class="qrbox"><canvas id="qr" aria-label="A live beacon code"></canvas></div>
-      <p class="qrcap"><span class="tc" id="qrtc"></span>A real beacon. It keeps changing because it's a clock.</p>
+      <div class="qrbox"><canvas id="qr" aria-label="A live QR Beacon code"></canvas></div>
+      <p class="qrcap"><span class="tc" id="qrtc"></span>A real QR Beacon. It keeps changing because it's a clock.</p>
     </div>
     <div>
       <h2 id="bh">Phones join with one scan.</h2>
-      <p>When you want more angles than the cables reach, every show has a beacon: a code on a screen. A phone points its camera at it, taps the link, and it's in your show. While the camera sees the code, it also reads the time in it, so every angle lines up to the frame later, with nothing to sync by hand.</p>
+      <p>When you want more angles than the cables reach, every show has a QR Beacon: a code on a screen. A phone points its camera at it, taps the link, and it's in your show. While the camera sees the code, it also reads the time in it, so every angle lines up to the frame later, with nothing to sync by hand.</p>
       <ol class="steps">
-        <li><b>Put the beacon on any screen.</b><span>A TV, a spare laptop, a tablet on a stand.</span></li>
+        <li><b>Put the QR Beacon on any screen.</b><span>A TV, a spare laptop, a tablet on a stand.</span></li>
         <li><b>Point a phone at it.</b><span>Tap the link, type a name, and it's a camera or a microphone.</span></li>
         <li><b>Cut the show.</b><span>Yourself, or with the Auto Director. Every angle stays on its own device, in full quality.</span></li>
       </ol>
@@ -652,13 +652,13 @@
       <li>
         <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="40" height="26" rx="2.5"/><path d="M16 42h16M24 34v8"/><path d="M20 16v10l8-5z" fill="currentColor"/></svg>
         <b>Every screen in the room is a monitor</b>
-        <span>Open <a href="/tv">/tv</a> on a smart TV, phone, tablet, a spare laptop or a projector, and it shows the live program straight from the studio, browses the night's recordings, or becomes the beacon guests scan.</span>
+        <span>Open <a href="/tv">/tv</a> on a smart TV, phone, tablet, a spare laptop or a projector, and it shows the live program straight from the studio, browses the night's recordings, or becomes the QR Beacon guests scan.</span>
         <small>Built for the big screen, and coming to more of them.</small>
       </li>
       <li>
         <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="24" height="16" rx="2"/><rect x="20" y="17" width="24" height="16" rx="2"/><path d="M12 33h8M32 40h-8M28 33v7"/></svg>
         <b>More screens, more control</b>
-        <span>Put the program on one display, the beacon on another, and keep camera control, sound and monitoring in their own windows. The browser becomes the control room.</span>
+        <span>Put the program on one display, the QR Beacon on another, and keep camera control, sound and monitoring in their own windows. The browser becomes the control room.</span>
         <small>One screen is enough to start. More screens turn the same system into a larger production desk.</small>
       </li>
       <li>
@@ -690,9 +690,9 @@
         <b>How to use the TV page</b>
         <span>On a smart TV, projector, tablet or spare laptop, open <b>/tv</b> in its browser.</span>
         <ol class="steps">
-          <li><b>Show a studio's program.</b><span>Type the event code (it's on the studio and on every beacon), name the screen, and Connect. The live program plays straight from the studio.</span></li>
+          <li><b>Show a studio's program.</b><span>Type the event code (it's on the studio and on every QR Beacon), name the screen, and Connect. The live program plays straight from the studio.</span></li>
           <li><b>Or skip the studio.</b><span>The TV shows its own code and QR. Phones scan it; computers open /share and type the code. Up to nine show side by side, one full screen at a tap. Nothing is recorded.</span></li>
-          <li><b>Switch what it shows.</b><span>Once connected, choose Program, Browse the night's recordings, Beacon for guests to scan, or PIP for the program in a corner.</span></li>
+          <li><b>Switch what it shows.</b><span>Once connected, choose Program, Browse the night's recordings, QR Beacon for guests to scan, or PIP for the program in a corner.</span></li>
         </ol>
         <a class="btn" href="/tv">Open the TV page</a>
       </li>
@@ -747,7 +747,7 @@
   <section class="start" id="start" aria-labelledby="sh">
     <div>
       <h2 id="sh">Your next show has more angles than you think.</h2>
-      <p>Count the phones in the room. Create a session, open the studio, put the beacon on a screen, and every one of them can be a camera in the next five minutes.</p>
+      <p>Count the phones in the room. Create a session, open the studio, put the QR Beacon on a screen, and every one of them can be a camera in the next five minutes.</p>
       <div class="mine" id="mine" hidden>
         <div class="minehead"><h3>Your events on this device</h3><button type="button" class="linkish" id="archToggle" hidden aria-expanded="false"></button></div>
         <ul class="minelist" id="mineList"></ul>
@@ -772,8 +772,8 @@
       <div class="made" id="made" aria-live="polite">
         <p class="muted" style="margin:0">Event code</p>
         <div class="code" id="madeCode"></div>
-        <p style="font-size:1rem">Open the beacon on the biggest screen in the room. Guests scan it to join and sync.</p>
-        <a class="btn primary" id="beaconLink" target="_blank" rel="noopener">Open the beacon</a>
+        <p style="font-size:1rem">Open the QR Beacon on the biggest screen in the room. Guests scan it to join and sync.</p>
+        <a class="btn primary" id="beaconLink" target="_blank" rel="noopener">Open the QR Beacon</a>
         <a class="btn" id="studioLink" target="_blank" rel="noopener">Open the studio</a>
         <button type="button" class="ghost" id="copyStudio">Copy studio link</button>
         <p class="hintline">The studio link carries your host key. Keep it private — it's the only way to publish cuts.</p>

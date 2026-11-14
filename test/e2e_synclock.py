@@ -96,12 +96,12 @@ with sync_playwright() as p:
     assert len(rosa) >= 2 and all(c['src'] == 'phone' and c['sync'] and c['sync']['at'] for c in rosa), clips
     ed = edit_window(host.context, host, errors); time.sleep(1)
     ed.click('#syncBtn')
-    ed.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('locked to the beacon'))", timeout=30000)
-    msg = next(t for t in ed.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)') if 'locked to the beacon' in t)
-    assert f'{len(rosa)} of {len(rosa)} clips are locked to the beacon' in msg and 'No clips' not in msg, msg
+    ed.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('locked to the QR Beacon'))", timeout=30000)
+    msg = next(t for t in ed.eval_on_selector_all('.toast', 'e => e.map(x => x.textContent)') if 'locked to the QR Beacon' in t)
+    assert f'{len(rosa)} of {len(rosa)} clips are locked to the QR Beacon' in msg and 'No clips' not in msg, msg
     ed.click('#mediaTab'); time.sleep(0.3); ed.locator('#mediaList [data-kind="clip"]').first.click(); time.sleep(0.5)
     sync_row = ed.evaluate("(() => { const k = [...document.querySelectorAll('#mediaInsp .kv span')]; const i = k.findIndex(s => s.textContent === 'Sync'); return i >= 0 ? k[i + 1].textContent : null; })()")
-    assert sync_row and sync_row.startswith('Locked to the beacon'), sync_row
+    assert sync_row and sync_row.startswith('Locked to the QR Beacon'), sync_row
     step(f'each clip carries the lock ({rosa[0]["sync"]}); Auto-sync: "{msg}"; the recording says "{sync_row}"')
     print('\nerrors:', errors or 'none')
     assert not errors

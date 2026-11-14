@@ -125,7 +125,7 @@ async function join(code) {
     tvSound.setMeta(ev?.title || code, 'Live program');
   } catch (e) {
     $('#eventCells').classList.add('bad');
-    $('#joinErr').textContent = e.tv ? 'That’s a TV’s code, for phones and computers to show on a TV. Here, enter the code from the studio.' : 'No event with that code. Check it on the studio or a beacon.';
+    $('#joinErr').textContent = e.tv ? 'That’s a TV’s code, for phones and computers to show on a TV. Here, enter the code from the studio.' : 'No event with that code. Check it on the studio or a QR Beacon.';
     localStorage.removeItem('vm_tv_event');
     show('joinView');
     startListening(); // (still listening on this TV's own code, as the landing page always is)
@@ -408,7 +408,7 @@ function renderModes() {
   $('#pipBtn').setAttribute('aria-pressed', String(pip));
   document.querySelectorAll('#modes button:not([data-want="program"])').forEach((b) => {
     b.disabled = !studioModes;
-    b.title = studioModes ? '' : 'The studio runs an older VUEMesh: Browse, Beacon and PIP need it updated to 0.51 or later';
+    b.title = studioModes ? '' : 'The studio runs an older VUEMesh: Browse, QR Beacon and PIP need it updated to 0.51 or later';
   });
 }
 $('#modes').addEventListener('click', (e) => {

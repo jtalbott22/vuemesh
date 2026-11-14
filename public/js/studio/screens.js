@@ -365,7 +365,7 @@ function renderTvs() {
   ul.innerHTML =
     waiting.map((w) => `<li class="tvwait"><span class="dot" aria-hidden="true"></span> ${esc(w.name)} <span class="fine">wants to show the program</span> <button type="button" class="small" data-tv-accept="${esc(w.peer)}">Accept</button> <button type="button" class="small" data-tv-decline="${esc(w.peer)}">Decline</button></li>`).join('') +
     paired.map((t) => `<li class="tvrow"><span class="dot${t.connected ? ' live' : ''}" aria-hidden="true"></span> ${esc(t.name)} <span class="fine">${esc(say(t))}</span>
-      <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows">${opt(t, 'program', 'Program')}${opt(t, 'browse', 'Browse recordings')}${opt(t, 'beacon', 'Beacon')}${opt(t, 'idle', 'Event card')}</select>
+      <select class="small" data-tv-mode="${esc(t.key)}" aria-label="What ${esc(t.name)} shows">${opt(t, 'program', 'Program')}${opt(t, 'browse', 'Browse recordings')}${opt(t, 'beacon', 'QR Beacon')}${opt(t, 'idle', 'Event card')}</select>
       ${t.mode === 'browse' || t.mode === 'beacon' ? `<label class="check tvpip"><input type="checkbox" data-tv-pip="${esc(t.key)}"${t.pip ? ' checked' : ''}> PIP</label>` : ''}
       ${t.mode === 'beacon' ? `<span class="fine">${t.lag == null ? 'lag not measured' : `${t.lag} ms ahead`}</span> <button type="button" class="small" data-tv-cal="${esc(t.key)}" title="Measure this TV's display lag with a phone, so phones synced to it line up with this computer">Calibrate</button>` : ''}
       <button type="button" class="small" data-tv-del="${esc(t.key)}">Remove</button></li>`).join('');
@@ -427,8 +427,8 @@ export function onTvCal(m) {
   if (!k || !Number.isFinite(m.ms)) return;
   const lag = Math.max(0, (k.lag || 0) + m.ms);
   displayHub.setLag(tvCal.key, lag);
-  note(`TV display lag measured: ${k.name}, ${Math.round(lag)} ms (its beacon now draws that far ahead)`);
-  toast(`${k.name}: ${Math.round(lag)} ms lag. Its beacon is lined up with this screen.`, 5000);
+  note(`TV display lag measured: ${k.name}, ${Math.round(lag)} ms (its QR Beacon now draws that far ahead)`);
+  toast(`${k.name}: ${Math.round(lag)} ms lag. Its QR Beacon is lined up with this screen.`, 5000);
   closeTvCal();
 }
 

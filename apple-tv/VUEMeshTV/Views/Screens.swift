@@ -93,7 +93,7 @@ struct WaitScreen: View {
                 HStack(spacing: 22) {
                     ModeButton(title: "Program", on: false) { client.want("program") }
                     ModeButton(title: "Browse recordings", on: false) { client.want("browse") }
-                    ModeButton(title: "Beacon", on: false) { client.want("beacon") }
+                    ModeButton(title: "QR Beacon", on: false) { client.want("beacon") }
                 }
             } else {
                 LinkButton(title: "Another event") { client.leave() }
@@ -155,7 +155,7 @@ struct ModeMenu: View {
                     .focused($focus, equals: .program)
                 ModeButton(title: "Browse recordings", on: client.phase == .browse) { pick("browse") }
                     .focused($focus, equals: .browse)
-                ModeButton(title: "Beacon", on: client.phase == .beacon) { pick("beacon") }
+                ModeButton(title: "QR Beacon", on: client.phase == .beacon) { pick("beacon") }
                     .focused($focus, equals: .beacon)
             }
             if client.phase == .browse || client.phase == .beacon {
@@ -238,7 +238,7 @@ struct ProgramView: View {
                 if !client.route.isEmpty {
                     Text(client.route).font(Theme.label(30)).foregroundStyle(Theme.text2)
                 }
-                Text("Menu: Browse, Beacon").font(Theme.label(26)).foregroundStyle(Theme.text2)
+                Text("Menu: Browse, QR Beacon").font(Theme.label(26)).foregroundStyle(Theme.text2)
             }
             .padding(.horizontal, 22).padding(.vertical, 12)
             .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 8))

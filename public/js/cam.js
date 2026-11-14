@@ -35,7 +35,7 @@ themeButton($('#themeBtn'));
 document.querySelectorAll('[data-theme-toggle]').forEach(themeButton);
 if (localStorage.getItem('vm_terms') === TERMS_VERSION) $('#agreeGuest').checked = true;
 const guestHelp = helpDialog('Shooting tips', [
-  { heading: 'Camera', text: IS_PHONE ? 'Hold your phone the way the event asks (the prompt at the top tells you). Point it at the beacon screen once, when you join: the pill turns green (Synced), and from then on every clip lines up with everyone else\'s. Shoot steady, and keep this page open until your clips say delivered.' : 'Point this computer\'s camera at the action and keep it still. When you start recording, show it the beacon screen for a second so your clip lines up with everyone else\'s. Keep this page open until your clips say delivered.' },
+  { heading: 'Camera', text: IS_PHONE ? 'Hold your phone the way the event asks (the prompt at the top tells you). Point it at the QR Beacon screen once, when you join: the pill turns green (Synced), and from then on every clip lines up with everyone else\'s. Shoot steady, and keep this page open until your clips say delivered.' : 'Point this computer\'s camera at the action and keep it still. When you start recording, show it the QR Beacon screen for a second so your clip lines up with everyone else\'s. Keep this page open until your clips say delivered.' },
   { heading: 'Camera controls', rows: [
     ['Zoom', 'Pinch the picture, drag the slider on the right, or tap a lens (0.5×, 1×, 2×)'],
     ['Tap', `Focus and expose on that spot (where the ${DEVICE} allows it)`],
@@ -47,8 +47,8 @@ const guestHelp = helpDialog('Shooting tips', [
   { heading: 'On air', text: 'A red frame and ON AIR mean the host is showing your camera right now: hold steady. The yellow line under the top bar coaches you if the shot needs help.' },
   { heading: 'The event button', text: 'Tap the event name (top left; its dot is green when you\'re live) to pause sending your camera, see the rundown and messages, or leave the event. Leaving takes you back to the camera\'s home, where Rejoin is one tap; clips you shot wait on this phone and send when you\'re back. If the director owes you part of the live cut, it arrives before you go (or skip it and get it next time).' },
   { heading: 'Messages', text: 'The director can send you short notes. They appear near the top for a few seconds: answer with 👍 or Can\'t, or tap × to dismiss. The line that starts NOW is the running order: what\'s happening and what\'s next.' },
-  { heading: 'Microphone', text: 'Point the phone at the beacon to sync, lock it in, then set it face-up between the people talking. You can dim the screen; keep the phone plugged in for long events. Leave the event from the microphone screen; Rejoin brings you back as the microphone.' },
-  { heading: 'If something goes wrong', text: (IS_PHONE ? 'Your clips wait safely on this phone until' : 'Your clips wait safely on this computer until') + ' the host gets them, even if you reload. Use Save to keep your own copy. If the pill says "Host not here yet", check that you\'re on the venue Wi-Fi shown on the beacon.' },
+  { heading: 'Microphone', text: 'Point the phone at the QR Beacon to sync, lock it in, then set it face-up between the people talking. You can dim the screen; keep the phone plugged in for long events. Leave the event from the microphone screen; Rejoin brings you back as the microphone.' },
+  { heading: 'If something goes wrong', text: (IS_PHONE ? 'Your clips wait safely on this phone until' : 'Your clips wait safely on this computer until') + ' the host gets them, even if you reload. Use Save to keep your own copy. If the pill says "Host not here yet", check that you\'re on the venue Wi-Fi shown on the QR Beacon.' },
   { heading: 'Keys (with a keyboard)', rows: [['Space', 'Start or stop recording'], ['?', 'This help']] },
 ]);
 let tvHelp = null;
@@ -1656,12 +1656,12 @@ function forgetSync(slip) {
   samples.length = 0;
   fresh = null;
   sessionStorage.removeItem('vm_off_' + eventId);
-  diag('event', `This ${DEVICE}'s clock jumped ${Math.round(slip)} ms (it slept or was paused), so the beacon timing was reset`);
+  diag('event', `This ${DEVICE}'s clock jumped ${Math.round(slip)} ms (it slept or was paused), so the QR Beacon timing was reset`);
   setSyncPill();
   if (role === 'mic' && $('#micView').classList.contains('on')) {
-    setMicState?.('The phone slept, so its timing reset. Tap Re-sync and point it at the beacon once.');
+    setMicState?.('The phone slept, so its timing reset. Tap Re-sync and point it at the QR Beacon once.');
   } else if ($('#camView').classList.contains('on') && !ev?.solo && !toTv()) {
-    toast(`Your ${DEVICE} slept, so its timing reset. Point it at the beacon once to sync again.`, 6000);
+    toast(`Your ${DEVICE} slept, so its timing reset. Point it at the QR Beacon once to sync again.`, 6000);
     startScanning();
   }
 }
@@ -1754,7 +1754,7 @@ function onSighting({ beacon, local }) {
     if (current.syncHints.length && !fresh) stopScanning();
   } else if (samples.length >= 3 && !recorder && !fresh) {
     stopScanning();
-    showAimText("Synced with the beacon. That's it: record whenever you like.");
+    showAimText("Synced with the QR Beacon. That's it: record whenever you like.");
     setTimeout(() => showAimText(null), 3500);
   }
 }
@@ -1763,15 +1763,15 @@ function setSyncPill() {
   const pill = $('#syncPill');
   const ok = synced();
   pill.className = 'pill ' + (ok ? 'synced' : 'unsynced');
-  pill.textContent = ok ? (fresh ? 'Synced · refreshing…' : 'Synced') : samples.length ? 'Syncing…' : scanning ? 'Looking for the beacon…' : 'Not synced · tap to sync';
-  pill.title = ok ? 'Timing locked in with the beacon. Tap to take a fresh reading.' : 'Point at the beacon screen to sync';
+  pill.textContent = ok ? (fresh ? 'Synced · refreshing…' : 'Synced') : samples.length ? 'Syncing…' : scanning ? 'Looking for the QR Beacon…' : 'Not synced · tap to sync';
+  pill.title = ok ? 'Timing locked in with the QR Beacon. Tap to take a fresh reading.' : 'Point at the QR Beacon screen to sync';
 }
 if (offset !== null) samples.push(offset, offset, offset);
 setSyncPill();
 
 function showAim(on) {
   $('#aim').classList.toggle('show', on);
-  showAimText(on ? 'Point at the beacon screen' : null);
+  showAimText(on ? 'Point at the QR Beacon screen' : null);
 }
 function showAimText(t) {
   $('#aimText').textContent = t || '';
@@ -1929,7 +1929,7 @@ async function startRecording({ roll = false } = {}) {
   // in case it's in shot (that sharpens the studio's Auto-sync), with nothing on screen.
   if (synced()) return startScanning(8000, { quiet: true });
   startScanning(8000);
-  showAimText('Aim at the beacon for a second');
+  showAimText('Aim at the QR Beacon for a second');
   setTimeout(() => { if (current === clip && !clip.syncHints.length) showAimText(null); }, 6000);
 }
 
@@ -2256,7 +2256,7 @@ function startMic() {
   ['#micGo', '#micSkip'].forEach((sel) => ($(sel).hidden = false));
   ['#micDim', '#micResync', '#micStop', '#micLeave', '#micElapsed'].forEach((sel) => ($(sel).hidden = true));
   $('#micGo').disabled = true;
-  $('#micGo').textContent = 'Waiting for the beacon…';
+  $('#micGo').textContent = 'Waiting for the QR Beacon…';
   $('#micView').classList.add('on');
   $('#micPreview').srcObject = stream;
   $('#micPreview').play().catch(() => {});
@@ -2271,7 +2271,7 @@ function startMic() {
       $('#micStep').textContent = 'Step 2 of 2 · Record';
       $('#micHead').textContent = 'Synced. Lock it in.';
       $('#micSub').textContent = 'The camera turns off and this phone becomes the microphone. Set it down near the people talking.';
-      announce('Synced with the beacon. Ready to lock in.');
+      announce('Synced with the QR Beacon. Ready to lock in.');
     }
   }, 300);
   $('#micGo').onclick = () => { clearInterval(waitSync); lockMic(true); };
@@ -2326,7 +2326,7 @@ async function lockMic(synced) {
   $('#micElapsed').hidden = false;
   $('#micStep').textContent = 'Recording';
   $('#micHead').textContent = 'This phone is the microphone';
-  $('#micSub').textContent = synced ? 'Synced with the beacon. Set it down; you can dim the screen.' : 'Not synced — the host will line it up by hand.';
+  $('#micSub').textContent = synced ? 'Synced with the QR Beacon. Set it down; you can dim the screen.' : 'Not synced — the host will line it up by hand.';
   mic = { started: now(), current: null, previous: null, pausedFor: 0 };
   socket?.setRecording(true);
   startSegment();
@@ -2431,7 +2431,7 @@ $('#pocket').onkeydown = (e) => (e.key === 'Enter' || e.key === ' ' || e.key ===
 // Re-sync: clocks drift a little over hours. Open the camera briefly and read the beacon again.
 $('#micResync').onclick = async () => {
   $('#micResync').disabled = true;
-  setMicState('Point the phone at the beacon…');
+  setMicState('Point the phone at the QR Beacon…');
   try {
     const cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
     $('#micPreview').srcObject = cam;
@@ -2445,7 +2445,7 @@ $('#micResync').onclick = async () => {
     stopScanning();
     cam.getTracks().forEach((t) => t.stop());
     $('#micPreview').hidden = true;
-    setMicState(offset !== null ? 'Re-synced. The next piece uses the new timing.' : 'Couldn\'t see the beacon. Still recording with the old timing.');
+    setMicState(offset !== null ? 'Re-synced. The next piece uses the new timing.' : 'Couldn\'t see the QR Beacon. Still recording with the old timing.');
   } catch {
     setMicState('Camera unavailable. Still recording.');
   } finally {

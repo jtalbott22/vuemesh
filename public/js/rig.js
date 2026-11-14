@@ -89,10 +89,10 @@ const SETUPS = [
       { icon: 'clip', name: 'Sponsor spots', job: 'clip', note: 'Through every break, and between songs' },
     ],
     out: [
-      { icon: 'tv', name: 'The TV', job: 'screen', note: 'The beacon to join, then the show' },
+      { icon: 'tv', name: 'The TV', job: 'screen', note: 'The QR Beacon to join, then the show' },
       { icon: 'file', name: 'Every angle', job: 'keep', note: 'On the laptop, and on each phone' },
     ],
-    steps: ['Start a show and open the studio on the laptop.', 'Put the beacon on the TV. Each phone scans it once.', 'Cut it yourself, or let the Auto Director; take a break and the sponsors roll.'],
+    steps: ['Start a show and open the studio on the laptop.', 'Put the QR Beacon on the TV. Each phone scans it once.', 'Cut it yourself, or let the Auto Director; take a break and the sponsors roll.'],
   },
   {
     id: 'living',
@@ -110,7 +110,7 @@ const SETUPS = [
       { icon: 'stick', name: 'TV, with a stick PC', job: 'screen', note: 'Opens /tv: the show, live' },
       { icon: 'file', name: 'Every angle', job: 'keep', note: 'On the laptop, and on each device' },
     ],
-    steps: ['Open the studio on the laptop, and share its sound if there’s music.', 'The phones and the second laptop scan the beacon.', 'Open /tv on the TV and accept it. Pair your phone as the remote.'],
+    steps: ['Open the studio on the laptop, and share its sound if there’s music.', 'The phones and the second laptop scan the QR Beacon.', 'Open /tv on the TV and accept it. Pair your phone as the remote.'],
   },
   {
     id: 'drawer',
@@ -127,11 +127,11 @@ const SETUPS = [
     ],
     out: [
       { icon: 'stick', name: 'TV, with a stick PC', job: 'screen', note: 'The program, on /tv' },
-      { icon: 'laptop', name: 'The other laptop', job: 'screen', note: 'The beacon, by the door' },
+      { icon: 'laptop', name: 'The other laptop', job: 'screen', note: 'The QR Beacon, by the door' },
       { icon: 'stream', name: 'Live', job: 'stream', note: 'Only if you want an audience' },
       { icon: 'file', name: 'Every angle', job: 'keep', note: 'Full quality, on the desktop' },
     ],
-    steps: ['Open the studio on the desktop; add the webcams and the mic with + This computer.', 'Put the beacon on the spare laptop. The phones and the other laptop scan it.', 'Open /tv on the TV stick and accept it. Pair the oldest phone as the remote.'],
+    steps: ['Open the studio on the desktop; add the webcams and the mic with + This computer.', 'Put the QR Beacon on the spare laptop. The phones and the other laptop scan it.', 'Open /tv on the TV stick and accept it. Pair the oldest phone as the remote.'],
   },
 ];
 
