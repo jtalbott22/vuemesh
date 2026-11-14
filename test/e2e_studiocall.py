@@ -72,7 +72,7 @@ with sync_playwright() as pw:
     src = wait(host, "() => vmStudioCall().sources.find((s) => !s.screen && s.name === 'Maya' && s.sound && s.video > 0)", "Maya a source in the studio, with picture and sound", secs=40)
     assert src['mode'] == 'on', src
     host.wait_for_function(f"(() => {{ const v = document.querySelector('.tile[data-peer=\"{src['peer']}\"] video'); return v && v.readyState >= 2; }})()", timeout=15000)
-    step(f"Maya is a source in the studio (her tile playing, her sound ON in the mixer)")
+    step("Maya is a source in the studio (her tile playing, her sound ON in the mixer)")
 
     # the studio's message to her (Message… under her tile) reaches her call page; seen, and her reply comes back
     host.click('.dmrow button[aria-label="Message Maya"]')
