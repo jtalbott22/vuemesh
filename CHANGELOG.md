@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.80.0 — shared screens counted
+**Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.79.0.
+
+**A computer's screen from the Share page is counted as a screen, not a camera** (`screens`): once per show or TV, however often it reconnects. Before this, it was counted in Cameras joined, and those days stay as they were.
+
+**Screens shared in calls are counted** (`call_screens`): once per device per call, whether it's the Share screen button on a call or the Share page joining a call, and never while waiting to be let in. The page tells the server that a screen is being shared, nothing about what's on it; the call keeps a one-way code of the device's random ID so it's counted once, and deletes it with the call after a day.
+
+**Admin:** both are in Growth's chart, the month table and the CSV.
+
+**The Privacy page says so,** in the list of the day's anonymous counts.
+
+**Tests:** `core.test`: a screen from the Share page counted once per event and not as a camera; a screen shared in a call counted once per device per call.
+
 ## 0.79.0 — calls in Admin
 **Deploy:** `./aws/deploy.sh` (backend and site). It builds on 0.78.0.
 
