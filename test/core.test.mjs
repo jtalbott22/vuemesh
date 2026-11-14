@@ -281,6 +281,20 @@ ok('events expire after 30 days for the API and signaling');
   ok('moderation: the host blocks a camera by its id; it can\'t connect until let back in; only valid ids kept; only the host can do it');
 }
 
+// a computer's screen from /share: counted as a screen shared, not a camera, once per event
+{
+  const m = (await call('POST', '/events', { title: 'Screens' })).body;
+  const day = new Date(clock).toISOString().slice(0, 10), before = (await store.listStats(day, day))[0] || {};
+  const conn = (connectionId, q) => signal({ route: '$connect', connectionId, query: { e: m.id, peer: 'p-' + connectionId, role: 'cam', ...q } }, { store, post: async () => true, now: () => clock });
+  await conn('sc1', { cid: 'laptopA', src: 'screen' });
+  await conn('sc2', { cid: 'laptopA', src: 'screen' });
+  await conn('sc3', { cid: 'phoneB' });
+  const after = (await store.listStats(day, day))[0];
+  assert.equal((after.screens || 0) - (before.screens || 0), 1, 'one screen, counted once however often it connects');
+  assert.equal((after.cameras || 0) - (before.cameras || 0), 1, 'the phone is the only camera');
+  ok('share: a computer\'s screen counted as a screen shared (once an event), not as a camera');
+}
+
 // growth: anonymous day counts that outlive the events
 {
   const A = { 'x-admin-key': ADMIN_KEY };
@@ -584,6 +598,15 @@ ok('events expire after 30 days for the API and signaling');
     const kept = (await store.getEvent(cid)).callJoined;
     assert.ok(kept.length === 2 && !JSON.stringify(kept).includes('devA') && !JSON.stringify(kept).includes('devB'), 'kept on the call as one-way codes only');
     ok('calls: each person counted once per call, when in; codes kept on the call only');
+  }
+  {
+    // sharing a screen in the call: once per device per call, and not by someone still waiting
+    const today = new Date(clock).toISOString().slice(0, 10), was = (await store.listStats(today, today))[0]?.call_screens || 0;
+    await sig('$default', 'A', { body: JSON.stringify({ action: 'screen' }) });
+    await sig('$default', 'A', { body: JSON.stringify({ action: 'screen' }) });
+    await sig('$default', 'B2', { body: JSON.stringify({ action: 'screen' }) });
+    assert.equal((await store.listStats(today, today))[0].call_screens - was, 2, 'Ann and Bob, once each');
+    ok('calls: a screen shared counted once per device per call');
   }
 
   // leaving says so: everyone's list goes without them at once (before the connection's even closed)

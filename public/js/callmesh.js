@@ -150,6 +150,13 @@ export class CallMesh {
     this.joinedAt = Date.now();
     sessionStorage.setItem(`vm_callin${this.slot}_${this.id}`, '1');
     this.on.in?.();
+    this.noteScreen();
+  }
+  /** Sharing a screen in the call: the server counts it (once per device per call, nothing about what) */
+  noteScreen() {
+    if (!this.inCall || !this.stateOf().screen || this.screenNoted) return;
+    this.screenNoted = true;
+    this.sock?.send({ action: 'screen' });
   }
 
   onServer(m) {
@@ -205,6 +212,7 @@ export class CallMesh {
   refill() {
     for (const p of this.peers.values()) p.fill();
     this.say({ ...this.hello(), t: 'state' });
+    this.noteScreen();
   }
 
   connectTo(id) {

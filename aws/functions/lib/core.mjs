@@ -462,10 +462,12 @@ export async function signal(evt, deps) {
     // hash kept on the event, which goes when the event does), and the event itself the first
     // time its studio opens each day. Nothing about who.
     const counts = {}, fields = {};
-    const stat = { cam: 'cameras', mic: 'mics', viewer: 'viewers', display: 'displays' }[role];
+    // (a computer's screen from /share joins as a camera, and is counted as a screen shared)
+    const screen = role === 'cam' && q.src === 'screen';
+    const stat = screen ? 'screens' : { cam: 'cameras', mic: 'mics', viewer: 'viewers', display: 'displays' }[role];
     if (stat) {
       // (by the phone's camera id for this event, which survives a reload; else this connection's)
-      const tag = `${role}:${sha256hex(String(q.cid || q.peer || conn)).slice(0, 16)}`, joined = meta.joined || [];
+      const tag = `${screen ? 'screen' : role}:${sha256hex(String(q.cid || q.peer || conn)).slice(0, 16)}`, joined = meta.joined || [];
       if (!joined.includes(tag) && joined.length < 2000) {
         fields.joined = [...joined, tag];
         counts[stat] = 1;
@@ -572,13 +574,16 @@ export async function signal(evt, deps) {
 // A person in a call, counted once per call however often their connection drops and comes back:
 // by a one-way code of their device's random ID, kept on the call (and deleted with it, after a
 // day). Counted when they're in, not while they wait. Nothing about who.
-async function countCallPerson(meta, id, deps, now) {
-  const tag = sha256hex(`callp|${id}`).slice(0, 16), joined = meta.callJoined || [];
+// A screen shared in a call is counted the same way, once per device per call (call_screens).
+async function countCallOnce(meta, what, id, deps, now) {
+  const [field, stat] = what === 'screen' ? ['callScreens', 'call_screens'] : ['callJoined', 'call_people'];
+  const tag = sha256hex(`call${what === 'screen' ? 's' : 'p'}|${id}`).slice(0, 16), joined = meta[field] || [];
   if (joined.includes(tag) || joined.length >= 200) return;
-  meta.callJoined = [...joined, tag];
-  await deps.store.updateEvent(meta.id, { callJoined: meta.callJoined });
-  await bump(deps, now, { call_people: 1 });
+  meta[field] = [...joined, tag];
+  await deps.store.updateEvent(meta.id, { [field]: meta[field] });
+  await bump(deps, now, { [stat]: 1 });
 }
+const countCallPerson = (meta, id, deps, now) => countCallOnce(meta, 'person', id, deps, now);
 
 // ---- a call's connections: everyone in it talks to everyone; a waiting device only knocks
 async function callConnect(meta, q, conn, deps, now) {
@@ -628,6 +633,12 @@ async function callMessage(eventId, msg, me, peers, conn, deps, now) {
       if (me.waiting || !target || target.waiting) break;
       await tell(target, { type: 'signal', from: me.peer, fromRole: me.role, data: msg.data });
       break;
+    case 'screen': { // (sharing a screen in the call: counted once per device per call)
+      if (me.waiting) break;
+      const meta = await store.getEvent(eventId);
+      if (meta) await countCallOnce(meta, 'screen', me.cid || me.peer, deps, now);
+      break;
+    }
     case 'admit': {
       if (me.waiting || !target?.waiting) break;
       if (await ruledFor()) { await refuse('The studio lets people into this call'); break; }

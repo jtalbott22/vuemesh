@@ -253,11 +253,11 @@ $('#list').addEventListener('click', async (e) => {
 // a month table, CSV, a printable investor snapshot, and snapshots frozen for the record.
 const METRICS = [
   ['events', 'Events created', 1], ['active_events', 'Events run (studio open, per day)', 1],
-  ['cameras', 'Cameras joined', 1], ['mics', 'Microphones joined', 1], ['viewers', 'Viewers', 1],
+  ['cameras', 'Cameras joined', 1], ['screens', 'Screens shared into shows (/share)', 1], ['mics', 'Microphones joined', 1], ['viewers', 'Viewers', 1],
   ['clips', 'Recordings received', 1], ['footage_sec', 'Footage recorded (hours)', 3600],
   ['live_cut_sec', 'Live cut recorded (hours)', 3600], ['stream_sec', 'Streamed live (hours)', 3600], ['films', 'Films published', 1],
   ['studio_sec', 'Studio, live (hours)', 3600], ['edit_sec', 'Editing (hours)', 3600], ['kiosk_sec', 'Kiosks running (hours)', 3600], ['camera_sec', 'Phones in shows (hours)', 3600],
-  ['calls', 'Calls started', 1], ['call_people', 'People in calls (each once a call)', 1], ['call_joins', 'Call connections (reconnects too)', 1],
+  ['calls', 'Calls started', 1], ['call_people', 'People in calls (each once a call)', 1], ['call_joins', 'Call connections (reconnects too)', 1], ['call_screens', 'Screens shared in calls', 1],
 ];
 const METRIC = Object.fromEntries(METRICS.map(([k, label, f]) => [k, { label, f }]));
 let growthAll = [], gMode = 'daily';
@@ -324,7 +324,7 @@ function renderGrowth() {
     for (const [key] of METRICS) acc[key] = (acc[key] || 0) + val(d, key);
     months.set(m, acc);
   }
-  const cols = ['events', 'active_events', 'cameras', 'mics', 'clips', 'footage_sec', 'live_cut_sec', 'stream_sec', 'films', 'calls', 'call_people'];
+  const cols = ['events', 'active_events', 'cameras', 'screens', 'mics', 'clips', 'footage_sec', 'live_cut_sec', 'stream_sec', 'films', 'calls', 'call_people', 'call_screens'];
   $('#gTable').innerHTML = `<thead><tr><th scope="col">Month</th>${cols.map((c) => `<th scope="col">${esc(METRIC[c].label)}</th>`).join('')}</tr></thead><tbody>${[...months]
     .reverse()
     .map(([m, a]) => `<tr><th scope="row">${new Date(`${m}-01T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', year: 'numeric' })}</th>${cols.map((c) => `<td>${fmt(a[c] || 0, c)}</td>`).join('')}</tr>`)

@@ -236,6 +236,7 @@ function showStream() {
 function connect() {
   sock = meshSocket({
     eventId, role: 'cam', name, cid,
+    query: () => ({ src: 'screen' }), // (counted as a screen shared, not a camera)
     onPeers: (peers) => link?.setPeers(peers),
     onSignal: (from, data) => link?.onSignal(from, data),
   });
