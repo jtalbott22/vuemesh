@@ -56,7 +56,7 @@ with sync_playwright() as p:
     assert adm.is_visible('#login')
     adm.fill('#key', 'dev-admin'); adm.click('#login button[type=submit]')
     adm.wait_for_selector('#list table', timeout=10000)
-    step('admin: wrong key refused, right key in; totals: ' + ' · '.join(adm.eval_on_selector_all('#tiles .tile', 'els => els.map(e => e.innerText.replace(/\\n/, " "))')))
+    step('admin: wrong key refused, right key in; totals: ' + ' · '.join(adm.eval_on_selector_all('#tiles .chip', 'els => els.map(e => e.innerText.replace(/\\n/, " "))')))
     adm.fill('#filter', ev['id']); time.sleep(0.2)
     adm.click(f'tr[data-id="{ev["id"]}"] [data-act="days"]'); time.sleep(0.5)
     kind = adm.inner_text(f'tr[data-id="{ev["id"]}"] td:nth-child(2)')

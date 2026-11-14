@@ -374,7 +374,7 @@ flowchart LR
 | **Another computer** (`/share`) | A presenter's laptop shares a screen, window or tab (with its sound) into the studio as a source. |
 | **Monitor** (`/monitor`) | Second tab for the host: network, device and transfer health for every source, an event log, and the show log (frame rate and sound for the last ten minutes, and every saved session). Reads from the studio in the same browser. |
 | **TV screens** (`/tv`, Apple TV) | Shows the live program straight from the studio, browses the night's recordings, or becomes the beacon. See [apple-tv/README.md](apple-tv/README.md). With no studio, `/tv` shows phones and shared screens itself, tiled as they come and go. |
-| **Admin** (`/admin`) | For you and your team: every event, rename, change expiry, delete films and events. |
+| **Admin** (`/admin`) | For you and your team: growth, web traffic and the servers over one period with charts and change against the period before, and every event a page at a time: change expiry, delete films and events. |
 | **Watch page** (`/watch`) | When publishing is on: plays the film, shows credits, and verifies every contributor's signature in the browser. Off for now. |
 | **Terms** (`/terms`) | Terms of Use. Hosts and guests agree before creating or joining. |
 | **Privacy** (`/privacy`) | Exactly what the browser and the server keep, and for how long, what this browser holds right now, and one button to clear all of it. |

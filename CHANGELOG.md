@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.78.0 — Admin, redesigned: one period for everything, real charts, and events a page at a time
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.77.0.
+
+**One period for the whole page.** 7D, 30D, 90D, 1Y or All at the top scopes every number and chart below it, and each is compared with the period just before (▲▼ and the change). It's remembered in this browser.
+
+**Headline tiles with their trend:** events created and run, cameras joined, footage, visitors and page views, each with the change against the period before and a sparkline.
+
+**Charts that read like a trading screen** (`public/js/charts.js`, plain SVG, no library): growth as columns a day (a week past 120 days, counted back from today so the last one is never a partial week) with its 7-day (or 4-week) average, or as a running total; visitors and page views; data an hour and relays open on the servers. Each has a crosshair and tooltip (pointer, or arrow keys once focused), a legend when there's more than one series, the latest value at the end of each line, a Table button with every number, and the same look in light and dark. The colours are checked for colour-blind separation and contrast in both themes. Above each chart, the period's total and its change, the previous period, the daily average, the best day and the total since counting began. The investor snapshot draws its charts the same way, in print colours. The old growth chart drew a running total against a second scale; it doesn't any more.
+
+**Events a page at a time:** 25, 50 or 100 a page, with page numbers, sorted by code, created, days left or time used (newest first), filtered by kind (studio, kiosk, call, live) and found by code across all of them, not just the page loaded. The days left show as a bar.
+
+**Servers** follow the period too (TURN passwords and the relay's counts), and the top bar has a section menu, the time of the last refresh, and one Refresh for everything.
+
+**Tests:** `e2e_admin_monitor`: reads the new "right now" chips.
+
 ## 0.77.0 — the relay counts what it does, and a troubleshooting log for when it misbehaves
 **Deploy:** `./aws/deploy.sh` (backend and site), then `./aws/stun/deploy.sh` (a new server, `vuemesh-stun-4`, at the same address: its start-up script changed), then `node aws/stun/check.mjs stun.vuemesh.com`. It builds on 0.76.4.
 
