@@ -337,7 +337,9 @@
   button.primary, .btn.primary { background: var(--tally-fill, var(--tally)); color: #fff; }
 
   /* the headline: big, condensed, one colour */
-  h1.big { font-weight: 800; font-stretch: 100%; font-size: clamp(2.6rem, 6.4vw, 6rem); line-height: .95; letter-spacing: -.025em; }
+  /* (the site's wide headings, as every other page and the share card: smaller than the narrow cut was, so each line still fits) */
+  h1.big { font-weight: 800; font-stretch: 125%; font-size: clamp(2.3rem, 7.2vw, 4.4rem); line-height: .95; letter-spacing: -.02em; }
+  h1.big span { text-wrap: balance; } /* (a phone: "A production / studio." over two lines, evenly, rather than tiny on one) */
   h1.big span + span { color: inherit; }
   .lede { font-size: clamp(1.1rem, 1.7vw, 1.35rem); max-width: 44ch; }
 
@@ -399,7 +401,7 @@
     .hero > * { grid-column: 1 / -1; }
     .hero > h1.big { grid-column: 1; margin-bottom: .22em; }
     .hero > .lede { grid-column: 2; margin: 0 0 1.4em; font-size: 1.12rem; }
-    h1.big { font-size: clamp(3.1rem, 7.4vw, 6.8rem); }
+    h1.big { font-size: clamp(2.6rem, 4.15vw, 3.8rem); } /* (each line on one line beside the lede: "A production studio." is about 12 of these wide) */
   }
   /* the films: a layer over the program monitor, and a source bus under the wall (tally on the
      one on air, a progress bar along its foot) */
