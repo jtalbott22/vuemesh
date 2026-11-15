@@ -34,9 +34,9 @@
 
 ---
 
-![The VUEMesh studio mid-show: sources on the left (three USB webcams, two shared screens and the computer's sound), the program with a "Starting soon" slate, the T-bar switcher, the audio mixer along the bottom and the output settings on the right.](public/media/screens/studio.webp)
+![The VUEMesh studio mid-show: four cameras on the left (Break and Black above them), one on air in red beside one in preview in green, the T-bar switcher with CUT and AUTO, the audio mixer along the bottom with a strip per camera, and the output settings on the right.](public/media/screens/studio.webp)
 
-<p align="center"><sub>A real show run from one desk: three USB webcams, two shared screens, the computer's sound and a clip ready to air, no phones at all. The program, a T-bar switcher, the mixer, and the show's settings.</sub></p>
+<p align="center"><sub>Four phones as cameras: one on air, one in preview, the T-bar switcher, a mixer strip for each, and the show's settings. (The cameras' pictures are the home page's AI-made films, standing in for a real room.) The same studio runs a single desk of USB webcams and shared screens just as well.</sub></p>
 
 ## What is VUEMesh?
 
@@ -196,8 +196,9 @@ every angle, already cut on the timeline and ready to re-cut.
 ## Screens
 
 VUEMesh is a handful of pages, each with one job. Most pictures below are from one real show, run
-from a desk with USB webcams and shared screens and a phone joining as a camera. The
-[tour](https://vuemesh.com/tour) has every screen.
+from a desk with USB webcams and shared screens and a phone joining as a camera; the kiosk's is the
+page running a show with the home page's films as its cameras. The
+[tour](https://vuemesh.com/tour) has every screen, fifteen of them.
 
 <table>
 <tr>
@@ -210,7 +211,7 @@ from a desk with USB webcams and shared screens and a phone joining as a camera.
 </tr>
 <tr>
 <td align="center"><img src="public/media/screens/camera.webp" alt="A phone camera aimed at the studio's two monitors: Synced badge, record button, zoom lenses 0.5x to 3x and a level meter."><br><sub><b>Camera.</b> Records full quality, sends a live picture, shows its tally.</sub></td>
-<td align="center"><img src="public/media/screens/kiosk.webp" alt="Kiosk mode: an empty program beside a large QR code reading Scan to start a show, with camera, clip and sending counts."><br><sub><b>Kiosk.</b> A self-running show that guests start by scanning.</sub></td>
+<td align="center"><img src="public/media/screens/kiosk.webp" alt="Kiosk mode running a show: two phones in, one on air with a lower third saying it joined, beside a large QR code reading Scan to join, the show's name, and camera, clip and sending counts, on air and recording."><br><sub><b>Kiosk.</b> A self-running show that guests start by scanning.</sub></td>
 </tr>
 </table>
 

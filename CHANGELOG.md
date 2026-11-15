@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.97.0 — the tour in the same look, with every screen
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.96.0.
+
+**The tour (`/tour`) looks like the rest of the site:** the same bar along the top (with Compare), the site's type, the stages as pills, each screen's place as a label with its dot, and the ending as a card, with the same footer. It now opens by calling VUEMesh distributed live production.
+
+**Four screens it didn't have:** **Share a screen** (a presenter's slides on air from `/share`), **Calls** (three people, each picture large), **Go live** (Stream out in the studio) and **Edit** (the live cut on the timeline, angle by angle). Fifteen screens in all.
+
+**New pictures of the studio, the kiosk and the TV:** the studio's new bar with four cameras, one on air, one in preview and the T-bar; a kiosk with a show running; the restyled TV page showing the program. These and the new screens are the real pages, with the home page's films as the cameras, so nobody real is pictured; `docs/SCREENSHOTS.md` says how to take them again.
+
+**The tour can't fall behind:** the documentation check fails if a screen on the tour has no picture or isn't on the shot list, or a picture isn't on the tour.
+
 ## 0.96.0 — distributed live production, said plainly and kept in step
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.95.0.
 
