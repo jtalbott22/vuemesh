@@ -45,6 +45,7 @@ import { deleteMarker, markerMenu, moveMarker, renameMarker, renderTools, timeOf
 import { deleteRecording } from './library.js';
 import { camLeft, displayHub, rebalanceWatch, onTvCal, pushMonitor, pushPgmFrame, remoteHost, startDisplayHub, startRemoteHost } from './screens.js';
 import { bgInterval } from '/js/bgclock.js';
+import { onServerMessage, showBusy, startGuard } from './guard.js';
 
 // The Live studio and Edit are separate pages, each with only its own markup; this code serves
 // both. The other page's elements are listed on <body data-absent> (id: tag): asked for one,
@@ -715,7 +716,9 @@ async function init() {
     // (a TV's messages, too: only the TV screens panel hears them)
     // (and a phone measuring a TV's lag, from /tvcal: only the result, to the open Calibrate)
     const onSignal = (from, data, role) => (data?.remote ? remoteHost?.onMessage(from, data) : data?.tvcal ? onTvCal(data.tvcal) : role === 'display' ? displayHub?.onSignal(from, data, role) : hub.onSignal(from, data, role));
-    sock = joinSockets(meshSocket({ eventId, role: 'host', hostKey: key, onPeers: () => onPeers(sock.peers), onSignal }));
+    // (start: a person opened this studio; busy: whether it's recording or streaming, with each ping;
+    // the server's 'ended': Admin's End show, or a show nobody confirmed: see guard.js)
+    sock = joinSockets(meshSocket({ eventId, role: 'host', hostKey: key, onPeers: () => onPeers(sock.peers), onSignal, start: true, busy: KIOSK ? null : showBusy, onMessage: onServerMessage }));
     // This computer's own server, on its hotspot (vuemesh-local.mjs): its phones join the show there,
     // beside those that come through the cloud. The same id on both, so a phone finds the studio either way.
     connectLocal = (url) => {
@@ -725,12 +728,13 @@ async function init() {
     };
     if (!KIOSK) startRemoteHost();
     if (!KIOSK) startDisplayHub();
+    startGuard();
     window.vmHub = () => hub; // (tests and diagnostics: the phones' links)
     // No server (the internet's gone): everyone already in carries on over this network. Say so, and
     // stop a reload, which would end every link with nothing to bring them back through.
     let offSince = null;
     setInterval(() => {
-      offSince = sock.cloud ? null : offSince || Date.now(); // (the cloud: phones on this computer's hotspot still join, through it)
+      offSince = sock.cloud || sock.paused ? null : offSince || Date.now(); // (the cloud: phones on this computer's hotspot still join, through it; paused with nobody here isn't offline)
       const off = !!offSince && Date.now() - offSince > 5000;
       const dot = $('#offlineDot'); // (none on the kiosk: nobody there to join phones by QR)
       if (!dot || dot.hidden === !off) return;

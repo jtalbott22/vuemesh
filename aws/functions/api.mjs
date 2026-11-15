@@ -2,6 +2,7 @@
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Route53Client, ChangeResourceRecordSetsCommand, ListResourceRecordSetsCommand } from '@aws-sdk/client-route-53';
+import { ApiGatewayManagementApiClient, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
 import { api } from './lib/core.mjs';
 import { dynamoStore } from './lib/store-dynamo.mjs';
 import { lightsail } from './lib/lightsail.mjs';
@@ -59,6 +60,20 @@ const lanDns = r53 && {
   },
 };
 
+// A message to a device connected to the show's WebSocket API (Admin's End show tells everyone)
+let mgmt;
+async function post(ConnectionId, data) {
+  if (!process.env.WS_ENDPOINT) return false;
+  mgmt ||= new ApiGatewayManagementApiClient({ endpoint: process.env.WS_ENDPOINT });
+  try {
+    await mgmt.send(new PostToConnectionCommand({ ConnectionId, Data: JSON.stringify(data) }));
+    return true;
+  } catch (e) {
+    if (e.name === 'GoneException' || e.$metadata?.httpStatusCode === 410) return false;
+    throw e;
+  }
+}
+
 const presign = (Key, ContentType) =>
   getSignedUrl(s3, new PutObjectCommand({ Bucket: process.env.BUCKET, Key, ContentType }), { expiresIn: 3600 });
 
@@ -80,7 +95,7 @@ export async function handler(event) {
   try { body = body ? JSON.parse(body) : undefined; } catch { body = undefined; }
   const res = await api(
     { method: event.requestContext.http.method, path: event.rawPath, query: event.queryStringParameters || {}, headers: event.headers || {}, body, raw, ip: event.requestContext.http.sourceIp || '' },
-    { store, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN, turn, servers: { status: servers.status, setRelay: async (open) => { relayCache.at = 0; return servers.setRelay(open); } }, relayState: turn.secret ? relayState : null },
+    { store, post, presign, cdn: process.env.CDN, flags, adminKeyHashes, listFilms, deleteFilms, lanDns, lanDomain: process.env.LAN_DOMAIN, turn, servers: { status: servers.status, setRelay: async (open) => { relayCache.at = 0; return servers.setRelay(open); } }, relayState: turn.secret ? relayState : null },
   );
   return { statusCode: res.status, headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(res.body) };
 }

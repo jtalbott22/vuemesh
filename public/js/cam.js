@@ -685,6 +685,8 @@ function connectMesh() {
     cid: me.contributorId,
     onPeers: (peers) => link.setPeers(peers),
     onSignal: (from, data) => link.onSignal(from, data),
+    // (the server's word that the show ended: Admin's End show, or a studio nobody was at for 12 hours)
+    onMessage: (m) => m.type === 'ended' && onKicked(false, true),
   });
   const liveTier = { air: false, pvw: false };
   window.vmLink = () => link?.linkStats || null; // (diagnostics and tests: this phone's live picture)
@@ -692,7 +694,7 @@ function connectMesh() {
     sock: socket,
     stream: () => (role === 'mic' ? new MediaStream(stream.getAudioTracks()) : liveStream()),
     onControl: (m) => {
-      if (m.t === 'kick') return onKicked(!!m.block);
+      if (m.t === 'kick') return onKicked(!!m.block, !!m.ended);
       // the director has this camera in preview: next to go on air
       if (m.t === 'pvw') {
         const on = !!m.on && role === 'cam';
@@ -972,21 +974,22 @@ $('#leaveBtn').onclick = async () => {
   await leaveEvent();
 };
 
-// The host removed this phone from the event (blocked: for good). What was recorded is kept
-// in My events; the phone goes home and says so.
+// The host removed this phone from the event (blocked: for good), or the show ended (the studio
+// ended it, nobody was at it for 12 hours, or Admin ended it). What was recorded is kept in My
+// events; the phone stops recording, goes home and says so.
 let kicked = false, kickedText = '';
-async function onKicked(block) {
+async function onKicked(block, ended = false) {
   if (kicked) return;
   kicked = true;
-  kickedText = toTv() ? 'The TV took everyone off. Back on the TV puts you back.' : block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
+  kickedText = ended ? 'The show has ended, so this phone stopped recording. What you recorded is still in My events.' : toTv() ? 'The TV took everyone off. Back on the TV puts you back.' : block ? "The host removed you from this event, and you can't rejoin it. What you recorded is still in My events." : 'The host removed you from this event. You can rejoin if they ask you back.';
   if (block) localStorage.setItem('vm_blocked_' + eventId, '1');
   if (recorder) stopRecording();
   if (mic) stopMic?.();
   await leaveEvent();
-  $('#rejoinLabel').textContent = toTv() ? 'Off the TV' : 'Removed by the host';
+  $('#rejoinLabel').textContent = ended ? 'The show has ended' : toTv() ? 'Off the TV' : 'Removed by the host';
   $('#rejoinText').textContent = kickedText;
-  document.querySelector('.rejoinpair').hidden = !!block;
-  announce(toTv() ? 'The TV took everyone off' : block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
+  document.querySelector('.rejoinpair').hidden = !!block || ended;
+  announce(ended ? 'The show has ended. This phone stopped recording.' : toTv() ? 'The TV took everyone off' : block ? 'The host removed you from this event' : 'The host removed you from this event; you can rejoin');
 }
 async function leaveEvent() {
   // tell the studio first, so it knows exactly when we left (it sends the live cut by who was
@@ -1359,7 +1362,7 @@ function onShowName(m) {
 
 function onHostMessage(m) {
   if (m.t === 'show') return onShowName(m);
-  if (m.t === 'kick') return onKicked(!!m.block);
+  if (m.t === 'kick') return onKicked(!!m.block, !!m.ended);
   if (m.t === 'uploads') return void setUploads(!!m.on);
   if (m.t === 'starter') return setStarter(!!m.on);
   // the studio wants what's been recorded so far (for Edit): finish this clip, keep recording

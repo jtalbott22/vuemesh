@@ -323,9 +323,10 @@ export function toast(msg, ms = 2600) {
 /** @param o.url another server's address (this computer's local show, vuemesh-local.mjs) @param o.peer this one's id, the same on both */
 /** @param o.query more to send on connecting (a call's proof: its key's hash, PIN or pass) @param o.onMessage anything else the server sends (a call's knock, admitted, removed, locked) @param o.onWaiting a call's waiting room: (true) waiting, (false) in */
 /** @param o.pingMs how often it checks the server still answers (a call: often, to come back fast after a network change) */
-export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal, onMessage, onWaiting, query = () => ({}), pingMs = 0, url = WS, peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16) }) {
+/** @param o.start a person opened this (a studio): said on its first connection, and after resume(), not on reconnects @param o.busy what a studio says with each ping: whether it's recording or streaming */
+export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', onPeers, onSignal, onMessage, onWaiting, query = () => ({}), pingMs = 0, url = WS, peer = crypto.randomUUID().replace(/-/g, '').slice(0, 16), start = false, busy = null }) {
   let ws;
-  let closed = false;
+  let closed = false, paused = false, starting = start;
   let delay = 1000;
   let pingTimer;
   let heardTimer;
@@ -352,6 +353,24 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
       ws?.close();
       globalThis.vmSockets = globalThis.vmSockets.filter((s) => s !== self);
     },
+    /** Let the server go for now (a studio with nobody here): no pings, nobody joins, until resume() */
+    pause() {
+      if (closed || paused) return;
+      paused = true;
+      bgClear(pingTimer);
+      bgClear(heardTimer);
+      ws?.close();
+    },
+    /** Back, as a person opening it (start): a studio the server had shut is let in again */
+    resume() {
+      if (closed) return;
+      paused = false;
+      starting = true;
+      delay = 1000;
+      if (ws?.readyState === 1) ws.close(); // (its own lost() opens it again, now as starting)
+      else open();
+    },
+    get paused() { return paused; },
     /** Tests: as if the server dropped this connection (AWS cuts every one at two hours); it comes back. */
     blip() {
       ws?.close();
@@ -380,19 +399,21 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
   const PING_MS = pingMs || (role === 'host' ? 30 * 1000 : 4 * 60 * 1000);
   let answers = false;
   const ping = () => {
-    self.send({ action: 'ping' });
+    self.send({ action: 'ping', ...(busy ? { busy: !!busy() } : {}) });
     if (answers && ws?.readyState === 1) expectAnswer();
   };
   const open = () => {
     const q = new URLSearchParams({ e: eventId, role, peer, name, cid });
     if (hostKey) q.set('k', hostKey);
+    if (starting) q.set('start', '1');
     for (const [k, v] of Object.entries(query() || {})) if (v) q.set(k, v);
     ws = new WebSocket(`${url}?${q}`);
     ws.onopen = () => {
       delay = 1000;
       self.connected = true;
       self.opens++;
-      self.send({ action: 'hello' });
+      starting = false; // (a reconnect after this is the page's own, not a person's)
+      self.send({ action: 'hello', ...(busy ? { busy: !!busy() } : {}) });
       expectAnswer();
       if (status !== null) self.send({ action: 'status', rec: status });
       bgClear(pingTimer);
@@ -419,7 +440,7 @@ export function meshSocket({ eventId, role, name = '', cid = '', hostKey = '', o
     bgClear(pingTimer);
     bgClear(heardTimer);
     // (on the worker clock: a hidden studio reconnects at once, not a minute later, so a TV finds it)
-    if (!closed) bgTimeout(open, (delay = Math.min(delay * 2, 15000)));
+    if (!closed && !paused) bgTimeout(() => !closed && !paused && open(), (delay = Math.min(delay * 2, 15000)));
   }
   open();
   return self;
@@ -450,6 +471,9 @@ export function joinSockets(main) {
     send(obj) { for (const s of all()) s.send(obj); },
     setRecording(rec) { for (const s of all()) s.setRecording(rec); },
     close() { for (const s of all()) s.close(); },
+    pause() { for (const s of all()) s.pause(); },
+    resume() { for (const s of all()) s.resume(); },
+    get paused() { return main.paused; },
     add(s) { extra.push(s); },
     remove(s) {
       const i = extra.indexOf(s);

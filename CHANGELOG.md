@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.95.0 — a show runs only while a person is at its studio
+**Deploy:** `./aws/deploy.sh` (backend and site: the server, and Admin's permission to tell a show's devices it has ended). It builds on 0.94.0.
+
+**A studio with nothing going on pauses itself.** With no phones, screens, TVs or call in, nothing recording or streaming, and nobody using the page for 30 minutes, it lets go of the server and says "Paused: nobody's here", with Resume. Until then nobody can join, and it no longer shows as live. A forgotten studio tab used to stay "live" for days.
+
+**Every 12 hours, "Still running this show?"** A person answers Keep going and it carries on. If nobody answers within 10 minutes, the show ends: Record program and streaming stop (what was recorded is kept), every phone stops recording and is told "The show has ended", and the studio can't carry on until someone opens it again. The server ends it too, a little after, if a studio doesn't (an old copy of the page), and turns it away until a person opens it. So nobody can be recorded for days with no one at the studio. Kiosks (a show that ends when its guests leave) and a TV's own code (nothing recorded) don't ask.
+
+**Admin tells LIVE from OPEN:** LIVE is phones, TVs or a call in, or recording or streaming; OPEN is a studio page with nothing going on. Each shows how long it's been running and when a person last confirmed it, and **End show** stops it now for the studio and every phone, keeping the event and its code. A show that ended says so (ENDED: NOBODY THERE, or BY ADMIN) for a week.
+
+**Privacy** says what the server keeps about a show while it runs (when it started, when it was last confirmed, whether it's recording or streaming, how many devices are in, and when and why it ended) and how shows end.
+
 ## 0.94.0 — compared with the apps people actually weigh it against
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.93.0.
 

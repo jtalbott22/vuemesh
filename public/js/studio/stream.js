@@ -229,7 +229,7 @@ $('#stGo').onclick = async () => {
     $('#stGo').disabled = false;
   }
 };
-async function stopStream(why) {
+export async function stopStream(why) {
   if (streamSince) addUsage('streamSec', (Date.now() - streamSince) / 1000);
   const s = streamOut;
   streamOut = null;

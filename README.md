@@ -184,6 +184,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
 - **Show log:** frame rate, sound and alerts for each session, saved for later.
 - **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
+- **Shows end when nobody's there:** a studio with nothing going on pauses itself after 30 minutes, and every 12 hours a person must say the show's still running, or it ends (recording and streaming stop, every phone is let go). Admin shows LIVE or OPEN, how long, and can End show.
 - **Calls** (`/call`): up to 6 people on cameras and shared screens, everyone connected to everyone. Send a link or a code and PIN; a waiting room lets nobody in until someone in the call does, and the call can be locked. Nothing recorded, no names on our server. Another computer can join just to show its screen (`/share` with the call's link).
 - **Guests from anywhere** (Add → People on a call): the studio starts or joins a call, and each person in it is a source (their camera and sound, and any screen they share), recorded here while on air. The call sees the program and hears it without themselves.
 - **Admin:** every event, its expiry and film, plus anonymous growth numbers and web traffic.
@@ -517,7 +518,8 @@ screens that go on air or hang on a wall, or in automated test browsers). The [P
   starting `vm_`), plus a saved copy of the app for working offline. The page shows what this browser
   holds now and clears all of it with one button.
 - **On the server, for 30 days:** each event's code, shape and settings, a hash of the host key,
-  and the agreed terms; connection records (a random device ID, its name and role) for under a day.
+  the agreed terms, and its show's state (when it started, when a person last confirmed it, whether
+  it's recording or streaming, how many devices are in, when and why it ended); connection records (a random device ID, its name and role) for under a day.
   **Never a show's name:** it stays on the host's computer, the studio tells the devices in the show
   over their own links, and a copied link carries it after the `#` (which no server sees). A call
   keeps hashes of its checks for a day, and no names at all.

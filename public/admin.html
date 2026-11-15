@@ -151,6 +151,7 @@
   /* tags */
   .tag { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .03em; padding: .15em .5em; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }
   .tag.live { background: var(--tally); color: #fff; }
+  .tag.open { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line); }
   .tag.kiosk { background: #1fa64a26; color: #3fb950; }
   .tag.studio { background: #3d8bfd22; color: #6ea8fe; }
   :root[data-theme="light"] .tag.kiosk { color: #116329; } :root[data-theme="light"] .tag.studio { color: #1f5fbf; }
@@ -306,7 +307,7 @@
       <div class="elist" id="list"></div>
       <div class="row"><span class="note" id="eShowing" aria-live="polite"></span><span class="spacer"></span><nav class="pager" id="pager" aria-label="Pages of events"></nav></div>
     </div>
-    <footer><span class="note">Everything expires on its own 30 days after it was created (calls after a day). Deleting here is immediate and can't be undone.</span></footer>
+    <footer><span class="note"><b>LIVE</b>: phones, TVs or a call in, or recording or streaming. <b>OPEN</b>: a studio page is open with nothing going on; it pauses itself after 30 minutes. A studio asks "Still running this show?" every 12 hours and ends the show if nobody answers. <b>End show</b> stops it now and keeps the event. Everything expires on its own 30 days after it was created (calls after a day). Deleting here is immediate and can't be undone.</span></footer>
   </section>
 </main>
 <script src="/config.js"></script>

@@ -15,6 +15,31 @@ const EVENT_TTL_DAYS = 30;
 const KIOSK_TTL_HOURS = 12; // a show started at a kiosk deletes itself after this if nobody does
 const LIVE_WINDOW_MS = 15 * 60 * 1000;
 
+// A show runs only while a person is at its studio. Every 12 hours the studio asks "Still running this
+// show?"; a person answers (or opens the studio) and it carries on. Unanswered, the studio ends the
+// show itself; this is the backstop for a studio that doesn't (an old copy of the page): a little
+// after, its connection is turned away and the phones are told the show has ended, so no show records
+// people for days with nobody there. Kiosks (a show that ends when its guests leave, deleted after 12
+// hours) and a TV's own code (nothing recorded) don't ask.
+export const SHOW_LIMITS = { confirmMs: 12 * 3600_000, answerMs: 10 * 60_000, graceMs: 15 * 60_000 };
+const asksToConfirm = (meta) => !meta.kiosk && meta.kind !== 'tv' && meta.kind !== 'call';
+const unconfirmed = (meta, now) => asksToConfirm(meta) && meta.confirmedAt != null && now - meta.confirmedAt > SHOW_LIMITS.confirmMs + SHOW_LIMITS.graceMs;
+// What Admin shows: live (phones, TVs or a call in, or recording or streaming), open (a studio page
+// that's there but doing nothing), or neither
+export function showState(e, now) {
+  if (now - (e.hostSeenAt || 0) >= LIVE_WINDOW_MS) return null;
+  return e.hostBusy || e.hostOthers > 0 ? 'live' : 'open';
+}
+// The show ends now: everyone connected is told, and let go. The studio can't carry on without a
+// person opening it again (its confirmation is spent), whatever copy of the page it is.
+async function endShow(eventId, deps, now, reason) {
+  const conns = await deps.store.listConns(eventId);
+  await Promise.all(conns.map((c) => deps.post(c.connId, { type: 'ended', reason })));
+  for (const c of conns) await deps.store.removeConn(eventId, c.connId);
+  await deps.store.updateEvent(eventId, { confirmedAt: 1, hostSeenAt: 0, hostBusy: false, hostOthers: 0, runSince: null, endedAt: now, endedWhy: reason });
+  return conns.length;
+}
+
 // ------------------------------------------------------------------ HTTP API ---
 
 /**
@@ -456,6 +481,9 @@ export async function signal(evt, deps) {
     // (a display: a TV the studio shows its program on, the Apple TV app or /tv; it's let in by the studio, not here)
     const role = ['host', 'cam', 'mic', 'beacon', 'viewer', 'remote', 'display'].includes(q.role) ? q.role : 'viewer';
     if (role === 'host' && sha256hex(String(q.k || '')) !== meta.hostKeyHash) return { status: 403 };
+    // a studio nobody has confirmed for too long comes back only when a person opens it (start)
+    const start = role === 'host' && q.start === '1';
+    if (role === 'host' && !start && unconfirmed(meta, now)) return { status: 403 };
     // a camera or microphone the host removed and blocked can't come back into this event
     if (role !== 'host' && q.cid && (meta.blocked || []).includes(String(q.cid))) return { status: 403 };
     // Today's counts: a camera, microphone or viewer the first time it joins this event (by a
@@ -475,6 +503,10 @@ export async function signal(evt, deps) {
     }
     if (role === 'host') {
       fields.hostSeenAt = now;
+      // a run starts when a studio comes after a quiet spell; opening it is a person confirming
+      if (now - (meta.hostSeenAt || 0) >= LIVE_WINDOW_MS || !meta.runSince) fields.runSince = now;
+      if (start || meta.confirmedAt == null) fields.confirmedAt = now;
+      if (start) fields.endedAt = null;
       if (meta.activeDay !== dayOf(now)) {
         fields.activeDay = dayOf(now);
         counts.active_events = 1;
@@ -548,7 +580,7 @@ export async function signal(evt, deps) {
       await store.updateConn(eventId, conn, { seenAt: now });
       // (pong: this server answers a ping, so a page can tell a connection that's gone quiet from one that's fine)
       await deps.post(conn, { type: 'peers', you: me.peer, peers: peerList(peers, now), pong: true });
-      if (me.role === 'host') await store.updateEvent(eventId, { hostSeenAt: now });
+      if (me.role === 'host') return hostHere(eventId, msg, peers, conn, deps, now);
       break;
     case 'status':
       await store.updateConn(eventId, conn, { rec: !!msg.rec, seenAt: now });
@@ -567,8 +599,20 @@ export async function signal(evt, deps) {
     }
     case 'ping':
       await store.updateConn(eventId, conn, { seenAt: now });
-      if (me.role === 'host') await store.updateEvent(eventId, { hostSeenAt: now });
       await deps.post(conn, { type: 'pong' });
+      if (me.role === 'host') return hostHere(eventId, msg, peers, conn, deps, now);
+      break;
+    case 'end': // (the studio ended the show: its person did, or nobody answered "Still running?")
+      if (me.role === 'host') {
+        await endShow(eventId, deps, now, msg.reason === 'unconfirmed' ? 'unconfirmed' : 'host');
+        return { status: 200 };
+      }
+      break;
+    case 'confirm': // (a person at the studio said the show's still running: another 12 hours)
+      if (me.role === 'host') {
+        await store.updateEvent(eventId, { confirmedAt: now });
+        await deps.post(conn, { type: 'confirmed', at: now });
+      }
       break;
     default:
       break;
@@ -580,6 +624,21 @@ export async function signal(evt, deps) {
 // by a one-way code of their device's random ID, kept on the call (and deleted with it, after a
 // day). Counted when they're in, not while they wait. Nothing about who.
 // A screen shared in a call is counted the same way, once per device per call (call_screens).
+// The studio is here (its hello, or a ping every 30 s): when it was last seen, whether it's busy
+// (recording or streaming, as it says) and how many others are connected, for Admin's live or open.
+// One nobody has confirmed for too long ends the show here.
+async function hostHere(eventId, msg, peers, conn, deps, now) {
+  const meta = await deps.store.getEvent(eventId);
+  if (!meta) return { status: 200 };
+  if (unconfirmed(meta, now)) {
+    await endShow(eventId, deps, now, 'unconfirmed');
+    return { status: 410 };
+  }
+  const others = peerList(peers, now).filter((p) => p.role !== 'host').length;
+  await deps.store.updateEvent(eventId, { hostSeenAt: now, hostBusy: !!msg.busy, hostOthers: others });
+  return { status: 200 };
+}
+
 async function countCallOnce(meta, what, id, deps, now) {
   const [field, stat] = what === 'screen' ? ['callScreens', 'call_screens'] : ['callJoined', 'call_people'];
   const tag = sha256hex(`call${what === 'screen' ? 's' : 'p'}|${id}`).slice(0, 16), joined = meta[field] || [];
@@ -813,7 +872,12 @@ async function admin(req, seg, deps, now) {
   const { store } = deps;
   const m = req.method.toUpperCase();
   const view = (e) => ({
-    ...publicEvent(e), expiresAt: e.ttl ? e.ttl * 1000 : null, live: now - (e.hostSeenAt || 0) < LIVE_WINDOW_MS,
+    ...publicEvent(e), expiresAt: e.ttl ? e.ttl * 1000 : null,
+    // live (phones, TVs or a call in, or recording or streaming), open (a studio page there doing
+    // nothing), since when it's run, and when a person last confirmed it (null: one that doesn't ask)
+    state: showState(e, now), live: showState(e, now) === 'live', open: showState(e, now) === 'open',
+    runSince: showState(e, now) ? e.runSince || null : null, confirmedAt: asksToConfirm(e) && showState(e, now) ? e.confirmedAt || null : null,
+    endedAt: e.endedAt || null, endedWhy: e.endedWhy || null,
     // where it ran, and the time used on each part (seconds): the studio live, editing, a kiosk, and the phones
     surface: e.kiosk ? 'kiosk' : 'studio',
     time: { studio: e.usage?.liveSec || 0, edit: e.usage?.editSec || 0, kiosk: e.usage?.kioskSec || 0, cameras: e.camSec || 0 },
@@ -843,19 +907,21 @@ async function admin(req, seg, deps, now) {
   }
 
   if (seg[0] === 'stats' && m === 'GET') {
-    let cursor, events = 0, live = 0, pub = 0, published = 0;
+    let cursor, events = 0, live = 0, open = 0, pub = 0, published = 0;
     do {
       const page = await store.scanEvents(cursor, 200);
       for (const e of page.items) {
         events++;
-        if (now - (e.hostSeenAt || 0) < LIVE_WINDOW_MS) live++;
+        const st = showState(e, now);
+        if (st === 'live') live++;
+        else if (st === 'open') open++;
         if (e.public) pub++;
         if (e.published) published++;
       }
       cursor = page.next;
     } while (cursor);
     const films = deps.listFilms ? await deps.listFilms('films/') : [];
-    return { status: 200, body: { events, live, public: pub, published, films: films.length, filmBytes: films.reduce((s, f) => s + (f.size || 0), 0) } };
+    return { status: 200, body: { events, live, open, public: pub, published, films: films.length, filmBytes: films.reduce((s, f) => s + (f.size || 0), 0) } };
   }
 
   // ---- growth: the day counts, a backfill for days before counting began, saved snapshots
@@ -946,6 +1012,12 @@ async function admin(req, seg, deps, now) {
     }
     const updated = await store.updateEvent(id, fields);
     return { status: 200, body: { event: view(updated) } };
+  }
+  // End the show now: everyone connected is told and let go, and the studio stays shut until a person
+  // opens it again. The event, its code and its films stay (Delete is for those).
+  if (seg[2] === 'end' && m === 'POST') {
+    const told = await endShow(id, { ...deps, post: deps.post || (async () => false) }, now, 'admin');
+    return { status: 200, body: { ended: id, told, event: view(await store.getEvent(id)) } };
   }
   if (seg[2] === 'films' && m === 'DELETE') {
     const removed = deps.deleteFilms ? await deps.deleteFilms(prefix) : 0;

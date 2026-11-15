@@ -127,7 +127,7 @@ const handler = async (req, res) => {
       try { body = chunks.length ? JSON.parse(Buffer.concat(chunks)) : undefined; } catch {}
       const out = await api(
         { method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), headers: Object.fromEntries(Object.entries(req.headers).map(([k, v]) => [k.toLowerCase(), v])), body, ip: req.socket.remoteAddress || '' },
-        { store, cdn, presign: async (key) => `${cdn}/_put/${key}`, flags, adminKeyHashes: [createHash('sha256').update(ADMIN_KEY).digest('hex')], listFilms, deleteFilms },
+        { store, post, cdn, presign: async (key) => `${cdn}/_put/${key}`, flags, adminKeyHashes: [createHash('sha256').update(ADMIN_KEY).digest('hex')], listFilms, deleteFilms },
       );
       res.writeHead(out.status, { 'content-type': 'application/json' });
       return res.end(JSON.stringify(out.body));
