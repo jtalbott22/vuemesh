@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VUEMesh vs OBS Studio vs VDO.Ninja — VUEMesh</title>
+<meta name="description" content="How VUEMesh, OBS Studio and VDO.Ninja differ: what each is for, side by side on cameras, switching, sound, recording, editing, streaming and remote guests, when to choose each, and how they work together.">
+<link rel="canonical" href="https://vuemesh.com/compare">
+<meta property="og:site_name" content="VUEMesh">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://vuemesh.com/compare">
+<meta property="og:title" content="VUEMesh vs OBS Studio vs VDO.Ninja">
+<meta property="og:description" content="What each is for, side by side, when to choose each, and how they work together.">
+<meta property="og:image" content="https://vuemesh.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="/js/theme-boot.js"></script>
+<link href="/css/archivo.css" rel="stylesheet">
+<link rel="stylesheet" href="/css/vm.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPage", "name": "VUEMesh vs OBS Studio vs VDO.Ninja", "url": "https://vuemesh.com/compare", "dateModified": "2026-11-15", "description": "How VUEMesh, OBS Studio and VDO.Ninja differ, when to choose each, and how they work together.", "about": [{"@type": "WebApplication", "name": "VUEMesh", "url": "https://vuemesh.com/"}, {"@type": "SoftwareApplication", "name": "OBS Studio", "url": "https://obsproject.com/"}, {"@type": "WebApplication", "name": "VDO.Ninja", "url": "https://vdo.ninja/"}], "isPartOf": {"@type": "WebSite", "name": "VUEMesh", "url": "https://vuemesh.com/"}}</script>
+<style>
+  /* The studio's look (vm.css, its documents block), as on Privacy and Terms; the comparison a little wider, for its table */
+  .vm-doc.wide { max-width: 1040px; }
+  .vm-doc .short { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .vm-doc .short li { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+  .vm-doc .short b { font-size: 1.1rem; font-stretch: 112%; }
+  .vm-doc .short li.us { box-shadow: inset 0 3px 0 var(--tally); }
+  @media (max-width: 760px) { .vm-doc .short { grid-template-columns: 1fr; } }
+  .vm-tbl.cmp table { min-width: 720px; }
+  .vm-tbl.cmp th[scope="row"] { font-size: .9rem; letter-spacing: 0; text-transform: none; color: var(--text); white-space: nowrap; }
+  .vm-tbl.cmp thead th { white-space: nowrap; }
+  .vm-tbl.cmp td:nth-child(2) { background: color-mix(in srgb, var(--tally) 5%, transparent); }
+  /* a phone: each row a card, its three answers labelled, so nothing scrolls sideways */
+  @media (max-width: 640px) {
+    .vm-tbl.cmp { background: none; border: 0; overflow: visible; }
+    .vm-tbl.cmp table { min-width: 0; }
+    .vm-tbl.cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .vm-tbl.cmp tbody, .vm-tbl.cmp tr, .vm-tbl.cmp th, .vm-tbl.cmp td { display: block; }
+    .vm-tbl.cmp tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); margin: 0 0 10px; padding: 4px 0; }
+    .vm-tbl.cmp th[scope="row"] { white-space: normal; font-size: 1rem; border-bottom: 1px solid var(--line); }
+    .vm-tbl.cmp td { border-bottom: 0; padding: 8px 14px; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; }
+    .vm-tbl.cmp td::before { content: attr(data-l); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text); padding-top: .2em; }
+    .vm-tbl.cmp td:nth-child(2) { background: color-mix(in srgb, var(--tally) 7%, transparent); }
+  }
+  .vm-doc .pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .vm-doc .pick > div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--card-r); padding: 16px 18px; }
+  .vm-doc .pick h3 { margin: 0 0 6px; }
+  .vm-doc .pick ul { margin: 0; }
+  @media (max-width: 860px) { .vm-doc .pick { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body class="vm-page">
+<header class="vm-top">
+  <a class="vm-mark" href="/"><i aria-hidden="true"></i>VUEMesh</a><a data-vm-version hidden></a>
+  <span class="vm-spacer"></span>
+  <button type="button" id="themeBtn"></button>
+</header>
+  <main class="vm-doc wide">
+    <p class="vm-eyebrow">Compare</p>
+    <h1>VUEMesh, OBS Studio and VDO.Ninja</h1>
+    <p class="lead">Three free tools that people often weigh up for live video. They overlap less than it seems, and they work well together. Here's what each one is for, in plain words first and then in detail.</p>
+    <p class="updated">Updated 15 November 2026 (VUEMesh 0.93.0). What this page says about OBS Studio and VDO.Ninja comes from their own documentation and may have changed since: check <a href="https://obsproject.com/">obsproject.com</a> and <a href="https://docs.vdo.ninja/">docs.vdo.ninja</a>, and <a href="https://github.com/jtalbott22/vuemesh/issues">tell us</a> if something here is out of date.</p>
+    <ul class="vm-toc" aria-label="On this page">
+      <li><a href="#short">In one line each</a></li>
+      <li><a href="#table">Side by side</a></li>
+      <li><a href="#choose">Which to choose</a></li>
+      <li><a href="#together">Using them together</a></li>
+      <li><a href="#limits">What VUEMesh doesn't do</a></li>
+      <li><a href="#specs">Technical detail</a></li>
+    </ul>
+
+    <h2 id="short">In one line each</h2>
+    <ul class="short">
+      <li class="us"><b>VUEMesh</b><span>A whole production studio in a browser tab: switcher, audio mixer, recorder, live streamer and video editor. Phones join as cameras by scanning a QR code.</span></li>
+      <li><b>OBS Studio</b><span>A desktop app for building scenes, recording and streaming from one computer. The deepest control over layouts, encoding and plugins.</span></li>
+      <li><b>VDO.Ninja</b><span>A browser tool that sends live cameras and guests from one device to another over the internet, usually into OBS or similar software.</span></li>
+    </ul>
+
+    <h2 id="table">Side by side</h2>
+    <div class="vm-tbl cmp" role="region" aria-labelledby="table" tabindex="0">
+      <table>
+        <thead><tr><th scope="col"><span class="sr-only">Feature</span></th><th scope="col">VUEMesh</th><th scope="col">OBS Studio</th><th scope="col">VDO.Ninja</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">What it is</th><td data-l="VUEMesh">A complete studio in the browser</td><td data-l="OBS Studio">A desktop app for compositing, recording and streaming</td><td data-l="VDO.Ninja">A peer-to-peer link for cameras and guests</td></tr>
+          <tr><th scope="row">Install</th><td data-l="VUEMesh">Nothing. The studio runs in Chrome or Edge (or Safari on a Mac); an optional helper for RTMP</td><td data-l="OBS Studio">A desktop app for Windows, macOS or Linux</td><td data-l="VDO.Ninja">Nothing. Runs in a browser</td></tr>
+          <tr><th scope="row">Cost and licence</th><td data-l="VUEMesh">Free, open source (MIT)</td><td data-l="OBS Studio">Free, open source (GPL-2.0)</td><td data-l="VDO.Ninja">Free, open source (AGPL-3.0)</td></tr>
+          <tr><th scope="row">Phones as cameras</th><td data-l="VUEMesh">Scan a QR code. Each phone also records itself in full quality</td><td data-l="OBS Studio">Through another tool, such as VDO.Ninja or an NDI app</td><td data-l="VDO.Ninja">Yes: open a link on the phone</td></tr>
+          <tr><th scope="row">USB cameras, mics and interfaces</th><td data-l="VUEMesh">Yes, on the studio computer; an interface's inputs as separate tracks</td><td data-l="OBS Studio">Yes</td><td data-l="VDO.Ninja">Yes, sent from the browser they're plugged into</td></tr>
+          <tr><th scope="row">Screens</th><td data-l="VUEMesh">This computer's screens, and another computer's over the Share page</td><td data-l="OBS Studio">Display, window and game capture</td><td data-l="VDO.Ninja">Screen sharing from any browser</td></tr>
+          <tr><th scope="row">Switching</th><td data-l="VUEMesh">Preview and program, cut, auto, T-bar, a MIDI fader, and an auto director that follows who's talking</td><td data-l="OBS Studio">Scenes, Studio Mode and transitions; automatic switching through plugins</td><td data-l="VDO.Ninja">A director's room to manage guests and layouts; usually switched in OBS</td></tr>
+          <tr><th scope="row">Sound</th><td data-l="VUEMesh">A strip per source with 3-band EQ and high-pass; a console with scopes</td><td data-l="OBS Studio">A mixer with filters and VST plugins</td><td data-l="VDO.Ninja">Per-guest controls; usually mixed in other software</td></tr>
+          <tr><th scope="row">Recording</th><td data-l="VUEMesh">The program and every source on its own, in full quality, lined up on one clock</td><td data-l="OBS Studio">The program to a file; separate sources through plugins</td><td data-l="VDO.Ninja">Streams can be recorded in the browser</td></tr>
+          <tr><th scope="row">Editing</th><td data-l="VUEMesh">Built in: the live cut is already on a multi-track timeline</td><td data-l="OBS Studio">None (use an editor)</td><td data-l="VDO.Ninja">None</td></tr>
+          <tr><th scope="row">Live streaming</th><td data-l="VUEMesh">One service at a time: WHIP from the browser, RTMP through a local relay</td><td data-l="OBS Studio">RTMP, SRT and WHIP built in, with hardware encoders; more outputs through plugins</td><td data-l="VDO.Ninja">Viewing links, and WHIP/WHEP; usually streamed out through OBS</td></tr>
+          <tr><th scope="row">Remote guests</th><td data-l="VUEMesh">Video calls of up to 6, each person a source</td><td data-l="OBS Studio">Through other tools, such as VDO.Ninja</td><td data-l="VDO.Ninja">Its core strength</td></tr>
+          <tr><th scope="row">Network</th><td data-l="VUEMesh">Local network first; an encrypted relay when devices can't reach each other</td><td data-l="OBS Studio">One computer; network sources through plugins such as NDI</td><td data-l="VDO.Ninja">Internet or local network, peer to peer</td></tr>
+          <tr><th scope="row">Graphics</th><td data-l="VUEMesh">Lower thirds, picture-in-picture, break slates, live captions</td><td data-l="OBS Studio">Any layout, from scenes, browser sources and plugins</td><td data-l="VDO.Ninja">Basic layouts</td></tr>
+          <tr><th scope="row">Learning curve</th><td data-l="VUEMesh">Low: scan to join, with the pro controls there when you want them</td><td data-l="OBS Studio">Moderate to high</td><td data-l="VDO.Ninja">Low for a link; higher for its many options</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="choose">Which to choose</h2>
+    <div class="pick">
+      <div>
+        <h3>Choose VUEMesh when</h3>
+        <ul>
+          <li>You want several angles of an event (a wedding, a gig, a game, a service) from the phones and tablets people already have, with nothing to install.</li>
+          <li>You want <b>every angle kept</b> in full quality and the live cut ready to re-edit.</li>
+          <li>One laptop with USB cameras and a screen share should run a talk, a podcast or a class.</li>
+          <li>Someone new has to run it, or the show should run itself.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Choose OBS Studio when</h3>
+        <ul>
+          <li>You need complex layouts, overlays and scenes, or a large plugin ecosystem.</li>
+          <li>You work with NDI, SDI or a rack of capture cards, or a dedicated streaming PC.</li>
+          <li>You want fine control of encoders, SRT, or several outputs at once.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Choose VDO.Ninja when</h3>
+        <ul>
+          <li>You bring remote guests or off-site cameras into a show that's already built in OBS, vMix or similar.</li>
+          <li>Low latency over the internet matters more than everything being in one place.</li>
+          <li>You're comfortable tuning it with its link options.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 id="together">Using them together</h2>
+    <ul class="vm-checks">
+      <li><span><b>VUEMesh into OBS:</b> Program out opens VUEMesh's program in a window of its own, which OBS can capture like any window. VUEMesh does the cameras, switching and recording; OBS adds its graphics and encoding.</span></li>
+      <li><span><b>VUEMesh as a webcam:</b> the VUEMesh relay sends the program to OBS's virtual camera (on a Mac or Windows), so it's a camera in Zoom, Teams or Meet. On Linux the relay makes the camera itself.</span></li>
+      <li><span><b>Guests:</b> for remote guests, VUEMesh has its own video calls of up to 6 people; a show already built around VDO.Ninja and OBS can capture VUEMesh's program window beside it.</span></li>
+    </ul>
+
+    <h2 id="limits">What VUEMesh doesn't do</h2>
+    <ul>
+      <li>The studio needs a computer. A phone can be a camera, a microphone or a remote, but not the studio.</li>
+      <li>It streams to <b>one service at a time</b>. To reach several platforms at once, stream to a multistreaming service such as Restream.</li>
+      <li>RTMP services (YouTube, Facebook, Kick, Vimeo) need the free VUEMesh relay on the studio computer, because a browser can't send RTMP itself. WHIP services (Twitch, Restream, Cloudflare Stream) don't.</li>
+      <li>No NDI or SDI inputs: sources are what a browser can reach. An HDMI capture device that shows up as a webcam works like one.</li>
+      <li>People watching from elsewhere see the live stream, not each separate angle.</li>
+      <li>Venue Wi-Fi that keeps devices from seeing each other needs a travel router, or the studio computer's own hotspot.</li>
+      <li>The rest is in the <a href="https://github.com/jtalbott22/vuemesh#known-limits">known limits</a>.</li>
+    </ul>
+
+    <h2 id="specs">Technical detail</h2>
+    <p>For a broadcast or AV desk: what VUEMesh does under the hood.</p>
+    <div class="vm-tbl">
+      <table>
+        <tbody>
+          <tr><th scope="row">Output</th><td>720p or 1080p, landscape or portrait; 24, 25, 29.97, 30, 50 or 60 frames a second</td></tr>
+          <tr><th scope="row">Transport</th><td>WebRTC, device to device over the local network; STUN, and a TURN relay only when there's no other path (media stays encrypted end to end)</td></tr>
+          <tr><th scope="row">Sync</th><td>One clock on the studio computer; phones read an optical clock off the QR Beacon through their cameras; sound sync on shared audio; frame-accurate, no timecode hardware</td></tr>
+          <tr><th scope="row">Recording</th><td>Program recorded live; every source on its own at full quality (phones record locally and deliver each take, signed and verified part by part); captions as WebVTT</td></tr>
+          <tr><th scope="row">Streaming</th><td>WHIP from the browser; RTMP and RTMPS through a local relay that re-encodes to H.264 (keyframe every 2 s) and AAC at 160 kbit/s; 2.5 to 6 Mbit/s</td></tr>
+          <tr><th scope="row">Rendering</th><td>MP4 with hardware H.264 in Chrome and Edge, faster than real time; Linux records VP9</td></tr>
+          <tr><th scope="row">Capacity</th><td>About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that</td></tr>
+          <tr><th scope="row">Control</th><td>Keyboard shortcuts, a MIDI fader as the T-bar, a paired phone remote, and Premiere Pro's keys in Edit</td></tr>
+          <tr><th scope="row">Privacy</th><td>No accounts, cookies or trackers; recordings stay on your devices; event data deletes itself after 30 days</td></tr>
+          <tr><th scope="row">Source</th><td>Plain HTML, CSS and JavaScript, MIT licensed: <a href="https://github.com/jtalbott22/vuemesh">github.com/jtalbott22/vuemesh</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="updated">More: <a href="/tour">the tour of every screen</a> and <a href="/#faq">questions people ask</a>.</p>
+    <footer class="vm-foot"><a href="/">Home</a><a href="/tour">Tour</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/changelog">What's new</a><a href="https://github.com/jtalbott22/vuemesh">Source code</a></footer>
+  </main>
+<script src="/js/version.js" type="module"></script>
+<script type="module">
+  import { $, themeButton } from '/js/vm.js';
+  themeButton($('#themeBtn'));
+</script>
+</body>
+</html>

@@ -22,6 +22,7 @@
 <p align="center">
   <a href="https://vuemesh.com">Website</a> ·
   <a href="https://vuemesh.com/tour">Tour of every screen</a> ·
+  <a href="https://vuemesh.com/compare">Compared with OBS and VDO.Ninja</a> ·
   <a href="docs/HOW-IT-WORKS.md">How it fits together</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="CONTRIBUTING.md">Contribute</a> ·

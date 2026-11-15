@@ -45,6 +45,17 @@ if (!/fillVersions\(d\)/.test(read('public/js/vm.js'))) bad.push("Help (vm.js's 
 for (const f of NO_VERSION) if (/data-vm-version|version\.js/.test(read(join('public', f)))) bad.push(`${f} goes on air: no version on it`);
 if (!versions.some((v) => 'v' + v.version.replace(/[^\w]+/g, '-') === versionAnchor(app))) bad.push(`the version's link (#${versionAnchor(app)}) isn't an anchor on What's new`);
 
+// The home page's questions say the same thing to people and to search engines: each visible
+// question and answer (tags taken off) is word for word the FAQPage data in its head.
+const home = read('public/index.html');
+const words = (h) => h.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+const shown = [...home.matchAll(/<details[^>]*><summary>([\s\S]*?)<\/summary><p>([\s\S]*?)<\/p><\/details>/g)].map((m) => [words(m[1]), words(m[2])]);
+const ldm = home.match(/<script type="application\/ld\+json" id="faqld">([\s\S]*?)<\/script>/);
+const given = ldm ? JSON.parse(ldm[1]).mainEntity.map((q) => [q.name, q.acceptedAnswer.text]) : [];
+if (!shown.length) bad.push("the home page has no questions (its FAQ's <details>)");
+else if (JSON.stringify(shown) !== JSON.stringify(given)) bad.push("the home page's FAQ and its FAQPage data (#faqld) don't say the same thing: change both");
+for (const f of ['compare.html', 'tour.html']) if (!read('public/sitemap.xml').includes(`/${f.replace('.html', '')}<`)) bad.push(`${f} isn't in the sitemap`);
+
 if (bad.length) {
   console.error(bad.join('\n'));
   process.exit(1);

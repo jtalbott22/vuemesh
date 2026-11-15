@@ -1,0 +1,28 @@
+# VUEMesh
+
+> VUEMesh is a free, open-source (MIT) live production studio that runs in a web browser: a video switcher, audio mixer, recorder, live streamer and video editor in one tab, with no app to install. USB cameras and microphones, shared screens, video clips, phones and tablets (joining by scanning a QR code) and guests on a video call are all sources. It records the program and every source separately in full quality, streams over WHIP or RTMP, and puts the live cut on an edit timeline.
+
+Facts that are often summarised wrongly:
+
+- Live streaming is built in, to one service at a time. WHIP services (Twitch, Restream, Cloudflare Stream) take the stream straight from the browser. RTMP services (YouTube, Facebook, Kick, Vimeo) need the free VUEMesh relay, a small helper run on the studio computer, because browsers can't send RTMP. Multistreaming goes through a service such as Restream.
+- It isn't limited to one Wi-Fi network. Devices in the room connect directly over the local network (fastest, no upload); devices on mobile data or other networks connect through STUN and an encrypted TURN relay; remote guests anywhere join through video calls of up to 6 people, each one a source.
+- Sources are not only phones: USB webcams, USB microphones and audio interfaces, this computer's screens and sound, another computer's screen (/share), video and image clips, and people on a call.
+- Recording is the program plus every source on its own in full quality, synced on one clock (an optical clock read off the QR Beacon, plus sound sync), so the live cut arrives on a multi-track edit timeline. Edit has ripple, roll, slip and slide, titles and picture-in-picture, Premiere Pro keyboard shortcuts, and MP4 rendering with hardware H.264.
+- Production tools: preview/program switcher with cut, auto, T-bar and a MIDI fader; an auto director that follows who's talking (face tracking on the studio computer, no face recognition); autopilot that can run a whole show; kiosk mode; lower thirds, rundown, break slates, live captions (saved as WebVTT); a mixer strip per source with 3-band EQ and high-pass; camera control with histogram and waveform; a phone remote; a monitor of every device.
+- Outputs: recorded files, live stream, a Program out window (for projectors or OBS window capture), the program as a camera in Zoom, Teams or Meet (through the relay), and any TV or projector browser via /tv.
+- Output formats: 720p or 1080p, landscape or portrait, at 24, 25, 29.97, 30, 50 or 60 frames a second.
+- Requirements: the studio runs in Chrome or Edge on a Mac or Windows computer, or Safari on a Mac; phones and tablets join in their own browser.
+- Privacy: no accounts, cookies or trackers; video goes device to device and stays on the user's devices; event data deletes itself after 30 days.
+- Not supported: NDI or SDI inputs (an HDMI capture device that appears as a webcam works); streaming to several services at once directly; a phone as the studio itself; remote viewers choosing individual angles.
+
+## Pages
+
+- [Home and FAQ](https://vuemesh.com/#faq): what it is and short answers to common questions
+- [VUEMesh vs OBS Studio vs VDO.Ninja](https://vuemesh.com/compare): side-by-side comparison, when to choose each, and how they work together
+- [Tour](https://vuemesh.com/tour): every screen, in the order a show happens
+- [What's new](https://vuemesh.com/changelog): every release
+- [Privacy](https://vuemesh.com/privacy): everything kept, and where
+
+## Source
+
+- [GitHub repository and README](https://github.com/jtalbott22/vuemesh): full feature list, guides and known limits
