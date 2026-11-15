@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.94.0 — compared with the apps people actually weigh it against
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.93.0.
+
+**Compare (`/compare`) now sets VUEMesh beside Switcher Studio, StreamYard and OBS Studio:** one line on each, a side-by-side table (cameras in the room, guests from anywhere, switching, sound, recording, editing, streaming, graphics, privacy, learning curve) that stacks into cards on a phone, and which to choose when. **Other apps people compare** says how VUEMesh differs from vMix, Riverside, Ecamm Live, VDO.Ninja and Blackmagic ATEM switchers, a card each. What it says about other apps comes from their own websites (checked 15 November 2026), without prices, which change.
+
+**What VUEMesh doesn't do** adds that it has no cloud storage or video hosting: recordings stay on your devices.
+
+**The home page's last question** is now how VUEMesh differs from Switcher Studio, StreamYard or OBS, and `/llms.txt` says the same for AI tools.
+
 ## 0.93.0 — questions answered, and how it compares
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.92.1.
 

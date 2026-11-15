@@ -13,12 +13,13 @@ Facts that are often summarised wrongly:
 - Output formats: 720p or 1080p, landscape or portrait, at 24, 25, 29.97, 30, 50 or 60 frames a second.
 - Requirements: the studio runs in Chrome or Edge on a Mac or Windows computer, or Safari on a Mac; phones and tablets join in their own browser.
 - Privacy: no accounts, cookies or trackers; video goes device to device and stays on the user's devices; event data deletes itself after 30 days.
+- Compared with similar apps: unlike Switcher Studio (iPhone/iPad/Mac apps, subscription) it runs in any computer's browser and is free; unlike StreamYard (a browser studio built around remote guests) it also switches cameras and phones in the room, records every source and has an editor; unlike OBS Studio (desktop software) there's nothing to install and phones join by QR code.
 - Not supported: NDI or SDI inputs (an HDMI capture device that appears as a webcam works); streaming to several services at once directly; a phone as the studio itself; remote viewers choosing individual angles.
 
 ## Pages
 
 - [Home and FAQ](https://vuemesh.com/#faq): what it is and short answers to common questions
-- [VUEMesh vs OBS Studio vs VDO.Ninja](https://vuemesh.com/compare): side-by-side comparison, when to choose each, and how they work together
+- [How VUEMesh compares](https://vuemesh.com/compare): side by side with Switcher Studio, StreamYard and OBS Studio, how it differs from vMix, Riverside, Ecamm Live, VDO.Ninja and ATEM switchers, and which to choose when
 - [Tour](https://vuemesh.com/tour): every screen, in the order a show happens
 - [What's new](https://vuemesh.com/changelog): every release
 - [Privacy](https://vuemesh.com/privacy): everything kept, and where
