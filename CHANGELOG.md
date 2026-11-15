@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.92.1 — the studio and Edit in the same look
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.92.0.
+
+**The studio and Edit match the other pages' small details:** the red dot beside VUEMesh has the same soft ring, Live and Edit are the same switch as everywhere else, and every outlined button along the top has one quiet outline (Program out, Full screen and the bell had a bright one; QR Beacon, Monitor and Watch page a faint one). Their small windows (Remove, Message, Your events on this computer) have the same corners, edge, shadow and dimmed background as the cards and Help. The bar stays as compact as before, so the picture keeps its room, and the version is still in Help.
+
 ## 0.92.0 — the Terms on copyright
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.91.1.
 
