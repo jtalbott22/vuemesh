@@ -36,8 +36,17 @@ for portrait phones.
 | `remote.webp` | The remote | phone, portrait | The phone remote mid-show: camera buttons, one on air, Break / Fade / Record. |
 | `tv.webp` | TV screens | 1600 × 1000 | `/tv` showing the live program full screen, with its label. A photo of a real TV showing it is even better. |
 | `media.webp` | My media | phone, portrait | My media with a few recordings listed, their pictures showing. |
+| `share.webp` | Share a screen | 1600 × 1000 | `/share` while sharing a presenter's slides, on air (red), with its card saying it's in the studio. |
+| `call.webp` | Calls | 1600 × 1000 | A call of three people, each picture large, the controls along the bottom. |
+| `golive.webp` | Go live | 1600 × 1000 | The studio with Stream out open: a service picked, the key hidden, Go live. |
+| `edit.webp` | Edit | 1600 × 1000 | The Edit page after a show: the live cut on the timeline, angle by angle, Angles listing every phone, the Program monitor showing. |
 
 ## When they're in
 
-All eleven are in (October 2026), taken from a real show. Three were retaken in November 2026 for the new look (0.91): `remote.webp`, `media.webp` and `mic.webp` are the pages as they are now, rendered at the same phone size, with their camera and clip pictures cropped from the October screenshots of that real show. Retake them on a real phone at the next show. The tour is linked from the home page's
+All fifteen are in. Eleven were taken from a real show in October 2026. Three were retaken in November 2026 for the new look (0.91): `remote.webp`, `media.webp` and `mic.webp` are the pages as they are now, rendered at the same phone size, with their camera and clip pictures cropped from the October screenshots of that real show. Retake them on a real phone at the next show. The tour is linked from the home page's
 "How it works" and from the Work with VUEMesh page.
+
+**November 2026 (0.97.0): the new look, and the screens that weren't in the tour.** `studio`, `kiosk` and `tv` were retaken (the studio's new bar and switcher, a kiosk with a show running, the restyled TV page), and `share`, `call`, `golive` and `edit` were added. They're the real pages, run with the dev server and Playwright at 1600 × 1000, dark, with the phones' cameras and microphones fed from the home page's films (`public/media/wedding.mp4`, `concert.mp4`, `arena.mp4`: AI-made, so nobody real is pictured). Two things are tidied for the picture, to show what a real show looks like: the amber NO SYNC tag is hidden (test cameras can't see a QR Beacon to sync with), and the kiosk's dev address reads vuemesh.com. The shared screen is a drawn slide. The rest (`beacon`, `camera`, `mic`, `mixer`, `ccu`, `monitor`, `remote`, `media`) are still the October show's, or November's page renders, and still match the pages.
+
+To take them again: make each camera feed with ffmpeg (`ffmpeg -ss 7 -t 11 -i public/media/wedding.mp4 -vf scale=1280:720,fps=20 -q:v 4 -an cam1.mjpeg`, and a `.wav` of its sound), launch one Chromium per phone with `--use-fake-device-for-media-stream --use-file-for-fake-video-capture=cam1.mjpeg --use-file-for-fake-audio-capture=cam1.wav`, and drive the studio, phones and pages as the end-to-end tests do (`test/e2e_display.py` for a TV, `test/e2e_kiosk.py` for a kiosk, `test/e2e_sharequality.py` for Share, `test/e2e_call.py` for a call, `test/e2e_editpage.py` for Edit). Save as WebP at 80% quality.
+

@@ -89,6 +89,15 @@ const cmp = facing['public/compare.html'];
 const named = [...new Set([...[...cmp.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map((m) => m[1]), ...[...cmp.matchAll(/<li><b><a href="[^"]+">([^<]+)<\/a><\/b>/g)].map((m) => m[1])])].filter((n) => n !== 'VUEMesh');
 if (named.length < 4) bad.push(`Compare names only ${named.length} other apps: has its markup changed?`);
 for (const n of named) if (!llms.includes(n)) bad.push(`Compare names ${n} but /llms.txt doesn't`);
+// the tour: every screen has its picture and is on the shot list, and every picture is on the tour
+const tourShots = [...read('public/tour.html').matchAll(/data-shot="([a-z]+)"/g)].map((m) => m[1]);
+const pictures = readdirSync(join(repo, 'public/media/screens')).filter((f) => f.endsWith('.webp')).map((f) => f.replace('.webp', ''));
+const shotList = read('docs/SCREENSHOTS.md');
+for (const n of tourShots) {
+  if (!pictures.includes(n)) bad.push(`the tour shows ${n} but public/media/screens/${n}.webp isn't there`);
+  if (!shotList.includes(`\`${n}.webp\``)) bad.push(`the tour shows ${n} but docs/SCREENSHOTS.md's shot list doesn't`);
+}
+for (const n of pictures) if (!tourShots.includes(n)) bad.push(`public/media/screens/${n}.webp isn't on the tour`);
 // the phrase it's known by, in each place it's described
 for (const f of ['public/index.html', 'public/compare.html', 'public/llms.txt', 'README.md']) if (!/distributed live production/i.test(facing[f])) bad.push(`${f} no longer calls VUEMesh distributed live production`);
 
