@@ -44,7 +44,7 @@ function show() {
   box.setAttribute('role', 'region');
   box.setAttribute('aria-labelledby', 'vmnoticeH');
   box.innerHTML = `<h2 id="vmnoticeH">What VUEMesh keeps</h2>
-    <p><b>No cookies, no accounts, no ads, no trackers.</b> Nothing to accept.</p>
+    <p><b>No cookies, no accounts, no ads, no third-party trackers.</b> Nothing to accept.</p>
     <ul>
       <li><b>In this browser, on this device only:</b> your settings, the events you made or joined (and their keys), your name for joining, and your recordings and edits.</li>
       <li><b>On our server, for 30 days:</b> an event's code and settings, so devices can find each other. Not its name, which stays on your devices. Video goes device to device on your own network.</li>

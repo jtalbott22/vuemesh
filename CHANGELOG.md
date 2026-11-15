@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.96.0 — distributed live production, said plainly and kept in step
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.95.0.
+
+**"Distributed live production"** is what VUEMesh is now called wherever it's described: the home page, its first question, Compare, `/llms.txt` and the README. On the home page, **Not a video upload service. Distributed live production.** sets it beside the usual way: one machine with every camera cabled in, capture cards and installs, a person on the switcher throughout, recordings synced by hand and editing from scratch, against cameras that are the devices already in the room, connected browser to browser, a control room in a tab, every source recording itself on one clock, and the live cut arriving as an editable timeline.
+
+**Privacy names its two principles:** collect as little as possible (data minimization), and keep production on your own devices (data locality). **"No trackers" now says no third-party trackers** everywhere (Privacy, the first-visit note, the home page, Compare, `/llms.txt`, the README), beside a plain line that VUEMesh counts its own use anonymously, so the two never read as a contradiction.
+
+**About 12 live pictures** is said with what it depends on: a typical laptop at 720p on good Wi-Fi; fewer on older Wi-Fi, at 1080p or on a slower computer.
+
+**They can't drift apart:** the documentation check (run on every pull request) now fails if a page says "no trackers" without "third-party", gives a call size the server doesn't, gives 12 live pictures without what it depends on, if Privacy's pause and "Still running?" times differ from the studio's, if `/llms.txt` or Privacy disagree with how long events are kept, if Compare names an app `/llms.txt` doesn't, or if a page stops calling VUEMesh distributed live production.
+
 ## 0.95.0 — a show runs only while a person is at its studio
 **Deploy:** `./aws/deploy.sh` (backend and site: the server, and Admin's permission to tell a show's devices it has ended). It builds on 0.94.0.
 
