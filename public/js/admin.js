@@ -139,7 +139,7 @@ async function loadEvents() {
   })()]);
   events = all;
   const chip = (label, v, cls = '') => `<span class="chip ${cls}"><b>${esc(v)}</b>${esc(label)}</span>`;
-  $('#tiles').innerHTML = [chip('live now', st.live, st.live ? 'live' : ''), chip('events stored', st.events), chip('published', st.published), chip(`film files · ${bytes(st.filmBytes || 0)}`, st.films)].join('');
+  $('#tiles').innerHTML = [chip('live now', st.live, st.live ? 'live' : ''), chip('open, idle', st.open || 0), chip('events stored', st.events), chip('published', st.published), chip(`film files · ${bytes(st.filmBytes || 0)}`, st.films)].join('');
   renderEvents();
 }
 const daysLeft = (ev) => (ev.expiresAt ? Math.max(0, Math.round((ev.expiresAt - Date.now()) / DAY_MS)) : null);
@@ -151,12 +151,21 @@ function timeUsed(e) {
   const parts = [['Studio', t.studio], ['Edit', t.edit], ['Kiosk', t.kiosk], ['Cameras', t.cameras]].filter(([, s]) => s > 0);
   return parts.length ? parts.map(([k, s]) => `<span title="${k}">${k} ${hm(s)}</span>`).join('<br>') : '<span class="note">—</span>';
 }
+// Live (phones, TVs or a call in, or recording or streaming), or open (a studio page doing nothing),
+// and for how long; a studio's next "Still running?" is due 12 hours after a person last said so
+const runFor = (ms) => { const m = Math.round(ms / 60000); return m >= 1440 ? `${Math.floor(m / 1440)} d ${Math.round((m % 1440) / 60)} h` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+function showTag(e) {
+  if (!e.state) return e.endedAt && Date.now() - e.endedAt < 7 * DAY_MS ? `<span class="tag" title="${esc(new Date(e.endedAt).toLocaleString())}">ENDED${e.endedWhy === 'admin' ? ' BY ADMIN' : e.endedWhy === 'unconfirmed' ? ': NOBODY THERE' : ''}</span> ` : '';
+  const since = e.runSince ? ` <span class="note" title="Running since ${esc(new Date(e.runSince).toLocaleString())}">for ${runFor(Date.now() - e.runSince)}</span>` : '';
+  const conf = e.confirmedAt > 1 ? `<br><span class="note">confirmed ${runFor(Date.now() - e.confirmedAt)} ago</span>` : '';
+  return (e.state === 'live' ? '<span class="tag live" title="Phones, TVs or a call in, or recording or streaming">LIVE</span>' : '<span class="tag open" title="A studio page is open, with nobody in and nothing recording or streaming">OPEN</span>') + since + conf + ' ';
+}
 const SORTS = { id: (e) => e.id, createdAt: (e) => e.createdAt || 0, left: (e) => e.expiresAt || 0, used: usedSec };
 function visibleEvents() {
   const q = $('#filter').value.trim().toUpperCase();
   // (no names: a show's name stays on its devices, and the server never has it)
   const list = events.filter((e) => (!q || e.id.includes(q))
-    && (kind === 'all' || (kind === 'live' && e.live) || (kind === 'kiosk' && e.surface === 'kiosk') || (kind === 'call' && e.kind === 'call') || (kind === 'studio' && e.surface !== 'kiosk' && e.kind !== 'call')));
+    && (kind === 'all' || (kind === 'live' && (e.live || e.open)) || (kind === 'kiosk' && e.surface === 'kiosk') || (kind === 'call' && e.kind === 'call') || (kind === 'studio' && e.surface !== 'kiosk' && e.kind !== 'call')));
   const f = SORTS[sortBy.key];
   return list.sort((a, b) => (f(a) > f(b) ? 1 : f(a) < f(b) ? -1 : 0) * sortBy.dir);
 }
@@ -176,8 +185,9 @@ function renderEvents() {
         <td>${new Date(e.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
         <td>${left == null ? '—' : `<span class="left${left <= 3 ? ' soon' : ''}">${left}<i style="--w:${Math.min(100, (left / 30) * 100).toFixed(0)}%"></i></span>`}</td>
         <td class="times">${timeUsed(e)}</td>
-        <td>${e.live ? '<span class="tag live">LIVE</span> ' : ''}${e.published ? '<span class="tag">FILM</span> ' : ''}${e.orientation === 'portrait' ? '<span class="tag">PORTRAIT</span>' : ''}</td>
+        <td>${showTag(e)}${e.published ? '<span class="tag">FILM</span> ' : ''}${e.orientation === 'portrait' ? '<span class="tag">PORTRAIT</span>' : ''}</td>
         <td><div class="acts">
+          ${e.state ? '<button type="button" data-act="end">End show</button>' : ''}
           <button type="button" data-act="days">Set expiry</button>
           ${e.published ? '<button type="button" data-act="films">Delete film</button>' : ''}
           <button type="button" class="danger" data-act="delete">Delete</button>
@@ -236,6 +246,11 @@ $('#list').addEventListener('click', async (e) => {
       if (!confirm(`Delete the published film for ${id}? This can't be undone.`)) return;
       await call(`events/${id}/films`, { method: 'DELETE' });
       ev.published = null;
+    } else if (b.dataset.act === 'end') {
+      if (!confirm(`End ${id}'s show now? Its studio stops recording and streaming, every phone is let go, and the studio stays shut until someone opens it again. The event and its code stay.`)) return;
+      const r = await call(`events/${id}/end`, { method: 'POST' });
+      Object.assign(ev, r.event);
+      toast(`Ended ${id}${r.told ? `: ${r.told} connected device(s) told` : ''}`);
     } else if (b.dataset.act === 'delete') {
       if (!confirm(`Delete ${id} and everything stored for it? This can't be undone.`)) return;
       const r = await call(`events/${id}`, { method: 'DELETE' });

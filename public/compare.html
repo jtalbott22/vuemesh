@@ -64,8 +64,8 @@
   <main class="vm-doc wide">
     <p class="vm-eyebrow">Compare</p>
     <h1>How VUEMesh compares</h1>
-    <p class="lead">People weigh VUEMesh against apps that switch phones as cameras, browser studios for guests, and desktop streaming software. Here it is beside the three it's most often compared with, then how it differs from the rest. Plain words first, detail after.</p>
-    <p class="updated">Updated 15 November 2026 (VUEMesh 0.94.0). What this page says about other apps comes from their own websites on that date; features and plans change, so check theirs, and <a href="https://github.com/jtalbott22/vuemesh/issues">tell us</a> if something here is out of date. Names belong to their owners.</p>
+    <p class="lead">People weigh VUEMesh against apps that switch phones as cameras, browser studios for guests, and desktop streaming software. VUEMesh is a different model, <b>distributed live production</b>: instead of one machine with every camera cabled in, the cameras are the phones, laptops and webcams already there, connected browser to browser, and every one records itself on the same clock. Here it is beside the three it's most often compared with, then how it differs from the rest. Plain words first, detail after.</p>
+    <p class="updated">Updated 15 November 2026 (VUEMesh 0.96.0). What this page says about other apps comes from their own websites on that date; features and plans change, so check theirs, and <a href="https://github.com/jtalbott22/vuemesh/issues">tell us</a> if something here is out of date. Names belong to their owners.</p>
     <ul class="vm-toc" aria-label="On this page">
       <li><a href="#short">In one line each</a></li>
       <li><a href="#table">Side by side</a></li>
@@ -78,7 +78,7 @@
 
     <h2 id="short">In one line each</h2>
     <ul class="cards four">
-      <li class="us"><b>VUEMesh</b><span>A whole production studio in a browser tab, free: switcher, mixer, recorder, live streamer and editor. Phones and cameras in the room, and guests from anywhere.</span></li>
+      <li class="us"><b>VUEMesh</b><span>Distributed live production, free: the cameras are the devices already in the room, each connected straight to a studio in a browser tab, each recording itself, with the live cut ready to edit.</span></li>
       <li><b><a href="https://www.switcherstudio.com/">Switcher Studio</a></b><span>An app that turns iPhones, iPads and other cameras into a multi-camera live stream, by subscription.</span></li>
       <li><b><a href="https://streamyard.com/">StreamYard</a></b><span>A browser studio for live streams and interviews with remote guests, free to start with paid plans.</span></li>
       <li><b><a href="https://obsproject.com/">OBS Studio</a></b><span>Free desktop software for building scenes, recording and streaming from one computer.</span></li>
@@ -92,7 +92,7 @@
           <tr><th scope="row">What it is</th><td data-l="VUEMesh">A complete production studio in the browser</td><td data-l="Switcher Studio">An app that switches between phones, tablets and cameras</td><td data-l="StreamYard">A browser studio for streams and interviews</td><td data-l="OBS Studio">A desktop app for compositing, recording and streaming</td></tr>
           <tr><th scope="row">Runs on</th><td data-l="VUEMesh">Chrome or Edge on a Mac or Windows computer, or Safari on a Mac. Nothing to install</td><td data-l="Switcher Studio">iPhone, iPad and Mac apps</td><td data-l="StreamYard">A web browser</td><td data-l="OBS Studio">Windows, macOS or Linux</td></tr>
           <tr><th scope="row">Price</th><td data-l="VUEMesh">Free, open source (MIT)</td><td data-l="Switcher Studio">Subscription, with a free trial</td><td data-l="StreamYard">Free plan with its logo and limits; paid monthly plans</td><td data-l="OBS Studio">Free, open source (GPL-2.0)</td></tr>
-          <tr><th scope="row">Cameras in the room</th><td data-l="VUEMesh">USB cameras, screens and any phone or tablet, joining by QR code; about 12 live pictures on one laptop</td><td data-l="Switcher Studio">iPhones, iPads, Android phones and cameras, up to 9 angles</td><td data-l="StreamYard">Each person's own camera; an extra camera on the top plan</td><td data-l="OBS Studio">Webcams, capture cards and network sources through plugins</td></tr>
+          <tr><th scope="row">Cameras in the room</th><td data-l="VUEMesh">USB cameras, screens and any phone or tablet, joining by QR code; about 12 live pictures on a typical laptop (more or fewer with the computer, picture size and Wi-Fi)</td><td data-l="Switcher Studio">iPhones, iPads, Android phones and cameras, up to 9 angles</td><td data-l="StreamYard">Each person's own camera; an extra camera on the top plan</td><td data-l="OBS Studio">Webcams, capture cards and network sources through plugins</td></tr>
           <tr><th scope="row">Guests from anywhere</th><td data-l="VUEMesh">Video calls of up to 6, each person a source</td><td data-l="Switcher Studio">Up to 5 remote guests</td><td data-l="StreamYard">Its core strength: up to 6 on screen free, 10 on paid plans</td><td data-l="OBS Studio">Through other tools</td></tr>
           <tr><th scope="row">Switching</th><td data-l="VUEMesh">Preview and program, cut, auto, T-bar, a MIDI fader, and an auto director that follows who's talking</td><td data-l="Switcher Studio">Tap to switch angles, layouts and instant replay</td><td data-l="StreamYard">Click to change layouts and who's on screen</td><td data-l="OBS Studio">Scenes, Studio Mode and transitions; automatic switching through plugins</td></tr>
           <tr><th scope="row">Sound</th><td data-l="VUEMesh">A strip per source with 3-band EQ and high-pass; a console with scopes</td><td data-l="Switcher Studio">Levels for each source, music and videos</td><td data-l="StreamYard">Levels for each person</td><td data-l="OBS Studio">A mixer with filters and VST plugins</td></tr>
@@ -179,9 +179,9 @@
           <tr><th scope="row">Recording</th><td>Program recorded live; every source on its own at full quality (phones record locally and deliver each take, signed and verified part by part); captions as WebVTT</td></tr>
           <tr><th scope="row">Streaming</th><td>WHIP from the browser; RTMP and RTMPS through a local relay that re-encodes to H.264 (keyframe every 2 s) and AAC at 160 kbit/s; 2.5 to 6 Mbit/s</td></tr>
           <tr><th scope="row">Rendering</th><td>MP4 with hardware H.264 in Chrome and Edge, faster than real time; Linux records VP9</td></tr>
-          <tr><th scope="row">Capacity</th><td>About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that</td></tr>
+          <tr><th scope="row">Capacity</th><td>About 12 live pictures on a typical laptop at 720p on a good Wi-Fi 6 network; 6 to 8 on older Wi-Fi, fewer at 1080p or on a slower computer. Phones beyond that still record, and swap in when there's room. The Monitor shows what's holding each picture back: the network or the phone</td></tr>
           <tr><th scope="row">Control</th><td>Keyboard shortcuts, a MIDI fader as the T-bar, a paired phone remote, and Premiere Pro's keys in Edit</td></tr>
-          <tr><th scope="row">Privacy</th><td>No accounts, cookies or trackers; recordings stay on your devices; event data deletes itself after 30 days</td></tr>
+          <tr><th scope="row">Privacy</th><td>No accounts, cookies or third-party trackers; recordings stay on your devices; event data deletes itself after 30 days</td></tr>
           <tr><th scope="row">Source</th><td>Plain HTML, CSS and JavaScript, MIT licensed: <a href="https://github.com/jtalbott22/vuemesh">github.com/jtalbott22/vuemesh</a></td></tr>
         </tbody>
       </table>

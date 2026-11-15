@@ -210,6 +210,8 @@ async function join(id, key, pin) {
   }
 }
 
+/** Out of the call, if the studio's in one (the show ended) */
+export function leaveCall() { if (mesh) leave(); }
 function leave(already) {
   if (!already) mesh?.leave();
   for (const pid of [...(mesh?.peers.keys() || [])]) drop(pid);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Privacy — VUEMesh</title>
-<meta name="description" content="Exactly what VUEMesh keeps in your browser and on its server, and how to clear it. No cookies, no accounts, no trackers.">
+<meta name="description" content="Exactly what VUEMesh keeps in your browser and on its server, and how to clear it. No cookies, no accounts, no third-party trackers: collect as little as possible, and keep production on your own devices.">
 <link rel="canonical" href="https://vuemesh.com/privacy">
 <meta property="og:site_name" content="VUEMesh">
 <meta property="og:type" content="website">
@@ -36,7 +36,7 @@
   <p class="vm-eyebrow pvw">Privacy</p>
   <h1>What VUEMesh keeps</h1>
   <p class="lead">Exactly what VUEMesh keeps, where, and for how long. This page describes the site at vuemesh.com. VUEMesh is open source (MIT), so anyone can run their own copy; a copy run by someone else is theirs, and so is what it keeps.</p>
-  <p class="updated">Updated 14 November 2026 (VUEMesh 0.90.0): calls, the relay and when it may be off, captions and face tracking, the logs that can be switched on, and streaming and publishing.</p>
+  <p class="updated">Updated 15 November 2026 (VUEMesh 0.96.0): <a href="#short">the two principles</a> (collect as little as possible, keep production on your devices), and that "no trackers" means no third-party ones, beside our own anonymous counts. 0.95.0: <a href="#showsend">shows end when nobody is at the studio</a>, and what the server keeps about a show while it runs. Before that (0.90.0): calls, the relay and when it may be off, captions and face tracking, the logs that can be switched on, and streaming and publishing.</p>
   <ul class="vm-toc" aria-label="On this page">
     <li><a href="#short">The short version</a></li>
     <li><a href="#browser">In this browser</a></li>
@@ -53,8 +53,9 @@
 
   <section class="vm-card" id="short" aria-labelledby="shortH">
     <h2 id="shortH" style="margin:0">The short version</h2>
+    <p style="margin:0">Two decisions shape everything below. <b>Collect as little as possible</b> (data minimization): no accounts, no identities, no recordings and no location reach us, only what devices need to find each other, and that deletes itself. <b>Keep production on your own devices</b> (data locality): cameras, the studio, recording, editing and captions all happen on the devices at the show, not on a cloud media platform.</p>
     <ul class="vm-checks">
-      <li><span><b>No cookies, no accounts, no ads, no trackers, no third-party analytics.</b> There's nothing to accept.</span></li>
+      <li><span><b>No cookies, no accounts, no ads, no third-party trackers or analytics.</b> VUEMesh does count its own use, anonymously: <a href="#counts">page views and daily totals</a>, with no identifier kept that could follow you, nothing shared with ad or analytics companies, and none at all if your browser asks not to be tracked. There's nothing to accept.</span></li>
       <li><span><b>Never your location.</b> VUEMesh doesn't ask where you are, and there's no public list or map of events.</span></li>
       <li><span><b>Your recordings stay on your devices.</b> Video and sound go from device to device. Our server never receives them, and nothing is uploaded to be published (<a href="#publish">not yet</a>).</span></li>
       <li><span><b>Calls go from device to device, encrypted.</b> Names, pictures, sound and shared screens go straight to the others in the call, never to us. Nobody gets in without the link, or the code and PIN, and someone already in lets each person in.</span></li>
@@ -97,14 +98,15 @@
   <h2 id="server">On our server</h2>
   <p>The server is a small switchboard. It helps devices at an event or in a call find each other, then gets out of the way. It keeps:</p>
   <ul>
-    <li><b>Each event</b>: its code, shape (landscape or portrait), settings, the Terms its people agreed to, a one-way hash of the host's key, when it was made, and when the studio was last open. <b>Not its name</b>: that stays on the devices. A kiosk show keeps only that it has been named. <b>Deleted automatically 30 days after it's made</b> (12 hours for a show started at a kiosk), or sooner when the host deletes it.</li>
+    <li><b>Each event</b>: its code, shape (landscape or portrait), settings, the Terms its people agreed to, a one-way hash of the host's key, when it was made, when the studio was last open, and for its show: when it started, when a person at the studio last said it was still running, whether the studio is recording or streaming and how many devices are connected (a number, not who), and when and why it ended. <b>Not its name</b>: that stays on the devices. A kiosk show keeps only that it has been named. <b>Deleted automatically 30 days after it's made</b> (12 hours for a show started at a kiosk), or sooner when the host deletes it.</li>
     <li><b>Each call</b>: <a href="#calls">see Calls</a>. <b>Deleted automatically a day after it's made.</b></li>
     <li><b>Who's connected right now</b>: a random ID for each device in the event, the name it joined with (none in a call), and its role (camera, microphone, studio, TV, a call's guest, and whether it's waiting to be let in). Used to pass the handshake between devices. Deleted within a day.</li>
     <li><b>How many calls each address started in the hour, and how many relay passwords it asked for</b>, each counted under a mark made from the address with that day's random salt, and deleted after the hour, so nobody can start thousands.</li>
-    <li><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, computer screens (from the Share page), microphones, viewers and TVs joined, recordings made, hours of footage, live cut and streaming, how long TVs watched, calls started, how many people were in them, how many times devices connected to them and how many screens were shared in them (that a screen was shared, never what was on it), and how much the relay passed on. So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event; a call does the same for each device let into it and each that shares its screen, deleted with the call after a day. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
+    <li id="counts"><b>Anonymous counts for each day</b>, which don't expire: events made and run, how many cameras, computer screens (from the Share page), microphones, viewers and TVs joined, recordings made, hours of footage, live cut and streaming, how long TVs watched, calls started, how many people were in them, how many times devices connected to them and how many screens were shared in them (that a screen was shared, never what was on it), and how much the relay passed on. So a phone that rejoins is counted once, the event holds a one-way code made from that phone's random camera ID, deleted with the event; a call does the same for each device let into it and each that shares its screen, deleted with the call after a day. The day's counts name no person, device, place or event. They may be shared, for example with partners or funders.</li>
     <li><b>Anonymous page views</b>: one count per page load, by page, with the site that linked to it, device type (phone, tablet, desktop), browser name, and country if the network provides it. A visitor is counted once a day using a hash of the day, the address and the browser with a random salt made fresh each day. The hash isn't kept with the counts, and the hash and that day's salt are both deleted after two days, after which nobody, us included, can work out an address from it. With them, how each connection between two devices went (on the same network, straight across the internet, or through our relay), counted once by each device when it connects, so we know how often the relay is needed; nothing about the devices or the show. <b>None of this is sent if your browser asks not to be tracked</b> (Do Not Track or Global Privacy Control).</li>
   </ul>
   <p><b>Recordings, pictures and sound never go to the server.</b></p>
+  <p id="showsend"><b>A show runs only while a person is at its studio.</b> A studio with no phones, screens or TVs in, nothing recording or streaming, and nobody using it for 30 minutes pauses itself. Every 12 hours it asks "Still running this show?"; if nobody answers in 10 minutes, the show ends: recording and streaming stop, every phone stops recording and is told the show has ended, and the studio can't carry on until a person opens it again. The server ends it too, shortly after, if a studio doesn't. So nobody can be recorded for days with no one at the studio. What was already recorded stays on the devices that recorded it. Kiosks (a show that ends when its guests leave) and a TV's own code (nothing recorded) don't ask.</p>
 
   <h2 id="calls">Calls</h2>
   <p>A call (<a href="/call">/call</a>) is up to six people on cameras, microphones and shared screens, everyone connected straight to everyone else.</p>

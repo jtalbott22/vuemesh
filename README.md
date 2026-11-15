@@ -5,14 +5,14 @@
 <h1 align="center">VUEMesh</h1>
 
 <p align="center">
-  <strong>A complete live production studio in one browser tab.</strong><br>
+  <strong>Distributed live production: a complete studio in one browser tab.</strong><br>
   Plug in your USB cameras and audio interface, bring in any screen (yours or another computer's), roll your own clips and ads, add phones over Wi-Fi when you want more angles, then switch, mix, record, stream and edit. No installs, no capture cards, no drivers.
 </p>
 
 <p align="center">
   <a href="https://vuemesh.com"><img alt="Live at vuemesh.com" src="https://img.shields.io/badge/live-vuemesh.com-e8372c?style=flat-square"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2ea043?style=flat-square"></a>
-  <img alt="No accounts, no cookies, no trackers" src="https://img.shields.io/badge/privacy-no%20accounts%20%C2%B7%20no%20cookies%20%C2%B7%20no%20trackers-1f6feb?style=flat-square">
+  <img alt="No accounts, no cookies, no third-party trackers" src="https://img.shields.io/badge/privacy-no%20accounts%20%C2%B7%20no%20cookies%20%C2%B7%20no%20third--party%20trackers-1f6feb?style=flat-square">
   <img alt="No app to install" src="https://img.shields.io/badge/no%20app-just%20a%20browser-2ea043?style=flat-square">
   <img alt="USB cameras, audio interfaces and MIDI" src="https://img.shields.io/badge/USB-cameras%20%C2%B7%20audio%20%C2%B7%20MIDI-8250df?style=flat-square">
   <img alt="LAN-first: video goes device to device, never uploaded" src="https://img.shields.io/badge/video-LAN--first-1f6feb?style=flat-square">
@@ -79,7 +79,7 @@ every angle, already cut on the timeline and ready to re-cut.
   devices line up to the frame.
 - **Signed footage.** Every phone has its own key. Each clip is hashed in parts and signed, and the
   studio verifies every part before accepting it, and exported files carry the signatures.
-- **Private by design.** No accounts, no cookies, no trackers, never your location. Recordings stay on
+- **Private by design.** No accounts, no cookies, no third-party trackers, never your location (its own use is counted anonymously). Recordings stay on
   your devices; the server only introduces them (and our relay passes media on, encrypted, only when
   two devices can't reach each other). A note on first visit says exactly what the browser
   keeps, and [/privacy](public/privacy.html) lists every item and clears it all with one button.
@@ -141,7 +141,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Live captions** of the program's sound, recognised on the studio's computer (Chrome 139+ or Edge; the sound isn't sent anywhere): on the picture, and saved with Record program as a `.vtt` captions file.
 - **Picture-in-picture**: a camera in the corner over a shared screen, the presenter beside their slides.
 - **Live picture quality follows the show**: sharp on air, light on standby (see [the table](#live-picture-quality)).
-- **Record-only overflow:** past 12 live pictures, more phones still record and wait to swap in.
+- **Record-only overflow:** past 12 live pictures (the most it shows at once; how many run smoothly depends on the computer, picture size and network), more phones still record and wait to swap in.
 
 </td>
 </tr>
@@ -184,6 +184,7 @@ every angle, already cut on the timeline and ready to re-cut.
 - **Monitor:** every source's link, bitrate, battery and device, transfers in and out, and an event log.
 - **Show log:** frame rate, sound and alerts for each session, saved for later.
 - **Kiosk mode:** a screen that runs a whole show by itself. Guests scan, the first names it, and it directs and records.
+- **Shows end when nobody's there:** a studio with nothing going on pauses itself after 30 minutes, and every 12 hours a person must say the show's still running, or it ends (recording and streaming stop, every phone is let go). Admin shows LIVE or OPEN, how long, and can End show.
 - **Calls** (`/call`): up to 6 people on cameras and shared screens, everyone connected to everyone. Send a link or a code and PIN; a waiting room lets nobody in until someone in the call does, and the call can be locked. Nothing recorded, no names on our server. Another computer can join just to show its screen (`/share` with the call's link).
 - **Guests from anywhere** (Add → People on a call): the studio starts or joins a call, and each person in it is a source (their camera and sound, and any screen they share), recorded here while on air. The call sees the program and hears it without themselves.
 - **Admin:** every event, its expiry and film, plus anonymous growth numbers and web traffic.
@@ -403,7 +404,7 @@ browser to use for the studio, and network and capacity planning.
 | **Cameras** | USB webcams on the studio computer; any recent phone or tablet browser (iPhone Safari, Android Chrome); or another computer's Chrome or Edge over `/share`. |
 | **Sound** | Any USB microphone or audio interface the computer sees. On Linux, set a two-input interface to **Pro Audio** to hear both inputs. A Focusrite Scarlett 4th Gen: turn off **Easy Start** (open Focusrite Control 2, or hold 48V while plugging it in, then unplug it and plug it in again), or software that checks the computer's drives can stop its sound every few minutes. |
 | **Network** | Your own router is best: Wi-Fi 6 on 5 GHz, the studio on a cable. Venue Wi-Fi with client isolation blocks the direct path. |
-| **Capacity** | About 12 live pictures on one laptop (6 to 8 on older Wi-Fi), plus record-only phones beyond that. A 720p output suits most computers; several 1080p webcams can crowd one USB controller, so spread them across ports. |
+| **Capacity** | About 12 live pictures on a typical laptop at 720p on good Wi-Fi (6 to 8 on older Wi-Fi; fewer at 1080p or on a slower computer: it depends on the hardware, the picture size and the network), plus record-only phones beyond that. A 720p output suits most computers; several 1080p webcams can crowd one USB controller, so spread them across ports. |
 
 ## Getting started
 
@@ -507,7 +508,7 @@ Press **?** anywhere in the studio (and on guest phones with a keyboard) for the
 
 ## Privacy
 
-No accounts, no cookies, no ads, no trackers, no third-party analytics. The first time someone opens
+No accounts, no cookies, no ads, no third-party trackers or analytics (VUEMesh counts its own use anonymously: see the Privacy page). The first time someone opens
 a VUEMesh page, a small note says what's kept, in plain words, with **Got it** (it isn't shown on
 screens that go on air or hang on a wall, or in automated test browsers). The [Privacy page](public/privacy.html)
 (`/privacy`) has the full list:
@@ -517,7 +518,8 @@ screens that go on air or hang on a wall, or in automated test browsers). The [P
   starting `vm_`), plus a saved copy of the app for working offline. The page shows what this browser
   holds now and clears all of it with one button.
 - **On the server, for 30 days:** each event's code, shape and settings, a hash of the host key,
-  and the agreed terms; connection records (a random device ID, its name and role) for under a day.
+  the agreed terms, and its show's state (when it started, when a person last confirmed it, whether
+  it's recording or streaming, how many devices are in, when and why it ended); connection records (a random device ID, its name and role) for under a day.
   **Never a show's name:** it stays on the host's computer, the studio tells the devices in the show
   over their own links, and a copied link carries it after the `#` (which no server sees). A call
   keeps hashes of its checks for a day, and no names at all.

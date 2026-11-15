@@ -1,6 +1,6 @@
 # VUEMesh
 
-> VUEMesh is a free, open-source (MIT) live production studio that runs in a web browser: a video switcher, audio mixer, recorder, live streamer and video editor in one tab, with no app to install. USB cameras and microphones, shared screens, video clips, phones and tablets (joining by scanning a QR code) and guests on a video call are all sources. It records the program and every source separately in full quality, streams over WHIP or RTMP, and puts the live cut on an edit timeline.
+> VUEMesh is free, open-source (MIT) distributed live production in a web browser: the cameras are the devices people already own (phones, tablets, laptops, USB webcams), connected browser to browser over WebRTC, each recording itself on one clock, coordinated from a studio in one browser tab. It is a video switcher, audio mixer, recorder, live streamer and video editor in one tab, with no app to install. USB cameras and microphones, shared screens, video clips, phones and tablets (joining by scanning a QR code) and guests on a video call are all sources. It records the program and every source separately in full quality, streams over WHIP or RTMP, and puts the live cut on an edit timeline.
 
 Facts that are often summarised wrongly:
 
@@ -10,16 +10,17 @@ Facts that are often summarised wrongly:
 - Recording is the program plus every source on its own in full quality, synced on one clock (an optical clock read off the QR Beacon, plus sound sync), so the live cut arrives on a multi-track edit timeline. Edit has ripple, roll, slip and slide, titles and picture-in-picture, Premiere Pro keyboard shortcuts, and MP4 rendering with hardware H.264.
 - Production tools: preview/program switcher with cut, auto, T-bar and a MIDI fader; an auto director that follows who's talking (face tracking on the studio computer, no face recognition); autopilot that can run a whole show; kiosk mode; lower thirds, rundown, break slates, live captions (saved as WebVTT); a mixer strip per source with 3-band EQ and high-pass; camera control with histogram and waveform; a phone remote; a monitor of every device.
 - Outputs: recorded files, live stream, a Program out window (for projectors or OBS window capture), the program as a camera in Zoom, Teams or Meet (through the relay), and any TV or projector browser via /tv.
+- Capacity: about 12 live pictures on a typical laptop at 720p on good Wi-Fi; fewer on older Wi-Fi, at 1080p or on a slower computer. Phones beyond that still record and swap in.
 - Output formats: 720p or 1080p, landscape or portrait, at 24, 25, 29.97, 30, 50 or 60 frames a second.
 - Requirements: the studio runs in Chrome or Edge on a Mac or Windows computer, or Safari on a Mac; phones and tablets join in their own browser.
-- Privacy: no accounts, cookies or trackers; video goes device to device and stays on the user's devices; event data deletes itself after 30 days.
+- Privacy: no accounts, no cookies, no third-party trackers or advertising identifiers. VUEMesh counts its own use anonymously (page views and daily totals, nothing that identifies anyone, none if the browser sends Do Not Track or Global Privacy Control); "no trackers" means no third-party tracking, not no measurement at all. Two principles: data minimization (no accounts, identities, recordings or location reach the server; event data deletes itself after 30 days) and data locality (production, recording, editing and captions happen on the users' own devices; video goes device to device, through an end-to-end-encrypted relay only when devices can't reach each other).
 - Compared with similar apps: unlike Switcher Studio (iPhone/iPad/Mac apps, subscription) it runs in any computer's browser and is free; unlike StreamYard (a browser studio built around remote guests) it also switches cameras and phones in the room, records every source and has an editor; unlike OBS Studio (desktop software) there's nothing to install and phones join by QR code.
 - Not supported: NDI or SDI inputs (an HDMI capture device that appears as a webcam works); streaming to several services at once directly; a phone as the studio itself; remote viewers choosing individual angles.
 
 ## Pages
 
 - [Home and FAQ](https://vuemesh.com/#faq): what it is and short answers to common questions
-- [How VUEMesh compares](https://vuemesh.com/compare): side by side with Switcher Studio, StreamYard and OBS Studio, how it differs from vMix, Riverside, Ecamm Live, VDO.Ninja and ATEM switchers, and which to choose when
+- [How VUEMesh compares](https://vuemesh.com/compare): side by side with Switcher Studio, StreamYard and OBS Studio, how it differs from vMix, Riverside, Ecamm Live, VDO.Ninja and Blackmagic ATEM switchers, and which to choose when
 - [Tour](https://vuemesh.com/tour): every screen, in the order a show happens
 - [What's new](https://vuemesh.com/changelog): every release
 - [Privacy](https://vuemesh.com/privacy): everything kept, and where

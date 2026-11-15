@@ -273,8 +273,14 @@ Resources:
           LAN_DOMAIN: !If [HasDomain, !Sub 'lan.${DomainName}', 'lan.vuemesh.com']
           TURN_SECRET: !Ref TurnSecret
           TURN_URLS: !Ref TurnUrls
+          # (Admin's End show tells the devices connected to a show)
+          WS_ENDPOINT: !Sub 'https://${WsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}'
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*'
         - Statement:
             # the Lightsail servers (aws/stun): their health for Admin, and the relay's switch
             - Effect: Allow

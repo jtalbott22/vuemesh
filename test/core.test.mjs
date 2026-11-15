@@ -729,4 +729,81 @@ ok('events expire after 30 days for the API and signaling');
   ok('calls: in a call the studio joined, people still take each other out, never the studio');
 }
 
+// A show runs only while a person is at its studio: Admin tells live from open (a page doing
+// nothing), the studio's 12 hours are renewed by a person, and past them (and a grace) the show ends
+// here too, whatever copy of the page it is: everyone's told, and it's back only when a person opens it.
+{
+  const { SHOW_LIMITS, showState } = await import('../aws/functions/lib/core.mjs');
+  const mk = async (body = {}) => (await call('POST', '/events', { kind: 'show', ...body })).body;
+  const s = await mk();
+  const q = (role, peer, extra = {}) => ({ e: s.id, role, peer, ...(role === 'host' ? { k: s.hostKey } : {}), ...extra });
+  const state = async () => (await call('GET', `/admin/events/${s.id}`, null, A)).body.event;
+  await connect('SH1', q('host', 'SH', { start: '1' }));
+  let m = await store.getEvent(s.id);
+  assert.ok(m.runSince === clock && m.confirmedAt === clock, 'opening the studio starts a run, confirmed by the person opening it');
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'ping', busy: false }) });
+  assert.equal((await state()).state, 'open', 'a studio with nobody in and nothing running is open, not live');
+  await connect('SC1', q('cam', 'SC'));
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'ping', busy: false }) });
+  assert.equal((await state()).state, 'live', 'a phone in: live');
+  await sig('$disconnect', 'SC1');
+  open.delete('SC1');
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'ping', busy: true }) });
+  assert.equal((await state()).state, 'live', 'recording or streaming with nobody in: live');
+  assert.equal((await state()).runSince, m.runSince, "Admin has when it's run since");
+  assert.equal(showState({ hostSeenAt: clock - 16 * 60_000, hostBusy: true }, clock), null, 'a studio gone quiet for 15 minutes is neither');
+
+  // a person confirms at 11 hours: 12 more from then
+  clock += 11 * 3600_000;
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'confirm' }) });
+  assert.ok(last('SH1', 'confirmed'), 'the studio hears it was confirmed');
+  clock += 12 * 3600_000;
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'ping', busy: true }) });
+  assert.equal(last('SH1', 'ended'), undefined, 'confirmed 12 hours ago: still running (the studio asks, with time to answer)');
+  // unanswered past the grace: ended here, everyone told, and let go
+  await connect('SC2', q('cam', 'SC2'));
+  clock += SHOW_LIMITS.graceMs + 60_000;
+  await sig('$default', 'SH1', { body: JSON.stringify({ action: 'ping', busy: true }) });
+  assert.equal(last('SH1', 'ended')?.reason, 'unconfirmed', 'the studio is told the show ended');
+  assert.equal(last('SC2', 'ended')?.reason, 'unconfirmed', 'and so is every phone');
+  assert.equal((await store.listConns(s.id)).length, 0, 'everyone is let go');
+  assert.equal((await connect('SH2', q('host', 'SH'))).status, 403, 'an old copy of the studio reconnecting by itself is turned away');
+  assert.equal((await connect('SH3', q('host', 'SH', { start: '1' }))).status, 200, 'a person opening the studio starts again');
+  ok('shows: live or open; 12 hours renewed by a person; unconfirmed, ended for everyone and kept shut until a person opens it');
+
+  // Admin's End show: everyone's told and let go; the event stays
+  await connect('SC3', q('cam', 'SC3'));
+  const end = await api({ method: 'POST', path: `/admin/events/${s.id}/end`, headers: A, query: {}, body: {} }, { ...deps, post });
+  assert.equal(end.status, 200);
+  assert.equal(end.body.told, 2, 'the studio and the phone are told');
+  assert.equal(last('SC3', 'ended')?.reason, 'admin');
+  assert.equal(end.body.event.state, null, 'no longer live or open');
+  assert.ok(await store.getEvent(s.id), 'the event and its code stay');
+  assert.equal((await connect('SH4', q('host', 'SH'))).status, 403, 'the studio stays shut until a person opens it');
+  ok("admin: End show tells everyone, lets them go, and keeps the event");
+
+  // the studio ending the show itself (its person, or nobody answering): the same, from the studio
+  await connect('SH5', q('host', 'SH', { start: '1' }));
+  await connect('SC5', q('cam', 'SC5'));
+  await sig('$default', 'SH5', { body: JSON.stringify({ action: 'end', reason: 'unconfirmed' }) });
+  assert.equal(last('SC5', 'ended')?.reason, 'unconfirmed', 'the phones are told');
+  assert.equal((await store.getEvent(s.id)).endedWhy, 'unconfirmed');
+  assert.equal((await connect('SH6', q('host', 'SH'))).status, 403, 'and the studio stays shut until a person opens it');
+  await connect('SH7', q('host', 'SH', { start: '1' }));
+  await connect('SC7', q('cam', 'SC7'));
+  await sig('$default', 'SC7', { body: JSON.stringify({ action: 'end' }) });
+  assert.equal(last('SH7', 'ended'), undefined, 'a phone saying end does nothing');
+  ok('the studio ending the show tells the server, which tells the phones; a phone can’t');
+
+  // a kiosk (a show that ends when its guests leave) and a TV's own code (nothing recorded) don't ask
+  for (const body of [{ kiosk: true }, { kind: 'tv' }]) {
+    const k = await mk(body);
+    await connect('K1' + body.kind, { e: k.id, role: 'host', peer: 'KH', k: k.hostKey });
+    clock += 30 * 3600_000;
+    await sig('$default', 'K1' + body.kind, { body: JSON.stringify({ action: 'ping' }) });
+    assert.equal(last('K1' + body.kind, 'ended'), undefined, `${body.kiosk ? 'a kiosk' : 'a TV'} runs on`);
+  }
+  ok("kiosks and a TV's own code aren't asked to confirm");
+}
+
 console.log('\nAll core tests passed.');
