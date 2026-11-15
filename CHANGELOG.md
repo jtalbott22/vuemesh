@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.93.0 — questions answered, and how it compares
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.92.1.
+
+**Questions people ask, on the home page:** fourteen short answers, in plain words with the detail a professional wants: what VUEMesh is, whether it streams to YouTube or Twitch (yes, one service at a time: WHIP straight from the browser, RTMP through the relay), whether everyone has to be on the same Wi-Fi (no), what it records, editing, the auto director, sync, OBS and Zoom, privacy, cost, and what it doesn't do yet. FAQ is in the menu along the top. Search engines get the same words as structured data, and a test keeps the two the same.
+
+**VUEMesh, OBS Studio and VDO.Ninja compared** (`/compare`): what each is for in one line, a side-by-side table, which to choose when, how they work together, what VUEMesh doesn't do, and the technical detail (output formats, transport, sync, recording, streaming, capacity). In Compare, at the foot of the home page.
+
+**Search engines and AI assistants get the whole picture:** the home page's description for them lists the real features (streaming, guests from anywhere, every source recorded, Edit, captions and more) instead of six general lines; the tour and the comparison are in the sitemap; and `/llms.txt` is a plain summary for AI tools, with the facts most often got wrong.
+
 ## 0.92.1 — the studio and Edit in the same look
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.92.0.
 
