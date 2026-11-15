@@ -19,20 +19,23 @@
 
   /* --- top bar -------------------------------------------------------- */
   .bar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .mark { display: flex; align-items: center; gap: .45em; font-stretch: 125%; font-weight: 800; text-decoration: none; }
-  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); }
+  /* (the mark as on every other page, vm.css's .vm-mark; the bar stays a control room's, compact, with the version in Help) */
+  .mark { display: flex; align-items: center; gap: .5em; font-stretch: 125%; font-weight: 800; letter-spacing: -.005em; color: var(--text); text-decoration: none; white-space: nowrap; }
+  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--tally); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tally) 22%, transparent); }
   .ev { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .ev h1 { font-size: 1.05rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
   .ev .code { font-family: var(--mono); color: var(--text-2); font-size: .85rem; letter-spacing: .08em; }
-  .modes { display: inline-flex; background: var(--surface-2); border-radius: 8px; padding: 3px; }
-  .modes button { background: transparent; min-height: 30px; padding: .25em .9em; font-size: .88rem; border-radius: 6px; }
+  .modes { display: inline-flex; gap: 2px; background: var(--surface-2); border-radius: 10px; padding: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+  .modes button { background: transparent; color: var(--text-2); min-height: 30px; padding: .25em .9em; font-size: .88rem; border-radius: 8px; }
+  .modes button:hover { color: var(--text); }
   .modes button[aria-selected="true"] { background: var(--tally); color: #fff; }
   .modes button#editTab[aria-selected="true"] { background: var(--text); color: var(--bg); }
   .status { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--text-2); }
   .pill { display: inline-flex; align-items: center; gap: .4em; background: var(--surface-2); border-radius: 999px; padding: .2em .7em; white-space: nowrap; }
   .spacer { flex: 1; }
   .bar .btn, .bar button { min-height: 34px; padding: .35em .8em; font-size: .88rem; }
-  .bar .btn.ghost { box-shadow: inset 0 0 0 1px var(--line); }
+  .bar .btn.ghost, .bar button.ghost { box-shadow: inset 0 0 0 1px var(--line); color: var(--text); }
+  .bar .btn.ghost:hover, .bar button.ghost:hover { filter: none; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--muted); }
   .banner { background: var(--amber); color: #3b2500; padding: 8px 14px; font-weight: 600; }
   .incoming[hidden] { display: none; }
   .incoming { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 14px; border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--text-2); background: var(--surface); }
@@ -233,8 +236,8 @@
   .blocked { list-style: none; margin: 0; padding: 0 10px 8px; } .blocked li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; font-size: .85rem; }
   .localdlg .danger { background: #c8322a; color: #fff; border-color: #e5534b; }
   .addlocal button { width: 100%; }
-  .localdlg { max-width: 460px; width: 92vw; border: 0; border-radius: 14px; background: var(--surface); color: var(--text); padding: 18px 20px; }
-  .localdlg::backdrop { background: #000a; }
+  .localdlg { max-width: 460px; width: 92vw; border: 1px solid var(--line); border-radius: var(--card-r); background: var(--surface); color: var(--text); padding: 20px 22px; box-shadow: var(--shadow); }
+  .localdlg::backdrop { background: #05070fb3; }
   .localdlg h2 { margin: 0 0 6px; font-size: 1.1rem; } .localdlg h3 { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin: 14px 0 4px; }
   .localdlg ul { list-style: none; padding: 0; margin: 0; } .localdlg li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
   .localdlg form { margin-top: 14px; text-align: right; }
