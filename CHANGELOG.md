@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.98.1 — the home page's headline in the site's type
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.98.0.
+
+**"A production studio. In the browser." is set like every other heading:** Archivo at its wide width, as the logo, the sections under it, the other pages and the share card are. It had been set narrower, which made it look like a different font. It's sized so each line stays on one line beside the words next to it, from a 600-pixel window to a 2560-pixel screen; on a phone, "A production studio." splits evenly over two lines rather than shrinking.
+
 ## 0.98.0 — a new picture for shared links
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.97.0.
 
