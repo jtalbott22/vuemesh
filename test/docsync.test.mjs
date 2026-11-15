@@ -98,6 +98,20 @@ for (const n of tourShots) {
   if (!shotList.includes(`\`${n}.webp\``)) bad.push(`the tour shows ${n} but docs/SCREENSHOTS.md's shot list doesn't`);
 }
 for (const n of pictures) if (!tourShots.includes(n)) bad.push(`public/media/screens/${n}.webp isn't on the tour`);
+// the picture a shared link shows: every page that has one names card.png (1200 × 630, as it says),
+// with all its tags, and X's title and description the same as everyone else's
+const card = readFileSync(join(repo, 'public/card.png'));
+const cardW = card.readUInt32BE(16), cardH = card.readUInt32BE(20);
+if (cardW !== 1200 || cardH !== 630) bad.push(`public/card.png is ${cardW} × ${cardH}, not 1200 × 630 (render it with dev/og/render.py)`);
+const tag = (h, k) => h.match(new RegExp(`<meta (?:property|name)="${k}" content="([^"]*)"`))?.[1];
+for (const f of pages) {
+  const h = read(join('public', f));
+  if (!/og:image"/.test(h)) continue;
+  for (const k of ['og:title', 'og:description', 'og:image', 'og:image:width', 'og:image:height', 'og:image:alt', 'twitter:card', 'twitter:title', 'twitter:description', 'twitter:image', 'twitter:image:alt']) if (tag(h, k) == null) bad.push(`${f}'s share card has no ${k}`);
+  for (const k of ['og:image', 'twitter:image']) if (tag(h, k) && tag(h, k) !== 'https://vuemesh.com/card.png') bad.push(`${f}'s ${k} is ${tag(h, k)}, not the current card (https://vuemesh.com/card.png)`);
+  if (tag(h, 'twitter:title') !== tag(h, 'og:title') || tag(h, 'twitter:description') !== tag(h, 'og:description')) bad.push(`${f}: X's title or description differs from the card's`);
+  if (/\(beta\)|crowd-shot/i.test(tag(h, 'og:description') || '')) bad.push(`${f}'s card still describes VUEMesh the old way`);
+}
 // the phrase it's known by, in each place it's described
 for (const f of ['public/index.html', 'public/compare.html', 'public/llms.txt', 'README.md']) if (!/distributed live production/i.test(facing[f])) bad.push(`${f} no longer calls VUEMesh distributed live production`);
 

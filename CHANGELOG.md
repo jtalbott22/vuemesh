@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.98.0 — a new picture for shared links
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.97.0.
+
+**A link to VUEMesh, shared, shows the current look:** "Distributed live production. In the browser." in the site's type, the round red dot, and the studio's monitors with a wedding on air, a drummer in preview and two more cameras, recording every angle. The pictures are stills from the home page's films (AI-made), not the drawn cameras of the old one. It's `card.png`, a new name, so sites that kept the old picture fetch this one; `og.png` is the same picture for links shared before. It's made from `dev/og/og.html` with `dev/og/render.py`.
+
+**Every page's card is complete:** the picture's size and a description of it for screen readers, and X's own tags, on the tour, Compare, Privacy, Accessibility, What's new and Collaborate too. The home page's card says distributed live production; the tour's says what its fifteen screens are; and the Terms' no longer call VUEMesh a "crowd-shot … platform (beta)". A check keeps them that way.
+
+**After deploying:** ask Facebook's Sharing Debugger and LinkedIn's Post Inspector to fetch vuemesh.com again, so new shares show the new picture straight away.
+
 ## 0.97.0 — the tour in the same look, with every screen
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.96.0.
 
