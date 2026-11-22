@@ -5,6 +5,7 @@
 
 import { esc, fmtDur } from '/js/vm.js';
 import * as S from '/js/sequence.js';
+import * as G from '/js/song.js';
 
 const SNAP_PX = 8;
 export const TOOLS = {
@@ -30,6 +31,7 @@ export class Timeline {
    * @param {(t:number) => void} o.seek
    * @param {() => number} o.now
    * @param {(tool:string) => void} [o.toolChanged]
+   * @param {() => void} [o.rendered]  after each redraw (the edit may have changed: an edit, undo, a load)
    */
   constructor(o) {
     Object.assign(this, o);
@@ -59,8 +61,16 @@ export class Timeline {
     const heads = [`<div class="head ruler-head"></div>`];
     const lanes = [];
     const step = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600].find((s) => s * this.px >= 70) || 600;
-    let ticks = '';
-    for (let s = 0; s <= endT / 1000 + step; s += step) ticks += `<span class="tick" style="left:${s * this.px}px">${fmtDur(s * 1000).slice(0, -3)}</span>`;
+    let ticks = '', grid = '';
+    const song = seq.song?.on ? G.songOf(seq) : null;
+    if (song) {
+      // song mode: bars (numbered) and beats, and a faint line down the tracks at every bar
+      for (const l of G.gridLines(song, 0, endT + step * 1000, this.px)) {
+        const left = this.x(l.t);
+        ticks += l.down ? `<span class="tick bar" style="left:${left}px">${l.bar}</span>` : `<span class="tick beat" style="left:${left}px"></span>`;
+        if (l.down) grid += `<i style="left:${left}px"></i>`;
+      }
+    } else for (let s = 0; s <= endT / 1000 + step; s += step) ticks += `<span class="tick" style="left:${s * this.px}px">${fmtDur(s * 1000).slice(0, -3)}</span>`;
     const all = [...(seq.markers || []), ...(this.extraMarkers?.() || [])];
     const markers = all.map((m) => {
       const kind = m.moment ? 'Moment' : 'Marker';
@@ -70,7 +80,7 @@ export class Timeline {
     // the export range (In to Out), if one is marked
     const r = seq.range;
     const band = r ? `<span class="inout" style="left:${this.x(r.in)}px;width:${Math.max(2, this.x(r.out) - this.x(r.in))}px" title="Export range ${fmtDur(r.in)} – ${fmtDur(r.out)}" aria-hidden="true"></span>` : '';
-    lanes.push(`<div class="trow ruler" data-ruler style="--minor:${(step * this.px) / 5}px">${band}${ticks}${markers}</div>`);
+    lanes.push(`<div class="trow ruler${song ? ' song' : ''}" data-ruler style="--minor:${(step * this.px) / 5}px"${song ? ` title="Bars and beats: ${song.bpm} bpm, ${song.beats} beats a bar"` : ''}>${band}${ticks}${markers}</div>`);
     const kinds = seq.tracks.map((t) => t.kind);
     // each track's name in an editing suite's terms: video counts up from the bottom (V1 under V2),
     // audio down from the top (A1 over A2)
@@ -112,8 +122,9 @@ export class Timeline {
     });
     this.heads.innerHTML = heads.join('');
     this.tracks.style.width = width + 'px';
-    this.tracks.innerHTML = lanes.join('') + `<div class="playhead" id="playhead"></div>`;
+    this.tracks.innerHTML = lanes.join('') + (grid ? `<div class="bargrid" aria-hidden="true">${grid}</div>` : '') + `<div class="playhead" id="playhead"></div>`;
     this.movePlayhead(this.now());
+    this.rendered?.();
   }
 
   movePlayhead(t) {
@@ -139,6 +150,7 @@ export class Timeline {
     const pts = [0, this.now(), ...(seq.markers || []).filter((m) => m.id !== exMarker).map((m) => m.t)];
     for (const tr of seq.tracks) for (const it of tr.items) if (it.id !== exclude) pts.push(it.start, it.start + it.dur);
     const lim = (SNAP_PX / this.px) * 1000;
+    if (seq.song?.on) pts.push(G.nearestBeat(G.songOf(seq), t)); // in song mode, every beat
     let best = null;
     for (const p of pts) if (Math.abs(p - t) < lim && (best === null || Math.abs(p - t) < Math.abs(best - t))) best = p;
     return best;

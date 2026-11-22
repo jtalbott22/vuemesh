@@ -1,4 +1,4 @@
-// Studio, part 13 of 29: the live program and the switcher; running while covered.
+// Studio, part 13 of 30: the live program and the switcher; running while covered.
 // Loads after graphics.js: that import comes first, so the parts run in order (see ../studio.js).
 import './graphics.js';
 import { toast, now, announce } from '/js/vm.js';

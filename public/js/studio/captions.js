@@ -1,4 +1,4 @@
-// Studio, part 27 of 29: live captions of the program's sound.
+// Studio, part 27 of 30: live captions of the program's sound.
 // Loads after pip.js: that import comes first, so the parts run in order (see ../studio.js).
 //
 // What's said on the program, as text, worked out on this computer by the browser's own

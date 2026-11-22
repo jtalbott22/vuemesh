@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.99.0 — song mode: bars and beats in Edit
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.98.1.
+
+**Edit can keep time for a song.** **Song → Bars and beats** puts a tempo under the edit: the ruler counts bars and beats instead of minutes and seconds, a faint line marks each bar down the tracks, the playhead shows where it is (bar 12, beat 3 is `12.3`) beside its time, and clips, edges, markers and the razor snap to the beat. Type the tempo, or **Tap** along a few times; choose the beats in a bar (2 to 7); **Bar 1 at the playhead** lines the grid up with music that's already on the timeline.
+
+**A click while it plays**, higher on the first beat of each bar. It plays on your speakers or headphones only: never in the program's sound, a stream or an export.
+
+**It's part of the edit:** saved with it, and every change can be undone. This is the first step towards making a song one take at a time (guitar, then voice, then harmonica, each recorded over the last): recording over the edit, with a count-in, comes next.
+
 ## 0.98.1 — the home page's headline in the site's type
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.98.0.
 
