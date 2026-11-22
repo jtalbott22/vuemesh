@@ -422,6 +422,17 @@
   .songbox .fine { margin: 0; }
   .songbox[data-off] .songrow, .songbox[data-off] #songAt, .songbox[data-off] .chk:has(#songClick) { opacity: .5; }
   .songmenu[data-on] summary { color: var(--text); }
+  .addmenu .menu.takebox { min-width: 320px; }
+  .takebox #takePart, .takebox #takeInput { flex: 2; min-width: 0; }
+  .takebox .songrow > span { flex: 1; }
+  .takebox .songrow > label, .takebox .songrow > span { white-space: nowrap; }
+  .takemeter { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .takemeter i { display: block; height: 100%; width: 0; background: var(--green, #4cc27a); transition: width .05s linear; }
+  .takemeter[data-hot] i { background: var(--tally); }
+  .takebox button.rec { background: var(--tally); color: #fff; font-weight: 700; justify-content: center; }
+  .takebox button.rec:hover { background: var(--tally); filter: brightness(1.1); }
+  .recmenu summary { color: var(--tally); }
+  .recmenu[data-rec] summary { background: var(--tally); color: #fff; }
   .mixer { display: grid; gap: 8px; }
   .strip { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; background: var(--surface-2); border-radius: 8px; padding: 8px; }
   .strip .nm { font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1093,6 +1104,31 @@
       <button type="button" id="songAt" title="Make bar 1 start where the playhead is">Bar 1 at the playhead</button>
       <label class="chk"><input type="checkbox" id="songClick"> Click while playing</label>
       <p class="fine" id="songNote">Clips snap to the beat. The click plays on your speakers or headphones only, never in an export.</p>
+    </div>
+  </details>
+  <details class="addmenu recmenu" id="takeMenu" data-mode="edit">
+    <summary class="btn" id="takeSum" title="Record a take over the edit: guitar, then voice, then harmonica, each while you hear the others">● Record</summary>
+    <div class="menu songbox takebox" role="group" aria-label="Record a take">
+      <div class="songrow">
+        <label for="takePart">Part</label>
+        <input id="takePart" list="takeParts" value="Guitar" maxlength="40" autocomplete="off"><datalist id="takeParts"></datalist>
+      </div>
+      <div class="songrow">
+        <label for="takeInput">Microphone</label>
+        <select id="takeInput"><option value="">This computer's</option></select>
+      </div>
+      <div class="takemeter" aria-hidden="true"><i id="takeLevel"></i></div>
+      <label class="chk"><input type="checkbox" id="takeStack"> Stack it (a double or a harmony: the earlier takes keep playing)</label>
+      <div class="songrow">
+        <label for="takeCount">Count-in</label>
+        <select id="takeCount"><option value="0">None</option><option value="1">1 bar</option><option value="2">2 bars</option></select>
+      </div>
+      <div class="songrow">
+        <span>Delay to make up</span><b id="takeLat">0 ms</b>
+        <button type="button" id="takeMeasure" title="Plays a few clicks and listens for them, to measure how late this computer hears and records. Turn the sound up and hold the microphone near the speakers (or a headphone up to it).">Measure</button>
+      </div>
+      <button type="button" class="rec" id="takeGo">● Record from the playhead</button>
+      <p class="fine" id="takeNote">Wear headphones, so the microphone hears only you. Esc stops.</p>
     </div>
   </details>
   <details class="addmenu" data-mode="edit">

@@ -1,4 +1,4 @@
-// Studio, part 2 of 30: output shape, clips, the cut log, the channel to the Edit page, Live/Edit modes.
+// Studio, part 2 of 31: output shape, clips, the cut log, the channel to the Edit page, Live/Edit modes.
 // Loads after core.js: that import comes first, so the parts run in order (see ../studio.js).
 import './core.js';
 import { api, toast, fmtDur, announce } from '/js/vm.js';
@@ -171,7 +171,7 @@ export function appendLiveSoon(delay = 3000) {
   appendTimer = setTimeout(() => {
     if (incoming.size) return appendLiveSoon(); // (more on the way)
     const edl = resolvedEdl().filter((c) => !isBlocked(c.cid));
-    const use = clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable), fills = asAired();
+    const use = clips.filter((c) => !isBlocked(c.cid) && !c.program && !c.take).map(usable), fills = asAired(); // (a take is placed by hand: studio/overdub.js)
     if (seq.auto || !S.appendLive(S.clone(seq), edl, use, fills)) return;
     snapshot();
     const r = S.appendLive(seq, edl, use, fills);
@@ -275,7 +275,7 @@ export function labelOf(it) {
   if (it.type === 'image') return { text: `Image: ${reel.find((r) => r.id === it.asset)?.name || ''}`, color: '#b9bfd6' };
   const c = clipOf(it.src);
   if (!c) return { text: 'Missing clip', color: '#888' };
-  if (c.kind === 'audio') return { text: `Mic · ${c.name}`, color: '#6fd39a' };
+  if (c.kind === 'audio') return c.take ? { text: c.name, color: '#e0a35c' } : { text: `Mic · ${c.name}`, color: '#6fd39a' }; // (a take: studio/overdub.js)
   const shape = shapeOf(it);
   const inset = isInset(it);
   return { text: `${angleNo(c.id) ? angleNo(c.id) + ' ' : ''}${c.name}${inset ? ' · PiP' : ''}${it.speed && it.speed !== 1 ? ` · ${Math.round(it.speed * 100)}%` : ''}`, color: color(c.id), shape, pip: inset, mismatch: !!shape && !inset && shape !== orientation && it.fit !== 'fit' };
@@ -355,7 +355,7 @@ function usable(c) {
 const asAired = () => clips.filter((c) => c.program && c.kind !== 'audio').map(usable);
 export function rebuild(announceIt = true) {
   if (!EDIT_ONLY) return; // (the Edit page builds the timeline)
-  S.rebuildFromCuts(seq, resolvedEdl().filter((c) => !isBlocked(c.cid)), clips.filter((c) => !isBlocked(c.cid) && !c.program).map(usable), asAired());
+  S.rebuildFromCuts(seq, resolvedEdl().filter((c) => !isBlocked(c.cid)), clips.filter((c) => !isBlocked(c.cid) && !c.program && !c.take).map(usable), asAired());
   saveSeq();
   if (announceIt) announce('Program rebuilt from your cuts');
 }

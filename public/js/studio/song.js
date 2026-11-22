@@ -1,4 +1,4 @@
-// Studio, part 30 of 30: song mode in Edit.
+// Studio, part 30 of 31: song mode in Edit.
 // Loads after callin.js: that import comes first, so the parts run in order (see ../studio.js).
 //
 // A tempo and a meter under the edit (seq.song, see ../song.js), for making music one take at a
