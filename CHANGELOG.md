@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.100.0 — recording takes over the edit
+**Deploy:** `./aws/deploy.sh` (site only). It builds on 0.99.0.
+
+**● Record in Edit records a take while the edit plays,** so one person can build a song a part at a time: guitar, then voice while hearing the guitar, then harmonica over both. Name the part, choose a microphone on this computer (its level shows as you play), put the playhead where to start, and press **Record from the playhead**. In song mode there's a count-in of a bar or two (the button counts down), and the click plays if it's on. Press Stop, the button, Space or Esc to finish.
+
+**Each take goes on a track of its own,** "Guitar · take 2", exactly where you played it. A new take of a part mutes its earlier takes, so the best one is playing and the others are kept; **Stack it** keeps them all playing, for a double or a harmony. The count-in is kept before the take, to trim back into.
+
+**Takes stay in time with each other.** The delay between what the computer plays and what it records (latency) is taken off every take. **Measure** plays a few clicks and listens for them, for this computer and microphone (hold the microphone near the speakers, or a headphone up to it); until then the browser's own estimate is used. In song mode the edit now plays on the sound card's clock, and takes play from memory, to the sample, as does the click.
+
+**Recorded as they are:** no echo cancelling, noise suppression or level riding on the microphone, as 24-bit WAV, in this browser with the event's other recordings, and in exports. If a take clipped or caught next to nothing, it says so. The microphone you chose and the delay measured for it are kept in this browser (`vm_overdub`, on the Privacy page).
+
 ## 0.99.0 — song mode: bars and beats in Edit
 **Deploy:** `./aws/deploy.sh` (site only). It builds on 0.98.1.
 

@@ -17,6 +17,8 @@ export class EditPlayer {
    * @param {(assetId:string)=>CanvasImageSource|null} o.imageFor
    * @param {()=>string} [o.title]
    * @param {(item, sourceMs)=>{rect, rot}|null} [o.viewOf] where the picture sits in a phone's square frame
+   * @param {(clipId:string)=>AudioBuffer|null} [o.bufferFor] a sound recording decoded, to play exactly on the
+   *   sound engine's clock (song mode: takes stay in time with each other to the sample)
    */
   constructor(o) {
     Object.assign(this, o);
@@ -53,6 +55,14 @@ export class EditPlayer {
     this.clickOut.connect(this.ctx.destination);
     this.clickNodes = new Set();
     this.clickUntil = null;
+    // Song mode runs the timeline on the sound engine's clock: anchor = { c, t } says timeline t is
+    // engine time c (seconds). Decoded recordings play from it to the sample (bufNodes), the click
+    // too; pictures follow as they always do. Elsewhere the timeline follows a playing sound element.
+    this.anchor = null;
+    this.bufNodes = new Set();
+    this.bufSig = '';
+    this.countTo = null; // a count-in: clicks until here whether the click is on or not
+    this.keepGoing = false; // (recording: play on past the end)
     this.lastWall = performance.now();
     this._frame = this._frame.bind(this);
     requestAnimationFrame(this._frame);
@@ -66,6 +76,27 @@ export class EditPlayer {
     this.seq = seq;
     for (const tr of seq.tracks.filter((t) => t.kind === 'audio')) this._bus(tr);
     this._applyGains();
+    if (this.anchor && this._bufSig() !== this.bufSig) this._bufStart(); // (what plays changed while playing)
+  }
+
+  /** A recording was decoded (or let go of): play it from its buffer from now on. */
+  rescheduleBuffers() {
+    if (this.anchor) this._bufStart();
+  }
+
+  /** Song mode (or recording a take) at normal speed: the timeline runs on the engine's clock. */
+  _onEngineClock() {
+    return (!!this.seq?.song?.on || this.keepGoing) && this.rate === 1;
+  }
+
+  /** A sound at engine time `at` (seconds), to the speakers only, as the click goes: for measuring the latency. */
+  soundAt(at, samples) {
+    const b = this.ctx.createBuffer(1, samples.length, this.ctx.sampleRate);
+    b.copyToChannel(samples, 0);
+    const s = this.ctx.createBufferSource();
+    s.buffer = b;
+    s.connect(this.clickOut);
+    s.start(at);
   }
 
   duration() {
@@ -204,6 +235,7 @@ export class EditPlayer {
         }
       } else if (!tr.follow) {
         for (const it of audioItems(seq, tr)) {
+          if (this.anchor && it.type === 'clip' && (!it.speed || it.speed === 1) && this.bufferFor?.(it.src)) continue; // (playing from its buffer)
           if (t >= it.start - PREROLL && t < it.start + it.dur) {
             out.push({ tr, it, key: this._key(tr.id, it.src), bus: tr.id, active: t >= it.start, audioOnly: true });
           }
@@ -228,16 +260,42 @@ export class EditPlayer {
 
   // ---------------------------------------------------------------- transport --
 
-  play() {
+  /**
+   * @param {object} [o]
+   * @param {number} [o.from] start here (song mode: may be before 0, for a count-in)
+   * @param {number} [o.countTo] click until here even with the click off (a count-in)
+   */
+  play(o = {}) {
     if (this.playing) return;
-    if (this.t >= this.duration() - 50) this.t = 0;
+    if (o.from != null) this.t = o.from;
+    else if (this.t >= this.duration() - 50 && !this.keepGoing) this.t = 0;
+    this.countTo = o.countTo ?? null;
     this.playing = true;
     this.lastWall = performance.now();
-    this.ctx.resume();
+    if (this.ctx.state === 'running') this._anchorNow();
+    else this.ctx.resume().then(() => this.playing && !this.anchor && this._anchorNow());
+  }
+
+  /** Pin the timeline to the engine's clock from a moment from now (so the first sounds start exactly). */
+  _anchorNow() {
+    if (!this._onEngineClock()) {
+      // (back to following the sound elements, which play the recordings again)
+      this.anchor = null;
+      this._bufStop();
+      this._clickStop();
+      return;
+    }
+    this.anchor = { c: this.ctx.currentTime + 0.06, t: this.t };
+    this._clickStop();
+    this._bufStart();
+    this._click(); // (the first clicks now, not a frame from now: a count-in's first beat is never missed)
   }
 
   pause() {
     this.playing = false;
+    this.anchor = null;
+    this.countTo = null;
+    this._bufStop();
     this._clickStop();
     for (const e of this.els.values()) e.v.pause();
   }
@@ -247,23 +305,94 @@ export class EditPlayer {
   }
 
   seek(t) {
-    this.t = Math.min(Math.max(0, t), this.duration());
+    this.t = Math.min(Math.max(0, t), this.keepGoing ? Infinity : this.duration());
     this._clickStop();
+    if (this.playing && this.anchor) this._anchorNow();
     this._sync(true);
+  }
+
+  // ---------------------------------------------------------- exact sound --
+
+  /** The decoded recordings to play from their buffers: [{ tr, it, buf }]. */
+  _buffered() {
+    if (!this.bufferFor || !this.seq) return [];
+    const out = [];
+    for (const tr of this.seq.tracks) {
+      if (tr.kind !== 'audio' || tr.follow) continue;
+      for (const it of tr.items) {
+        if (it.type !== 'clip' || (it.speed && it.speed !== 1)) continue;
+        const buf = this.bufferFor(it.src);
+        if (buf) out.push({ tr, it, buf });
+      }
+    }
+    return out;
+  }
+  _bufSig() {
+    return this._buffered().map(({ tr, it }) => [tr.id, it.src, it.start, it.dur, it.in || 0, it.gain ?? 1, it.fadeIn || 0, it.fadeOut || 0].join(':')).join('|');
+  }
+
+  /** (Re)start every decoded recording from the playhead, on the engine's clock. */
+  _bufStart() {
+    this._bufStop();
+    const a = this.anchor;
+    if (!a) return;
+    const list = this._buffered();
+    this.bufSig = this._bufSig();
+    // from a moment ahead, so nothing is asked to start in the past
+    const from = Math.max(a.c, this.ctx.currentTime + 0.03);
+    const tFrom = a.t + (from - a.c) * 1000;
+    for (const { tr, it, buf } of list) {
+      const end = it.start + it.dur;
+      if (end <= tFrom) continue;
+      const s = Math.max(it.start, tFrom);
+      const when = a.c + (s - a.t) / 1000;
+      const offset = ((it.in || 0) + (s - it.start)) / 1000;
+      if (offset >= buf.duration) continue;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const g = this.ctx.createGain();
+      const v = it.gain ?? 1;
+      // fades as the timeline has them, on the same clock
+      g.gain.setValueAtTime(v, when);
+      if (it.fadeIn > 0 && s < it.start + it.fadeIn) {
+        g.gain.setValueAtTime(v * ((s - it.start) / it.fadeIn), when);
+        g.gain.linearRampToValueAtTime(v, a.c + (it.start + it.fadeIn - a.t) / 1000);
+      }
+      if (it.fadeOut > 0) {
+        const fo = Math.max(s, end - it.fadeOut);
+        g.gain.setValueAtTime(v, a.c + (fo - a.t) / 1000);
+        g.gain.linearRampToValueAtTime(0, a.c + (end - a.t) / 1000);
+      }
+      src.connect(g).connect(this._bus(tr).gain);
+      src.start(when, offset, (end - s) / 1000);
+      this.bufNodes.add(src);
+      src.onended = () => this.bufNodes.delete(src);
+    }
+  }
+
+  _bufStop() {
+    for (const n of this.bufNodes) try { n.stop(); } catch {}
+    this.bufNodes.clear();
   }
 
   // ------------------------------------------------------------------ click --
 
   /** Schedule the next moment of clicks (song mode, with the click on), a little ahead of the playhead. */
   _click() {
-    const s = this.playing && this.seq?.song?.on && this.seq.song.click ? songOf(this.seq) : null;
+    const counting = this.countTo != null && this.t < this.countTo;
+    const s = this.playing && this.seq?.song?.on && (this.seq.song.click || counting) ? songOf(this.seq) : null;
     if (!s) return this.clickUntil != null && this._clickStop();
     const ahead = 120 * this.rate; // ms of timeline
     const from = Math.max(this.clickUntil ?? this.t, this.t);
     const to = this.t + ahead;
     if (to <= from) return;
-    const now = this.ctx.currentTime;
-    for (const c of clicks(s, from, to)) this._beep(now + (c.t - this.t) / 1000 / this.rate, c.accent);
+    const now = this.ctx.currentTime, a = this.anchor;
+    for (const c of clicks(s, from, to)) {
+      if (!s.click && !(c.t < this.countTo)) continue; // (the click off: the count-in only)
+      // on the engine's clock in song mode: exactly on the beat, as the takes are
+      const at = a ? a.c + (c.t - a.t) / 1000 : now + (c.t - this.t) / 1000 / this.rate;
+      if (at >= now) this._beep(at, c.accent);
+    }
     this.clickUntil = to;
   }
 
@@ -299,7 +428,16 @@ export class EditPlayer {
   step() {
     const wall = performance.now();
     if (this.enabled && this.seq) {
-      if (this.playing) {
+      if (this.playing && this.anchor && !this._onEngineClock()) this._anchorNow(); // (song mode or the speed changed)
+      else if (this.playing && !this.anchor && this._onEngineClock() && this.ctx.state === 'running') this._anchorNow();
+      if (this.playing && this.anchor) {
+        this.t = this.anchor.t + (this.ctx.currentTime - this.anchor.c) * 1000;
+        if (!this.keepGoing && this.t >= this.duration()) {
+          this.t = this.duration();
+          this.pause();
+          this.listeners.tick.forEach((f) => f(this.t, true));
+        }
+      } else if (this.playing) {
         // Lock to a sounding audio-track item when there is one, so picture follows sound.
         const m = this.master_;
         if (m && !m.v.paused && !m.v.seeking && m.v.readyState >= 3) {
