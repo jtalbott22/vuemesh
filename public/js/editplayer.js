@@ -5,6 +5,7 @@
 import { eqChain, balance, channelFixer } from '/js/audiofx.js';
 import { composeFrame, limiter } from '/js/compose.js';
 import { audioItems, end, micCover, dissolveOf, heldBefore } from '/js/sequence.js';
+import { songOf, clicks } from '/js/song.js';
 
 const PREROLL = 1500; // start loading the next item this long before it appears
 
@@ -46,6 +47,12 @@ export class EditPlayer {
     this.silent = this.ctx.createGain();
     this.silent.gain.value = 0;
     this.silent.connect(this.master);
+    // the click (song mode) goes to the speakers only: never into the program's sound or an export
+    this.clickOut = this.ctx.createGain();
+    this.clickOut.gain.value = 0.5;
+    this.clickOut.connect(this.ctx.destination);
+    this.clickNodes = new Set();
+    this.clickUntil = null;
     this.lastWall = performance.now();
     this._frame = this._frame.bind(this);
     requestAnimationFrame(this._frame);
@@ -231,6 +238,7 @@ export class EditPlayer {
 
   pause() {
     this.playing = false;
+    this._clickStop();
     for (const e of this.els.values()) e.v.pause();
   }
 
@@ -240,7 +248,44 @@ export class EditPlayer {
 
   seek(t) {
     this.t = Math.min(Math.max(0, t), this.duration());
+    this._clickStop();
     this._sync(true);
+  }
+
+  // ------------------------------------------------------------------ click --
+
+  /** Schedule the next moment of clicks (song mode, with the click on), a little ahead of the playhead. */
+  _click() {
+    const s = this.playing && this.seq?.song?.on && this.seq.song.click ? songOf(this.seq) : null;
+    if (!s) return this.clickUntil != null && this._clickStop();
+    const ahead = 120 * this.rate; // ms of timeline
+    const from = Math.max(this.clickUntil ?? this.t, this.t);
+    const to = this.t + ahead;
+    if (to <= from) return;
+    const now = this.ctx.currentTime;
+    for (const c of clicks(s, from, to)) this._beep(now + (c.t - this.t) / 1000 / this.rate, c.accent);
+    this.clickUntil = to;
+  }
+
+  /** One click at audio-clock time `at`: higher and louder on the first beat of a bar. */
+  _beep(at, accent) {
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.frequency.value = accent ? 1760 : 1320;
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(accent ? 1 : 0.6, at + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.001, at + 0.04);
+    o.connect(g).connect(this.clickOut);
+    o.start(at);
+    o.stop(at + 0.05);
+    this.clickNodes.add(o);
+    o.onended = () => this.clickNodes.delete(o);
+  }
+
+  /** Silence clicks already scheduled (on pause, seek, or the click turned off). */
+  _clickStop() {
+    for (const o of this.clickNodes) try { o.stop(); } catch {}
+    this.clickNodes.clear();
+    this.clickUntil = null;
   }
 
   // ------------------------------------------------------------------ engine --
@@ -270,6 +315,7 @@ export class EditPlayer {
         }
       }
       this._sync(false);
+      this._click();
       this._draw();
     }
     this.lastWall = wall;

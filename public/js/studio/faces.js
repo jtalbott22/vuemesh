@@ -1,4 +1,4 @@
-// Studio, part 28 of 29: faces and speakers, live.
+// Studio, part 28 of 30: faces and speakers, live.
 // Loads after captions.js: that import comes first, so the parts run in order (see ../studio.js).
 //
 // With Face tracking on, the studio looks for faces in the cameras' pictures, on this computer

@@ -1,4 +1,4 @@
-// Studio, part 29 of 29: a call's people as sources.
+// Studio, part 29 of 30: a call's people as sources.
 // Loads after faces.js: that import comes first, so the parts run in order (see ../studio.js).
 //
 // The studio joins a call (callmesh.js, the same as /call and another computer's /share) as one of

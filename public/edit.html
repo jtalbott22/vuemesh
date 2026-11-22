@@ -414,6 +414,14 @@
   .addmenu .menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow), 0 0 0 1px var(--line); padding: 6px; display: grid; min-width: 220px; }
   .addmenu .menu button { justify-content: space-between; background: transparent; min-height: 34px; font-size: .88rem; font-weight: 500; }
   .addmenu .menu button:hover, .addmenu .menu button:focus-visible { background: var(--surface-2); filter: none; }
+  .addmenu .menu.songbox { gap: 8px; padding: 10px 12px; min-width: 290px; font-size: .86rem; }
+  .songbox .chk { display: flex; align-items: center; gap: 8px; }
+  .songbox .songrow { display: flex; align-items: center; gap: 6px; }
+  .songbox .songrow label { flex: 1; }
+  .songbox #songBpm { width: 5.5em; }
+  .songbox .fine { margin: 0; }
+  .songbox[data-off] .songrow, .songbox[data-off] #songAt, .songbox[data-off] .chk:has(#songClick) { opacity: .5; }
+  .songmenu[data-on] summary { color: var(--text); }
   .mixer { display: grid; gap: 8px; }
   .strip { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; background: var(--surface-2); border-radius: 8px; padding: 8px; }
   .strip .nm { font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -720,6 +728,12 @@
   .trow.ruler { background: var(--surface); border-bottom: 1px solid var(--line); background-image: linear-gradient(to right, var(--muted) 1px, transparent 1px); background-size: var(--minor, 14px) 5px; background-repeat: repeat-x; background-position: 0 100%; }
   .trow.ruler .tick { border-left-color: var(--muted); height: 12px; top: auto; bottom: 0; padding: 0 0 0 4px; line-height: 1; transform: translateY(-11px); border-left: 0; font-size: .64rem; color: var(--text-2); }
   .trow.ruler .tick::before { content: ""; position: absolute; left: 0; top: 11px; height: 12px; border-left: 1px solid var(--text-2); }
+  /* song mode: bars numbered on the ruler, beats as short ticks, a faint line down the tracks at each bar */
+  .trow.ruler.song { background-image: none; }
+  .trow.ruler .tick.bar { font-weight: 700; color: var(--text); }
+  .trow.ruler .tick.beat::before { top: 17px; height: 6px; border-left-color: var(--muted); }
+  .bargrid { position: absolute; top: 26px; bottom: 0; left: 0; right: 0; pointer-events: none; z-index: 2; }
+  .bargrid i { position: absolute; top: 0; bottom: 0; border-left: 1px solid color-mix(in srgb, var(--text) 24%, transparent); }
   .playhead { width: 1px; background: var(--tally); }
   .playhead::before { content: ""; position: absolute; top: 0; left: -6px; width: 13px; height: 14px; background: var(--tally); clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%); }
   /* clips: a coloured bar with the shot's first frame at its head, name over it */
@@ -1049,6 +1063,7 @@
 <div class="splitter h" id="splitT" data-mode="edit" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize the timeline (double-click to reset)"></div>
 <div class="tlbar" data-mode="edit" role="toolbar" aria-label="Timeline tools">
   <span class="tltc tc" id="tlTc" title="The playhead">00:00:00</span>
+  <span class="tltc tc songpos" id="tlBar" title="The playhead in bars and beats" hidden></span>
   <span class="tools" id="toolBtns"></span>
   <span class="sep"></span>
   <span class="tgroup">
@@ -1062,6 +1077,24 @@
     <button type="button" class="icon" id="markerBtn" aria-keyshortcuts="M" aria-label="Add a marker at the playhead" title="Add marker (M)"><svg class="ic"><use href="#i-marker"/></svg></button>
     <button type="button" class="icon" id="xdBtn" aria-keyshortcuts="D" aria-label="Dissolve" title="Dissolve into the selected clip, or the shot at the playhead (D); again takes it off. Right-click a clip for other lengths."><svg class="ic"><use href="#i-dissolve"/></svg></button>
   </span>
+  <details class="addmenu songmenu" id="songMenu" data-mode="edit">
+    <summary class="btn" id="songSum" title="Song mode: a tempo under the edit, with bars and beats and a click">Song</summary>
+    <div class="menu songbox" role="group" aria-label="Song">
+      <label class="chk"><input type="checkbox" id="songOn"> Bars and beats</label>
+      <div class="songrow">
+        <label for="songBpm">Tempo</label>
+        <input type="number" id="songBpm" min="30" max="300" step="0.1" value="120" inputmode="decimal"> <span class="fine">bpm</span>
+        <button type="button" id="songTap" title="Tap along a few times to set the tempo (or press it with Enter)">Tap</button>
+      </div>
+      <div class="songrow">
+        <label for="songBeats">Beats a bar</label>
+        <select id="songBeats"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option></select>
+      </div>
+      <button type="button" id="songAt" title="Make bar 1 start where the playhead is">Bar 1 at the playhead</button>
+      <label class="chk"><input type="checkbox" id="songClick"> Click while playing</label>
+      <p class="fine" id="songNote">Clips snap to the beat. The click plays on your speakers or headphones only, never in an export.</p>
+    </div>
+  </details>
   <details class="addmenu" data-mode="edit">
     <summary class="btn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add</summary>
     <div class="menu" role="menu">

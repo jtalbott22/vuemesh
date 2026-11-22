@@ -36,4 +36,5 @@
 //   27. captions.js       live captions of the program's sound, on this computer
 //   28. faces.js          faces and speakers: framing, cutting to whoever's talking, Speaker 1, 2…
 //   29. callin.js         a call's people as sources; the call sees the program
-import './studio/callin.js';
+//   30. song.js           song mode in Edit: a tempo, bars and beats, the click
+import './studio/song.js';
